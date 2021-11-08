@@ -7,7 +7,7 @@ Bus Specific Terminology
 | Rotation | | Umlauf| One (bus) rotation describes all trips one bus takes from leaving the depot until returning |
 | Trip | | Fahrt | One Trip is the distance between two planned stops |
 | Line | | Linie | Number of bus line as depicted on passenger timetable |
-| Depot Charging (DC) | | Depot Ladung | Charge busses at depots only |
-| Opportunity Charging (OC) | | Gelegenheits Ladung | Charge busses at bus stops |
-| Solo bus | | Solobus | Rigid Bus |
-| Articulated bus | | Gelenkbus | Bus with two or more rigid sections |
+| Depot Charging | DEPC | Depot Ladung | Charge busses at depots only |
+| Opportunity Charging | OPPC | Gelegenheits Ladung | Charge busses at bus stops |
+| Solo bus | SB | Solobus | Rigid Bus |
+| Articulated bus | AB | Gelenkbus | Bus with two or more rigid sections |
