@@ -1,1 +1,6 @@
-.idea*
+.vscode/
+.DS_Store
+.python-version
+
+docs/_build
+docs/source/temp
