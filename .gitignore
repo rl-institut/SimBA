@@ -1,6 +1,10 @@
 .vscode/
 .DS_Store
 .python-version
+*	.pyc
+__pycache__
 
 docs/_build
 docs/source/temp
+
+ebus_toolbox/data/private_examples
