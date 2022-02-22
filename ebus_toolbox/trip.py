@@ -11,7 +11,7 @@ class Trip:
                  arrival_time, arrival_name, distance, **kwargs):
         self.departure_name = departure_name
         self.departure_time = departure_time
-        self.arrival_time = datetime.datetime(2021, 8, 3, random.randint(0, 23), 30)
+        self.arrival_time = datetime.datetime(2021, 8, 3, random.randint(0, 23), 30)  # testing
         self.arrival_name = arrival_name
         self.distance = float(distance)
 
@@ -19,7 +19,7 @@ class Trip:
         self.charging_type = None  # maybe make charging type a member?
         self.vehicle_id = kwargs.get('vehicle_id', None)
 
-        self.consumption = 0
+        self.consumption = 0  # kWh
         self.delta_SOC = 0
 
     def calculate_consumption(self):
