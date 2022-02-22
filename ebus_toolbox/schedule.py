@@ -9,12 +9,16 @@ class Schedule:
         """Constructs Schedule object from CSV file containing all trips of schedule"""
         self.rotations = {}
 
+        self.consumption = 0
+
     @classmethod
     def from_csv(cls, path_to_csv):
         """Constructs Schedule object from CSV file containing all trips of schedule.
 
         :param path_to_csv: Path to csv file containing trip data
         :type path_to_csv: str
+        :return: Returns a new instance of Schedule with all trips from csv loaded.
+        :rtype: Schedule
         """
         schedule = cls()
 
@@ -52,5 +56,8 @@ class Schedule:
         pass
 
     def calculate_consumption(self):
+        self.consumption = 0
         for rot in self.rotations.values():
-            rot.calculate_consumption()
+            self.consumption += rot.calculate_consumption()
+
+        return self.consumption
