@@ -27,10 +27,17 @@ class Schedule:
 
                 schedule.rotations[rotation_id].add_trip(trip)
 
+        return schedule
+
     def remove_rotation_by_id(self, id):
+        """ Removes a rotation from schedule
+
+        :param id: Rotation ID to be removed
+        :type id: int
+        """
         del self.rotations[id]
 
-    def filter_rotations(self, filter_definition):
+    def filter_rotations(self):
         """Based on a given filter definition (tbd), rotations will be dropped from schedule."""
         pass
 
@@ -38,13 +45,12 @@ class Schedule:
         """Iterate across all rotations/trips and append charging type if not given"""
         pass
 
-    def assign_vehicles():
+    def assign_vehicles(self):
         """ Assign vehicle IDs to rotations.
             Just randomly? Match consumption with battery sizes?
         """
         pass
 
-    def calculate_consumption(self, consumption_func):
+    def calculate_consumption(self):
         for rot in self.rotations.values():
-            for trip in rot.trips:
-                trip.consumption(consumption_func)
+            rot.calculate_consumption()
