@@ -8,7 +8,6 @@ class Schedule:
     def __init__(self) -> None:
         """Constructs Schedule object from CSV file containing all trips of schedule"""
         self.rotations = {}
-
         self.consumption = 0
 
     @classmethod

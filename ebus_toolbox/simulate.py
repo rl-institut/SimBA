@@ -11,7 +11,7 @@ def simulate(args=None):
     :type args: argparse.Namespace
     """
 
-    schedule = Schedule.from_csv("path_to_file.csv")
+    schedule = Schedule.from_csv("./data/private_examples/trips_example-bvg.csv")
     # filter trips according to args
     schedule.filter_rotations(args.filters)
 
@@ -36,6 +36,6 @@ def simulate(args=None):
     report.generate()
 
 
-if __name__ == 'main':
+if __name__ == '__main__':
     # parse args from cmd or file
     simulate()
