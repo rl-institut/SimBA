@@ -1,6 +1,5 @@
 import csv
-
-from rotation import Rotation
+from ebus_toolbox.rotation import Rotation
 
 
 class Schedule:

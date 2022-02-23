@@ -1,7 +1,7 @@
 import datetime
 import random
 
-from consumption import Consumption
+from ebus_toolbox.consumption import Consumption
 
 
 class Trip:

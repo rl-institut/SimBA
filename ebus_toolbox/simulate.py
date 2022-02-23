@@ -1,7 +1,6 @@
 # imports
-from schedule import Schedule
-import optimizer
-import report
+from ebus_toolbox import optimizer, report
+from ebus_toolbox.schedule import Schedule
 
 
 def simulate(args=None):

@@ -1,4 +1,4 @@
-from trip import Trip
+from ebus_toolbox.trip import Trip
 
 
 class Rotation:
