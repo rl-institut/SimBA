@@ -6,6 +6,9 @@ if __name__ == '__main__':
         description='Ebus Toolbox - \
         Simulation Program for Ebus Fleets.')
     parser.add_argument('input', nargs='?', help='Set the scenario JSON file')
+    parser.add_argument('--preferred_charging_type', '-pct', default='depot',
+                        choices=['depot', 'opp'], help="Preferred charging type. Choose one\
+                        from <depot> and <opp>. opp stands for opportunity.")
     parser.add_argument('--visual', '-v', action='store_true', help='Show plots of the results')
     parser.add_argument('--eta', action='store_true',
                         help='Show estimated time to finish simulation after each step, \
