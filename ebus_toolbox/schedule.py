@@ -25,8 +25,8 @@ class Schedule:
             for trip in trip_reader:
                 rotation_id = trip['rotation_id']
                 if rotation_id not in schedule.rotations.keys():
-                    schedule.rotations.update({rotation_id: Rotation(rotation_id)})
-
+                    schedule.rotations.update({
+                        rotation_id: Rotation(id=rotation_id, vehicle_type=trip['vehicle_type'])})
                 schedule.rotations[rotation_id].add_trip(trip)
 
         return schedule

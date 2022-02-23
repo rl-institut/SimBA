@@ -3,9 +3,14 @@ from ebus_toolbox.trip import Trip
 
 class Rotation:
 
-    def __init__(self, id) -> None:
+    def __init__(self, id, vehicle_type, ) -> None:
         self.id = id
         self.trips = []
+
+        self.vehicle_type = vehicle_type + '_opp'  # dummy for testing purpose
+        self.vehicle_id = None
+        self.charging_type = 'depot'
+
         self.consumption = 0
 
     def add_trip(self, trip):
@@ -15,7 +20,7 @@ class Rotation:
         :type trip: dict
         """
 
-        self.trips.append(Trip(**trip))
+        self.trips.append(Trip(self, **trip))
 
     def calculate_consumption(self):
         rotation_consumption = 0
