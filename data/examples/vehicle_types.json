@@ -46,7 +46,7 @@
     "CKB_opp": {
         "name": "articulated bus",
         "capacity": 190,
-        "charging_curve": [[0, 190], [0.8, 190], [1, 1900]],
+        "charging_curve": [[0, 190], [0.8, 190], [1, 190]],
         "min_charging_power": 0,
         "v2g": false,
         "mileage": "data/private_examples/energy_consumption_eindecker_solaris.csv",
