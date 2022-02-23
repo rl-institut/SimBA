@@ -10,9 +10,9 @@ def simulate(args=None):
     :type args: argparse.Namespace
     """
 
-    schedule = Schedule.from_csv("./data/private_examples/trips_example-bvg.csv")
+    schedule = Schedule.from_csv(args.input)
     # filter trips according to args
-    schedule.filter_rotations(args.filters)
+    schedule.filter_rotations()
 
     # initialize optimizer
 
@@ -21,7 +21,7 @@ def simulate(args=None):
         # if optimizer None, quit after single iteration
 
         schedule.add_charging_types()
-        schedule.calculate_consumption(args.consumption_func)
+        schedule.calculate_consumption()
         schedule.assign_vehicles()
         # write trips to csv in spiceEV format
 
@@ -29,12 +29,8 @@ def simulate(args=None):
 
         # Quit if optimizer is not defined
         # (LATER) Run optimizer, continue from top or quit based on optimizer output
-        optimizer.no_optimization()
+        if optimizer.no_optimization() == 'converged':
+            break
 
     # create report
     report.generate()
-
-
-if __name__ == '__main__':
-    # parse args from cmd or file
-    simulate()

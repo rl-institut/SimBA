@@ -1,4 +1,20 @@
-from ebus_toolbox import simulate
+import argparse
+from ebus_toolbox import simulate, util
 
 if __name__ == '__main__':
-    simulate.simulate()
+    parser = argparse.ArgumentParser(
+        description='Ebus Toolbox - \
+        Simulation Program for Ebus Fleets.')
+    parser.add_argument('input', nargs='?', help='Set the scenario JSON file')
+    parser.add_argument('--visual', '-v', action='store_true', help='Show plots of the results')
+    parser.add_argument('--eta', action='store_true',
+                        help='Show estimated time to finish simulation after each step, \
+                        instead of progress bar. Not recommended for fast computations.')
+    parser.add_argument('--save-timeseries', help='Write timesteps to file')
+    parser.add_argument('--save-results', help='Write general info to file')
+    parser.add_argument('--config', help='Use config file to set arguments')
+    args = parser.parse_args()
+
+    util.set_options_from_config(args, check=True, verbose=False)
+
+    simulate.simulate(args)

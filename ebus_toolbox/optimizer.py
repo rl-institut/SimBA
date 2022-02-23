@@ -4,4 +4,4 @@
 
 
 def no_optimization():
-    return True
+    return "converged"
