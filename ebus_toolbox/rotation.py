@@ -7,7 +7,7 @@ class Rotation:
         self.id = id
         self.trips = []
 
-        self.vehicle_type = vehicle_type + '_opp'  # dummy for testing purpose
+        self.vehicle_type = vehicle_type
         self.vehicle_id = None
         self.charging_type = 'depot'
 

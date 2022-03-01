@@ -24,6 +24,7 @@ class Trip:
         self.consumption, self.delta_SOC = \
             Trip.consumption.calculate_consumption(self.arrival_time,
                                                    self.distance,
-                                                   self.rotation.vehicle_type)
+                                                   self.rotation.vehicle_type,
+                                                   self.rotation.charging_type)
 
         return self.consumption

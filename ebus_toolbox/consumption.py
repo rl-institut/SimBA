@@ -17,7 +17,7 @@ class Consumption:
         with open("./data/examples/vehicle_types.json") as f:
             self.vehicle_types = json.load(f)
 
-    def calculate_consumption(self, time, distance, vehicle_type):
+    def calculate_consumption(self, time, distance, vehicle_type, charging_type):
         """ Calculates consumed amount of energy for a given distance.
 
         :param time: The date and time at which the trip ends
@@ -34,7 +34,8 @@ class Consumption:
                          list(self.temperatures_by_hour.values()))
 
         # load consumption csv
-        consumption_file = self.vehicle_types[vehicle_type]["mileage"]
+        vt_ct = f"{vehicle_type}_{charging_type}"
+        consumption_file = self.vehicle_types[vt_ct]["mileage"]
         try:
             consumption = self.consumption_files[consumption_file]
         except KeyError:
@@ -51,6 +52,6 @@ class Consumption:
 
         mileage = np.interp(temp, xp, fp)  # kWh / km ???
         consumed_energy = mileage * distance  # kWh
-        delta_SOC = consumed_energy / self.vehicle_types[vehicle_type]["capacity"]
+        delta_SOC = consumed_energy / self.vehicle_types[vt_ct]["capacity"]
 
         return (consumed_energy, delta_SOC)

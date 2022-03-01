@@ -43,9 +43,10 @@ class Schedule:
         """Based on a given filter definition (tbd), rotations will be dropped from schedule."""
         pass
 
-    def add_charging_types(self):
+    def add_charging_type(self, default_ct):
         """Iterate across all rotations/trips and append charging type if not given"""
-        pass
+        for rot in self.rotations.values():
+            rot.charging_type = default_ct
 
     def assign_vehicles(self):
         """ Assign vehicle IDs to rotations.
