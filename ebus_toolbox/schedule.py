@@ -43,16 +43,32 @@ class Schedule:
         """Based on a given filter definition (tbd), rotations will be dropped from schedule."""
         pass
 
-    def add_charging_type(self, default_ct):
+    def set_charging_type(self, ct, rotation_ids=None):
         """Iterate across all rotations/trips and append charging type if not given"""
-        for rot in self.rotations.values():
-            rot.charging_type = default_ct
+        if rotation_ids is None:
+            rotation_ids = self.rotations.keys()
 
-    def assign_vehicles(self):
-        """ Assign vehicle IDs to rotations.
-            Just randomly? Match consumption with battery sizes?
-        """
+        for id in rotation_ids:
+            self.rotations[id].charging_type = ct
+
+    def _set_vehicle_ids(self):
         pass
+
+    def assign_vehicles(self, preferred_ct):
+        """ Depending on preferred charging type and consumption for each rotation
+            first assign a charging type to each rotation and then assign specific
+            vehicle IDs to each rotation.
+        """
+        self.set_charging_type(ct=preferred_ct)
+        self.calculate_consumption()
+
+        if preferred_ct == 'depot':
+            # evaluate for which busses rotation too long (consumed energy > capacity)
+            # and change charging types to opp for those
+            # self.calculate_consumption()
+            pass
+
+        self._set_vehicle_ids()
 
     def calculate_consumption(self):
         self.consumption = 0
