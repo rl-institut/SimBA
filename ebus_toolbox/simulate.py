@@ -19,8 +19,9 @@ def simulate(args=None):
     while(True):
         # construct szenario and simulate in spice ev until optimizer is happy
         # if optimizer None, quit after single iteration
-
-        schedule.assign_vehicles(preferred_ct=args.preferred_charging_type)
+        schedule.calculate_consumption()
+        schedule.set_charging_type(preferred_ct=args.preferred_charging_type)
+        schedule.assign_vehicles()
         # write trips to csv in spiceEV format
 
         # RUN SPICE EV

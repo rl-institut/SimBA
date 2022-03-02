@@ -1,17 +1,16 @@
-import datetime
-import random
-
+from datetime import datetime
 from ebus_toolbox.consumption import Consumption
 
 
 class Trip:
+
     consumption = Consumption()
 
     def __init__(self, rotation, departure_time, departure_name,
                  arrival_time, arrival_name, distance, **kwargs):
         self.departure_name = departure_name
-        self.departure_time = departure_time
-        self.arrival_time = datetime.datetime(2021, 8, 3, random.randint(0, 23), 30)  # testing
+        self.departure_time = datetime.fromisoformat(departure_time)
+        self.arrival_time = datetime.fromisoformat(arrival_time)
         self.arrival_name = arrival_name
         self.distance = float(distance)
 
