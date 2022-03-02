@@ -1,10 +1,7 @@
 from datetime import datetime
-from ebus_toolbox.consumption import Consumption
 
 
 class Trip:
-
-    consumption = Consumption()
 
     def __init__(self, rotation, departure_time, departure_name,
                  arrival_time, arrival_name, distance, **kwargs):
@@ -20,10 +17,14 @@ class Trip:
         self.delta_SOC = 0
 
     def calculate_consumption(self):
-        self.consumption, self.delta_SOC = \
-            Trip.consumption.calculate_consumption(self.arrival_time,
-                                                   self.distance,
-                                                   self.rotation.vehicle_type,
-                                                   self.rotation.charging_type)
+        try:
+            self.consumption, self.delta_SOC = \
+                Trip.consumption.calculate_consumption(self.arrival_time,
+                                                       self.distance,
+                                                       self.rotation.vehicle_type,
+                                                       self.rotation.charging_type)
+        except AttributeError:
+            print("""To calculate consumption, a consumption object needs to be constructed
+                   and linked to Trip class.""")
 
         return self.consumption

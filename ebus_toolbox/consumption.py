@@ -1,21 +1,19 @@
 import numpy as np
 import csv
-import json
 
 
 class Consumption:
 
-    def __init__(self) -> None:
+    def __init__(self, vehicle_types, **kwargs) -> None:
         # load temperature of the day, now dummy winter day
         self.temperatures_by_hour = {}
-        with open("./data/examples/default_temp_winter.csv") as f:
+        with open(kwargs.get("outside_temperatures", "data/examples/default_temp_winter.csv")) as f:
             reader = csv.DictReader(f)
             for row in reader:
                 self.temperatures_by_hour.update({int(row['hour']): float(row['temperature'])})
 
         self.consumption_files = {}
-        with open("./data/examples/vehicle_types.json") as f:
-            self.vehicle_types = json.load(f)
+        self.vehicle_types = vehicle_types
 
     def calculate_consumption(self, time, distance, vehicle_type, charging_type):
         """ Calculates consumed amount of energy for a given distance.

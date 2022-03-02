@@ -3,7 +3,7 @@ from ebus_toolbox.trip import Trip
 
 class Rotation:
 
-    def __init__(self, id, vehicle_type, ) -> None:
+    def __init__(self, id, vehicle_type) -> None:
         self.id = id
         self.trips = []
 

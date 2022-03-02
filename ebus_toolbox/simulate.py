@@ -1,16 +1,29 @@
 # imports
-from ebus_toolbox import optimizer, report
+import json
+import warnings
+from ebus_toolbox.consumption import Consumption
 from ebus_toolbox.schedule import Schedule
+from ebus_toolbox.trip import Trip
+from ebus_toolbox import optimizer, report
 
 
-def simulate(args=None):
+def simulate(args):
     """Simulate the given scenario and eventually optimize for given metric(s).
 
     :param args: Configuration arguments specified in config files contained in configs directory.
     :type args: argparse.Namespace
     """
+    try:
+        with open(args.vehicle_types) as f:
+            vehicle_types = json.load(f)
+    except FileNotFoundError:
+        warnings.warn("Invalid path for vehicle type JSON. Using default types from EXAMPLE dir.")
+        with open("data/examples/vehicle_types.json") as f:
+            vehicle_types = json.load(f)
 
-    schedule = Schedule.from_csv(args.input)
+    schedule = Schedule.from_csv(args.input, vehicle_types)
+    # setup consumption calculator that can be accessed by all trips
+    Trip.consumption = Consumption(vehicle_types)
     # filter trips according to args
     schedule.filter_rotations()
 
