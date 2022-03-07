@@ -16,9 +16,22 @@ class Schedule:
         :param vehicle_types: Collection of vehicle types and their properties.
         :type vehicle_types: dict
         """
+        # Check if all bus types have both an opp and depot version
+        # Also make sure that both versions have the same mileage
+        vehicle_type_names = list(vehicle_types.keys())
+        for name in vehicle_type_names:
+            try:
+                base, ct = name.rsplit('_', 1)
+            except ValueError:
+                continue
+            if f"{base}_opp" in vehicle_types and ct == 'depot':
+                assert vehicle_types[name]["mileage"] == vehicle_types[f"{base}_opp"]["mileage"]
+            elif f"{base}_depot" in vehicle_types and ct == 'opp':
+                assert vehicle_types[name]["mileage"] == vehicle_types[f"{base}_depot"]["mileage"]
+        self.vehicle_types = vehicle_types
+
         self.rotations = {}
         self.consumption = 0
-        self.vehicle_types = vehicle_types
 
     @classmethod
     def from_csv(cls, path_to_csv, vehicle_types):
