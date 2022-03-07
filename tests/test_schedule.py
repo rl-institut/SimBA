@@ -7,8 +7,11 @@ Otherwise https://docs.pytest.org/en/latest/ and https://docs.python.org/3/libra
 are also good support.
 """
 from ebus_toolbox import schedule
+import json
 
 
 def test_schedule_from_csv():
-    empty_schedule = schedule.Schedule('./data/examples/vehicle_types.json')
+    with open('./data/examples/vehicle_types.json') as f:
+        vehicle_types = json.load(f)
+    empty_schedule = schedule.Schedule(vehicle_types)
     assert empty_schedule.rotations == {}
