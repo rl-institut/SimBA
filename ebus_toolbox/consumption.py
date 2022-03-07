@@ -24,6 +24,9 @@ class Consumption:
         :type distance: float
         :param vehicle_type: The vehicle type for which to calculate consumption
         :type vehicle_type: str
+        :param charging_type: Charging type for the trip. Consumption differs between
+                              distinct types.
+        :type charging_type: str
         :return: Consumed energy [kWh] and delta SOC as tuple
         :rtype: (float, float)
         """
