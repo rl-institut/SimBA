@@ -155,8 +155,7 @@ class Schedule:
             v_id = {k: v for k, v in self.rotations.items() if v.vehicle_id == v_name}
             # sort events for their departure time, so that the matching departure time of an
             # arrival event can be read out of the next element in vid_list
-            v_id = {k: v for k, v in sorted(v_id.items(),
-                                                        key=lambda x: x[1].departure_time)}
+            v_id = {k: v for k, v in sorted(v_id.items(), key=lambda x: x[1].departure_time)}
             key_list = list(v_id.keys())
             for i, v in enumerate(key_list):
                 departure_event_in_input = True
@@ -237,7 +236,7 @@ class Schedule:
                         "update": {
                             "connected_charging_station": connected_charging_station,
                             "estimated_time_of_departure": departure.isoformat(),
-                            "soc_delta": trip.consumption, #todo: dummy value! correct this
+                            "soc_delta": trip.consumption,  # todo: dummy value! correct this
                             "desired_soc": desired_soc
                         }
                     })

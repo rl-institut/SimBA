@@ -56,7 +56,7 @@ if __name__ == '__main__':
     parser.add_argument('--min_charging_time_opp', help='define minimum time of charging',
                         default=2)
     parser.add_argument('--visual', '-v', action='store_true', help='Show plots of the results')
-    parser.add_argument('--desired_soc', default = 1, help='desired_soc of vehicles')
+    parser.add_argument('--desired_soc', default=1, help='desired_soc of vehicles')
     parser.add_argument('--eta', action='store_true',
                         help='Show estimated time to finish simulation after each step, \
                         instead of progress bar. Not recommended for fast computations.')
