@@ -8,4 +8,4 @@ __pycache__
 docs/_build
 docs/source/temp
 
-ebus_toolbox/data/private_examples
+data/private_examples
