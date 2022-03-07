@@ -26,14 +26,15 @@ def simulate(args):
     Trip.consumption = Consumption(vehicle_types)
     # filter trips according to args
     schedule.filter_rotations()
+    schedule.calculate_consumption()
 
     # initialize optimizer
 
     while(True):
         # construct szenario and simulate in spice ev until optimizer is happy
         # if optimizer None, quit after single iteration
-        schedule.calculate_consumption()
         schedule.set_charging_type(preferred_ct=args.preferred_charging_type)
+        schedule.delta_soc_all_trips()
         schedule.assign_vehicles(args.min_standing_time_depot)
         # write trips to csv in spiceEV format
         schedule.generate_scenario_json(args)

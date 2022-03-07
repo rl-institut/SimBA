@@ -16,9 +16,22 @@ class Schedule:
         :param vehicle_types: Collection of vehicle types and their properties.
         :type vehicle_types: dict
         """
+        # Check if all bus types have both an opp and depot version
+        # Also make sure that both versions have the same mileage
+        vehicle_type_names = list(vehicle_types.keys())
+        for name in vehicle_type_names:
+            try:
+                base, ct = name.rsplit('_', 1)
+            except ValueError:
+                continue
+            if f"{base}_opp" in vehicle_types and ct == 'depot':
+                assert vehicle_types[name]["mileage"] == vehicle_types[f"{base}_opp"]["mileage"]
+            elif f"{base}_depot" in vehicle_types and ct == 'opp':
+                assert vehicle_types[name]["mileage"] == vehicle_types[f"{base}_depot"]["mileage"]
+        self.vehicle_types = vehicle_types
+
         self.rotations = {}
         self.consumption = 0
-        self.vehicle_types = vehicle_types
 
     @classmethod
     def from_csv(cls, path_to_csv, vehicle_types):
@@ -126,6 +139,10 @@ class Schedule:
             self.consumption += rot.calculate_consumption()
 
         return self.consumption
+
+    def delta_soc_all_trips(self):
+        for rot in self.rotations.values():
+            rot.delta_soc_all_trips()
 
     def generate_scenario_json(self, args):
         """ Generate scenario.json for spiceEV
@@ -320,7 +337,7 @@ class Schedule:
 
             if args.include_ext_load_csv:
                 filename = args.include_ext_load_csv
-                basename = self.splitext(self.basename(filename))[0]
+                basename = path.splitext(path.basename(filename))[0]
                 options = {
                     "csv_file": filename,
                     "start_time": start.isoformat(),
@@ -335,13 +352,13 @@ class Schedule:
                         options[key] = value
                 events['external_load'][basename] = options
                 # check if CSV file exists
-                ext_csv_path = self.join(target_path, filename)
-                if not self.exists(ext_csv_path):
+                ext_csv_path = path.join(target_path, filename)
+                if not path.exists(ext_csv_path):
                     print("Warning: external csv file '{}' does not exist yet".format(ext_csv_path))
 
             if args.include_feed_in_csv:
                 filename = args.include_feed_in_csv
-                basename = self.splitext(self.basename(filename))[0]
+                basename = path.splitext(path.basename(filename))[0]
                 options = {
                     "csv_file": filename,
                     "start_time": start.isoformat(),
