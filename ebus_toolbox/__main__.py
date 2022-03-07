@@ -11,6 +11,9 @@ if __name__ == '__main__':
                         from <depot> and <opp>. opp stands for opportunity.")
     parser.add_argument('--vehicle-types', default=None,
                         help='location of vehicle type definitions')
+    parser.add_argument('--min-standing-time', default=6,
+                        help='Minimum standing time in hours for all buses in the depot before \
+                        they become available for dispatch again.')
     parser.add_argument('--visual', '-v', action='store_true', help='Show plots of the results')
     parser.add_argument('--eta', action='store_true',
                         help='Show estimated time to finish simulation after each step, \

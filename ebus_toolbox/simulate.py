@@ -21,9 +21,10 @@ def simulate(args):
         with open("data/examples/vehicle_types.json") as f:
             vehicle_types = json.load(f)
 
-    schedule = Schedule.from_csv(args.input, vehicle_types)
     # setup consumption calculator that can be accessed by all trips
     Trip.consumption = Consumption(vehicle_types)
+
+    schedule = Schedule.from_csv(args.input, vehicle_types)
     # filter trips according to args
     schedule.filter_rotations()
 
@@ -34,7 +35,7 @@ def simulate(args):
         # if optimizer None, quit after single iteration
         schedule.calculate_consumption()
         schedule.set_charging_type(preferred_ct=args.preferred_charging_type)
-        schedule.assign_vehicles()
+        schedule.assign_vehicles(args.min_standing_time)
         # write trips to csv in spiceEV format
 
         # RUN SPICE EV
