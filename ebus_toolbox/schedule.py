@@ -1,10 +1,11 @@
 import csv
 import datetime
+import bisect
+from datetime import timedelta
 import json
 from os import path
 import random
 from ebus_toolbox.rotation import Rotation
-
 
 
 class Schedule:
@@ -80,12 +81,45 @@ class Schedule:
             else:
                 self.rotations[id].charging_type = "depot"
 
-    def assign_vehicles(self):
-        """ Depending on preferred charging type and consumption for each rotation
-            first assign a charging type to each rotation and then assign specific
-            vehicle IDs to each rotation.
+    def assign_vehicles(self, minimum_standing_time):
+        """ Assign vehicle IDs to rotations. A FIFO approach is used.
+        For every rotation it is checked whether vehicles with matching type are idle, in which
+        case the one with longest standing time since last rotation is used.
+        If no vehicle is available a new vehicle ID is generated.
+
+        :param minimum_standing_time: Amount of hours after arrival from previous rotation after
+                                      which a vehicle become avaibable for dispatch again.
+        :type minimum_standing_time: int
         """
-        pass
+        rotations_in_progress = []
+        idle_vehicles = []
+        vehicle_type_counts = {vehicle_type: 0 for vehicle_type in self.vehicle_types.keys()}
+
+        rotations = sorted(self.rotations.values(), key=lambda rot: rot.departure_time)
+
+        for rot in rotations:
+            # find vehicles that have completed rotation and stood for a minimum staning time
+            # mark those vehicle as idle
+            for r in rotations_in_progress:
+                if rot.departure_time > r.arrival_time + timedelta(hours=minimum_standing_time):
+                    idle_vehicles.append(r.vehicle_id)
+                    rotations_in_progress.pop(0)
+                else:
+                    break
+
+            # find idle vehicle for rotation if exists
+            # else generate new vehicle id
+            vt_ct = f"{rot.vehicle_type}_{rot.charging_type}"
+            id = next((id for id in idle_vehicles if vt_ct in id), None)
+            if id is None:
+                vehicle_type_counts[vt_ct] += 1
+                id = f"{vt_ct}_{vehicle_type_counts[vt_ct]}"
+            else:
+                idle_vehicles.remove(id)
+
+            rot.vehicle_id = id
+            arrival_times = [r.arrival_time for r in rotations_in_progress]
+            rotations_in_progress.insert(bisect.bisect(arrival_times, rot.arrival_time), rot)
 
     def calculate_consumption(self):
         self.consumption = 0
