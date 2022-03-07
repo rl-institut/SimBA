@@ -1,5 +1,10 @@
 import csv
+import datetime
+import json
+from os import path
+import random
 from ebus_toolbox.rotation import Rotation
+
 
 
 class Schedule:
@@ -9,6 +14,23 @@ class Schedule:
         self.rotations = {}
         self.consumption = 0
         self.vehicle_types = vehicle_types
+        self.desired_soc = 1
+        self.min_charging_time = 2 #min
+        self.electrified_stations = "/home/inia/Dokumente/GIZ/eBus-Toolbox/data/private_examples/electrified_stations.json"
+        self.cs_power_depot = 150
+        self.cs_power_opp = 400
+
+        self.days = 7
+        self.interval = 15 #min
+        self.output = "/home/inia/Dokumente/GIZ/eBus-Toolbox/data/private_examples/scenario.json"
+        self.battery = None
+        self.include_price_csv = None
+        self.include_price_csv_option = None
+        self.include_ext_load_csv = None
+        self.include_ext_csv_option = None
+        self.include_feed_in_csv = None
+        self.include_feed_in_csv_option = None
+
 
     @classmethod
     def from_csv(cls, path_to_csv, vehicle_types):
@@ -71,3 +93,301 @@ class Schedule:
             self.consumption += rot.calculate_consumption()
 
         return self.consumption
+
+    def generate_scenario_json(self):
+        """ Generate scenario.json for spiceEV
+        """
+        # load stations file
+        if self.electrified_stations is None:
+            self.electrified_stations = "examples/electrified_stations.json"
+        ext = self.electrified_stations.split('.')[-1]
+        if ext != "json":
+            print("File extension mismatch: electrified_stations file should be .json")
+        with open(self.electrified_stations) as json_file:
+            stations_dict = json.load(json_file)
+
+        interval = datetime.timedelta(minutes=self.interval)
+
+        vehicle_types = {}
+        vehicles = {}
+        batteries = {}
+        charging_stations = {}
+        grid_connectors = {}
+        events = {
+            "grid_operator_signals": [],
+            "external_load": {},
+            "energy_feed_in": {},
+            "vehicle_events": []
+        }
+
+        for rotation_id, item in self.rotations.items():
+            item.vehicle_type = item.vehicle_type + "_" + item.charging_type
+
+        number = 1
+        for rotation_id, item in self.rotations.items():
+            item.vehicle_id = item.vehicle_type + "_" + str(number)
+            number += 1
+
+        # add vehicle events
+        for vehicle_id in {item.vehicle_id for rotation_id, item in self.rotations.items()}:
+            vt = [d for i, d in self.rotations.items() if d.vehicle_id == vehicle_id][0].vehicle_type
+            v_name = vehicle_id
+            ct = vt.split("_")[1]
+            cs_name = "CS_" + v_name
+            # define start conditions
+            vehicles[v_name] = {
+                "connected_charging_station": None,
+                "estimated_time_of_departure": None,
+                "desired_soc": None,
+                "soc": self.desired_soc,
+                "vehicle_type": vt
+            }
+            # filter all rides for that bus
+            v_id = {k: v for k, v in self.rotations.items() if v.vehicle_id == v_name}
+            # sort events for their departure time, so that the matching departure time of an
+            # arrival event can be read out of the next element in vid_list
+            v_id = {key: value for key, value in sorted(v_id.items(),
+                                                        key=lambda x: x[1].departure_time)}
+            key_list = list(v_id.keys())
+            for i, v in enumerate(key_list):
+                departure_event_in_input = True
+                # create events for all trips of one rotation
+                for j, trip in enumerate(v_id[v].trips):
+                    cs_name = "{}_{}".format(v_name, trip.arrival_name)
+                    gc_name = "{}".format(trip.arrival_name)
+                    arrival = trip.arrival_time
+#                    arrival = datetime.datetime.strptime(arrival, '%Y-%m-%d %H:%M:%S')
+                    try:
+                        departure = v_id[v].trips[j + 1].departure_time
+#                        departure = datetime.datetime.strptime(departure, '%Y-%m-%d %H:%M:%S')
+                        next_arrival = v_id[v].trips[j + 1].arrival_time
+ #                       next_arrival = datetime.datetime.strptime(next_arrival,
+ #                                                                 '%Y-%m-%d %H:%M:%S')
+                    except IndexError:
+                        # get departure of the first trip of the next rotation
+                        try:
+                            departure = v_id[key_list[i + 1]].departure_time
+                            departure = datetime.datetime.strptime(departure,
+                                                                   '%Y-%m-%d %H:%M:%S')
+                            next_arrival = v_id[key_list[i + 1]].trips[0].arrival_time
+#                            next_arrival = datetime.datetime.strptime(next_arrival,
+#                                                                      '%Y-%m-%d %H:%M:%S')
+                        except IndexError:
+                            departure_event_in_input = False
+                            departure = arrival + datetime.timedelta(hours=8)
+                            # no more rotations
+                    # connect cs and add gc if station is electrified
+                    connected_charging_station = None
+                    skip = False
+                    desired_soc = 0
+                    # if departure - arrival shorter than min_charging_time,
+                    # do not connect charging station
+                    if (departure - arrival).seconds / 60 >= self.min_charging_time:
+                        if gc_name in stations_dict["opp_stations"] or gc_name in \
+                                stations_dict["depot_stations"]:
+                            # if station is depot, set min_soc = args.min_soc, else: None
+                            if gc_name in stations_dict["depot_stations"]:
+                                station_type = "depot"
+                                desired_soc = self.desired_soc
+                                number_cs = stations_dict["depot_stations"][gc_name]
+                                cs_power = self.cs_power_depot
+                                if number_cs != "None":
+                                    gc_power = number_cs * cs_power
+                                else:
+                                    gc_power = 100 * cs_power
+                            else:
+                                if ct == "depot":
+                                    skip = True
+                                else:
+                                    station_type = "opp"
+                                    number_cs = stations_dict["opp_stations"][gc_name]
+                                    cs_power = self.cs_power_opp
+                                    desired_soc = 1
+                                    if number_cs != "None":
+                                        gc_power = number_cs * cs_power
+                                    else:
+                                        gc_power = 100 * cs_power
+                            if not skip:
+                                cs_name_and_type = cs_name + "_" + station_type
+                                connected_charging_station = cs_name_and_type
+                                # add one charging station for each bus at bus station
+                                if cs_name not in charging_stations:
+                                    charging_stations[cs_name_and_type] = {
+                                        "max_power": cs_power,
+                                        "min_power": 0.1 * cs_power,
+                                        "parent": gc_name
+                                    }
+                                # add one grid connector for each bus station
+                                if gc_name not in grid_connectors:
+                                    number_cs = None if number_cs == 'None' else number_cs
+                                    grid_connectors[gc_name] = {
+                                        "max_power": gc_power,
+                                        "cost": {"type": "fixed", "value": 0.3},
+                                        "number_cs": number_cs
+                                    }
+
+                    # create arrival events
+                    events["vehicle_events"].append({
+                        "signal_time": arrival.isoformat(),
+                        "start_time": arrival.isoformat(),
+                        "vehicle_id": v_name,
+                        "event_type": "arrival",
+                        "update": {
+                            "connected_charging_station": connected_charging_station,
+                            "estimated_time_of_departure": departure.isoformat(),
+                            "soc_delta": trip.consumption, #todo: correct this
+                            "desired_soc": desired_soc
+                        }
+                    })
+                    # create departure events
+                    if departure_event_in_input:
+                        events["vehicle_events"].append({
+                            "signal_time": departure.isoformat(),
+                            "start_time": departure.isoformat(),
+                            "vehicle_id": v_name,
+                            "event_type": "departure",
+                            "update": {
+                                "estimated_time_of_arrival": next_arrival.isoformat()
+                            }
+                        })
+
+            # define start and stop times
+            times = [val.departure_time for key, val in self.rotations.items()]
+            start = min(times)
+#            start = datetime.datetime.strptime(start, '%Y-%m-%d %H:%M:%S')
+            stop = start + datetime.timedelta(days=self.days)
+            daily = datetime.timedelta(days=1)
+            # price events
+            for key in grid_connectors.keys():
+                if not self.include_price_csv:
+                    now = start - daily
+                    while now < stop + 2 * daily:
+                        now += daily
+                        for v_id, v in vehicles.items():
+                            if now >= stop:
+                                # after end of scenario: keep generating trips, but don't include in
+                                # scenario
+                                continue
+
+                        # generate prices for the day
+                        if now < stop:
+                            morning = now + datetime.timedelta(hours=6)
+                            evening_by_month = now + datetime.timedelta(
+                                hours=22 - abs(6 - now.month))
+                            events['grid_operator_signals'] += [{
+                                # day (6-evening): 15ct
+                                "signal_time": max(start, now - daily).isoformat(),
+                                "grid_connector_id": key,
+                                "start_time": morning.isoformat(),
+                                "cost": {
+                                    "type": "fixed",
+                                    "value": 0.15 + random.gauss(0, 0.05)
+                                }
+                            }, {
+                                # night (depending on month - 6): 5ct
+                                "signal_time": max(start, now - daily).isoformat(),
+                                "grid_connector_id": key,
+                                "start_time": evening_by_month.isoformat(),
+                                "cost": {
+                                    "type": "fixed",
+                                    "value": 0.05 + random.gauss(0, 0.03)
+                                }
+                            }]
+
+            # add timeseries from csv
+
+            # save path and options for CSV timeseries
+            # all paths are relative to output file
+            target_path = path.dirname(self.output)
+
+            if self.include_ext_load_csv:
+                filename = self.include_ext_load_csv
+                basename = self.splitext(self.basename(filename))[0]
+                options = {
+                    "csv_file": filename,
+                    "start_time": start.isoformat(),
+                    "step_duration_s": 900,  # 15 minutes
+                    "grid_connector_id": "GC1",
+                    "column": "energy"
+                }
+                if self.include_ext_csv_option:
+                    for key, value in self.include_ext_csv_option:
+                        if key == "step_duration_s":
+                            value = int(value)
+                        options[key] = value
+                events['external_load'][basename] = options
+                # check if CSV file exists
+                ext_csv_path = self.join(target_path, filename)
+                if not self.exists(ext_csv_path):
+                    print("Warning: external csv file '{}' does not exist yet".format(ext_csv_path))
+
+            if self.include_feed_in_csv:
+                filename = self.include_feed_in_csv
+                basename = self.splitext(self.basename(filename))[0]
+                options = {
+                    "csv_file": filename,
+                    "start_time": start.isoformat(),
+                    "step_duration_s": 3600,  # 60 minutes
+                    "grid_connector_id": "GC1",
+                    "column": "energy"
+                }
+                if self.include_feed_in_csv_option:
+                    for key, value in self.include_feed_in_csv_option:
+                        if key == "step_duration_s":
+                            value = int(value)
+                        options[key] = value
+                events['energy_feed_in'][basename] = options
+                feed_in_path = path.join(target_path, filename)
+                if not path.exists(feed_in_path):
+                    print("Warning: feed-in csv file '{}' does not exist yet".format(feed_in_path))
+
+            if self.include_price_csv:
+                filename = self.include_price_csv
+                # basename = path.splitext(path.basename(filename))[0]
+                options = {
+                    "csv_file": filename,
+                    "start_time": start.isoformat(),
+                    "step_duration_s": 3600,  # 60 minutes
+                    "grid_connector_id": "GC1",
+                    "column": "price [ct/kWh]"
+                }
+                for key, value in self.include_price_csv_option:
+                    if key == "step_duration_s":
+                        value = int(value)
+                    options[key] = value
+                events['energy_price_from_csv'] = options
+                price_csv_path = path.join(target_path, filename)
+                if not path.exists(price_csv_path):
+                    print("Warning: price csv file '{}' does not exist yet".format(price_csv_path))
+
+            if self.battery:
+                for idx, (capacity, c_rate, gc) in enumerate(self.battery):
+                    if capacity > 0:
+                        max_power = c_rate * capacity
+                    else:
+                        # unlimited battery: set power directly
+                        max_power = c_rate
+                    batteries["BAT{}".format(idx + 1)] = {
+                        "parent": gc,
+                        "capacity": capacity,
+                        "charging_curve": [[0, max_power], [1, max_power]]
+                    }
+            # create final dict
+            j = {
+                "scenario": {
+                    "start_time": start.isoformat(),
+                    "interval": interval.days * 24 * 60 + interval.seconds // 60,
+                    "n_intervals": (stop - start) // interval
+                },
+                "constants": {
+                    "vehicle_types": vehicle_types,
+                    "vehicles": vehicles,
+                    "grid_connectors": grid_connectors,
+                    "charging_stations": charging_stations,
+                    "batteries": batteries
+                },
+                "events": events
+            }
+            # Write JSON
+            with open(self.output, 'w') as f:
+                json.dump(j, f, indent=2)
