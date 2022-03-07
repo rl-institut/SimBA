@@ -140,6 +140,10 @@ class Schedule:
 
         return self.consumption
 
+    def delta_soc_all_trips(self):
+        for rot in self.rotations.values():
+            rot.delta_soc_all_trips()
+
     def generate_scenario_json(self, args):
         """ Generate scenario.json for spiceEV
 

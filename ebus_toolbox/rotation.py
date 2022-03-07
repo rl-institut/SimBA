@@ -52,3 +52,7 @@ class Rotation:
         self.consumption = rotation_consumption
 
         return rotation_consumption
+
+    def delta_soc_all_trips(self):
+        for trip in self.trips:
+            trip.get_delta_soc()
