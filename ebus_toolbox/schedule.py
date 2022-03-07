@@ -337,7 +337,7 @@ class Schedule:
 
             if args.include_ext_load_csv:
                 filename = args.include_ext_load_csv
-                basename = self.splitext(self.basename(filename))[0]
+                basename = path.splitext(path.basename(filename))[0]
                 options = {
                     "csv_file": filename,
                     "start_time": start.isoformat(),
@@ -352,13 +352,13 @@ class Schedule:
                         options[key] = value
                 events['external_load'][basename] = options
                 # check if CSV file exists
-                ext_csv_path = self.join(target_path, filename)
-                if not self.exists(ext_csv_path):
+                ext_csv_path = path.join(target_path, filename)
+                if not path.exists(ext_csv_path):
                     print("Warning: external csv file '{}' does not exist yet".format(ext_csv_path))
 
             if args.include_feed_in_csv:
                 filename = args.include_feed_in_csv
-                basename = self.splitext(self.basename(filename))[0]
+                basename = path.splitext(path.basename(filename))[0]
                 options = {
                     "csv_file": filename,
                     "start_time": start.isoformat(),
