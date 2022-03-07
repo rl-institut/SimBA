@@ -11,7 +11,11 @@ from ebus_toolbox.rotation import Rotation
 class Schedule:
 
     def __init__(self, vehicle_types) -> None:
-        """Constructs Schedule object from CSV file containing all trips of schedule"""
+        """Constructs Schedule object from CSV file containing all trips of schedule
+
+        :param vehicle_types: Collection of vehicle types and their properties.
+        :type vehicle_types: dict
+        """
         self.rotations = {}
         self.consumption = 0
         self.vehicle_types = vehicle_types
@@ -22,6 +26,8 @@ class Schedule:
 
         :param path_to_csv: Path to csv file containing trip data
         :type path_to_csv: str
+        :param vehicle_types: Collection of vehicle types and their properties.
+        :type vehicle_types: dict
         :return: Returns a new instance of Schedule with all trips from csv loaded.
         :rtype: Schedule
         """
@@ -51,7 +57,14 @@ class Schedule:
         pass
 
     def set_charging_type(self, preferred_ct, rotation_ids=None):
-        """Iterate across all rotations/trips and append charging type if not given"""
+        """Iterate across all rotations/trips and append charging type if not given
+
+        :param preferred_ct: Choose this charging type wheneever possible. Either 'depot' or 'opp'.
+        :type preferred_ct: str
+        :param rotation_ids: IDs of rotations for which to set charging type. If None set charging
+                             charging type for all rotations.
+        :type rotation_ids: list
+        """
         assert preferred_ct in ["opp", "depot"], f"Invalid charging type: {preferred_ct}"
         if rotation_ids is None:
             rotation_ids = self.rotations.keys()
@@ -70,9 +83,10 @@ class Schedule:
         case the one with longest standing time since last rotation is used.
         If no vehicle is available a new vehicle ID is generated.
 
-        :param minimum_standing_time: Amount of hours after arrival from previous rotation after
-                                      which a vehicle become avaibable for dispatch again.
-        :type minimum_standing_time: int
+        :param minimum_standing_time_depot: Amount of hours after arrival from previous rotation
+                                            after which a vehicle become avaibable for dispatch
+                                            again.
+        :type minimum_standing_time_depot: int
         """
         rotations_in_progress = []
         idle_vehicles = []
@@ -103,6 +117,7 @@ class Schedule:
 
             rot.vehicle_id = id
             arrival_times = [r.arrival_time for r in rotations_in_progress]
+            # keep list of ongoing rotations sorted by arrival_time
             rotations_in_progress.insert(bisect.bisect(arrival_times, rot.arrival_time), rot)
 
     def calculate_consumption(self):
@@ -115,12 +130,8 @@ class Schedule:
     def generate_scenario_json(self, args):
         """ Generate scenario.json for spiceEV
 
-        :param args.desired_soc: desired_soc of vehicles
-        :type args.desired_soc: float
-        :param args.days: number of days of simulation
-        :type args.days: int
-        :param args.interval: number of minutes of interval
-
+        :param args: Command line arguments and/or arguments from config file.
+        :type args: argparse.Namespace
         """
         # load stations file
         if args.electrified_stations is None:
