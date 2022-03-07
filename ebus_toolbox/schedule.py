@@ -114,6 +114,13 @@ class Schedule:
 
     def generate_scenario_json(self, args):
         """ Generate scenario.json for spiceEV
+
+        :param args.desired_soc: desired_soc of vehicles
+        :type args.desired_soc: float
+        :param args.days: number of days of simulation
+        :type args.days: int
+        :param args.interval: number of minutes of interval
+
         """
         # load stations file
         if args.electrified_stations is None:
@@ -142,14 +149,14 @@ class Schedule:
         for vehicle_id in {rot.vehicle_id for rot in self.rotations.values()}:
             v_name = vehicle_id
             vt = vehicle_id.split("_")[0]
-            ct = vehicle_id.split("_")[0]
+            ct = vehicle_id.split("_")[1]
             # define start conditions
             vehicles[v_name] = {
                 "connected_charging_station": None,
                 "estimated_time_of_departure": None,
                 "desired_soc": None,
                 "soc": args.desired_soc,
-                "vehicle_type": vt
+                "vehicle_type": vt + "_" + ct
             }
             # filter all rides for that bus
             v_id = {k: v for k, v in self.rotations.items() if v.vehicle_id == v_name}
