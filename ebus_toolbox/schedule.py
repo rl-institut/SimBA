@@ -15,23 +15,6 @@ class Schedule:
         self.rotations = {}
         self.consumption = 0
         self.vehicle_types = vehicle_types
-        self.desired_soc = 1
-        self.min_charging_time = 2 #min
-        self.electrified_stations = "/home/inia/Dokumente/GIZ/eBus-Toolbox/data/private_examples/electrified_stations.json"
-        self.cs_power_depot = 150
-        self.cs_power_opp = 400
-
-        self.days = 7
-        self.interval = 15 #min
-        self.output = "/home/inia/Dokumente/GIZ/eBus-Toolbox/data/private_examples/scenario.json"
-        self.battery = None
-        self.include_price_csv = None
-        self.include_price_csv_option = None
-        self.include_ext_load_csv = None
-        self.include_ext_csv_option = None
-        self.include_feed_in_csv = None
-        self.include_feed_in_csv_option = None
-
 
     @classmethod
     def from_csv(cls, path_to_csv, vehicle_types):
@@ -81,7 +64,7 @@ class Schedule:
             else:
                 self.rotations[id].charging_type = "depot"
 
-    def assign_vehicles(self, minimum_standing_time):
+    def assign_vehicles(self, minimum_standing_time_depot):
         """ Assign vehicle IDs to rotations. A FIFO approach is used.
         For every rotation it is checked whether vehicles with matching type are idle, in which
         case the one with longest standing time since last rotation is used.
@@ -101,7 +84,8 @@ class Schedule:
             # find vehicles that have completed rotation and stood for a minimum staning time
             # mark those vehicle as idle
             for r in rotations_in_progress:
-                if rot.departure_time > r.arrival_time + timedelta(hours=minimum_standing_time):
+                if rot.departure_time > r.arrival_time + \
+                        timedelta(hours=minimum_standing_time_depot):
                     idle_vehicles.append(r.vehicle_id)
                     rotations_in_progress.pop(0)
                 else:
@@ -128,19 +112,19 @@ class Schedule:
 
         return self.consumption
 
-    def generate_scenario_json(self):
+    def generate_scenario_json(self, args):
         """ Generate scenario.json for spiceEV
         """
         # load stations file
-        if self.electrified_stations is None:
-            self.electrified_stations = "examples/electrified_stations.json"
-        ext = self.electrified_stations.split('.')[-1]
+        if args.electrified_stations is None:
+            args.electrified_stations = "examples/electrified_stations.json"
+        ext = args.electrified_stations.split('.')[-1]
         if ext != "json":
             print("File extension mismatch: electrified_stations file should be .json")
-        with open(self.electrified_stations) as json_file:
+        with open(args.electrified_stations) as json_file:
             stations_dict = json.load(json_file)
 
-        interval = datetime.timedelta(minutes=self.interval)
+        interval = datetime.timedelta(minutes=args.interval)
 
         vehicle_types = {}
         vehicles = {}
@@ -154,33 +138,24 @@ class Schedule:
             "vehicle_events": []
         }
 
-        for rotation_id, item in self.rotations.items():
-            item.vehicle_type = item.vehicle_type + "_" + item.charging_type
-
-        number = 1
-        for rotation_id, item in self.rotations.items():
-            item.vehicle_id = item.vehicle_type + "_" + str(number)
-            number += 1
-
         # add vehicle events
-        for vehicle_id in {item.vehicle_id for rotation_id, item in self.rotations.items()}:
-            vt = [d for i, d in self.rotations.items() if d.vehicle_id == vehicle_id][0].vehicle_type
+        for vehicle_id in {rot.vehicle_id for rot in self.rotations.values()}:
             v_name = vehicle_id
-            ct = vt.split("_")[1]
-            cs_name = "CS_" + v_name
+            vt = vehicle_id.split("_")[0]
+            ct = vehicle_id.split("_")[0]
             # define start conditions
             vehicles[v_name] = {
                 "connected_charging_station": None,
                 "estimated_time_of_departure": None,
                 "desired_soc": None,
-                "soc": self.desired_soc,
+                "soc": args.desired_soc,
                 "vehicle_type": vt
             }
             # filter all rides for that bus
             v_id = {k: v for k, v in self.rotations.items() if v.vehicle_id == v_name}
             # sort events for their departure time, so that the matching departure time of an
             # arrival event can be read out of the next element in vid_list
-            v_id = {key: value for key, value in sorted(v_id.items(),
+            v_id = {k: v for k, v in sorted(v_id.items(),
                                                         key=lambda x: x[1].departure_time)}
             key_list = list(v_id.keys())
             for i, v in enumerate(key_list):
@@ -190,22 +165,14 @@ class Schedule:
                     cs_name = "{}_{}".format(v_name, trip.arrival_name)
                     gc_name = "{}".format(trip.arrival_name)
                     arrival = trip.arrival_time
-#                    arrival = datetime.datetime.strptime(arrival, '%Y-%m-%d %H:%M:%S')
                     try:
                         departure = v_id[v].trips[j + 1].departure_time
-#                        departure = datetime.datetime.strptime(departure, '%Y-%m-%d %H:%M:%S')
                         next_arrival = v_id[v].trips[j + 1].arrival_time
- #                       next_arrival = datetime.datetime.strptime(next_arrival,
- #                                                                 '%Y-%m-%d %H:%M:%S')
                     except IndexError:
                         # get departure of the first trip of the next rotation
                         try:
                             departure = v_id[key_list[i + 1]].departure_time
-                            departure = datetime.datetime.strptime(departure,
-                                                                   '%Y-%m-%d %H:%M:%S')
                             next_arrival = v_id[key_list[i + 1]].trips[0].arrival_time
-#                            next_arrival = datetime.datetime.strptime(next_arrival,
-#                                                                      '%Y-%m-%d %H:%M:%S')
                         except IndexError:
                             departure_event_in_input = False
                             departure = arrival + datetime.timedelta(hours=8)
@@ -216,15 +183,15 @@ class Schedule:
                     desired_soc = 0
                     # if departure - arrival shorter than min_charging_time,
                     # do not connect charging station
-                    if (departure - arrival).seconds / 60 >= self.min_charging_time:
+                    if (departure - arrival).seconds / 60 >= args.min_charging_time_opp:
                         if gc_name in stations_dict["opp_stations"] or gc_name in \
                                 stations_dict["depot_stations"]:
                             # if station is depot, set min_soc = args.min_soc, else: None
                             if gc_name in stations_dict["depot_stations"]:
                                 station_type = "depot"
-                                desired_soc = self.desired_soc
+                                desired_soc = args.desired_soc
                                 number_cs = stations_dict["depot_stations"][gc_name]
-                                cs_power = self.cs_power_depot
+                                cs_power = args.cs_power_depot
                                 if number_cs != "None":
                                     gc_power = number_cs * cs_power
                                 else:
@@ -235,11 +202,12 @@ class Schedule:
                                 else:
                                     station_type = "opp"
                                     number_cs = stations_dict["opp_stations"][gc_name]
-                                    cs_power = self.cs_power_opp
+                                    cs_power = args.cs_power_opp
                                     desired_soc = 1
                                     if number_cs != "None":
                                         gc_power = number_cs * cs_power
                                     else:
+                                        # add a really large number
                                         gc_power = 100 * cs_power
                             if not skip:
                                 cs_name_and_type = cs_name + "_" + station_type
@@ -269,7 +237,7 @@ class Schedule:
                         "update": {
                             "connected_charging_station": connected_charging_station,
                             "estimated_time_of_departure": departure.isoformat(),
-                            "soc_delta": trip.consumption, #todo: correct this
+                            "soc_delta": trip.consumption, #todo: dummy value! correct this
                             "desired_soc": desired_soc
                         }
                     })
@@ -289,11 +257,11 @@ class Schedule:
             times = [val.departure_time for key, val in self.rotations.items()]
             start = min(times)
 #            start = datetime.datetime.strptime(start, '%Y-%m-%d %H:%M:%S')
-            stop = start + datetime.timedelta(days=self.days)
+            stop = start + datetime.timedelta(days=args.days)
             daily = datetime.timedelta(days=1)
             # price events
             for key in grid_connectors.keys():
-                if not self.include_price_csv:
+                if not args.include_price_csv:
                     now = start - daily
                     while now < stop + 2 * daily:
                         now += daily
@@ -329,13 +297,12 @@ class Schedule:
                             }]
 
             # add timeseries from csv
-
             # save path and options for CSV timeseries
             # all paths are relative to output file
-            target_path = path.dirname(self.output)
+            target_path = path.dirname(args.output)
 
-            if self.include_ext_load_csv:
-                filename = self.include_ext_load_csv
+            if args.include_ext_load_csv:
+                filename = args.include_ext_load_csv
                 basename = self.splitext(self.basename(filename))[0]
                 options = {
                     "csv_file": filename,
@@ -344,8 +311,8 @@ class Schedule:
                     "grid_connector_id": "GC1",
                     "column": "energy"
                 }
-                if self.include_ext_csv_option:
-                    for key, value in self.include_ext_csv_option:
+                if args.include_ext_csv_option:
+                    for key, value in args.include_ext_csv_option:
                         if key == "step_duration_s":
                             value = int(value)
                         options[key] = value
@@ -355,8 +322,8 @@ class Schedule:
                 if not self.exists(ext_csv_path):
                     print("Warning: external csv file '{}' does not exist yet".format(ext_csv_path))
 
-            if self.include_feed_in_csv:
-                filename = self.include_feed_in_csv
+            if args.include_feed_in_csv:
+                filename = args.include_feed_in_csv
                 basename = self.splitext(self.basename(filename))[0]
                 options = {
                     "csv_file": filename,
@@ -365,8 +332,8 @@ class Schedule:
                     "grid_connector_id": "GC1",
                     "column": "energy"
                 }
-                if self.include_feed_in_csv_option:
-                    for key, value in self.include_feed_in_csv_option:
+                if args.include_feed_in_csv_option:
+                    for key, value in args.include_feed_in_csv_option:
                         if key == "step_duration_s":
                             value = int(value)
                         options[key] = value
@@ -375,8 +342,8 @@ class Schedule:
                 if not path.exists(feed_in_path):
                     print("Warning: feed-in csv file '{}' does not exist yet".format(feed_in_path))
 
-            if self.include_price_csv:
-                filename = self.include_price_csv
+            if args.include_price_csv:
+                filename = args.include_price_csv
                 # basename = path.splitext(path.basename(filename))[0]
                 options = {
                     "csv_file": filename,
@@ -385,7 +352,7 @@ class Schedule:
                     "grid_connector_id": "GC1",
                     "column": "price [ct/kWh]"
                 }
-                for key, value in self.include_price_csv_option:
+                for key, value in args.include_price_csv_option:
                     if key == "step_duration_s":
                         value = int(value)
                     options[key] = value
@@ -394,8 +361,8 @@ class Schedule:
                 if not path.exists(price_csv_path):
                     print("Warning: price csv file '{}' does not exist yet".format(price_csv_path))
 
-            if self.battery:
-                for idx, (capacity, c_rate, gc) in enumerate(self.battery):
+            if args.battery:
+                for idx, (capacity, c_rate, gc) in enumerate(args.battery):
                     if capacity > 0:
                         max_power = c_rate * capacity
                     else:
@@ -423,5 +390,5 @@ class Schedule:
                 "events": events
             }
             # Write JSON
-            with open(self.output, 'w') as f:
+            with open(args.output, 'w') as f:
                 json.dump(j, f, indent=2)

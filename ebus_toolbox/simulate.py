@@ -34,9 +34,9 @@ def simulate(args):
         # if optimizer None, quit after single iteration
         schedule.calculate_consumption()
         schedule.set_charging_type(preferred_ct=args.preferred_charging_type)
-        schedule.assign_vehicles(args.min_standing_time)
+        schedule.assign_vehicles(args.min_standing_time_depot)
         # write trips to csv in spiceEV format
-        schedule.generate_scenario_json()
+        schedule.generate_scenario_json(args)
 
         # RUN SPICE EV
 
