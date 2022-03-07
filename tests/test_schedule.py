@@ -10,5 +10,6 @@ from ebus_toolbox import schedule
 
 
 def test_schedule_from_csv():
-    s = schedule.Schedule.from_csv('./data/private_examples/trips_example-bvg.csv')
-    assert len(s.rotations) > 5
+    s = schedule.Schedule.from_csv('./data/private_examples/trips_example-bvg_datetime.csv',
+                                   './data/examples/vehicle_types.json')
+    assert len(s.rotations) == 6
