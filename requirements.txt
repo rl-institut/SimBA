@@ -1,2 +1,3 @@
 numpy >= 1.12.0
--e git+https://github.com/rl-institut/spice_ev.git@feature/add_setup#egg=spiceev
+matplotlib
+-e git+https://github.com/rl-institut/spice_ev.git@feature/add_setup_v2#egg=spiceev

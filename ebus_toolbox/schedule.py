@@ -161,7 +161,6 @@ class Schedule:
 
         interval = datetime.timedelta(minutes=args.interval)
 
-        vehicle_types = {}
         vehicles = {}
         batteries = {}
         charging_stations = {}
@@ -332,8 +331,8 @@ class Schedule:
 
             # add timeseries from csv
             # save path and options for CSV timeseries
-            # all paths are relative to output file
-            target_path = path.dirname(args.output)
+            # all spiceev paths are relative to input (refers to spiceEv input) file
+            target_path = path.dirname(args.input)
 
             if args.include_ext_load_csv:
                 filename = args.include_ext_load_csv
@@ -415,7 +414,7 @@ class Schedule:
                     "n_intervals": (stop - start) // interval
                 },
                 "constants": {
-                    "vehicle_types": vehicle_types,
+                    "vehicle_types": self.vehicle_types,
                     "vehicles": vehicles,
                     "grid_connectors": grid_connectors,
                     "charging_stations": charging_stations,
@@ -424,5 +423,5 @@ class Schedule:
                 "events": events
             }
             # Write JSON
-            with open(args.output, 'w') as f:
+            with open(args.input, 'w') as f:
                 json.dump(j, f, indent=2)

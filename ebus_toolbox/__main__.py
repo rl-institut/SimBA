@@ -5,8 +5,8 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser(
         description='Ebus Toolbox - \
         Simulation Program for Ebus Fleets.')
-    parser.add_argument('input', nargs='?', help='Set the scenario JSON file')
-    parser.add_argument('output', nargs='?', help='output file name (example.json)')
+    parser.add_argument('input_schedule', nargs='?', help='Set the scenario JSON file')
+    parser.add_argument('input', nargs='?', help='output file name (example.json)')
     parser.add_argument('--preferred_charging_type', '-pct', default='depot',
                         choices=['depot', 'opp'], help="Preferred charging type. Choose one\
                         from <depot> and <opp>. opp stands for opportunity.")
@@ -62,6 +62,17 @@ if __name__ == '__main__':
                         instead of progress bar. Not recommended for fast computations.')
     parser.add_argument('--save-timeseries', help='Write timesteps to file')
     parser.add_argument('--save-results', help='Write general info to file')
+    parser.add_argument('--strategy', '-s', default='greedy',
+                        help='Specify the charging strategy. One of {}. You may define \
+                        custom options with --strategy-option.'.format('greedy, balanced'))
+    parser.add_argument('--margin', '-m', metavar='X', type=float, default=0.05,
+                        help=('Add margin for desired SOC [0.0 - 1.0].\
+                        margin=0.05 means the simulation will not abort if vehicles \
+                        reach at least 95%% of the desired SOC before leaving. \
+                        margin=1 -> the simulation continues with every positive SOC value.'))
+    parser.add_argument('--strategy-option', '-so', metavar=('KEY', 'VALUE'),
+                        nargs=2, action='append',
+                        help='Append additional options to the charging strategy.')
     parser.add_argument('--config', help='Use config file to set arguments')
     args = parser.parse_args()
 
