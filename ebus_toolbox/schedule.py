@@ -270,7 +270,7 @@ class Schedule:
                         "update": {
                             "connected_charging_station": connected_charging_station,
                             "estimated_time_of_departure": departure.isoformat(),
-                            "soc_delta": trip.consumption,  # todo: dummy value! correct this
+                            "soc_delta": trip.delta_soc,  # todo: dummy value! correct this
                             "desired_soc": desired_soc
                         }
                     })

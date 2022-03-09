@@ -14,7 +14,7 @@ class Trip:
         self.rotation = rotation
 
         self.consumption = None  # kWh
-        self.delta_SOC = None
+        self.delta_soc = None
 
     def calculate_consumption(self):
         try:
@@ -33,8 +33,8 @@ class Trip:
         if self.consumption is None:
             self.calculate_consumption()
 
-        self.delta_SOC = Trip.consumption.get_delta_soc(self.consumption,
+        self.delta_soc = Trip.consumption.get_delta_soc(self.consumption,
                                                         self.rotation.vehicle_type,
                                                         self.rotation.charging_type)
 
-        return self.delta_SOC
+        return self.delta_soc

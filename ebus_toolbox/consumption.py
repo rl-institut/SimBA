@@ -51,11 +51,11 @@ class Consumption:
         xp = self.consumption_files[consumption_file]['temperature']
         fp = self.consumption_files[consumption_file]['consumption']
 
-        mileage = np.interp(temp, xp, fp)  # kWh / km ???
-        consumed_energy = mileage * distance  # kWh
+        mileage = np.interp(temp, xp, fp)  # kWh / m
+        consumed_energy = mileage * distance / 1000  # kWh
 
         return consumed_energy
 
     def get_delta_soc(self, consumed_energy, vehicle_type, charging_type):
         vt_ct = f"{vehicle_type}_{charging_type}"
-        return consumed_energy / self.vehicle_types[vt_ct]["capacity"]
+        return -1 * (consumed_energy / self.vehicle_types[vt_ct]["capacity"])
