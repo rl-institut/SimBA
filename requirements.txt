@@ -1,1 +1,2 @@
-numpy
+numpy >= 1.12.0
+-e git+https://github.com/rl-institut/spice_ev.git@feature/add_setup#egg=spiceev

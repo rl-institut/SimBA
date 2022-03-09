@@ -5,6 +5,7 @@ from ebus_toolbox.consumption import Consumption
 from ebus_toolbox.schedule import Schedule
 from ebus_toolbox.trip import Trip
 from ebus_toolbox import optimizer, report
+import spiceev
 
 
 def simulate(args):
@@ -40,6 +41,8 @@ def simulate(args):
         schedule.generate_scenario_json(args)
 
         # RUN SPICE EV
+        spiceev.simulate.simulate(args)
+
 
         # Quit if optimizer is not defined
         # (LATER) Run optimizer, continue from top or quit based on optimizer output
