@@ -133,6 +133,8 @@ class Schedule:
             # keep list of ongoing rotations sorted by arrival_time
             rotations_in_progress.insert(bisect.bisect(arrival_times, rot.arrival_time), rot)
 
+        self.vehicle_type_counts = vehicle_type_counts
+
     def calculate_consumption(self):
         self.consumption = 0
         for rot in self.rotations.values():
@@ -294,141 +296,142 @@ class Schedule:
                             }
                         })
 
-            # define start and stop times
-            start = self.get_departure_of_first_trip()
-#            start = datetime.datetime.strptime(start, '%Y-%m-%d %H:%M:%S')
-            stop = self.get_arrival_of_last_trip()
-            daily = datetime.timedelta(days=1)
-            # price events
-            for key in grid_connectors.keys():
-                if not args.include_price_csv:
-                    now = start - daily
-                    while now < stop + 2 * daily:
-                        now += daily
-                        for v_id, v in vehicles.items():
-                            if now >= stop:
-                                # after end of scenario: keep generating trips, but don't include in
-                                # scenario
-                                continue
+        # ######## END OF VEHICLE EVENTS ########## #
 
-                        # generate prices for the day
-                        if now < stop:
-                            morning = now + datetime.timedelta(hours=6)
-                            evening_by_month = now + datetime.timedelta(
-                                hours=22 - abs(6 - now.month))
-                            events['grid_operator_signals'] += [{
-                                # day (6-evening): 15ct
-                                "signal_time": max(start, now - daily).isoformat(),
-                                "grid_connector_id": key,
-                                "start_time": morning.isoformat(),
-                                "cost": {
-                                    "type": "fixed",
-                                    "value": 0.15 + random.gauss(0, 0.05)
-                                }
-                            }, {
-                                # night (depending on month - 6): 5ct
-                                "signal_time": max(start, now - daily).isoformat(),
-                                "grid_connector_id": key,
-                                "start_time": evening_by_month.isoformat(),
-                                "cost": {
-                                    "type": "fixed",
-                                    "value": 0.05 + random.gauss(0, 0.03)
-                                }
-                            }]
+        # define start and stop times
+        start = self.get_departure_of_first_trip()
+        stop = self.get_arrival_of_last_trip()
+        daily = datetime.timedelta(days=1)
+        # price events
+        for key in grid_connectors.keys():
+            if not args.include_price_csv:
+                now = start - daily
+                while now < stop + 2 * daily:
+                    now += daily
+                    for v_id, v in vehicles.items():
+                        if now >= stop:
+                            # after end of scenario: keep generating trips, but don't include in
+                            # scenario
+                            continue
 
-            # add timeseries from csv
-            # save path and options for CSV timeseries
-            # all spiceev paths are relative to input (refers to spiceEv input) file
-            target_path = path.dirname(args.input)
+                    # generate prices for the day
+                    if now < stop:
+                        morning = now + datetime.timedelta(hours=6)
+                        evening_by_month = now + datetime.timedelta(
+                            hours=22 - abs(6 - now.month))
+                        events['grid_operator_signals'] += [{
+                            # day (6-evening): 15ct
+                            "signal_time": max(start, now - daily).isoformat(),
+                            "grid_connector_id": key,
+                            "start_time": morning.isoformat(),
+                            "cost": {
+                                "type": "fixed",
+                                "value": 0.15 + random.gauss(0, 0.05)
+                            }
+                        }, {
+                            # night (depending on month - 6): 5ct
+                            "signal_time": max(start, now - daily).isoformat(),
+                            "grid_connector_id": key,
+                            "start_time": evening_by_month.isoformat(),
+                            "cost": {
+                                "type": "fixed",
+                                "value": 0.05 + random.gauss(0, 0.03)
+                            }
+                        }]
 
-            if args.include_ext_load_csv:
-                filename = args.include_ext_load_csv
-                basename = path.splitext(path.basename(filename))[0]
-                options = {
-                    "csv_file": filename,
-                    "start_time": start.isoformat(),
-                    "step_duration_s": 900,  # 15 minutes
-                    "grid_connector_id": "GC1",
-                    "column": "energy"
-                }
-                if args.include_ext_csv_option:
-                    for key, value in args.include_ext_csv_option:
-                        if key == "step_duration_s":
-                            value = int(value)
-                        options[key] = value
-                events['external_load'][basename] = options
-                # check if CSV file exists
-                ext_csv_path = path.join(target_path, filename)
-                if not path.exists(ext_csv_path):
-                    print("Warning: external csv file '{}' does not exist yet".format(ext_csv_path))
+        # add timeseries from csv
+        # save path and options for CSV timeseries
+        # all spiceev paths are relative to input (refers to spiceEv input) file
+        target_path = path.dirname(args.input)
 
-            if args.include_feed_in_csv:
-                filename = args.include_feed_in_csv
-                basename = path.splitext(path.basename(filename))[0]
-                options = {
-                    "csv_file": filename,
-                    "start_time": start.isoformat(),
-                    "step_duration_s": 3600,  # 60 minutes
-                    "grid_connector_id": "GC1",
-                    "column": "energy"
-                }
-                if args.include_feed_in_csv_option:
-                    for key, value in args.include_feed_in_csv_option:
-                        if key == "step_duration_s":
-                            value = int(value)
-                        options[key] = value
-                events['energy_feed_in'][basename] = options
-                feed_in_path = path.join(target_path, filename)
-                if not path.exists(feed_in_path):
-                    print("Warning: feed-in csv file '{}' does not exist yet".format(feed_in_path))
-
-            if args.include_price_csv:
-                filename = args.include_price_csv
-                # basename = path.splitext(path.basename(filename))[0]
-                options = {
-                    "csv_file": filename,
-                    "start_time": start.isoformat(),
-                    "step_duration_s": 3600,  # 60 minutes
-                    "grid_connector_id": "GC1",
-                    "column": "price [ct/kWh]"
-                }
-                for key, value in args.include_price_csv_option:
+        if args.include_ext_load_csv:
+            filename = args.include_ext_load_csv
+            basename = path.splitext(path.basename(filename))[0]
+            options = {
+                "csv_file": filename,
+                "start_time": start.isoformat(),
+                "step_duration_s": 900,  # 15 minutes
+                "grid_connector_id": "GC1",
+                "column": "energy"
+            }
+            if args.include_ext_csv_option:
+                for key, value in args.include_ext_csv_option:
                     if key == "step_duration_s":
                         value = int(value)
                     options[key] = value
-                events['energy_price_from_csv'] = options
-                price_csv_path = path.join(target_path, filename)
-                if not path.exists(price_csv_path):
-                    print("Warning: price csv file '{}' does not exist yet".format(price_csv_path))
+            events['external_load'][basename] = options
+            # check if CSV file exists
+            ext_csv_path = path.join(target_path, filename)
+            if not path.exists(ext_csv_path):
+                print("Warning: external csv file '{}' does not exist yet".format(ext_csv_path))
 
-            if args.battery:
-                for idx, (capacity, c_rate, gc) in enumerate(args.battery):
-                    if capacity > 0:
-                        max_power = c_rate * capacity
-                    else:
-                        # unlimited battery: set power directly
-                        max_power = c_rate
-                    batteries["BAT{}".format(idx + 1)] = {
-                        "parent": gc,
-                        "capacity": capacity,
-                        "charging_curve": [[0, max_power], [1, max_power]]
-                    }
-            # create final dict
-            j = {
-                "scenario": {
-                    "start_time": start.isoformat(),
-                    "interval": interval.days * 24 * 60 + interval.seconds // 60,
-                    "n_intervals": (stop - start) // interval
-                },
-                "constants": {
-                    "vehicle_types": self.vehicle_types,
-                    "vehicles": vehicles,
-                    "grid_connectors": grid_connectors,
-                    "charging_stations": charging_stations,
-                    "batteries": batteries
-                },
-                "events": events
+        if args.include_feed_in_csv:
+            filename = args.include_feed_in_csv
+            basename = path.splitext(path.basename(filename))[0]
+            options = {
+                "csv_file": filename,
+                "start_time": start.isoformat(),
+                "step_duration_s": 3600,  # 60 minutes
+                "grid_connector_id": "GC1",
+                "column": "energy"
             }
-            # Write JSON
-            with open(args.input, 'w') as f:
-                json.dump(j, f, indent=2)
+            if args.include_feed_in_csv_option:
+                for key, value in args.include_feed_in_csv_option:
+                    if key == "step_duration_s":
+                        value = int(value)
+                    options[key] = value
+            events['energy_feed_in'][basename] = options
+            feed_in_path = path.join(target_path, filename)
+            if not path.exists(feed_in_path):
+                print("Warning: feed-in csv file '{}' does not exist yet".format(feed_in_path))
+
+        if args.include_price_csv:
+            filename = args.include_price_csv
+            # basename = path.splitext(path.basename(filename))[0]
+            options = {
+                "csv_file": filename,
+                "start_time": start.isoformat(),
+                "step_duration_s": 3600,  # 60 minutes
+                "grid_connector_id": "GC1",
+                "column": "price [ct/kWh]"
+            }
+            for key, value in args.include_price_csv_option:
+                if key == "step_duration_s":
+                    value = int(value)
+                options[key] = value
+            events['energy_price_from_csv'] = options
+            price_csv_path = path.join(target_path, filename)
+            if not path.exists(price_csv_path):
+                print("Warning: price csv file '{}' does not exist yet".format(price_csv_path))
+
+        if args.battery:
+            for idx, (capacity, c_rate, gc) in enumerate(args.battery):
+                if capacity > 0:
+                    max_power = c_rate * capacity
+                else:
+                    # unlimited battery: set power directly
+                    max_power = c_rate
+                batteries["BAT{}".format(idx + 1)] = {
+                    "parent": gc,
+                    "capacity": capacity,
+                    "charging_curve": [[0, max_power], [1, max_power]]
+                }
+        # create final dict
+        j = {
+            "scenario": {
+                "start_time": start.isoformat(),
+                "interval": interval.days * 24 * 60 + interval.seconds // 60,
+                "n_intervals": (stop - start) // interval
+            },
+            "constants": {
+                "vehicle_types": self.vehicle_types,
+                "vehicles": vehicles,
+                "grid_connectors": grid_connectors,
+                "charging_stations": charging_stations,
+                "batteries": batteries
+            },
+            "events": events
+        }
+        # Write JSON
+        with open(args.input, 'w') as f:
+            json.dump(j, f, indent=2)
