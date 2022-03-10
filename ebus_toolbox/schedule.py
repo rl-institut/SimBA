@@ -144,6 +144,14 @@ class Schedule:
         for rot in self.rotations.values():
             rot.delta_soc_all_trips()
 
+    def get_departure_of_first_trip(self):
+        sorted_rotations = sorted(self.rotations.values(), key=lambda rot: rot.departure_time)
+        return sorted_rotations[0].departure_time
+
+    def get_arrival_of_last_trip(self):
+        sorted_rotations = sorted(self.rotations.values(), key=lambda rot: rot.arrival_time)
+        return sorted_rotations[-1].arrival_time
+
     def generate_scenario_json(self, args):
         """ Generate scenario.json for spiceEV
 
@@ -287,10 +295,9 @@ class Schedule:
                         })
 
             # define start and stop times
-            times = [val.departure_time for key, val in self.rotations.items()]
-            start = min(times)
+            start = self.get_departure_of_first_trip()
 #            start = datetime.datetime.strptime(start, '%Y-%m-%d %H:%M:%S')
-            stop = start + datetime.timedelta(days=args.days)
+            stop = self.get_arrival_of_last_trip()
             daily = datetime.timedelta(days=1)
             # price events
             for key in grid_connectors.keys():
