@@ -17,6 +17,11 @@ class Trip:
         self.delta_soc = None
 
     def calculate_consumption(self):
+        """ Compute consumption for this trip.
+
+        :return: Consumption of trip [kWh]
+        :rtype: float
+        """
         try:
             self.consumption = \
                 Trip.consumption.calculate_consumption(self.arrival_time,
@@ -30,11 +35,10 @@ class Trip:
         return self.consumption
 
     def get_delta_soc(self):
+        """ Compute change in state of charge (SOC) for this trip."""
         if self.consumption is None:
             self.calculate_consumption()
 
         self.delta_soc = Trip.consumption.get_delta_soc(self.consumption,
                                                         self.rotation.vehicle_type,
                                                         self.rotation.charging_type)
-
-        return self.delta_soc

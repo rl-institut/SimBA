@@ -136,6 +136,11 @@ class Schedule:
         self.vehicle_type_counts = vehicle_type_counts
 
     def calculate_consumption(self):
+        """ Computes consumption for all trips of all rotations.
+
+        :return: Total consumption for entire schedule [kWh]
+        :rtype: float
+        """
         self.consumption = 0
         for rot in self.rotations.values():
             self.consumption += rot.calculate_consumption()
@@ -147,10 +152,20 @@ class Schedule:
             rot.delta_soc_all_trips()
 
     def get_departure_of_first_trip(self):
+        """ Finds earliest departure time among all rotations.
+
+        :return: Date and time of earliest departure of schedule.
+        :rtype: datetime.datetime
+        """
         sorted_rotations = sorted(self.rotations.values(), key=lambda rot: rot.departure_time)
         return sorted_rotations[0].departure_time
 
     def get_arrival_of_last_trip(self):
+        """Finds latest arrival time among all rotations.
+
+        :return: Date and time of latest arrival of schedule.
+        :rtype: datetime.datetime
+        """
         sorted_rotations = sorted(self.rotations.values(), key=lambda rot: rot.arrival_time)
         return sorted_rotations[-1].arrival_time
 

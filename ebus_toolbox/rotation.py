@@ -45,6 +45,11 @@ class Rotation:
         self.trips.append(new_trip)
 
     def calculate_consumption(self):
+        """ Calculate consumption of this rotation and all its trips.
+
+        :return: Consumption of rotation [kWh]
+        :rtype: float
+        """
         rotation_consumption = 0
         for trip in self.trips:
             rotation_consumption += trip.calculate_consumption()
@@ -54,5 +59,8 @@ class Rotation:
         return rotation_consumption
 
     def delta_soc_all_trips(self):
+        """ Compute change in state of charge (SOC) for every trip
+            of this rotation. Stored in the trip objects.
+        """
         for trip in self.trips:
             trip.get_delta_soc()
