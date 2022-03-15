@@ -13,7 +13,9 @@ Bus Specific Terminology
 | Articulated bus | AB | Gelenkbus | Bus with two or more rigid sections |
 
 # proposal
+| english | Abbrev | german | description |
+| ------- | ------ | ------ | ----------- |
 | Depot | dep | Depot | Depot station |
-| Opportunity | OPP | Gelegenheit | Opportunity charging station|
+| Opportunity | opp | Gelegenheit | Opportunity charging station|
 | Depot charger | depb | Depotlader | Bus with depot charging only |
 | Opportunitycharger | oppb | Gelegenheitslader | Bus with opportunity charging|
