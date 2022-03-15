@@ -15,7 +15,7 @@ if __name__ == '__main__':
     parser.add_argument('--min-standing-time_depot', default=6,
                         help='Minimum standing time in hours for all buses in the depot before \
                         they become available for dispatch again.')
-    parser.add_argument('--days', metavar='N', type=int, default=30,
+    parser.add_argument('--days', metavar='N', type=int, default=None,
                         help='set duration of scenario as number of days')
     parser.add_argument('--interval', metavar='MIN', type=int, default=15,
                         help='set number of minutes for each timestep (Δt)')

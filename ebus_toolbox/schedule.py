@@ -315,7 +315,10 @@ class Schedule:
 
         # define start and stop times
         start = self.get_departure_of_first_trip()
-        stop = self.get_arrival_of_last_trip()
+        if args.days is None:
+            stop = self.get_arrival_of_last_trip()
+        else:
+            stop = start + datetime.timedelta(days=args.days)
         daily = datetime.timedelta(days=1)
         # price events
         for key in grid_connectors.keys():
