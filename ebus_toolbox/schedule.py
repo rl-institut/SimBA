@@ -261,10 +261,13 @@ class Schedule:
                         # if station is depot, set min_soc = args.min_soc, else: None
                         if station_type == "depot":
                             number_cs = stations_dict["depot_stations"][gc_name]
-                            cs_power = args.cs_power_depot
+                            if ct == 'opp':
+                                cs_power = args.cs_power_deps_oppb
+                            elif ct == 'depot':
+                                cs_power = args.cs_power_deps_depb
                         elif station_type == "opp":
                             number_cs = stations_dict["opp_stations"][gc_name]
-                            cs_power = args.cs_power_opp
+                            cs_power = args.cs_power_opps
 
                         if number_cs != "None":
                             gc_power = number_cs * cs_power
