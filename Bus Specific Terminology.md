@@ -11,3 +11,11 @@ Bus Specific Terminology
 | Opportunity Charging | OPPC | Gelegenheits Ladung | Charge busses at bus stops |
 | Solo bus | SB | Solobus | Rigid Bus |
 | Articulated bus | AB | Gelenkbus | Bus with two or more rigid sections |
+
+# proposal
+| english | Abbrev | german | description |
+| ------- | ------ | ------ | ----------- |
+| Depot | dep or deps| Depot | Depot station |
+| Opportunity | opp or opps| Gelegenheit | Opportunity charging station|
+| Depot charger | depb | Depotlader | Bus with depot charging only |
+| Opportunitycharger | oppb | Gelegenheitslader | Bus with opportunity charging|
