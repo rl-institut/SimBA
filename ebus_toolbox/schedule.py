@@ -5,6 +5,7 @@ from datetime import timedelta
 import json
 from os import path
 import random
+
 from ebus_toolbox.rotation import Rotation
 
 
@@ -258,32 +259,33 @@ class Schedule:
 
                         cs_name_and_type = cs_name + "_" + station_type
                         connected_charging_station = cs_name_and_type
-                        # if station is depot, set min_soc = args.min_soc, else: None
-                        if station_type == "depot":
-                            number_cs = stations_dict["depot_stations"][gc_name]
-                            if ct == 'opp':
-                                cs_power = args.cs_power_deps_oppb
-                            elif ct == 'depot':
-                                cs_power = args.cs_power_deps_depb
-                        elif station_type == "opp":
-                            number_cs = stations_dict["opp_stations"][gc_name]
-                            cs_power = args.cs_power_opps
 
-                        if number_cs != "None":
-                            gc_power = number_cs * cs_power
-                        else:
-                            # add a really large number
-                            gc_power = 100 * cs_power
+                        if cs_name not in charging_stations or gc_name not in grid_connectors:
+                            if station_type == "depot":
+                                number_cs = stations_dict["depot_stations"][gc_name]
+                                cs_power = args.cs_power_deps_oppb if ct == 'opp' \
+                                    else args.cs_power_deps_depb
+                                gc_power = args.gc_power_deps
+                            elif station_type == "opp":
+                                number_cs = stations_dict["opp_stations"][gc_name]
+                                cs_power = args.cs_power_opps
+                                gc_power = args.gc_power_opps
 
-                        # add one charging station for each bus at bus station
-                        if cs_name not in charging_stations:
+                            # gc power is not set in config
+                            if gc_power is None:
+                                if number_cs != "None":
+                                    gc_power = number_cs * cs_power
+                                else:
+                                    # add a really large number
+                                    gc_power = 100 * cs_power
+
+                            # add one charging station for each bus at bus station
                             charging_stations[cs_name_and_type] = {
                                 "max_power": cs_power,
                                 "min_power": 0.1 * cs_power,
                                 "parent": gc_name
                             }
-                        # add one grid connector for each bus station
-                        if gc_name not in grid_connectors:
+                            # add one grid connector for each bus station
                             number_cs = None if number_cs == 'None' else number_cs
                             grid_connectors[gc_name] = {
                                 "max_power": gc_power,
@@ -320,7 +322,7 @@ class Schedule:
 
         # define start and stop times
         start = self.get_departure_of_first_trip()
-        stop = self.get_arrival_of_last_trip()
+        stop = self.get_arrival_of_last_trip() + interval
         if args.days is not None:
             stop = min(stop, start + datetime.timedelta(days=args.days))
         daily = datetime.timedelta(days=1)

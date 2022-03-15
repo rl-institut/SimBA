@@ -21,6 +21,10 @@ if __name__ == '__main__':
                         help='set number of minutes for each timestep (Δt)')
     parser.add_argument('--desired-soc', metavar='SOC', type=float, default=0.8,
                         help='set minimum desired SOC (0 - 1) for each charging process')
+    parser.add_argument('--gc_power_opps', metavar='POPP', type=float, default=1500,
+                        help='max power of grid connector at opp stations')
+    parser.add_argument('--gc_power_deps', metavar='POPP', type=float, default=1500,
+                        help='max power of grid connector at depot stations')
     parser.add_argument('--cs_power_opps', metavar='POPP', type=float, default=150,
                         help='max power of charging station at opp stations')
     parser.add_argument('--cs_power_deps_depb', metavar='PD', type=float, default=150,
