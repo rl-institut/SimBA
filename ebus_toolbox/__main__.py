@@ -21,10 +21,16 @@ if __name__ == '__main__':
                         help='set number of minutes for each timestep (Δt)')
     parser.add_argument('--desired-soc', metavar='SOC', type=float, default=0.8,
                         help='set minimum desired SOC (0 - 1) for each charging process')
-    parser.add_argument('--cs_power_opp', metavar='POPP', type=float, default=150,
+    parser.add_argument('--gc_power_opps', metavar='POPP', type=float, default=1500,
+                        help='max power of grid connector at opp stations')
+    parser.add_argument('--gc_power_deps', metavar='PDEP', type=float, default=1500,
+                        help='max power of grid connector at depot stations')
+    parser.add_argument('--cs_power_opps', metavar='CSPOPP', type=float, default=150,
                         help='max power of charging station at opp stations')
-    parser.add_argument('--cs_power_depot', metavar='PD', type=float, default=150,
-                        help='max power of charging station at depot stations')
+    parser.add_argument('--cs_power_deps_depb', metavar='CSPDEPDEP', type=float, default=150,
+                        help='max power of charging station at depot stations for depot busses')
+    parser.add_argument('--cs_power_deps_oppb', metavar='CSPDEPOPP', type=float, default=150,
+                        help='max power of charging station at depot stations for opp busses')
     parser.add_argument('--battery', '-b', default=[], nargs=2, type=float, action='append',
                         help='add battery with specified capacity in kWh and C-rate \
                             (-1 for variable capacity, second argument is fixed power))')
