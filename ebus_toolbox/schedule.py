@@ -490,8 +490,8 @@ class Schedule:
         :return: list of negative rotation_id's
         :rtype: list
 
-        :raises
-        TypeError: If args.save_results is not set.
+        :raise
+            TypeError: If args.save_results is not set.
         """
 
         # load any json output file of sice_ev
