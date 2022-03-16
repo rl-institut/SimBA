@@ -1,5 +1,5 @@
 {
-    "AB_OPP": {
+    "AB_oppb": {
         "name": "articulated bus - opportunity charging",
         "capacity": 50,
         "charging_curve": [[0, 150], [0.8, 150], [1, 150]],
@@ -7,7 +7,15 @@
         "v2g": false,
         "v2g_power_factor": 0.5
     },
-    "CKB_depot": {
+    "AB_depb": {
+        "name": "articulated bus - opportunity charging",
+        "capacity": 150,
+        "charging_curve": [[0, 150], [0.8, 150], [1, 150]],
+        "min_charging_power": 0,
+        "v2g": false,
+        "v2g_power_factor": 0.5
+    },
+    "CKB_depb": {
         "name": "articulated bus",
         "capacity": 310,
         "charging_curve": [[0, 250], [0.8, 250], [1, 250]],
@@ -16,7 +24,7 @@
         "mileage": "data/private_examples/energy_consumption_eindecker_solaris.csv",
         "hc": "winter"
     },
-    "CKB_opp": {
+    "CKB_oppb": {
         "name": "articulated bus",
         "capacity": 190,
         "charging_curve": [[0, 190], [0.8, 190], [1, 190]],
@@ -25,7 +33,7 @@
         "mileage": "data/private_examples/energy_consumption_eindecker_solaris.csv",
         "hc": "winter"
     },
-    "VDL_depot": {
+    "VDL_depb": {
         "name": "solo bus",
         "capacity": 250,
         "charging_curve": [[0, 250], [0.8, 250], [1, 250]],
@@ -34,7 +42,7 @@
         "mileage": "data/private_examples/energy_consumption_eindecker_solaris.csv",
         "hc": "winter"
     },
-    "VDL_opp": {
+    "VDL_oppb": {
         "name": "solo bus",
         "capacity": 250,
         "charging_curve": [[0, 250], [0.8, 250], [1, 250]],
