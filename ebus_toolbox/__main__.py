@@ -9,7 +9,7 @@ if __name__ == '__main__':
     parser.add_argument('input', nargs='?', help='output file name (example.json)')
     parser.add_argument('--preferred_charging_type', '-pct', default='depot',
                         choices=['depot', 'opp'], help="Preferred charging type. Choose one\
-                        from <depot> and <opp>. opp stands for opportunity.")
+                        from <depb> and <oppb>. opp stands for opportunity.")
     parser.add_argument('--vehicle-types', default=None,
                         help='location of vehicle type definitions')
     parser.add_argument('--min-standing-time_depot', default=6,
