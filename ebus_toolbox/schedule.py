@@ -8,6 +8,7 @@ import random
 
 from ebus_toolbox.rotation import Rotation
 
+
 class Schedule:
 
     def __init__(self, vehicle_types) -> None:
@@ -473,10 +474,10 @@ class Schedule:
         print(f"Rotations {self.get_negative_rotations(args)} have negative SoC.")
         print("Adjust charging types for rotations with negative soc.")
 
-
         for rot in negative_rotations:
             if self.rotations[rot].charging_type == "depb":
-                self.rotations[rot].charging_type = "oppb" #todo: actually this case should not happen, but it still does happen.. why?
+                self.rotations[rot].charging_type = "oppb"
+                # todo: actually this case should not happen, but it still does happen.. why?
             else:
                 self.rotations[rot].charging_type = "depb"
 

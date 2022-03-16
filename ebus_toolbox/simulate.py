@@ -4,7 +4,7 @@ import warnings
 from ebus_toolbox.consumption import Consumption
 from ebus_toolbox.schedule import Schedule
 from ebus_toolbox.trip import Trip
-from ebus_toolbox import optimizer, report
+from ebus_toolbox import report  # , optimizer
 # SPICE EV SIMULATE
 import simulate as spice_ev
 
@@ -50,7 +50,7 @@ def simulate(args):
 
         # Quit if optimizer is not defined
         # (LATER) Run optimizer, continue from top or quit based on optimizer output
-        #if optimizer.no_optimization() == 'converged':
+        # if optimizer.no_optimization() == 'converged':
         #    break
 
     # create report
