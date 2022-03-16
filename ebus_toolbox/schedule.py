@@ -8,7 +8,6 @@ import random
 
 from ebus_toolbox.rotation import Rotation
 
-
 class Schedule:
 
     def __init__(self, vehicle_types) -> None:
@@ -456,5 +455,59 @@ class Schedule:
             "events": events
         }
         # Write JSON
+        self.scenario = j
         with open(args.input, 'w') as f:
             json.dump(j, f, indent=2)
+
+    def readjust_charging_type(self, args):
+        """
+        Loads rotations with negative soc from spice_ev results and adjusts charging type from
+        depb to oppb and vice versa.
+        # todo: it would maybe make sense to change each rotations charging type at a time and not
+        # todo: all together, as they may influence one another
+        :param args: Command line arguments and/or arguments from config file.
+        :type args: argparse.Namespace
+        """
+        negative_rotations = self.get_negative_rotations(args)
+
+        print(f"Rotations {self.get_negative_rotations(args)} have negative SoC.")
+        print("Adjust charging types for rotations with negative soc.")
+
+
+        for rot in negative_rotations:
+            if self.rotations[rot].charging_type == "depb":
+                self.rotations[rot].charging_type = "oppb" #todo: actually this case should not happen, but it still does happen.. why?
+            else:
+                self.rotations[rot].charging_type = "depb"
+
+    def get_negative_rotations(self, args):
+        """
+        Get rotations with negative soc from spice_ev outputs
+
+        :param args: Command line arguments and/or arguments from config file.
+        :type args: argparse.Namespace
+        :return: list of negative rotation_id's
+        :rtype: list
+        """
+
+        # load any json output file of sice_ev
+        gcID = list(self.scenario["constants"]["grid_connectors"].keys())[0]
+        try:
+            ext = path.splitext(args.save_results)
+        except TypeError:
+            raise TypeError("In order to get negative totations from spice_ev results, please "
+                            "specify 'save_results' in your input arguments.")
+        filename = f"{ext[0]}_{gcID}{ext[-1]}"
+        f = open(filename)
+        results = json.load(f)
+
+        # get dict of vehicles with negative soc's
+        negative_vehicles = results["vehicles with negative soc"]
+        # get matching rotations
+        negative_rotations = []
+        for v_id, time in negative_vehicles.items():
+            time = datetime.datetime.fromisoformat(time)
+            rides = {k: v for k, v in self.rotations.items() if v.vehicle_id == v_id}
+            negative_rotations.append([k for k, v in rides.items() if time > v.departure_time and
+                                       time < v.arrival_time][0])
+        return negative_rotations
