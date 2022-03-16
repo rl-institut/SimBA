@@ -222,7 +222,8 @@ class Schedule:
                 # create events for all trips of one rotation
                 for j, trip in enumerate(v_id[v].trips):
                     cs_name = "{}_{}".format(v_name, trip.arrival_name)
-                    gc_name = arrival = trip.arrival_name
+                    gc_name = trip.arrival_name
+                    arrival = trip.arrival_time
                     try:
                         departure = v_id[v].trips[j + 1].departure_time
                         next_arrival = v_id[v].trips[j + 1].arrival_time
