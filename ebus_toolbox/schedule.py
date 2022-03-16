@@ -25,10 +25,10 @@ class Schedule:
                 base, ct = name.rsplit('_', 1)
             except ValueError:
                 continue
-            if f"{base}_opp" in vehicle_types and ct == 'depot':
-                assert vehicle_types[name]["mileage"] == vehicle_types[f"{base}_opp"]["mileage"]
-            elif f"{base}_depot" in vehicle_types and ct == 'opp':
-                assert vehicle_types[name]["mileage"] == vehicle_types[f"{base}_depot"]["mileage"]
+            if f"{base}_oppb" in vehicle_types and ct == 'dep':
+                assert vehicle_types[name]["mileage"] == vehicle_types[f"{base}_oppb"]["mileage"]
+            elif f"{base}_depb" in vehicle_types and ct == 'opp':
+                assert vehicle_types[name]["mileage"] == vehicle_types[f"{base}_depb"]["mileage"]
         self.vehicle_types = vehicle_types
 
         self.rotations = {}
@@ -79,7 +79,7 @@ class Schedule:
                              charging type for all rotations.
         :type rotation_ids: list
         """
-        assert preferred_ct in ["opp", "depot"], f"Invalid charging type: {preferred_ct}"
+        assert preferred_ct in ["oppb", "depb"], f"Invalid charging type: {preferred_ct}"
         if rotation_ids is None:
             rotation_ids = self.rotations.keys()
 
@@ -87,9 +87,9 @@ class Schedule:
             rot = self.rotations[id]
             vehicle_type = self.vehicle_types[f"{rot.vehicle_type}_{rot.charging_type}"]
             if preferred_ct == "opp" or vehicle_type["capacity"] < rot.consumption:
-                self.rotations[id].charging_type = "opp"
+                self.rotations[id].charging_type = "oppb"
             else:
-                self.rotations[id].charging_type = "depot"
+                self.rotations[id].charging_type = "depb"
 
     def assign_vehicles(self, minimum_standing_time_depot):
         """ Assign vehicle IDs to rotations. A FIFO approach is used.
@@ -239,10 +239,10 @@ class Schedule:
                     # connect cs and add gc if station is electrified
                     connected_charging_station = None
                     if gc_name in stations_dict["depot_stations"]:
-                        station_type = "depot"
+                        station_type = "deps"
                         desired_soc = args.desired_soc
-                    elif gc_name in stations_dict["opp_stations"] and ct == "opp":
-                        station_type = "opp"
+                    elif gc_name in stations_dict["opp_stations"] and ct == "oppb":
+                        station_type = "opps"
                         desired_soc = 1
                     else:
                         # either station has no charger or current bus cannot charge at this station
@@ -260,12 +260,12 @@ class Schedule:
                         connected_charging_station = cs_name_and_type
 
                         if cs_name not in charging_stations or gc_name not in grid_connectors:
-                            if station_type == "depot":
+                            if station_type == "deps":
                                 number_cs = stations_dict["depot_stations"][gc_name]
-                                cs_power = args.cs_power_deps_oppb if ct == 'opp' \
+                                cs_power = args.cs_power_deps_oppb if ct == 'oppb' \
                                     else args.cs_power_deps_depb
                                 gc_power = args.gc_power_deps
-                            elif station_type == "opp":
+                            elif station_type == "opps":
                                 number_cs = stations_dict["opp_stations"][gc_name]
                                 cs_power = args.cs_power_opps
                                 gc_power = args.gc_power_opps

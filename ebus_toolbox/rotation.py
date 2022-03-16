@@ -9,7 +9,7 @@ class Rotation:
 
         self.vehicle_type = vehicle_type
         self.vehicle_id = None
-        self.charging_type = 'depot'
+        self.charging_type = 'depb'
 
         self.consumption = 0
 
