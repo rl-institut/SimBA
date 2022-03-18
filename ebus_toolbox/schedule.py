@@ -86,7 +86,7 @@ class Schedule:
         for id in rotation_ids:
             rot = self.rotations[id]
             vehicle_type = self.vehicle_types[f"{rot.vehicle_type}_{rot.charging_type}"]
-            if preferred_ct == "opp" or vehicle_type["capacity"] < rot.consumption:
+            if preferred_ct == "oppb" or vehicle_type["capacity"] < rot.consumption:
                 self.rotations[id].charging_type = "oppb"
             else:
                 self.rotations[id].charging_type = "depb"
