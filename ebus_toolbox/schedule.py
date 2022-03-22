@@ -113,14 +113,17 @@ class Schedule:
             # mark those vehicle as idle
             for r in rotations_in_progress:
                 # calculate min_standing_time deps
+                capacity = self.vehicle_types[
+                    r.vehicle_type + "_" + r.charging_type]["capacity"]
                 if r.charging_type == "oppb":
-                    capacity = self.vehicle_types[
-                        r.vehicle_type + "_" + r.charging_type]["capacity"]
                     min_standing_time_deps = \
                         (capacity / args.cs_power_deps_oppb) * args.min_recharge_deps_oppb
                 else:
-                    min_standing_time_deps = (r.consumption / args.cs_power_deps_oppb) * \
-                                              args.min_recharge_deps_depb
+                    min_standing_time_deps = (r.consumption / args.cs_power_deps_depb)
+                    desired_max_standing_time = \
+                        (capacity / args.cs_power_deps_depb) * args.min_recharge_deps_oppb
+                    if min_standing_time_deps > desired_max_standing_time:
+                        min_standing_time_deps = desired_max_standing_time
 
                 if rot.departure_time > r.arrival_time + \
                         timedelta(hours=min_standing_time_deps):
