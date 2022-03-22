@@ -62,6 +62,9 @@ if __name__ == '__main__':
                         default='examples/vehicle_types.json')
     parser.add_argument('--min_charging_time_opps', help='define minimum time of charging at opps',
                         default=2)
+    parser.add_argument('--signal_time_dif', help='time difference between signal time and actual '
+                                                  'start time of a vehicle event im min.',
+                        default=10)
     parser.add_argument('--visual', '-v', action='store_true', help='Show plots of the results')
     parser.add_argument('--desired_soc', default=1, help='desired_soc of vehicles')
     parser.add_argument('--eta', action='store_true',

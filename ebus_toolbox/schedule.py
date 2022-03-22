@@ -97,10 +97,9 @@ class Schedule:
         case the one with longest standing time since last rotation is used.
         If no vehicle is available a new vehicle ID is generated.
 
-        :param minimum_standing_time_depot: Amount of hours after arrival from previous rotation
-                                            after which a vehicle become avaibable for dispatch
-                                            again.
-        :type minimum_standing_time_depot: int
+        :param args: Command line arguments and/or arguments from config file.
+        :type args: argparse.Namespace
+
         """
         rotations_in_progress = []
         idle_vehicles = []
@@ -308,7 +307,8 @@ class Schedule:
 
                     # create arrival events
                     events["vehicle_events"].append({
-                        "signal_time": arrival.isoformat(),
+                        "signal_time": (arrival + datetime.timedelta(minutes=-args.signal_time_dif)
+                                        ).isoformat(),
                         "start_time": arrival.isoformat(),
                         "vehicle_id": v_name,
                         "event_type": "arrival",
@@ -322,7 +322,8 @@ class Schedule:
                     # create departure events
                     if departure_event_in_input:
                         events["vehicle_events"].append({
-                            "signal_time": departure.isoformat(),
+                            "signal_time": (departure + datetime.timedelta(
+                                            minutes=-args.signal_time_dif)).isoformat(),
                             "start_time": departure.isoformat(),
                             "vehicle_id": v_name,
                             "event_type": "departure",
