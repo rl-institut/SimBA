@@ -91,7 +91,7 @@ class Schedule:
             else:
                 self.rotations[id].charging_type = "depb"
 
-    def assign_vehicles(self, minimum_standing_time_depot):
+    def assign_vehicles(self, args):
         """ Assign vehicle IDs to rotations. A FIFO approach is used.
         For every rotation it is checked whether vehicles with matching type are idle, in which
         case the one with longest standing time since last rotation is used.
@@ -112,8 +112,18 @@ class Schedule:
             # find vehicles that have completed rotation and stood for a minimum staning time
             # mark those vehicle as idle
             for r in rotations_in_progress:
+                # calculate min_standing_time deps
+                if r.charging_type == "oppb":
+                    capacity = self.vehicle_types[
+                        r.vehicle_type + "_" + r.charging_type]["capacity"]
+                    min_standing_time_deps = \
+                        (capacity / args.cs_power_deps_oppb) * args.min_recharge_deps_oppb
+                else:
+                    min_standing_time_deps = (r.consumption / args.cs_power_deps_oppb) * \
+                                              args.min_recharge_deps_depb
+
                 if rot.departure_time > r.arrival_time + \
-                        timedelta(hours=minimum_standing_time_depot):
+                        timedelta(hours=min_standing_time_deps):
                     idle_vehicles.append(r.vehicle_id)
                     rotations_in_progress.pop(0)
                 else:
@@ -254,7 +264,7 @@ class Schedule:
                     # do not connect charging station
                     # 2. if current station has no charger or a depot bus arrives at opp charger,
                     # do not connect charging station either
-                    if (((departure - arrival).seconds / 60 >= args.min_charging_time_opp) and
+                    if (((departure - arrival).seconds / 60 >= args.min_charging_time_opps) and
                             station_type is not None):
 
                         cs_name_and_type = cs_name + "_" + station_type
