@@ -194,10 +194,10 @@ class Schedule:
 
         for rot in negative_rotations:
             if self.rotations[rot].charging_type == "depb":
-                self.set_charging_type("oppb", [rot])
+                self.set_charging_type("oppb", args, [rot])
                 # todo: actually this case should not happen, but it still does happen.. why?
             else:
-                self.set_charging_type("depb", [rot])
+                self.set_charging_type("depb", args, [rot])
 
     def get_negative_rotations(self, args):
         """
