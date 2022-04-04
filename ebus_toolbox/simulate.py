@@ -33,6 +33,7 @@ def simulate(args):
     # initialize optimizer
     i = 0
     while(True):
+        i += 1
         # construct szenario and simulate in spice ev until optimizer is happy
         # if optimizer None, quit after single iteration
         schedule.delta_soc_all_trips()
@@ -46,7 +47,6 @@ def simulate(args):
             print(f"Rotations {schedule.get_negative_rotations(args)} have negative SoC.")
             break
         schedule.readjust_charging_type(args)
-        i += 1
 
         # Quit if optimizer is not defined
         # (LATER) Run optimizer, continue from top or quit based on optimizer output

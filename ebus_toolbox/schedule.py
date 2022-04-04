@@ -511,6 +511,6 @@ class Schedule:
         for v_id, time in negative_vehicles.items():
             time = datetime.datetime.fromisoformat(time)
             rides = {k: v for k, v in self.rotations.items() if v.vehicle_id == v_id}
-            negative_rotations.append([k for k, v in rides.items() if time > v.departure_time and
-                                       time < v.arrival_time][0])
+            negative_rotations.append([k for k, v in rides.items() if time >= v.departure_time and
+                                       time <= v.arrival_time][0])
         return negative_rotations

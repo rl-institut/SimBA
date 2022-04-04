@@ -35,6 +35,7 @@ if __name__ == '__main__':
                         help='add battery with specified capacity in kWh and C-rate \
                             (-1 for variable capacity, second argument is fixed power))')
     parser.add_argument('--seed', default=None, type=int, help='set random seed')
+    parser.add_argument('--iterations', default=1, type=int, help='iterations for optimization')
     parser.add_argument('--include-ext-load-csv',
                         help='include CSV for external load. \
                             You may define custom options with --include-ext-csv-option')
@@ -68,6 +69,7 @@ if __name__ == '__main__':
                         instead of progress bar. Not recommended for fast computations.')
     parser.add_argument('--save-timeseries', help='Write timesteps to file')
     parser.add_argument('--save-results', help='Write general info to file')
+    parser.add_argument('--save-soc', help='Write SOC info to file')
     parser.add_argument('--strategy', '-s', default='greedy',
                         help='Specify the charging strategy. One of {}. You may define \
                         custom options with --strategy-option.'.format('greedy, balanced'))
