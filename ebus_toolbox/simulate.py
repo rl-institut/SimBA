@@ -35,9 +35,9 @@ def simulate(args):
     while(True):
         # construct szenario and simulate in spice ev until optimizer is happy
         # if optimizer None, quit after single iteration
-        schedule.set_charging_type(preferred_ct=args.preferred_charging_type)
+        schedule.set_charging_type(preferred_ct=args.preferred_charging_type, args=args)
         schedule.delta_soc_all_trips()
-        schedule.assign_vehicles(args)
+        schedule.assign_vehicles()
         # write trips to csv in spiceEV format
         schedule.generate_scenario_json(args)
 

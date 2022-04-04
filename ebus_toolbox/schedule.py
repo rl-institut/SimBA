@@ -70,11 +70,14 @@ class Schedule:
         """Based on a given filter definition (tbd), rotations will be dropped from schedule."""
         pass
 
-    def set_charging_type(self, preferred_ct, rotation_ids=None):
-        """Iterate across all rotations/trips and append charging type if not given
+    def set_charging_type(self, preferred_ct, args, rotation_ids=None):
+        """ Change charging type of either all or specified rotations. Adjust minimum standing time
+            at depot after completion of rotation.
 
-        :param preferred_ct: Choose this charging type wheneever possible. Either 'depot' or 'opp'.
+        :param preferred_ct: Choose this charging type wheneever possible. Either 'depb' or 'oppb'.
         :type preferred_ct: str
+        :param args: Command line arguments and/or arguments from config file.
+        :type args: argparse.Namespace
         :param rotation_ids: IDs of rotations for which to set charging type. If None set charging
                              charging type for all rotations.
         :type rotation_ids: list
@@ -86,20 +89,24 @@ class Schedule:
         for id in rotation_ids:
             rot = self.rotations[id]
             vehicle_type = self.vehicle_types[f"{rot.vehicle_type}_{rot.charging_type}"]
-            if preferred_ct == "oppb" or vehicle_type["capacity"] < rot.consumption:
+            capacity = vehicle_type["capacity"]
+            if preferred_ct == "oppb" or capacity < rot.consumption:
                 self.rotations[id].charging_type = "oppb"
+                rot.min_standing_time_deps = \
+                    (capacity / args.cs_power_deps_oppb) * args.min_recharge_deps_oppb
             else:
                 self.rotations[id].charging_type = "depb"
+                rot.min_standing_time_deps = (rot.consumption / args.cs_power_deps_depb)
+                desired_max_standing_time = \
+                    (capacity / args.cs_power_deps_depb) * args.min_recharge_deps_oppb
+                if rot.min_standing_time_deps > desired_max_standing_time:
+                    rot.min_standing_time_deps = desired_max_standing_time
 
-    def assign_vehicles(self, args):
+    def assign_vehicles(self):
         """ Assign vehicle IDs to rotations. A FIFO approach is used.
         For every rotation it is checked whether vehicles with matching type are idle, in which
         case the one with longest standing time since last rotation is used.
         If no vehicle is available a new vehicle ID is generated.
-
-        :param args: Command line arguments and/or arguments from config file.
-        :type args: argparse.Namespace
-
         """
         rotations_in_progress = []
         idle_vehicles = []
@@ -112,20 +119,9 @@ class Schedule:
             # mark those vehicle as idle
             for r in rotations_in_progress:
                 # calculate min_standing_time deps
-                capacity = self.vehicle_types[
-                    r.vehicle_type + "_" + r.charging_type]["capacity"]
-                if r.charging_type == "oppb":
-                    min_standing_time_deps = \
-                        (capacity / args.cs_power_deps_oppb) * args.min_recharge_deps_oppb
-                else:
-                    min_standing_time_deps = (r.consumption / args.cs_power_deps_depb)
-                    desired_max_standing_time = \
-                        (capacity / args.cs_power_deps_depb) * args.min_recharge_deps_oppb
-                    if min_standing_time_deps > desired_max_standing_time:
-                        min_standing_time_deps = desired_max_standing_time
 
                 if rot.departure_time > r.arrival_time + \
-                        timedelta(hours=min_standing_time_deps):
+                        timedelta(hours=r.min_standing_time_deps):
                     idle_vehicles.append(r.vehicle_id)
                     rotations_in_progress.pop(0)
                 else:
@@ -134,14 +130,14 @@ class Schedule:
             # find idle vehicle for rotation if exists
             # else generate new vehicle id
             vt_ct = f"{rot.vehicle_type}_{rot.charging_type}"
-            id = next((id for id in idle_vehicles if vt_ct in id), None)
-            if id is None:
+            vehicle_id = next((id for id in idle_vehicles if vt_ct in id), None)
+            if vehicle_id is None:
                 vehicle_type_counts[vt_ct] += 1
-                id = f"{vt_ct}_{vehicle_type_counts[vt_ct]}"
+                vehicle_id = f"{vt_ct}_{vehicle_type_counts[vt_ct]}"
             else:
-                idle_vehicles.remove(id)
+                idle_vehicles.remove(vehicle_id)
 
-            rot.vehicle_id = id
+            rot.vehicle_id = vehicle_id
             arrival_times = [r.arrival_time for r in rotations_in_progress]
             # keep list of ongoing rotations sorted by arrival_time
             rotations_in_progress.insert(bisect.bisect(arrival_times, rot.arrival_time), rot)
