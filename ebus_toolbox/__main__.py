@@ -12,9 +12,10 @@ if __name__ == '__main__':
                         from <depb> and <oppb>. opp stands for opportunity.")
     parser.add_argument('--vehicle-types', default=None,
                         help='location of vehicle type definitions')
-    parser.add_argument('--min-standing-time_depot', default=6,
-                        help='Minimum standing time in hours for all buses in the depot before \
-                        they become available for dispatch again.')
+    parser.add_argument('--min_recharge_deps_oppb', default=1,
+                        help='Minimum fraction of capacity for recharge when leaving the depot.')
+    parser.add_argument('--min_recharge_deps_depb', default=1,
+                        help='Minimum fraction of capacity for recharge when leaving the depot.')
     parser.add_argument('--days', metavar='N', type=int, default=None,
                         help='set duration of scenario as number of days')
     parser.add_argument('--interval', metavar='MIN', type=int, default=15,
@@ -60,8 +61,11 @@ if __name__ == '__main__':
                         default='examples/electrified_stations.json')
     parser.add_argument('--vehicle_types', help='include vehicle_types json',
                         default='examples/vehicle_types.json')
-    parser.add_argument('--min_charging_time_opp', help='define minimum time of charging',
+    parser.add_argument('--min_charging_time_opps', help='define minimum time of charging at opps',
                         default=2)
+    parser.add_argument('--signal_time_dif', help='time difference between signal time and actual '
+                                                  'start time of a vehicle event im min.',
+                        default=10)
     parser.add_argument('--visual', '-v', action='store_true', help='Show plots of the results')
     parser.add_argument('--desired_soc', default=1, help='desired_soc of vehicles')
     parser.add_argument('--eta', action='store_true',

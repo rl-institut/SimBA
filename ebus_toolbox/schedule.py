@@ -70,11 +70,14 @@ class Schedule:
         """Based on a given filter definition (tbd), rotations will be dropped from schedule."""
         pass
 
-    def set_charging_type(self, preferred_ct, rotation_ids=None):
-        """Iterate across all rotations/trips and append charging type if not given
+    def set_charging_type(self, preferred_ct, args, rotation_ids=None):
+        """ Change charging type of either all or specified rotations. Adjust minimum standing time
+            at depot after completion of rotation.
 
-        :param preferred_ct: Choose this charging type wheneever possible. Either 'depot' or 'opp'.
+        :param preferred_ct: Choose this charging type wheneever possible. Either 'depb' or 'oppb'.
         :type preferred_ct: str
+        :param args: Command line arguments and/or arguments from config file.
+        :type args: argparse.Namespace
         :param rotation_ids: IDs of rotations for which to set charging type. If None set charging
                              charging type for all rotations.
         :type rotation_ids: list
@@ -86,21 +89,24 @@ class Schedule:
         for id in rotation_ids:
             rot = self.rotations[id]
             vehicle_type = self.vehicle_types[f"{rot.vehicle_type}_{rot.charging_type}"]
-            if preferred_ct == "oppb" or vehicle_type["capacity"] < rot.consumption:
+            capacity = vehicle_type["capacity"]
+            if preferred_ct == "oppb" or capacity < rot.consumption:
                 self.rotations[id].charging_type = "oppb"
+                rot.min_standing_time_deps = \
+                    (capacity / args.cs_power_deps_oppb) * args.min_recharge_deps_oppb
             else:
                 self.rotations[id].charging_type = "depb"
+                rot.min_standing_time_deps = (rot.consumption / args.cs_power_deps_depb)
+                desired_max_standing_time = \
+                    (capacity / args.cs_power_deps_depb) * args.min_recharge_deps_oppb
+                if rot.min_standing_time_deps > desired_max_standing_time:
+                    rot.min_standing_time_deps = desired_max_standing_time
 
-    def assign_vehicles(self, minimum_standing_time_depot):
+    def assign_vehicles(self):
         """ Assign vehicle IDs to rotations. A FIFO approach is used.
         For every rotation it is checked whether vehicles with matching type are idle, in which
         case the one with longest standing time since last rotation is used.
         If no vehicle is available a new vehicle ID is generated.
-
-        :param minimum_standing_time_depot: Amount of hours after arrival from previous rotation
-                                            after which a vehicle become avaibable for dispatch
-                                            again.
-        :type minimum_standing_time_depot: int
         """
         rotations_in_progress = []
         idle_vehicles = []
@@ -112,8 +118,10 @@ class Schedule:
             # find vehicles that have completed rotation and stood for a minimum staning time
             # mark those vehicle as idle
             for r in rotations_in_progress:
+                # calculate min_standing_time deps
+
                 if rot.departure_time > r.arrival_time + \
-                        timedelta(hours=minimum_standing_time_depot):
+                        timedelta(hours=r.min_standing_time_deps):
                     idle_vehicles.append(r.vehicle_id)
                     rotations_in_progress.pop(0)
                 else:
@@ -122,14 +130,14 @@ class Schedule:
             # find idle vehicle for rotation if exists
             # else generate new vehicle id
             vt_ct = f"{rot.vehicle_type}_{rot.charging_type}"
-            id = next((id for id in idle_vehicles if vt_ct in id), None)
-            if id is None:
+            vehicle_id = next((id for id in idle_vehicles if vt_ct in id), None)
+            if vehicle_id is None:
                 vehicle_type_counts[vt_ct] += 1
-                id = f"{vt_ct}_{vehicle_type_counts[vt_ct]}"
+                vehicle_id = f"{vt_ct}_{vehicle_type_counts[vt_ct]}"
             else:
-                idle_vehicles.remove(id)
+                idle_vehicles.remove(vehicle_id)
 
-            rot.vehicle_id = id
+            rot.vehicle_id = vehicle_id
             arrival_times = [r.arrival_time for r in rotations_in_progress]
             # keep list of ongoing rotations sorted by arrival_time
             rotations_in_progress.insert(bisect.bisect(arrival_times, rot.arrival_time), rot)
@@ -169,6 +177,61 @@ class Schedule:
         """
         sorted_rotations = sorted(self.rotations.values(), key=lambda rot: rot.arrival_time)
         return sorted_rotations[-1].arrival_time
+
+    def readjust_charging_type(self, args):
+        """
+        Loads rotations with negative soc from spice_ev results and adjusts charging type from
+        depb to oppb and vice versa.
+        # todo: it would maybe make sense to change each rotations charging type at a time and not
+        # todo: all together, as they may influence one another
+        :param args: Command line arguments and/or arguments from config file.
+        :type args: argparse.Namespace
+        """
+        negative_rotations = self.get_negative_rotations(args)
+
+        print(f"Rotations {self.get_negative_rotations(args)} have negative SoC.")
+        print("Adjust charging types for rotations with negative soc.")
+
+        for rot in negative_rotations:
+            if self.rotations[rot].charging_type == "depb":
+                self.set_charging_type("oppb", [rot])
+                # todo: actually this case should not happen, but it still does happen.. why?
+            else:
+                self.set_charging_type("depb", [rot])
+
+    def get_negative_rotations(self, args):
+        """
+        Get rotations with negative soc from spice_ev outputs
+
+        :param args: Command line arguments and/or arguments from config file.
+        :type args: argparse.Namespace
+        :return: list of negative rotation_id's
+        :rtype: list
+
+        :raises TypeError: If args.save_results is not set.
+        """
+
+        # load any json output file of sice_ev
+        gcID = list(self.scenario["constants"]["grid_connectors"].keys())[0]
+        try:
+            ext = path.splitext(args.save_results)
+        except TypeError:
+            raise TypeError("In order to get negative totations from spice_ev results, please "
+                            "specify 'save_results' in your input arguments.")
+        filename = f"{ext[0]}_{gcID}{ext[-1]}"
+        f = open(filename)
+        results = json.load(f)
+
+        # get dict of vehicles with negative soc's
+        negative_vehicles = results["vehicles with negative soc"]
+        # get matching rotations
+        negative_rotations = []
+        for v_id, time in negative_vehicles.items():
+            time = datetime.datetime.fromisoformat(time)
+            rides = {k: v for k, v in self.rotations.items() if v.vehicle_id == v_id}
+            negative_rotations.append([k for k, v in rides.items() if time >= v.departure_time and
+                                       time <= v.arrival_time][0])
+        return negative_rotations
 
     def generate_scenario_json(self, args):
         """ Generate scenario.json for spiceEV
@@ -254,7 +317,7 @@ class Schedule:
                     # do not connect charging station
                     # 2. if current station has no charger or a depot bus arrives at opp charger,
                     # do not connect charging station either
-                    if (((departure - arrival).seconds / 60 >= args.min_charging_time_opp) and
+                    if (((departure - arrival).seconds / 60 >= args.min_charging_time_opps) and
                             station_type is not None):
 
                         cs_name_and_type = cs_name + "_" + station_type
@@ -295,7 +358,8 @@ class Schedule:
 
                     # create arrival events
                     events["vehicle_events"].append({
-                        "signal_time": arrival.isoformat(),
+                        "signal_time": (arrival + datetime.timedelta(minutes=-args.signal_time_dif)
+                                        ).isoformat(),
                         "start_time": arrival.isoformat(),
                         "vehicle_id": v_name,
                         "event_type": "arrival",
@@ -309,7 +373,8 @@ class Schedule:
                     # create departure events
                     if departure_event_in_input:
                         events["vehicle_events"].append({
-                            "signal_time": departure.isoformat(),
+                            "signal_time": (departure + datetime.timedelta(
+                                            minutes=-args.signal_time_dif)).isoformat(),
                             "start_time": departure.isoformat(),
                             "vehicle_id": v_name,
                             "event_type": "departure",
@@ -459,58 +524,3 @@ class Schedule:
         self.scenario = j
         with open(args.input, 'w') as f:
             json.dump(j, f, indent=2)
-
-    def readjust_charging_type(self, args):
-        """
-        Loads rotations with negative soc from spice_ev results and adjusts charging type from
-        depb to oppb and vice versa.
-        # todo: it would maybe make sense to change each rotations charging type at a time and not
-        # todo: all together, as they may influence one another
-        :param args: Command line arguments and/or arguments from config file.
-        :type args: argparse.Namespace
-        """
-        negative_rotations = self.get_negative_rotations(args)
-
-        print(f"Rotations {self.get_negative_rotations(args)} have negative SoC.")
-        print("Adjust charging types for rotations with negative soc.")
-
-        for rot in negative_rotations:
-            if self.rotations[rot].charging_type == "depb":
-                self.set_charging_type("oppb", [rot])
-                # todo: actually this case should not happen, but it still does happen.. why?
-            else:
-                self.set_charging_type("depb", [rot])
-
-    def get_negative_rotations(self, args):
-        """
-        Get rotations with negative soc from spice_ev outputs
-
-        :param args: Command line arguments and/or arguments from config file.
-        :type args: argparse.Namespace
-        :return: list of negative rotation_id's
-        :rtype: list
-
-        :raises TypeError: If args.save_results is not set.
-        """
-
-        # load any json output file of sice_ev
-        gcID = list(self.scenario["constants"]["grid_connectors"].keys())[0]
-        try:
-            ext = path.splitext(args.save_results)
-        except TypeError:
-            raise TypeError("In order to get negative totations from spice_ev results, please "
-                            "specify 'save_results' in your input arguments.")
-        filename = f"{ext[0]}_{gcID}{ext[-1]}"
-        f = open(filename)
-        results = json.load(f)
-
-        # get dict of vehicles with negative soc's
-        negative_vehicles = results["vehicles with negative soc"]
-        # get matching rotations
-        negative_rotations = []
-        for v_id, time in negative_vehicles.items():
-            time = datetime.datetime.fromisoformat(time)
-            rides = {k: v for k, v in self.rotations.items() if v.vehicle_id == v_id}
-            negative_rotations.append([k for k, v in rides.items() if time >= v.departure_time and
-                                       time <= v.arrival_time][0])
-        return negative_rotations
