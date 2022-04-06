@@ -1,12 +1,14 @@
 # imports
 import json
+import sys
+import os
 import warnings
 from ebus_toolbox.consumption import Consumption
 from ebus_toolbox.schedule import Schedule
 from ebus_toolbox.trip import Trip
 from ebus_toolbox import report  # , optimizer
 # SPICE EV SIMULATE
-import simulate as spice_ev
+from spice_ev import simulate as spice_ev
 
 
 def simulate(args):
@@ -42,7 +44,12 @@ def simulate(args):
         schedule.generate_scenario_json(args)
 
         # RUN SPICE EV
+        print("Running Spice EV...")
+        sys.stdout = open(os.devnull, 'w')
         spice_ev.simulate(args)
+        sys.stdout = sys.__stdout__
+        print("Spice EV simulation complete.")
+
         if i == args.iterations:
             print(f"Rotations {schedule.get_negative_rotations(args)} have negative SoC.")
             break
