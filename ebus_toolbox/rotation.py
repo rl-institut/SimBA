@@ -37,7 +37,11 @@ class Rotation:
                 # first of rotation found (for now)
                 self.departure_time = new_trip.departure_time
                 self.departure_name = new_trip.departure_name
-            elif self.arrival_time < new_trip.arrival_time:
+            # '<=' instead of '<' since last trip of rotation has no duration
+            # in the sample data. The trips are however chronologically
+            # sorted which is why this approach works for sample data.
+            # Will also work if one only relies on timestamps!
+            elif self.arrival_time <= new_trip.arrival_time:
                 # last trip of rotation (for now)
                 self.arrival_time = new_trip.arrival_time
                 self.arrival_name = new_trip.arrival_name

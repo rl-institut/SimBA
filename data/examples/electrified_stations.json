@@ -1,0 +1,17 @@
+{
+    "opp_stations": {
+        "Kehlani": 3,
+        "Brinley": 1,
+        "Kamila": 2,
+        "Izaiah": 5,
+        "Cecilia": 4,
+        "Ari": 4,
+        "Lexi": 3,
+        "Kali": 5
+    },
+    "depot_stations": {
+        "Beckham": "None",
+        "King": "None",
+        "Gia": "None"
+    }
+}

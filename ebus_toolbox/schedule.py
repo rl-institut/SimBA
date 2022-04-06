@@ -522,5 +522,5 @@ class Schedule:
         }
         # Write JSON
         self.scenario = j
-        with open(args.input, 'w') as f:
+        with open(args.input, 'w+') as f:
             json.dump(j, f, indent=2)
