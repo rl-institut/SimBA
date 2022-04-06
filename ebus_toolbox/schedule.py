@@ -386,7 +386,7 @@ class Schedule:
         # ######## END OF VEHICLE EVENTS ########## #
 
         # define start and stop times
-        start = self.get_departure_of_first_trip()
+        start = self.get_departure_of_first_trip() - timedelta(minutes=args.signal_time_dif)
         stop = self.get_arrival_of_last_trip() + interval
         if args.days is not None:
             stop = min(stop, start + datetime.timedelta(days=args.days))
