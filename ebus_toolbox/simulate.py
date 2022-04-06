@@ -50,10 +50,10 @@ def simulate(args):
         sys.stdout = sys.__stdout__
         print("Spice EV simulation complete.")
 
-        if i == args.iterations:
-            print(f"Rotations {schedule.get_negative_rotations(args)} have negative SoC.")
-            break
         schedule.readjust_charging_type(args)
+
+        if i == args.iterations:
+            break
 
         # Quit if optimizer is not defined
         # (LATER) Run optimizer, continue from top or quit based on optimizer output
