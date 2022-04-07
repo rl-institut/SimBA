@@ -1,40 +1,13 @@
 # eBus Toolbox
 
-## Idea
+The eBus Toolbox assists the user in analysing and optimising electrified bus fleets and schedules.
 
-This toolbox helps to do eBus feasibility studies and answer research questions
+### Usage
 
-## Tools
+At the current stage, only a single functionality is implemented, which is processing a bus schedule stored in a specific CSV format (see `data/examples/trips_examples.csv`) and run it through a module called SpiceEV for an indepth SOC analysis.
 
-For overview and interfaces of tools see here:
-https://miro.com/app/board/o9J_lu8coPI=/
+To try it out, run the following command from the root directory of this repository after installing the dependencies from `requirements.txt`. 
 
-### scedule data preparation
+`python -m ebus_toolbox --config data/configs/ebus_toolbox.cfg`
 
-* [X] from VIP to RLI scedule data format
-* [ ] from eFlips to RLI scedule data format
-
-### scedule data analysis
-
-* [ ] Generate table of rotation distances
-* [ ] Ranking by accumulated break time
-
-### Consumption analysis
-* [ ] air conditioning consumption based on weather data
-
-### SOC analysis
-Assumptions: Leave depot fully loaded
-
-SOC trend for each rotation based on:
-* [X] charging locations (OC)
-* [X] number of available charging infrastructure (OC)
-* [ ] charging characteristics (OC)
-
-### Charge demand analysis
-Generate load profile for each charging location based on SOC analysis
-
-### Schedule adjustment
-* [X] split up rotations with negative SOC
-* [X] recombine splitted rotations
-
-### Charging Location Tool
+The repo provides an example for each necessary input file, so the example case can be executed without the need for the user to provide any data themselves.
