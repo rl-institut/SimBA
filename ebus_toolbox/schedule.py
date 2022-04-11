@@ -1,6 +1,5 @@
 import csv
 import datetime
-import bisect
 from datetime import timedelta
 import json
 from os import path
@@ -92,15 +91,17 @@ class Schedule:
             capacity = vehicle_type["capacity"]
             if preferred_ct == "oppb" or capacity < rot.consumption:
                 self.rotations[id].charging_type = "oppb"
-                rot.min_standing_time_deps = \
+                min_standing_time = \
                     (capacity / args.cs_power_deps_oppb) * args.min_recharge_deps_oppb
             else:
                 self.rotations[id].charging_type = "depb"
-                rot.min_standing_time_deps = (rot.consumption / args.cs_power_deps_depb)
+                min_standing_time = (rot.consumption / args.cs_power_deps_depb)
                 desired_max_standing_time = \
                     (capacity / args.cs_power_deps_depb) * args.min_recharge_deps_oppb
-                if rot.min_standing_time_deps > desired_max_standing_time:
-                    rot.min_standing_time_deps = desired_max_standing_time
+                if min_standing_time > desired_max_standing_time:
+                    min_standing_time = desired_max_standing_time
+
+            rot.earliest_departure_next_rot = rot.arrival_time + timedelta(hours=min_standing_time)
 
     def assign_vehicles(self):
         """ Assign vehicle IDs to rotations. A FIFO approach is used.
@@ -119,9 +120,7 @@ class Schedule:
             # mark those vehicle as idle
             for r in rotations_in_progress:
                 # calculate min_standing_time deps
-
-                if rot.departure_time > r.arrival_time + \
-                        timedelta(hours=r.min_standing_time_deps):
+                if rot.departure_time > r.earliest_departure_next_rot:
                     idle_vehicles.append(r.vehicle_id)
                     rotations_in_progress.pop(0)
                 else:
@@ -138,9 +137,15 @@ class Schedule:
                 idle_vehicles.remove(vehicle_id)
 
             rot.vehicle_id = vehicle_id
-            arrival_times = [r.arrival_time for r in rotations_in_progress]
-            # keep list of ongoing rotations sorted by arrival_time
-            rotations_in_progress.insert(bisect.bisect(arrival_times, rot.arrival_time), rot)
+
+            # keep list of rotations in progress sorted
+            i = 0
+            for i, r in enumerate(rotations_in_progress):
+                # go through rotations in order, stop at same or higher departure
+                if r.earliest_departure_next_rot >= rot.earliest_departure_next_rot:
+                    break
+            # insert at calculated index
+            rotations_in_progress.insert(i, rot)
 
         self.vehicle_type_counts = vehicle_type_counts
 
