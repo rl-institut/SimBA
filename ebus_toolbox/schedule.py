@@ -435,8 +435,6 @@ class Schedule:
 
         # add timeseries from csv
         # save path and options for CSV timeseries
-        # all spiceev paths are relative to input (refers to spiceEv input) file
-        target_path = path.dirname(args.input)
 
         if args.include_ext_load_csv:
             for filename, gc_name in args.include_ext_load_csv:
@@ -455,7 +453,7 @@ class Schedule:
                         options[key] = value
                 events['external_load'][basename] = options
                 # check if CSV file exists
-                ext_csv_path = path.join(target_path, filename)
+                ext_csv_path = path.join(args.output_directory, filename)
                 if not path.exists(ext_csv_path):
                     print("Warning: external csv file '{}' does not exist yet".format(ext_csv_path))
 
@@ -475,7 +473,7 @@ class Schedule:
                             value = int(value)
                         options[key] = value
                 events['energy_feed_in'][basename] = options
-                feed_in_path = path.join(target_path, filename)
+                feed_in_path = path.join(args.output_directory, filename)
                 if not path.exists(feed_in_path):
                     print("Warning: feed-in csv file '{}' does not exist yet".format(feed_in_path))
 
@@ -493,7 +491,7 @@ class Schedule:
                         value = int(value)
                     options[key] = value
                 events['energy_price_from_csv'] = options
-                price_csv_path = path.join(target_path, filename)
+                price_csv_path = path.join(args.output_directory, filename)
                 if not path.exists(price_csv_path):
                     print("Warning: price csv file '{}' does not exist yet".format(price_csv_path))
 

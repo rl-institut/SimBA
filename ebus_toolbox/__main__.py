@@ -1,16 +1,19 @@
 import argparse
+from os import path
 from ebus_toolbox import simulate, util
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(
         description='Ebus Toolbox - \
         Simulation Program for Ebus Fleets.')
-    parser.add_argument('input_schedule', nargs='?', help='Set the scenario JSON file')
-    parser.add_argument('input', nargs='?', help='output file name (example.json)')
+    parser.add_argument('--input_schedule', nargs='?',
+                        help='Path to CSV file containing all trips of schdedule to be analyzed.')
+    parser.add_argument('--output_directory', nargs='?',
+                        help='Location where all simulation outputs are stored')
     parser.add_argument('--preferred_charging_type', '-pct', default='depot',
                         choices=['depot', 'opp'], help="Preferred charging type. Choose one\
                         from <depb> and <oppb>. opp stands for opportunity.")
-    parser.add_argument('--vehicle-types', default=None,
+    parser.add_argument('--vehicle-types', default="./data/examples/vehicle_types.json",
                         help='location of vehicle type definitions')
     parser.add_argument('--min_recharge_deps_oppb', default=1,
                         help='Minimum fraction of capacity for recharge when leaving the depot.')
@@ -58,7 +61,7 @@ if __name__ == '__main__':
                         help='Provide start date of simulation in format YYYY-MM-DD.E.g. '
                              '2018-01-31')
     parser.add_argument('--electrified_stations', help='include electrified_stations json',
-                        default='examples/electrified_stations.json')
+                        default='data/examples/electrified_stations.json')
     parser.add_argument('--vehicle_types', help='include vehicle_types json',
                         default='examples/vehicle_types.json')
     parser.add_argument('--min_charging_time_opps', help='define minimum time of charging at opps',
@@ -89,5 +92,12 @@ if __name__ == '__main__':
     args = parser.parse_args()
 
     util.set_options_from_config(args, check=True, verbose=False)
+
+    # arguments relevant to SpiceEV, setting automatically to reduce clutter in config
+    args.input = path.join(args.output_directory, "scenario.json")
+    args.save_timeseries = path.join(args.output_directory, "simulation_spiceEV.csv")
+    args.save_results = path.join(args.output_directory, "simulation_spiceEV.json")
+    args.save_soc = path.join(args.output_directory, "simulation_soc_spiceEV.csv")
+    args.eta = False
 
     simulate.simulate(args)
