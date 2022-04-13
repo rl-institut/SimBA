@@ -226,11 +226,11 @@ class Schedule:
                             "specify 'save_results' in your input arguments.")
         filename = f"{ext[0]}_{gcID}{ext[-1]}"
         with open(filename) as f:
-        results = json.load(f)
+            results = json.load(f)
 
         # get dict of vehicles with negative soc's
         try:
-        negative_vehicles = results["vehicles with negative soc"]
+            negative_vehicles = results["vehicles with negative soc"]
         except KeyError:
             return []
         # get matching rotations
