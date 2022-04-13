@@ -2,7 +2,7 @@ import csv
 import datetime
 from datetime import timedelta
 import json
-from os import path
+from os import path, makedirs
 import random
 
 from ebus_toolbox.rotation import Rotation
@@ -525,5 +525,6 @@ class Schedule:
         }
         # Write JSON
         self.scenario = j
+        makedirs(args.output_directory, exist_ok=True)
         with open(args.input, 'w+') as f:
             json.dump(j, f, indent=2)

@@ -9,5 +9,5 @@ docs/_build
 docs/source/temp
 
 data/private_examples
-data/simulation_results
+data/sim_outputs
 data/preprocessing_scripts

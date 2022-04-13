@@ -8,7 +8,7 @@ if __name__ == '__main__':
         Simulation Program for Ebus Fleets.')
     parser.add_argument('--input_schedule', nargs='?',
                         help='Path to CSV file containing all trips of schdedule to be analyzed.')
-    parser.add_argument('--output_directory', nargs='?',
+    parser.add_argument('--output_directory', default='data/sim_outputs', nargs='?',
                         help='Location where all simulation outputs are stored')
     parser.add_argument('--preferred_charging_type', '-pct', default='depot',
                         choices=['depot', 'opp'], help="Preferred charging type. Choose one\
@@ -92,6 +92,9 @@ if __name__ == '__main__':
     args = parser.parse_args()
 
     util.set_options_from_config(args, check=True, verbose=False)
+
+    if args.input_schedule is None:
+        raise SystemExit("The following argument is required: input_schedule")
 
     # arguments relevant to SpiceEV, setting automatically to reduce clutter in config
     args.input = path.join(args.output_directory, "scenario.json")
