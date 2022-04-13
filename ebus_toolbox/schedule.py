@@ -118,12 +118,13 @@ class Schedule:
         for rot in rotations:
             # find vehicles that have completed rotation and stood for a minimum staning time
             # mark those vehicle as idle
-            for r in rotations_in_progress:
+            while rotations_in_progress:
                 # calculate min_standing_time deps
+                r = rotations_in_progress.pop(0)
                 if rot.departure_time > r.earliest_departure_next_rot:
                     idle_vehicles.append(r.vehicle_id)
-                    rotations_in_progress.pop(0)
                 else:
+                    rotations_in_progress.insert(0, r)
                     break
 
             # find idle vehicle for rotation if exists
