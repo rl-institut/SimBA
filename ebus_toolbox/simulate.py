@@ -50,15 +50,11 @@ def simulate(args):
         sys.stdout = sys.__stdout__
         print("Spice EV simulation complete.")
 
-        schedule.readjust_charging_type(args)
-
         if i == args.iterations:
             break
 
-        # Quit if optimizer is not defined
-        # (LATER) Run optimizer, continue from top or quit based on optimizer output
-        # if optimizer.no_optimization() == 'converged':
-        #    break
+        # TODO: replace with optimizer step in the future
+        schedule.readjust_charging_type(args)
 
     # create report
     report.generate()
