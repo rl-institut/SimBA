@@ -4,10 +4,20 @@ The eBus Toolbox assists the user in analysing and optimising electrified bus fl
 
 ### Usage
 
-At the current stage, only a single functionality is implemented, which is processing a bus schedule stored in a specific CSV format (see `data/examples/trips_examples.csv`) and run it through a module called SpiceEV for an indepth SOC analysis.
+At the current stage, only a single functionality is implemented, which is processing a bus schedule stored in a specific CSV format (see `data/examples/trips_examples.csv`) and run it through a module called SpiceEV for an in-depth SOC analysis.
 
-To try it out, run the following command from the root directory of this repository after installing the dependencies from `requirements.txt`. 
+To try it out, first clone this repository and then install the required packages to your current environment by running
 
-`python -m ebus_toolbox --config data/configs/ebus_toolbox.cfg`
+`pip install -r requirements.txt` 
+
+Now you can start the eBus Toolbox with all configurations stored at `data/configs/ebus_toolbox.cfg` module via the command.
+
+``python -m ebus_toolbox --config data/configs/ebus_toolbox.cfg``
 
 The repo provides an example for each necessary input file, so the example case can be executed without the need for the user to provide any data themselves.
+
+To run the eBus Toolbox with your own `schedule.csv` file and default configurations run
+
+`python -m ebus_toolbox --input_schedule path/to/schedule.csv`
+
+Default configurations are detailed at `data/configs/ebus_toolbox.cfg`.
