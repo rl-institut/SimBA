@@ -225,7 +225,7 @@ class Schedule:
             raise TypeError("In order to get negative totations from spice_ev results, please "
                             "specify 'save_results' in your input arguments.")
         filename = f"{ext[0]}_{gcID}{ext[-1]}"
-        f = open(filename)
+        with open(filename) as f:
         results = json.load(f)
 
         # get dict of vehicles with negative soc's
