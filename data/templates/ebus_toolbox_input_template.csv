@@ -1,2 +1,0 @@
-line,departure_name,departure_short_name,departure_day,departure_time,arrival_time,arrival_day,arrival_name,arrival_short_name,distance,pause,rotation_id,vehicle_type
-160,Betriebshof A,BF A E,Monday,21.5166666666666,21.5166666666666,Monday,Hasselwerderstr.,HAWR01B,0.06,0,4454943,CKB
