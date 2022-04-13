@@ -229,7 +229,10 @@ class Schedule:
         results = json.load(f)
 
         # get dict of vehicles with negative soc's
+        try:
         negative_vehicles = results["vehicles with negative soc"]
+        except KeyError:
+            return []
         # get matching rotations
         negative_rotations = []
         for v_id, time in negative_vehicles.items():
