@@ -11,6 +11,11 @@ class Trip:
         self.arrival_name = arrival_name
         self.distance = float(distance)
 
+        # Attention: Circular reference!
+        # While a rotation carries a references to this trip, this trip
+        # itself carries the below reference to that rotation as well.
+        # For Python versions < 3.4 this created a problem for the garbage
+        # collector.
         self.rotation = rotation
 
         self.consumption = None  # kWh
