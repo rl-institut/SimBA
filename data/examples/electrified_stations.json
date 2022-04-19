@@ -1,17 +1,17 @@
 {
     "opp_stations": {
-        "OPPS_3": 3,
-        "OPPS_10": 1,
-        "OPPS_21": 2,
-        "OPPS_26": 5,
-        "OPPS_28": 4,
-        "OPPS_30": 4,
-        "OPPS_32": 3,
-        "OPPS_39": 5
+        "Station-3": 3,
+        "Station-10": 1,
+        "Station-21": 2,
+        "Station-26": 5,
+        "Station-28": 4,
+        "Station-30": 4,
+        "Station-32": 3,
+        "Station-39": 5
     },
     "depot_stations": {
-        "DEPS_1": "None",
-        "DEPS_23": "None",
-        "DEPS_42": "None"
+        "Station-0": "None",
+        "Station-22": "None",
+        "Station-42": "None"
     }
 }
