@@ -1,17 +1,17 @@
 {
     "opp_stations": {
-        "Kehlani": 3,
-        "Brinley": 1,
-        "Kamila": 2,
-        "Izaiah": 5,
-        "Cecilia": 4,
-        "Ari": 4,
-        "Lexi": 3,
-        "Kali": 5
+        "OPPS_3": 3,
+        "OPPS_10": 1,
+        "OPPS_21": 2,
+        "OPPS_26": 5,
+        "OPPS_28": 4,
+        "OPPS_30": 4,
+        "OPPS_32": 3,
+        "OPPS_39": 5
     },
     "depot_stations": {
-        "Beckham": "None",
-        "King": "None",
-        "Gia": "None"
+        "DEPS_1": "None",
+        "DEPS_23": "None",
+        "DEPS_42": "None"
     }
 }
