@@ -51,6 +51,7 @@ def simulate(args):
         print("Spice EV simulation complete.")
 
         if i == args.iterations:
+            print(f"Rotations {schedule.get_negative_rotations(args)} have negative SoC.")
             break
 
         # TODO: replace with optimizer step in the future

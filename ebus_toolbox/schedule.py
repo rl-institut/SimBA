@@ -195,7 +195,7 @@ class Schedule:
         """
         negative_rotations = self.get_negative_rotations(args)
 
-        print(f"Rotations {self.get_negative_rotations(args)} have negative SoC.")
+        print(f"Rotations {negative_rotations} have negative SoC.")
         print("Adjust charging types for rotations with negative soc.")
 
         for rot in negative_rotations:
