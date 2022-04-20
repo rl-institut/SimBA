@@ -275,35 +275,41 @@ class Schedule:
             v_name = vehicle_id
             vt = vehicle_id.split("_")[0]
             ct = vehicle_id.split("_")[1]
+
+            # filter all rides for that bus
+            vehicle_rotations = {k: v for k, v in self.rotations.items() if v.vehicle_id == v_name}
+            # sort events for their departure time, so that the matching departure time of an
+            # arrival event can be read out of the next element in vid_list
+            vehicle_rotations = {k: v for k, v in sorted(
+                                 vehicle_rotations.items(), key=lambda x: x[1].departure_time)}
+            rotation_ids = list(vehicle_rotations.keys())
+
             # define start conditions
+            first_rotation = list(vehicle_rotations.values())[0]
             vehicles[v_name] = {
-                "connected_charging_station": None,
-                "estimated_time_of_departure": None,
+                "connected_charging_station": f'{v_name}_{first_rotation.departure_name}_deps',
+                "estimated_time_of_departure": first_rotation.departure_time.isoformat(),
                 "desired_soc": None,
                 "soc": args.desired_soc,
                 "vehicle_type": vt + "_" + ct
             }
-            # filter all rides for that bus
-            v_id = {k: v for k, v in self.rotations.items() if v.vehicle_id == v_name}
-            # sort events for their departure time, so that the matching departure time of an
-            # arrival event can be read out of the next element in vid_list
-            v_id = {k: v for k, v in sorted(v_id.items(), key=lambda x: x[1].departure_time)}
-            key_list = list(v_id.keys())
-            for i, v in enumerate(key_list):
+
+            for i, v in enumerate(rotation_ids):
                 departure_event_in_input = True
                 # create events for all trips of one rotation
-                for j, trip in enumerate(v_id[v].trips):
+                for j, trip in enumerate(vehicle_rotations[v].trips):
                     cs_name = "{}_{}".format(v_name, trip.arrival_name)
                     gc_name = trip.arrival_name
                     arrival = trip.arrival_time
                     try:
-                        departure = v_id[v].trips[j + 1].departure_time
-                        next_arrival = v_id[v].trips[j + 1].arrival_time
+                        departure = vehicle_rotations[v].trips[j + 1].departure_time
+                        next_arrival = vehicle_rotations[v].trips[j + 1].arrival_time
                     except IndexError:
                         # get departure of the first trip of the next rotation
                         try:
-                            departure = v_id[key_list[i + 1]].departure_time
-                            next_arrival = v_id[key_list[i + 1]].trips[0].arrival_time
+                            departure = vehicle_rotations[rotation_ids[i + 1]].departure_time
+                            next_arrival = \
+                                vehicle_rotations[rotation_ids[i + 1]].trips[0].arrival_time
                         except IndexError:
                             departure_event_in_input = False
                             departure = arrival + datetime.timedelta(hours=8)
