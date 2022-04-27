@@ -1,7 +1,5 @@
 # imports
 import json
-import sys
-import os
 import warnings
 from ebus_toolbox.consumption import Consumption
 from ebus_toolbox.schedule import Schedule
@@ -32,10 +30,8 @@ def simulate(args):
     schedule.filter_rotations()
     schedule.calculate_consumption()
     schedule.set_charging_type(preferred_ct=args.preferred_charging_type, args=args)
-    # initialize optimizer
-    i = 0
-    while(True):
-        i += 1
+
+    for i in range(args.iterations):
         # construct szenario and simulate in spice ev until optimizer is happy
         # if optimizer None, quit after single iteration
         schedule.delta_soc_all_trips()
@@ -45,17 +41,16 @@ def simulate(args):
 
         # RUN SPICE EV
         print("Running Spice EV...")
-        sys.stdout = open(os.devnull, 'w')
-        spice_ev.simulate(args)
-        sys.stdout = sys.__stdout__
-        print("Spice EV simulation complete.")
+        with warnings.catch_warnings():
+            warnings.simplefilter('ignore', UserWarning)
+            spice_ev.simulate(args)
+        print(f"Spice EV simulation complete. (Iteration {i})")
 
-        if i == args.iterations:
-            print(f"Rotations {schedule.get_negative_rotations(args)} have negative SoC.")
-            break
+        if i < args.iterations - 1:
+            # TODO: replace with optimizer step in the future
+            schedule.readjust_charging_type(args)
 
-        # TODO: replace with optimizer step in the future
-        schedule.readjust_charging_type(args)
+    print(f"Rotations {schedule.get_negative_rotations(args)} have negative SoC.")
 
     # create report
     report.generate()
