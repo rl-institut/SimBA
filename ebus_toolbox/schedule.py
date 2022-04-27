@@ -317,14 +317,12 @@ class Schedule:
 
                     # connect cs and add gc if station is electrified
                     connected_charging_station = None
-                    if gc_name in stations_dict["depot_stations"]:
-                        station_type = "deps"
-                        desired_soc = args.desired_soc
-                    elif gc_name in stations_dict["opp_stations"] and ct == "oppb":
-                        station_type = "opps"
-                        desired_soc = 1
+
+                    if gc_name in stations_dict.keys():
+                        # electrified station
+                        station_type = stations_dict[gc_name]["type"]
+                        desired_soc = 1 if station_type == "opps" else args.desired_soc
                     else:
-                        # either station has no charger or current bus cannot charge at this station
                         station_type = None
                         desired_soc = 0
 
@@ -339,13 +337,12 @@ class Schedule:
                         connected_charging_station = cs_name_and_type
 
                         if cs_name not in charging_stations or gc_name not in grid_connectors:
+                            number_cs = stations_dict[gc_name]["n_charging_stations"]
                             if station_type == "deps":
-                                number_cs = stations_dict["depot_stations"][gc_name]
                                 cs_power = args.cs_power_deps_oppb if ct == 'oppb' \
                                     else args.cs_power_deps_depb
                                 gc_power = args.gc_power_deps
                             elif station_type == "opps":
-                                number_cs = stations_dict["opp_stations"][gc_name]
                                 cs_power = args.cs_power_opps
                                 gc_power = args.gc_power_opps
 
