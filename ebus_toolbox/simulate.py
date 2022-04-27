@@ -6,7 +6,7 @@ from ebus_toolbox.schedule import Schedule
 from ebus_toolbox.trip import Trip
 from ebus_toolbox import report  # , optimizer
 # SPICE EV SIMULATE
-from spice_ev import simulate as spice_ev
+import simulate as spice_ev
 
 
 def simulate(args):
