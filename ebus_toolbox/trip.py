@@ -10,6 +10,7 @@ class Trip:
         self.arrival_time = datetime.fromisoformat(arrival_time)
         self.arrival_name = arrival_name
         self.distance = float(distance)
+        self.line = kwargs.get('line', None)
 
         # Attention: Circular reference!
         # While a rotation carries a references to this trip, this trip

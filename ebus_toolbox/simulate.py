@@ -36,10 +36,11 @@ def simulate(args):
         # if optimizer None, quit after single iteration
         schedule.delta_soc_all_trips()
         schedule.assign_vehicles()
+
+        # RUN SPICE EV
         # write trips to csv in spiceEV format
         schedule.generate_scenario_json(args)
 
-        # RUN SPICE EV
         print("Running Spice EV...")
         with warnings.catch_warnings():
             warnings.simplefilter('ignore', UserWarning)
@@ -53,4 +54,4 @@ def simulate(args):
     print(f"Rotations {schedule.get_negative_rotations(args)} have negative SoC.")
 
     # create report
-    report.generate()
+    report.generate(schedule, args)

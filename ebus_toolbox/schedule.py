@@ -152,6 +152,7 @@ class Schedule:
 
     def calculate_consumption(self):
         """ Computes consumption for all trips of all rotations.
+            Depends on vehicle type only, not on charging type.
 
         :return: Total consumption for entire schedule [kWh]
         :rtype: float
@@ -163,6 +164,11 @@ class Schedule:
         return self.consumption
 
     def delta_soc_all_trips(self):
+        """ Computes delta SOC for all trips of all rotations.
+            Depends on vehicle type and on charging type, since
+            busses of the same vehicle type may have different
+            battery sizes for different charging types."""
+
         for rot in self.rotations.values():
             rot.delta_soc_all_trips()
 
@@ -535,3 +541,29 @@ class Schedule:
         makedirs(args.output_directory, exist_ok=True)
         with open(args.input, 'w+') as f:
             json.dump(j, f, indent=2)
+
+    def generate_rotations_overview(self, args):
+        rotation_infos = []
+        negative_rotations = self.get_negative_rotations(args)
+        for id, rotation in self.rotations.items():
+            rotation_info = {
+                                "rotation_id": id,
+                                "start_time": rotation.departure_time,
+                                "end_time": rotation.arrival_time,
+                                "vehicle_type": rotation.vehicle_type,
+                                "depot_name": rotation.departure_time,
+                                "lines": ':'.join(rotation.lines),
+                                "total_consumption_[kWh]": rotation.consumption,
+                                "distance": rotation.distance,
+                                "charging_type": rotation.charging_type,
+                                # TODO: Read SOC values from spice_ev outputs
+                                "SOC_at_arrival": 0,
+                                "Minumum_SOC": 0,
+                                "Negative_SOC": 1 if id in negative_rotations else 0
+                             }
+            rotation_infos.append(rotation_info)
+
+        with open(path.join(args.output_directory, "rotations.csv"), "w+") as f:
+            csv_writer = csv.DictWriter(f, list(rotation_infos[0].keys()))
+            csv_writer.writeheader()
+            csv_writer.writerows(rotation_infos)
