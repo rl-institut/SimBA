@@ -105,9 +105,9 @@ class Schedule:
 
     def assign_vehicles(self):
         """ Assign vehicle IDs to rotations. A FIFO approach is used.
-        For every rotation it is checked whether vehicles with matching type are idle, in which
-        case the one with longest standing time since last rotation is used.
-        If no vehicle is available a new vehicle ID is generated.
+            For every rotation it is checked whether vehicles with matching type are idle, in which
+            case the one with longest standing time since last rotation is used.
+            If no vehicle is available a new vehicle ID is generated.
         """
         rotations_in_progress = []
         idle_vehicles = []
@@ -551,7 +551,8 @@ class Schedule:
                                 "start_time": rotation.departure_time,
                                 "end_time": rotation.arrival_time,
                                 "vehicle_type": rotation.vehicle_type,
-                                "depot_name": rotation.departure_time,
+                                "vehicle_id": rotation.vehicle_id,
+                                "depot_name": rotation.departure_name,
                                 "lines": ':'.join(rotation.lines),
                                 "total_consumption_[kWh]": rotation.consumption,
                                 "distance": rotation.distance,
