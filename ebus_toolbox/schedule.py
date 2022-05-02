@@ -565,6 +565,6 @@ class Schedule:
             rotation_infos.append(rotation_info)
 
         with open(path.join(args.output_directory, "rotations.csv"), "w+") as f:
-            csv_writer = csv.DictWriter(f, list(rotation_infos[0].keys()))
+            csv_writer = csv.DictWriter(f, list(rotation_infos[0].keys()), delimiter=';')
             csv_writer.writeheader()
             csv_writer.writerows(rotation_infos)
