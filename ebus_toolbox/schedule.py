@@ -323,14 +323,19 @@ class Schedule:
 
                     # connect cs and add gc if station is electrified
                     connected_charging_station = None
-
+                    desired_soc = 0
                     if gc_name in stations_dict.keys():
                         # electrified station
                         station_type = stations_dict[gc_name]["type"]
-                        desired_soc = 1 if station_type == "opps" else args.desired_soc
+                        if station_type == 'opps' and vehicle_rotations[v].charging_type == 'depb':
+                            # a depot bus cannot charge at an opp station
+                            station_type = None
+                        else:
+                            # at opp station, always try to charge as much as you can
+                            desired_soc = 1 if station_type == "opps" else args.desired_soc
                     else:
+                        # non-electrified station
                         station_type = None
-                        desired_soc = 0
 
                     # 1. if departure - arrival shorter than min_charging_time,
                     # do not connect charging station
