@@ -1,9 +1,10 @@
 import csv
-import datetime
-from datetime import timedelta
 import json
-from os import path, makedirs
 import random
+import datetime
+import itertools
+from os import path, makedirs
+from datetime import timedelta
 
 from ebus_toolbox.rotation import Rotation
 
@@ -550,11 +551,32 @@ class Schedule:
     def generate_rotations_overview(self, args):
         rotation_infos = []
         negative_rotations = self.get_negative_rotations(args)
+        sim_start_time = \
+            self.get_departure_of_first_trip() - timedelta(minutes=args.signal_time_dif)
+
         for id, rotation in self.rotations.items():
+            # get SOC timeseries for this rotation
+            socs = []
+            vehicle_id = rotation.vehicle_id
+            with open(path.join(args.output_directory, 'simulation_soc_spiceEV.csv')) as f:
+                reader = csv.DictReader(f)
+
+                interval = timedelta(minutes=args.interval)
+                read_start_time = rotation.departure_time
+                duration = rotation.arrival_time-rotation.departure_time
+
+                start_reading = (read_start_time - sim_start_time) // interval
+                end_reading = start_reading + (duration // interval)
+
+                reader = itertools.islice(reader, start_reading, end_reading)
+
+                for line in reader:
+                    socs.append(line[vehicle_id])
+
             rotation_info = {
                                 "rotation_id": id,
-                                "start_time": rotation.departure_time,
-                                "end_time": rotation.arrival_time,
+                                "start_time": rotation.departure_time.isoformat(),
+                                "end_time": rotation.arrival_time.isoformat(),
                                 "vehicle_type": rotation.vehicle_type,
                                 "vehicle_id": rotation.vehicle_id,
                                 "depot_name": rotation.departure_name,
@@ -562,9 +584,8 @@ class Schedule:
                                 "total_consumption_[kWh]": rotation.consumption,
                                 "distance": rotation.distance,
                                 "charging_type": rotation.charging_type,
-                                # TODO: Read SOC values from spice_ev outputs
-                                "SOC_at_arrival": 0,
-                                "Minumum_SOC": 0,
+                                "SOC_at_arrival": socs[-1],
+                                "Minumum_SOC": min(socs),
                                 "Negative_SOC": 1 if id in negative_rotations else 0
                              }
             rotation_infos.append(rotation_info)
