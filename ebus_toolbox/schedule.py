@@ -225,13 +225,22 @@ class Schedule:
         """
 
         # load any json output file of sice_ev
-        gcID = list(self.scenario["constants"]["grid_connectors"].keys())[0]
+        gcIDs = list(self.scenario["constants"]["grid_connectors"].keys())
         try:
-            ext = path.splitext(args.save_results)
+            filename, ext = path.splitext(args.save_results)
         except TypeError:
             raise TypeError("In order to get negative totations from spice_ev results, please "
                             "specify 'save_results' in your input arguments.")
-        filename = f"{ext[0]}_{gcID}{ext[-1]}"
+        # in spiceEV there is one results file for each grid connector and the filename indicates
+        # which results file corresponds to which grid connector
+        # in case there is only one grid connector the filename does not mention the grid connector
+        if len(gcIDs) > 1:
+            # every gc results file contains the same info with regard to negative socs
+            # so just pick the first one
+            filename = f"{filename}_{gcIDs[0]}{ext}"
+        else:
+            filename = args.save_results
+
         with open(filename) as f:
             results = json.load(f)
 
