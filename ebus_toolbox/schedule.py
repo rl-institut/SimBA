@@ -322,6 +322,41 @@ class Schedule:
                             departure = arrival + datetime.timedelta(hours=8)
                             # no more rotations
 
+                    # calculate total minutes spend at station
+                    standing_time = (departure - arrival).seconds / 60
+                    # get buffer time from user configuration, buffer time resembles
+                    # amount of time spent at station that cannot be used for charging
+                    # use buffer time from electrified stations JSON or in case none is
+                    # provided use global default from config file
+                    try:
+                        buffer_time = stations_dict[trip.arrival_name]['buffer_time']
+                    except KeyError:
+                        buffer_time = args.default_buffer_time_opps
+
+                    # distinct buffer times depending on time of day can be provided
+                    # in that case buffer time is of type dict instead of int
+                    if isinstance(buffer_time, dict):
+                        # sort dict to make sure 'else' key is last key
+                        buffer_time = {key: buffer_time[key] for key in sorted(buffer_time)}
+                        current_hour = arrival.hour
+                        for time_range, buffer in buffer_time.items():
+                            if time_range == 'else':
+                                buffer_time = buffer
+                                break
+                            else:
+                                start_hour, end_hour = [int(t) for t in time_range.split('-')]
+                                if end_hour < start_hour:
+                                    if current_hour >= start_hour or current_hour < end_hour:
+                                        buffer_time = buffer
+                                        break
+                                else:
+                                    if start_hour <= current_hour < end_hour:
+                                        buffer_time = buffer
+                                        break
+                        else:
+                            # buffer time not specified for hour of current stop
+                            buffer_time = args.default_buffer_time_opps
+
                     # connect cs and add gc if station is electrified
                     connected_charging_station = None
                     desired_soc = 0
@@ -338,12 +373,12 @@ class Schedule:
                         # non-electrified station
                         station_type = None
 
-                    # 1. if departure - arrival shorter than min_charging_time,
+                    # 1. if standing time - buffer time shorter than min_charging_time,
                     # do not connect charging station
                     # 2. if current station has no charger or a depot bus arrives at opp charger,
                     # do not connect charging station either
-                    if (((departure - arrival).seconds / 60 >= args.min_charging_time_opps) and
-                            station_type is not None):
+                    if (station_type is not None and
+                            (standing_time - buffer_time >= args.min_charging_time_opps)):
 
                         cs_name_and_type = cs_name + "_" + station_type
                         connected_charging_station = cs_name_and_type
@@ -355,6 +390,8 @@ class Schedule:
                                     else args.cs_power_deps_depb
                                 gc_power = args.gc_power_deps
                             elif station_type == "opps":
+                                # delay the arrival time to account for docking procedure
+                                arrival = arrival + datetime.timedelta(minutes=buffer_time)
                                 cs_power = args.cs_power_opps
                                 gc_power = args.gc_power_opps
 
