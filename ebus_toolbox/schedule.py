@@ -3,10 +3,11 @@ import json
 import random
 import datetime
 import itertools
-from os import path, makedirs
+from os import path
 from datetime import timedelta
 
 from ebus_toolbox.rotation import Rotation
+from src.scenario import Scenario
 
 
 class Schedule:
@@ -258,11 +259,14 @@ class Schedule:
                                        time <= v.arrival_time][0])
         return negative_rotations
 
-    def generate_scenario_json(self, args):
+    def generate_scenario(self, args):
         """ Generate scenario.json for spiceEV
 
         :param args: Command line arguments and/or arguments from config file.
         :type args: argparse.Namespace
+        :return: A spiceEV Scenario instance that can be run and also collects all
+                 simulation outputs.
+        :rtype:  spice_ev.src.Scenario
         """
         # load stations file
         if args.electrified_stations is None:
@@ -573,7 +577,7 @@ class Schedule:
                     "charging_curve": [[0, max_power], [1, max_power]]
                 }
         # create final dict
-        j = {
+        self.scenario = {
             "scenario": {
                 "start_time": start.isoformat(),
                 "interval": interval.days * 24 * 60 + interval.seconds // 60,
@@ -588,11 +592,8 @@ class Schedule:
             },
             "events": events
         }
-        # Write JSON
-        self.scenario = j
-        makedirs(args.output_directory, exist_ok=True)
-        with open(args.input, 'w+') as f:
-            json.dump(j, f, indent=2)
+
+        return Scenario(self.scenario, args.output_directory)
 
     def generate_rotations_overview(self, args):
         rotation_infos = []

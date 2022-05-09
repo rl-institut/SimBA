@@ -103,6 +103,6 @@ if __name__ == '__main__':
     args.save_timeseries = path.join(args.output_directory, "simulation_spiceEV.csv")
     args.save_results = path.join(args.output_directory, "simulation_spiceEV.json")
     args.save_soc = path.join(args.output_directory, "simulation_soc_spiceEV.csv")
-    args.eta = False
+    args.ALLOW_NEGATIVE_SOC = True
 
     simulate.simulate(args)
