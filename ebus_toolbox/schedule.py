@@ -333,8 +333,9 @@ class Schedule:
 
                     # calculate total minutes spend at station
                     standing_time = (departure - arrival).seconds / 60
-                    # get buffer time from user configuration, buffer time resembles
-                    # amount of time spent at station that cannot be used for charging
+                    # get buffer time from user configuration
+                    # buffer time resembles amount of time deducted off of the planned standing
+                    # time. It may resemble things like delays and/or docking procedures
                     # use buffer time from electrified stations JSON or in case none is
                     # provided use global default from config file
                     try:
