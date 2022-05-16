@@ -48,7 +48,7 @@ class Schedule:
         schedule = cls(vehicle_types)
 
         with open(path_to_csv, 'r') as trips_file:
-            trip_reader = csv.DictReader(trips_file, delimiter=';')
+            trip_reader = csv.DictReader(trips_file)
             for trip in trip_reader:
                 rotation_id = trip['rotation_id']
                 if rotation_id not in schedule.rotations.keys():
@@ -638,6 +638,6 @@ class Schedule:
             rotation_infos.append(rotation_info)
 
         with open(path.join(args.output_directory, "rotations.csv"), "w+") as f:
-            csv_writer = csv.DictWriter(f, list(rotation_infos[0].keys()), delimiter=';')
+            csv_writer = csv.DictWriter(f, list(rotation_infos[0].keys()))
             csv_writer.writeheader()
             csv_writer.writerows(rotation_infos)
