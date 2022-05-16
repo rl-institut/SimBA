@@ -337,8 +337,9 @@ class Schedule:
 
                     # calculate total minutes spend at station
                     standing_time = (departure - arrival).seconds / 60
-                    # get buffer time from user configuration, buffer time resembles
-                    # amount of time spent at station that cannot be used for charging
+                    # get buffer time from user configuration
+                    # buffer time resembles amount of time deducted off of the planned standing
+                    # time. It may resemble things like delays and/or docking procedures
                     # use buffer time from electrified stations JSON or in case none is
                     # provided use global default from config file
                     try:
@@ -638,6 +639,6 @@ class Schedule:
             rotation_infos.append(rotation_info)
 
         with open(path.join(args.output_directory, "rotations.csv"), "w+") as f:
-            csv_writer = csv.DictWriter(f, list(rotation_infos[0].keys()), delimiter=';')
+            csv_writer = csv.DictWriter(f, list(rotation_infos[0].keys()))
             csv_writer.writeheader()
             csv_writer.writerows(rotation_infos)
