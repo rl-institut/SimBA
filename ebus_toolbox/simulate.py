@@ -47,9 +47,9 @@ def simulate(args):
 
         if i < args.iterations - 1:
             # TODO: replace with optimizer step in the future
-            schedule.readjust_charging_type(args)
+            schedule.readjust_charging_type(args, scenario)
 
-    print(f"Rotations {schedule.get_negative_rotations(args)} have negative SoC.")
+    print(f"Rotations {schedule.get_negative_rotations(scenario)} have negative SoC.")
 
     # create report
-    report.generate(schedule, args)
+    report.generate(schedule, scenario, args)

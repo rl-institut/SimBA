@@ -1,5 +1,4 @@
 import argparse
-from os import path
 from ebus_toolbox import simulate, util
 
 if __name__ == '__main__':
@@ -99,10 +98,7 @@ if __name__ == '__main__':
         raise SystemExit("The following argument is required: input_schedule")
 
     # arguments relevant to SpiceEV, setting automatically to reduce clutter in config
-    args.input = path.join(args.output_directory, "scenario.json")
-    args.save_timeseries = path.join(args.output_directory, "simulation_spiceEV.csv")
-    args.save_results = path.join(args.output_directory, "simulation_spiceEV.json")
-    args.save_soc = path.join(args.output_directory, "simulation_soc_spiceEV.csv")
     args.ALLOW_NEGATIVE_SOC = True
+    args.attach_vehicle_soc = True
 
     simulate.simulate(args)
