@@ -1,9 +1,10 @@
 import csv
-import datetime
-from datetime import timedelta
 import json
-from os import path, makedirs
 import random
+import datetime
+import itertools
+from os import path, makedirs
+from datetime import timedelta
 
 from ebus_toolbox.rotation import Rotation
 
@@ -105,9 +106,9 @@ class Schedule:
 
     def assign_vehicles(self):
         """ Assign vehicle IDs to rotations. A FIFO approach is used.
-        For every rotation it is checked whether vehicles with matching type are idle, in which
-        case the one with longest standing time since last rotation is used.
-        If no vehicle is available a new vehicle ID is generated.
+            For every rotation it is checked whether vehicles with matching type are idle, in which
+            case the one with longest standing time since last rotation is used.
+            If no vehicle is available a new vehicle ID is generated.
         """
         rotations_in_progress = []
         idle_vehicles = []
@@ -152,6 +153,7 @@ class Schedule:
 
     def calculate_consumption(self):
         """ Computes consumption for all trips of all rotations.
+            Depends on vehicle type only, not on charging type.
 
         :return: Total consumption for entire schedule [kWh]
         :rtype: float
@@ -163,6 +165,11 @@ class Schedule:
         return self.consumption
 
     def delta_soc_all_trips(self):
+        """ Computes delta SOC for all trips of all rotations.
+            Depends on vehicle type and on charging type, since
+            busses of the same vehicle type may have different
+            battery sizes for different charging types."""
+
         for rot in self.rotations.values():
             rot.delta_soc_all_trips()
 
@@ -218,13 +225,22 @@ class Schedule:
         """
 
         # load any json output file of sice_ev
-        gcID = list(self.scenario["constants"]["grid_connectors"].keys())[0]
+        gcIDs = list(self.scenario["constants"]["grid_connectors"].keys())
         try:
-            ext = path.splitext(args.save_results)
+            filename, ext = path.splitext(args.save_results)
         except TypeError:
             raise TypeError("In order to get negative totations from spice_ev results, please "
                             "specify 'save_results' in your input arguments.")
-        filename = f"{ext[0]}_{gcID}{ext[-1]}"
+        # in spiceEV there is one results file for each grid connector and the filename indicates
+        # which results file corresponds to which grid connector
+        # in case there is only one grid connector the filename does not mention the grid connector
+        if len(gcIDs) > 1:
+            # every gc results file contains the same info with regard to negative socs
+            # so just pick the first one
+            filename = f"{filename}_{gcIDs[0]}{ext}"
+        else:
+            filename = args.save_results
+
         with open(filename) as f:
             results = json.load(f)
 
@@ -315,37 +331,77 @@ class Schedule:
                             departure = arrival + datetime.timedelta(hours=8)
                             # no more rotations
 
+                    # calculate total minutes spend at station
+                    standing_time = (departure - arrival).seconds / 60
+                    # get buffer time from user configuration
+                    # buffer time resembles amount of time deducted off of the planned standing
+                    # time. It may resemble things like delays and/or docking procedures
+                    # use buffer time from electrified stations JSON or in case none is
+                    # provided use global default from config file
+                    try:
+                        buffer_time = stations_dict[trip.arrival_name]['buffer_time']
+                    except KeyError:
+                        buffer_time = args.default_buffer_time_opps
+
+                    # distinct buffer times depending on time of day can be provided
+                    # in that case buffer time is of type dict instead of int
+                    if isinstance(buffer_time, dict):
+                        # sort dict to make sure 'else' key is last key
+                        buffer_time = {key: buffer_time[key] for key in sorted(buffer_time)}
+                        current_hour = arrival.hour
+                        for time_range, buffer in buffer_time.items():
+                            if time_range == 'else':
+                                buffer_time = buffer
+                                break
+                            else:
+                                start_hour, end_hour = [int(t) for t in time_range.split('-')]
+                                if end_hour < start_hour:
+                                    if current_hour >= start_hour or current_hour < end_hour:
+                                        buffer_time = buffer
+                                        break
+                                else:
+                                    if start_hour <= current_hour < end_hour:
+                                        buffer_time = buffer
+                                        break
+                        else:
+                            # buffer time not specified for hour of current stop
+                            buffer_time = args.default_buffer_time_opps
+
                     # connect cs and add gc if station is electrified
                     connected_charging_station = None
-                    if gc_name in stations_dict["depot_stations"]:
-                        station_type = "deps"
-                        desired_soc = args.desired_soc
-                    elif gc_name in stations_dict["opp_stations"] and ct == "oppb":
-                        station_type = "opps"
-                        desired_soc = 1
+                    desired_soc = 0
+                    if gc_name in stations_dict.keys():
+                        # electrified station
+                        station_type = stations_dict[gc_name]["type"]
+                        if station_type == 'opps' and vehicle_rotations[v].charging_type == 'depb':
+                            # a depot bus cannot charge at an opp station
+                            station_type = None
+                        else:
+                            # at opp station, always try to charge as much as you can
+                            desired_soc = 1 if station_type == "opps" else args.desired_soc
                     else:
-                        # either station has no charger or current bus cannot charge at this station
+                        # non-electrified station
                         station_type = None
-                        desired_soc = 0
 
-                    # 1. if departure - arrival shorter than min_charging_time,
+                    # 1. if standing time - buffer time shorter than min_charging_time,
                     # do not connect charging station
                     # 2. if current station has no charger or a depot bus arrives at opp charger,
                     # do not connect charging station either
-                    if (((departure - arrival).seconds / 60 >= args.min_charging_time_opps) and
-                            station_type is not None):
+                    if (station_type is not None and
+                            (standing_time - buffer_time >= args.min_charging_time_opps)):
 
                         cs_name_and_type = cs_name + "_" + station_type
                         connected_charging_station = cs_name_and_type
 
                         if cs_name not in charging_stations or gc_name not in grid_connectors:
+                            number_cs = stations_dict[gc_name]["n_charging_stations"]
                             if station_type == "deps":
-                                number_cs = stations_dict["depot_stations"][gc_name]
                                 cs_power = args.cs_power_deps_oppb if ct == 'oppb' \
                                     else args.cs_power_deps_depb
                                 gc_power = args.gc_power_deps
                             elif station_type == "opps":
-                                number_cs = stations_dict["opp_stations"][gc_name]
+                                # delay the arrival time to account for docking procedure
+                                arrival = arrival + datetime.timedelta(minutes=buffer_time)
                                 cs_power = args.cs_power_opps
                                 gc_power = args.gc_power_opps
 
@@ -538,3 +594,50 @@ class Schedule:
         makedirs(args.output_directory, exist_ok=True)
         with open(args.input, 'w+') as f:
             json.dump(j, f, indent=2)
+
+    def generate_rotations_overview(self, args):
+        rotation_infos = []
+        negative_rotations = self.get_negative_rotations(args)
+        sim_start_time = \
+            self.get_departure_of_first_trip() - timedelta(minutes=args.signal_time_dif)
+
+        for id, rotation in self.rotations.items():
+            # get SOC timeseries for this rotation
+            socs = []
+            vehicle_id = rotation.vehicle_id
+            with open(path.join(args.output_directory, 'simulation_soc_spiceEV.csv')) as f:
+                reader = csv.DictReader(f)
+
+                interval = timedelta(minutes=args.interval)
+                read_start_time = rotation.departure_time
+                duration = rotation.arrival_time-rotation.departure_time
+
+                start_reading = (read_start_time - sim_start_time) // interval
+                end_reading = start_reading + (duration // interval)
+
+                reader = itertools.islice(reader, start_reading, end_reading)
+
+                for line in reader:
+                    socs.append(line[vehicle_id])
+
+            rotation_info = {
+                                "rotation_id": id,
+                                "start_time": rotation.departure_time.isoformat(),
+                                "end_time": rotation.arrival_time.isoformat(),
+                                "vehicle_type": rotation.vehicle_type,
+                                "vehicle_id": rotation.vehicle_id,
+                                "depot_name": rotation.departure_name,
+                                "lines": ':'.join(rotation.lines),
+                                "total_consumption_[kWh]": rotation.consumption,
+                                "distance": rotation.distance,
+                                "charging_type": rotation.charging_type,
+                                "SOC_at_arrival": socs[-1],
+                                "Minumum_SOC": min(socs),
+                                "Negative_SOC": 1 if id in negative_rotations else 0
+                             }
+            rotation_infos.append(rotation_info)
+
+        with open(path.join(args.output_directory, "rotations.csv"), "w+") as f:
+            csv_writer = csv.DictWriter(f, list(rotation_infos[0].keys()))
+            csv_writer.writeheader()
+            csv_writer.writerows(rotation_infos)
