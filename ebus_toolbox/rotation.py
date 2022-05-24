@@ -12,6 +12,8 @@ class Rotation:
         self.charging_type = 'depb'
 
         self.consumption = 0
+        self.distance = 0
+        self.lines = set()
 
         self.departure_time = None
         self.departure_name = None
@@ -25,6 +27,10 @@ class Rotation:
         :type trip: dict
         """
         new_trip = Trip(self, **trip)
+
+        self.distance += new_trip.distance
+        if new_trip.line:
+            self.lines.add(new_trip.line)
 
         if self.departure_time is None and self.arrival_time is None:
             # first trip added
