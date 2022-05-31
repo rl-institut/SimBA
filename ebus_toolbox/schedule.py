@@ -199,6 +199,8 @@ class Schedule:
         # todo: all together, as they may influence one another
         :param args: Command line arguments and/or arguments from config file.
         :type args: argparse.Namespace
+        :param scenario: Scenario object containing results a completed simulation
+        :type scenario: spice_ev.Scenario
         """
         negative_rotations = self.get_negative_rotations(scenario)
 
@@ -216,12 +218,11 @@ class Schedule:
         """
         Get rotations with negative soc from spice_ev outputs
 
-        :param args: Command line arguments and/or arguments from config file.
-        :type args: argparse.Namespace
+        :param scenario: Simulation scenario containing simulation results
+                         including the SoC of all vehicles over time
+        :type scenario: spice_ev.Scenario
         :return: list of negative rotation_id's
         :rtype: list
-
-        :raises TypeError: If args.save_results is not set.
         """
 
         # get dict of vehicles with negative soc's
