@@ -5,8 +5,6 @@ from ebus_toolbox.consumption import Consumption
 from ebus_toolbox.schedule import Schedule
 from ebus_toolbox.trip import Trip
 from ebus_toolbox import report  # , optimizer
-# SPICE EV SIMULATE
-import simulate as spice_ev
 
 
 def simulate(args):
@@ -39,19 +37,19 @@ def simulate(args):
 
         # RUN SPICE EV
         # write trips to csv in spiceEV format
-        schedule.generate_scenario_json(args)
+        scenario = schedule.generate_scenario(args)
 
         print("Running Spice EV...")
         with warnings.catch_warnings():
             warnings.simplefilter('ignore', UserWarning)
-            spice_ev.simulate(args)
+            scenario.run('distributed', vars(args).copy())
         print(f"Spice EV simulation complete. (Iteration {i})")
 
         if i < args.iterations - 1:
             # TODO: replace with optimizer step in the future
-            schedule.readjust_charging_type(args)
+            schedule.readjust_charging_type(args, scenario)
 
-    print(f"Rotations {schedule.get_negative_rotations(args)} have negative SoC.")
+    print(f"Rotations {schedule.get_negative_rotations(scenario)} have negative SoC.")
 
     # create report
-    report.generate(schedule, args)
+    report.generate(schedule, scenario, args)
