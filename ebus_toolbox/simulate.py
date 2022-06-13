@@ -30,13 +30,14 @@ def simulate(args):
     schedule.set_charging_type(preferred_ct=args.preferred_charging_type, args=args)
 
     for i in range(args.iterations):
-        # construct szenario and simulate in spice ev until optimizer is happy
-        # if optimizer None, quit after single iteration
+        # (re)calculate the change in SoC for every trip
+        # charging types may have changed which may impact battery capacity
+        # while mileage is assumed to stay constant
         schedule.delta_soc_all_trips()
+
+        # each rotation is assigned a vehicle ID
         schedule.assign_vehicles()
 
-        # RUN SPICE EV
-        # write trips to csv in spiceEV format
         scenario = schedule.generate_scenario(args)
 
         print("Running Spice EV...")
