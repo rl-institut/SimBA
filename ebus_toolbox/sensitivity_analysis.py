@@ -21,7 +21,7 @@ for i in range(delay_data.shape[0]):
         gamma_scale = delay_data.loc[i, 'gamma_scale']*-1
     else:
         gamma_scale = delay_data.loc[i, 'gamma_scale']
-    r = scipy.stats.gamma.rvs(gamma_a, loc=0, scale=1/gamma_scale, size=1)
+    r = scipy.stats.gamma.rvs(gamma_a, loc=0, scale=gamma_scale, size=1)
     list_r.append(r[0])
 
 delay_data['r'] = list_r
