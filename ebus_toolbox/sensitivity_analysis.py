@@ -5,6 +5,7 @@ from scipy.stats import gamma
 from ebus_toolbox.util import read_arguments
 import pandas as pd
 import numpy as np
+from random import *
 
 # define sturgeon values
 
@@ -41,6 +42,8 @@ weather_data = pd.read_csv('data/monte_carlo/produkt_tu_stunde_19510101_20211231
 
 weather_data['MESS_DATUM'] = weather_data['MESS_DATUM'].astype('str')
 
+# get year, month, day and hour from data
+
 for i in range(weather_data.shape[0]):
     weather_data.loc[i, 'year'] = weather_data.loc[i, 'MESS_DATUM'][:4]
     weather_data.loc[i, 'month'] = weather_data.loc[i, 'MESS_DATUM'][4:6]
@@ -48,16 +51,22 @@ for i in range(weather_data.shape[0]):
     weather_data.loc[i, 'hour'] = weather_data.loc[i, 'MESS_DATUM'][8:10]
 
 weather_data['Date'] = pd.to_datetime(weather_data[['year', 'month', 'day', 'hour']])
-weather_data = weather_data[weather_data['year'] == '2021']
-weather = pd.DataFrame(weather_data.groupby('hour')['TT_TU'].mean())
-weather = weather.to_dict()
+weather_data = weather_data.astype({'year': 'int', 'month': 'int', 'day': 'int'})
 
-# generate random values from normal distribution
-mean_2 = weather_data.mean()
+# select random day by year, month and day
 
-mu = mean_2.TT_TU  # mean
-sigma = weather_data['TT_TU'].std()  # standard deviation
-s = np.random.normal(mu, sigma, 1)
+year = randint(2010, 2021)
+month = randint(1, 12)
+if month == 2:
+    day = randint(1, 28)
+elif month == 4 or 6 or 9 or 11:
+    day = randint(1, 30)
+else:
+    day = randint(1, 31)
+
+day = weather_data[(weather_data.year == year) & (weather_data.month == month) & (weather_data.day == day)]
+day = day[['Date', 'TT_TU']]
+day = day.reset_index(drop=True)
 
 # configs erstellen
 
