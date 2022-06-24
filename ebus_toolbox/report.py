@@ -2,5 +2,5 @@
 """
 
 
-def generate(schedule, args):
-    schedule.generate_rotations_overview(args)
+def generate(schedule, scenario, args):
+    schedule.generate_rotations_overview(scenario, args)
