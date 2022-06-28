@@ -54,6 +54,8 @@ class Schedule:
         :type path_to_csv: str
         :param vehicle_types: Collection of vehicle types and their properties.
         :type vehicle_types: dict
+        :param stations: json of electrified stations
+        :type stations: string
         :return: Returns a new instance of Schedule with all trips from csv loaded.
         :rtype: Schedule
         """
