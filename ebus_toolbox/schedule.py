@@ -16,6 +16,8 @@ class Schedule:
 
         :param vehicle_types: Collection of vehicle types and their properties.
         :type vehicle_types: dict
+        :param stations_file: json of electrified stations
+        :type stations_file: string
         """
         # Check if all bus types have both an opp and depot version
         # Also make sure that both versions have the same mileage
