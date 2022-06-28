@@ -3,7 +3,7 @@ import json
 import random
 import datetime
 from os import path
-from datetime import timedelta
+import warnings
 
 from ebus_toolbox.rotation import Rotation
 from src.scenario import Scenario
@@ -11,7 +11,7 @@ from src.scenario import Scenario
 
 class Schedule:
 
-    def __init__(self, vehicle_types) -> None:
+    def __init__(self, vehicle_types, stations_file):
         """Constructs Schedule object from CSV file containing all trips of schedule
 
         :param vehicle_types: Collection of vehicle types and their properties.
@@ -31,11 +31,21 @@ class Schedule:
                 assert vehicle_types[name]["mileage"] == vehicle_types[f"{base}_depb"]["mileage"]
         self.vehicle_types = vehicle_types
 
+        # load stations file
+        if stations_file is None:
+            stations_file = "examples/electrified_stations.json"
+        ext = stations_file.split('.')[-1]
+        if ext != "json":
+            print("File extension mismatch: electrified_stations file should be .json")
+        with open(stations_file) as f:
+            self.stations = json.load(f)
+
         self.rotations = {}
+        self.original_rotations = None
         self.consumption = 0
 
     @classmethod
-    def from_csv(cls, path_to_csv, vehicle_types):
+    def from_csv(cls, path_to_csv, vehicle_types, stations):
         """Constructs Schedule object from CSV file containing all trips of schedule.
 
         :param path_to_csv: Path to csv file containing trip data
@@ -45,7 +55,7 @@ class Schedule:
         :return: Returns a new instance of Schedule with all trips from csv loaded.
         :rtype: Schedule
         """
-        schedule = cls(vehicle_types)
+        schedule = cls(vehicle_types, stations)
 
         with open(path_to_csv, 'r') as trips_file:
             trip_reader = csv.DictReader(trips_file)
@@ -58,17 +68,23 @@ class Schedule:
 
         return schedule
 
-    def remove_rotation_by_id(self, id):
-        """ Removes a rotation from schedule
+    def run(self, args):
+        # (re)calculate the change in SoC for every trip
+        # charging types may have changed which may impact battery capacity
+        # while mileage is assumed to stay constant
+        self.delta_soc_all_trips()
 
-        :param id: Rotation ID to be removed
-        :type id: int
-        """
-        del self.rotations[id]
+        # each rotation is assigned a vehicle ID
+        self.assign_vehicles()
 
-    def filter_rotations(self):
-        """Based on a given filter definition (tbd), rotations will be dropped from schedule."""
-        pass
+        scenario = self.generate_scenario(args)
+
+        print("Running Spice EV...")
+        with warnings.catch_warnings():
+            warnings.simplefilter('ignore', UserWarning)
+            scenario.run('distributed', vars(args).copy())
+
+        return scenario
 
     def set_charging_type(self, preferred_ct, args, rotation_ids=None):
         """ Change charging type of either all or specified rotations. Adjust minimum standing time
@@ -102,7 +118,7 @@ class Schedule:
                 if min_standing_time > desired_max_standing_time:
                     min_standing_time = desired_max_standing_time
 
-            rot.earliest_departure_next_rot = rot.arrival_time + timedelta(hours=min_standing_time)
+            rot.earliest_departure_next_rot = rot.arrival_time + datetime.timedelta(hours=min_standing_time)
 
     def assign_vehicles(self):
         """ Assign vehicle IDs to rotations. A FIFO approach is used.
@@ -191,28 +207,48 @@ class Schedule:
         sorted_rotations = sorted(self.rotations.values(), key=lambda rot: rot.arrival_time)
         return sorted_rotations[-1].arrival_time
 
-    def readjust_charging_type(self, args, scenario):
+    def get_common_stations(self, only_opps = True):
         """
-        Loads rotations with negative soc from spice_ev results and adjusts charging type from
-        depb to oppb and vice versa.
-        # todo: it would maybe make sense to change each rotations charging type at a time and not
-        # todo: all together, as they may influence one another
-        :param args: Command line arguments and/or arguments from config file.
-        :type args: argparse.Namespace
-        :param scenario: Scenario object containing results a completed simulation
-        :type scenario: spice_ev.Scenario
+        for each rotation, return set of rotations that share a station during any trip (with time info)
+        :param only_opps: only search for opps stations
+        :type only_opps: boolean
+        :return: dictionary of rotations
         """
-        negative_rotations = self.get_negative_rotations(scenario)
 
-        print(f"Rotations {negative_rotations} have negative SoC.")
-        print("Adjust charging types for rotations with negative soc.")
+        # rot -> stations with timings
+        rotations = {}
+        for rot_key, rotation in self.rotations.items():
+            rotations[rot_key] = {}
+            for t in rotation.trips:
+                dep_station = self.stations.get(t.departure_name)
+                arr_station = self.stations.get(t.arrival_name)
+                if arr_station is None and not only_opps or arr_station is not None and arr_station["type"] == "opps":
+                    if t.arrival_name in rotations[rot_key]:
+                        rotations[rot_key][t.arrival_name].append([t.arrival_time, None])
+                    else:
+                        rotations[rot_key][t.arrival_name] = [[t.arrival_time, None]]
+                if t.departure_name in rotations[rot_key]:
+                    rotations[rot_key][t.departure_name][-1][1] = t.departure_time
 
-        for rot in negative_rotations:
-            if self.rotations[rot].charging_type == "depb":
-                self.set_charging_type("oppb", args, [rot])
-                # todo: actually this case should not happen, but it still does happen.. why?
-            else:
-                self.set_charging_type("depb", args, [rot])
+        # check stations for overlaps
+        rot_set = {}
+        for rot_key, stations in rotations.items():
+            rot_set[rot_key] = {}
+            for r, alt_stations in rotations.items():
+                if rot_key == r:
+                    continue
+                for station_name, times in stations.items():
+                    if station_name in alt_stations:
+                        # both at same station. Check for same time
+                        for t in times:
+                            for alt_t in alt_stations[station_name]:
+                                if max(t[0], alt_t[0]) < min(t[1], alt_t[1]):
+                                    # overlap
+                                    rot_set[rot_key][r] = min(t[0], alt_t[0])
+                                    break
+                            if r in rot_set[rot_key]:
+                                break
+        return rot_set
 
     def get_negative_rotations(self, scenario):
         """
@@ -231,13 +267,14 @@ class Schedule:
         except AttributeError:
             return []
         # get matching rotations
-        negative_rotations = []
-        for v_id, time in negative_vehicles.items():
-            time = datetime.datetime.fromisoformat(time)
-            rides = {k: v for k, v in self.rotations.items() if v.vehicle_id == v_id}
-            negative_rotations.append([k for k, v in rides.items() if time >= v.departure_time and
-                                       time <= v.arrival_time][0])
-        return negative_rotations
+        negative_rotations = set()
+        for v_id, times in negative_vehicles.items():
+            for t_str in times:
+                time = datetime.datetime.fromisoformat(t_str)
+                rides = {k: v for k, v in self.rotations.items() if v.vehicle_id == v_id}
+                negative_rotations.add([k for k, v in rides.items()
+                                        if time >= v.departure_time and time <= v.arrival_time][0])
+        return list(negative_rotations)
 
     def generate_scenario(self, args):
         """ Generate scenario.json for spiceEV
@@ -248,14 +285,6 @@ class Schedule:
                  simulation outputs.
         :rtype:  spice_ev.src.Scenario
         """
-        # load stations file
-        if args.electrified_stations is None:
-            args.electrified_stations = "examples/electrified_stations.json"
-        ext = args.electrified_stations.split('.')[-1]
-        if ext != "json":
-            print("File extension mismatch: electrified_stations file should be .json")
-        with open(args.electrified_stations) as json_file:
-            stations_dict = json.load(json_file)
 
         interval = datetime.timedelta(minutes=args.interval)
 
@@ -322,10 +351,8 @@ class Schedule:
                     # time. It may resemble things like delays and/or docking procedures
                     # use buffer time from electrified stations JSON or in case none is
                     # provided use global default from config file
-                    try:
-                        buffer_time = stations_dict[trip.arrival_name]['buffer_time']
-                    except KeyError:
-                        buffer_time = args.default_buffer_time_opps
+                    buffer_time = self.stations.get(trip.arrival_name, {})\
+                        .get('buffer_time', args.default_buffer_time_opps)
 
                     # distinct buffer times depending on time of day can be provided
                     # in that case buffer time is of type dict instead of int
@@ -354,16 +381,17 @@ class Schedule:
                     # connect cs and add gc if station is electrified
                     connected_charging_station = None
                     desired_soc = 0
-                    if gc_name in stations_dict.keys():
-                        # electrified station
-                        station_type = stations_dict[gc_name]["type"]
+                    try:
+                        # assume electrified station
+                        station = self.stations[gc_name]
+                        station_type = station["type"]
                         if station_type == 'opps' and vehicle_rotations[v].charging_type == 'depb':
                             # a depot bus cannot charge at an opp station
                             station_type = None
                         else:
                             # at opp station, always try to charge as much as you can
                             desired_soc = 1 if station_type == "opps" else args.desired_soc
-                    else:
+                    except KeyError:
                         # non-electrified station
                         station_type = None
 
@@ -378,7 +406,7 @@ class Schedule:
                         connected_charging_station = cs_name_and_type
 
                         if cs_name not in charging_stations or gc_name not in grid_connectors:
-                            number_cs = stations_dict[gc_name]["n_charging_stations"]
+                            number_cs = station["n_charging_stations"]
                             if station_type == "deps":
                                 cs_power = args.cs_power_deps_oppb if ct == 'oppb' \
                                     else args.cs_power_deps_depb
@@ -391,7 +419,7 @@ class Schedule:
 
                             # gc power is not set in config
                             if gc_power is None:
-                                if number_cs != "None":
+                                if number_cs is not None:
                                     gc_power = number_cs * cs_power
                                 else:
                                     # add a really large number
@@ -404,7 +432,6 @@ class Schedule:
                                 "parent": gc_name
                             }
                             # add one grid connector for each bus station
-                            number_cs = None if number_cs == 'None' else number_cs
                             grid_connectors[gc_name] = {
                                 "max_power": gc_power,
                                 "cost": {"type": "fixed", "value": 0.3},
@@ -441,7 +468,7 @@ class Schedule:
         # ######## END OF VEHICLE EVENTS ########## #
 
         # define start and stop times
-        start = self.get_departure_of_first_trip() - timedelta(minutes=args.signal_time_dif)
+        start = self.get_departure_of_first_trip() - datetime.timedelta(minutes=args.signal_time_dif)
         stop = self.get_arrival_of_last_trip() + interval
         if args.days is not None:
             stop = min(stop, start + datetime.timedelta(days=args.days))
@@ -581,9 +608,9 @@ class Schedule:
 
         negative_rotations = self.get_negative_rotations(scenario)
 
-        interval = timedelta(minutes=args.interval)
+        interval = datetime.timedelta(minutes=args.interval)
         sim_start_time = \
-            self.get_departure_of_first_trip() - timedelta(minutes=args.signal_time_dif)
+            self.get_departure_of_first_trip() - datetime.timedelta(minutes=args.signal_time_dif)
 
         for id, rotation in self.rotations.items():
             # get SOC timeseries for this rotation
