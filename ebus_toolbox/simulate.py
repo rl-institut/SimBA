@@ -29,7 +29,7 @@ def simulate(args):
     schedule.calculate_consumption()
     schedule.set_charging_type(preferred_ct=args.preferred_charging_type, args=args)
 
-    common_stations = schedule.get_common_stations(only_opps = True)
+    common_stations = schedule.get_common_stations(only_opps=True)
 
     # initial run
     scenario = schedule.run(args)
@@ -37,7 +37,7 @@ def simulate(args):
     # single out negative rotations. Try to run these with common non-negative rotations
     original_rotations = deepcopy(schedule.rotations)
     negative_rotations = schedule.get_negative_rotations(scenario)
-    print(f"Initially, rotations {sorted(negative_rotations, key=lambda r: int(r))} have negative SoC.")
+    print(f"Initially, rotations {sorted(negative_rotations, key=lambda r: int(r))} have neg. SoC.")
 
     negative_sets = {}
     for rot_key in negative_rotations:
@@ -49,14 +49,17 @@ def simulate(args):
             # oppb: build non-interfering sets of negative rotations
             s = {rot_key}
             vid = rotation.vehicle_id
-            last_neg_soc_time = datetime.datetime.fromisoformat(scenario.negative_soc_tracker[vid][-1])
-            dep_stations = {r: t for r,t in common_stations[rot_key].items() if t <= last_neg_soc_time}
+            last_neg_soc_time = scenario.negative_soc_tracker[vid][-1]
+            last_neg_soc_time = datetime.datetime.fromisoformat(last_neg_soc_time)
+            dep_stations = {r: t for r, t in common_stations[rot_key].items()
+                            if t <= last_neg_soc_time}
             while dep_stations:
                 r, t = dep_stations.popitem()
                 if r not in negative_rotations:
                     s.add(r)
                     # add dependencies of r
-                    dep_stations.update({r2: t2 for r2, t2 in common_stations[r].items() if t2 <= t})
+                    dep_stations.update({r2: t2 for r2, t2
+                                        in common_stations[r].items() if t2 <= t})
             negative_sets[rot_key] = s
 
     # run singled-out rotations

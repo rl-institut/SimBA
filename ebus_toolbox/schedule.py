@@ -118,7 +118,8 @@ class Schedule:
                 if min_standing_time > desired_max_standing_time:
                     min_standing_time = desired_max_standing_time
 
-            rot.earliest_departure_next_rot = rot.arrival_time + datetime.timedelta(hours=min_standing_time)
+            rot.earliest_departure_next_rot = \
+                rot.arrival_time + datetime.timedelta(hours=min_standing_time)
 
     def assign_vehicles(self):
         """ Assign vehicle IDs to rotations. A FIFO approach is used.
@@ -207,9 +208,10 @@ class Schedule:
         sorted_rotations = sorted(self.rotations.values(), key=lambda rot: rot.arrival_time)
         return sorted_rotations[-1].arrival_time
 
-    def get_common_stations(self, only_opps = True):
+    def get_common_stations(self, only_opps=True):
         """
-        for each rotation, return set of rotations that share a station during any trip (with time info)
+        for each rotation key, return set of rotations
+            that share a station during any trip (with time info)
         :param only_opps: only search for opps stations
         :type only_opps: boolean
         :return: dictionary of rotations
@@ -220,9 +222,11 @@ class Schedule:
         for rot_key, rotation in self.rotations.items():
             rotations[rot_key] = {}
             for t in rotation.trips:
-                dep_station = self.stations.get(t.departure_name)
                 arr_station = self.stations.get(t.arrival_name)
-                if arr_station is None and not only_opps or arr_station is not None and arr_station["type"] == "opps":
+                if (
+                    arr_station is None and not only_opps or
+                    arr_station is not None and arr_station["type"] == "opps"
+                ):
                     if t.arrival_name in rotations[rot_key]:
                         rotations[rot_key][t.arrival_name].append([t.arrival_time, None])
                     else:
@@ -468,7 +472,8 @@ class Schedule:
         # ######## END OF VEHICLE EVENTS ########## #
 
         # define start and stop times
-        start = self.get_departure_of_first_trip() - datetime.timedelta(minutes=args.signal_time_dif)
+        start = \
+            self.get_departure_of_first_trip() - datetime.timedelta(minutes=args.signal_time_dif)
         stop = self.get_arrival_of_last_trip() + interval
         if args.days is not None:
             stop = min(stop, start + datetime.timedelta(days=args.days))
