@@ -12,7 +12,7 @@ class Consumption:
             for row in reader:
                 self.temperatures_by_hour.update({int(row['hour']): float(row['temperature'])})
 
-        self.consumption_files = {}
+        self.consumption_files = {} # ToDo: add path
         self.vehicle_types = vehicle_types
 
     def calculate_consumption(self, time, distance, vehicle_type, charging_type):
