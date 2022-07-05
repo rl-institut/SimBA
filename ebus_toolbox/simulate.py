@@ -43,6 +43,14 @@ def simulate(args):
         print("Running Spice EV...")
         with warnings.catch_warnings():
             warnings.simplefilter('ignore', UserWarning)
+            # for analyzes
+            # if flag_sensitivity == 1:
+            #     for ix in range(1000):
+            #         args = run_sensitivity(args, ix)
+            #         scenario.run('distributed', vars(args).copy())
+            # else:
+            #     scenario.run('distributed', vars(args).copy())
+
             scenario.run('distributed', vars(args).copy())
         print(f"Spice EV simulation complete. (Iteration {i})")
 

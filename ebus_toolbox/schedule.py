@@ -293,6 +293,19 @@ class Schedule:
                 "soc": args.desired_soc,
                 "vehicle_type": vt + "_" + ct
             }
+            charging_stations[vehicles[v_name]['connected_charging_station']] = {
+                "max_power": args.gc_power_deps,
+                "min_power": 0.1 * args.gc_power_deps,
+                "parent": first_rotation.departure_name
+            }
+            number_cs = stations_dict[first_rotation.departure_name]["n_charging_stations"]
+            # add one grid connector for first bus station
+            number_cs = None if number_cs == 'None' else number_cs
+            grid_connectors[first_rotation.departure_name] = {
+                "max_power": args.gc_power_opps,
+                "cost": {"type": "fixed", "value": 0.3},
+                "number_cs": number_cs
+            }
 
             for i, v in enumerate(rotation_ids):
                 departure_event_in_input = True
@@ -594,6 +607,7 @@ class Schedule:
             start_idx = (rotation.departure_time - sim_start_time) // interval
             end_idx = start_idx + ((rotation.arrival_time-rotation.departure_time) // interval)
             rotation_soc_ts = vehicle_soc[start_idx:end_idx]
+            rotation_soc_ts = [1 if x is None else x for x in rotation_soc_ts]
 
             rotation_info = {
                                 "rotation_id": id,
