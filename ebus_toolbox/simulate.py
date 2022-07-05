@@ -5,8 +5,6 @@ from ebus_toolbox.consumption import Consumption
 from ebus_toolbox.schedule import Schedule
 from ebus_toolbox.trip import Trip
 from ebus_toolbox import report  # , optimizer
-# SPICE EV SIMULATE
-import simulate as spice_ev
 
 
 def simulate(args):
@@ -32,26 +30,35 @@ def simulate(args):
     schedule.set_charging_type(preferred_ct=args.preferred_charging_type, args=args)
 
     for i in range(args.iterations):
-        # construct szenario and simulate in spice ev until optimizer is happy
-        # if optimizer None, quit after single iteration
+        # (re)calculate the change in SoC for every trip
+        # charging types may have changed which may impact battery capacity
+        # while mileage is assumed to stay constant
         schedule.delta_soc_all_trips()
+
+        # each rotation is assigned a vehicle ID
         schedule.assign_vehicles()
 
-        # RUN SPICE EV
-        # write trips to csv in spiceEV format
-        schedule.generate_scenario_json(args)
+        scenario = schedule.generate_scenario(args)
 
         print("Running Spice EV...")
         with warnings.catch_warnings():
             warnings.simplefilter('ignore', UserWarning)
-            spice_ev.simulate(args)
+            # for analyzes
+            # if flag_sensitivity == 1:
+            #     for ix in range(1000):
+            #         args = run_sensitivity(args, ix)
+            #         scenario.run('distributed', vars(args).copy())
+            # else:
+            #     scenario.run('distributed', vars(args).copy())
+
+            scenario.run('distributed', vars(args).copy())
         print(f"Spice EV simulation complete. (Iteration {i})")
 
         if i < args.iterations - 1:
             # TODO: replace with optimizer step in the future
-            schedule.readjust_charging_type(args)
+            schedule.readjust_charging_type(args, scenario)
 
-    print(f"Rotations {schedule.get_negative_rotations(args)} have negative SoC.")
+    print(f"Rotations {schedule.get_negative_rotations(scenario)} have negative SoC.")
 
     # create report
-    report.generate(schedule, args)
+    report.generate(schedule, scenario, args)
