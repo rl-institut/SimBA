@@ -87,26 +87,79 @@ def get_temperature():
 
     return day
 
-# gc_power_opps, gc_power_deps (Netzauslastung)
-# cs_power_opps, cs_power_deps_depb, cs_power_deps_oppb (Technik)
-
-# cs_power_opps
-power_opps = np.arange(start=50, stop=350, step=50)
-reduced_power = random.choice(power_opps)
+# 3. charging power
 
 
-# cs_power_deps_depb
-power_deps_depb = np.arange(start=30, stop=90, step=30)
-reduced_power = random.choice(power_deps_depb)
+def get_charging_power():
+    """
+    Gets reduced charging power for different bus types
+    :return: reduced_power
+    """
+    power_opps = np.arange(start=50, stop=350, step=50)
+    reduced_power = random.choice(power_opps)
 
 
-# cs_power_deps_depb
-power_deps_depb = np.arange(start=30, stop=120, step=30)
-reduced_power = random.choice(power_deps_depb)
+    # cs_power_deps_depb
+    power_deps_depb = np.arange(start=30, stop=90, step=30)
+    reduced_power = random.choice(power_deps_depb)
+
+
+    # cs_power_deps_depb
+    power_deps_depb = np.arange(start=30, stop=120, step=30)
+    reduced_power = random.choice(power_deps_depb)
+
+    return reduced_power
 
 
 # 4. network utilization
 # gc_power_opps, gc_power_deps (Netzauslastung)
+
+def get_grid_utilization():
+    """
+    Gets grid utilization
+    :return:
+    """
+    return
+
+# 5. extra mileage
+
+
+def get_extra_mileage():
+    """
+    Gets extra mileage
+    :return:
+    """
+    return
+
+# 6. default hpc
+
+
+def get_default_hpc():
+    """
+    Gets default hpc
+    :return:
+    """
+    return
+
+# 7. battery aging
+
+
+def get_battery_aging():
+    """
+    Gets battery aging
+    :return:
+    """
+    return
+
+# 8. depot delay
+
+
+def get_depot_delay():
+    """
+    Gets depot delay
+    :return:
+    """
+    return
 
 # ergänzung: aufall hpc, mehrkilometer, batteriealterung (nach 5 Jahren nur noch 96% Batteriealterung), delay depot
 
@@ -121,5 +174,5 @@ reduced_power = random.choice(power_deps_depb)
 
 # creating config like file
 # writes the new values of each manipulation into a seperate file
-with open('ebus_toolbox_mcs.cfg', 'w+') as f:
-    f.write(f'cs_power_opps = {reduced_power}\n')
+# with open('ebus_toolbox_mcs.cfg', 'w+') as f:
+#     f.write(f'cs_power_opps = {reduced_power}\n')
