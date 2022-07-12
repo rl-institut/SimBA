@@ -87,29 +87,27 @@ def get_temperature():
 
     return day
 
-# 3. charging power
+# gc_power_opps, gc_power_deps (Netzauslastung)
+# cs_power_opps, cs_power_deps_depb, cs_power_deps_oppb (Technik)
 
+# cs_power_opps
 
-def get_charging_power():
-    """
-    Gets reduced charging power for different bus types
-    :return: reduced_power
-    """
+def reduced_power():
+    "creates list of different values which are smaller then the default power "
     power_opps = np.arange(start=50, stop=350, step=50)
-    reduced_power = random.choice(power_opps)
+    reduced_power_opps = random.choice(power_opps)
 
 
     # cs_power_deps_depb
     power_deps_depb = np.arange(start=30, stop=90, step=30)
-    reduced_power = random.choice(power_deps_depb)
+    reduced_power_depb = random.choice(power_deps_depb)
 
 
     # cs_power_deps_depb
-    power_deps_depb = np.arange(start=30, stop=120, step=30)
-    reduced_power = random.choice(power_deps_depb)
+    power_deps_oppb = np.arange(start=30, stop=120, step=30)
+    reduced_power_oppb = random.choice(power_deps_depb)
 
-    return reduced_power
-
+    return reduced_power_opps, reduced_power_depb, reduced_power_oppb
 
 # 4. network utilization
 # gc_power_opps, gc_power_deps (Netzauslastung)
@@ -174,5 +172,5 @@ def get_depot_delay():
 
 # creating config like file
 # writes the new values of each manipulation into a seperate file
-# with open('ebus_toolbox_mcs.cfg', 'w+') as f:
-#     f.write(f'cs_power_opps = {reduced_power}\n')
+with open('ebus_toolbox_mcs.cfg', 'w+') as f:
+    f.write(f'cs_power_opps = {reduced_power}\n')
