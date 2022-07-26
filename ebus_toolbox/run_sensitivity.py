@@ -12,6 +12,6 @@ def run_sensitivity (args, scenario_id):
     export_file = open(export_str, 'wt')
     export_file.write(str(export_args))
     export_file.close()
-    return buffertimes
+    return args
 
 
