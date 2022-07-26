@@ -5,6 +5,7 @@ from ebus_toolbox.consumption import Consumption
 from ebus_toolbox.schedule import Schedule
 from ebus_toolbox.trip import Trip
 from ebus_toolbox import report  # , optimizer
+from ebus_toolbox.run_sensitivity import run_sensitivity
 
 
 def simulate(args):
@@ -44,12 +45,13 @@ def simulate(args):
         with warnings.catch_warnings():
             warnings.simplefilter('ignore', UserWarning)
             # for analyzes
-            # if flag_sensitivity == 1:
-            #     for ix in range(1000):
-            #         args = run_sensitivity(args, ix)
-            #         scenario.run('distributed', vars(args).copy())
-            # else:
-            #     scenario.run('distributed', vars(args).copy())
+            if args.flag_sensitivity == 1:
+                for ix in range(1):
+                    args = run_sensitivity(args, ix)
+                    # Todo create new output folder for every scenario
+                    scenario.run('distributed', vars(args).copy())
+            else:
+                scenario.run('distributed', vars(args).copy())
 
             scenario.run('distributed', vars(args).copy())
         print(f"Spice EV simulation complete. (Iteration {i})")

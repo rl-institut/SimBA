@@ -89,6 +89,8 @@ if __name__ == '__main__':
     parser.add_argument('--strategy-option', '-so', metavar=('KEY', 'VALUE'),
                         nargs=2, action='append',
                         help='Append additional options to the charging strategy.')
+    parser.add_argument('--flag_sensitivity', default=0, nargs='?',
+                        help='Flag to activate sensitivity analysis')
     parser.add_argument('--config', help='Use config file to set arguments')
     args = parser.parse_args()
 
