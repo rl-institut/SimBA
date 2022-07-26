@@ -2,7 +2,6 @@
 """
 import scipy
 from scipy.stats import gamma
-from ebus_toolbox.util import read_arguments
 import pandas as pd
 import numpy as np
 from random import *
@@ -38,8 +37,17 @@ def get_buffer_times():
     # averaging of values over hour of the day
     delay = round(delay_data.groupby('hour')['r'].mean())
 
+    # preparation for dictionary
+
+    delay = delay.reset_index()
+    delay['hour'] = delay['hour'].astype(int)
+    delay['hour'] = delay['hour'].astype(str)
+    delay['r'] = delay['r'].astype(int)
+
     # create dictionary for cfg file
-    delay = delay.to_dict()
+
+    delay = dict(zip(delay.hour, delay.r))
+    delay['else'] = 0
 
     return delay
 
@@ -91,35 +99,70 @@ def get_temperature():
 # cs_power_opps, cs_power_deps_depb, cs_power_deps_oppb (Technik)
 
 # cs_power_opps
-power_opps = np.arange(start=50, stop=350, step=50)
-reduced_power = random.choice(power_opps)
+
+def get_reduced_power():
+    "creates list of different values which are smaller then the default power "
+    power_opps = np.arange(start=50, stop=350, step=50)
+    reduced_power_opps = random.choice(power_opps)
 
 
-# cs_power_deps_depb
-power_deps_depb = np.arange(start=30, stop=90, step=30)
-reduced_power = random.choice(power_deps_depb)
+    # cs_power_deps_depb
+    power_deps_depb = np.arange(start=30, stop=90, step=30)
+    reduced_power_depb = random.choice(power_deps_depb)
 
 
-# cs_power_deps_depb
-power_deps_depb = np.arange(start=30, stop=120, step=30)
-reduced_power = random.choice(power_deps_depb)
+    # cs_power_deps_depb
+    power_deps_oppb = np.arange(start=30, stop=120, step=30)
+    reduced_power_oppb = random.choice(power_deps_depb)
 
+    return reduced_power_opps, reduced_power_depb, reduced_power_oppb
 
 # 4. network utilization
 # gc_power_opps, gc_power_deps (Netzauslastung)
 
-# ergänzung: aufall hpc, mehrkilometer, batteriealterung (nach 5 Jahren nur noch 96% Batteriealterung), delay depot
+def get_grid_utilization():
+    """
+    Gets grid utilization
+    :return:
+    """
+    return
 
-# # read arguments from cfg
-#
-# args = read_arguments()
-#
-# # add sturgeon values to args
-#
-# args.buffer_time = delay
-# args.temperature = day
+# 5. extra mileage
 
-# creating config like file
-# writes the new values of each manipulation into a seperate file
-with open('ebus_toolbox_mcs.cfg', 'w+') as f:
-    f.write(f'cs_power_opps = {reduced_power}\n')
+
+def get_extra_mileage():
+    """
+    Gets extra mileage
+    :return:
+    """
+    return
+
+# 6. default hpc
+
+
+def get_default_hpc():
+    """
+    Gets default hpc
+    :return:
+    """
+    return
+
+# 7. battery aging
+
+
+def get_battery_aging():
+    """
+    Gets battery aging
+    :return:
+    """
+    return
+
+# 8. depot delay
+
+
+def get_depot_delay():
+    """
+    Gets depot delay
+    :return:
+    """
+    return
