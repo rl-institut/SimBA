@@ -53,7 +53,7 @@ def simulate(args):
             else:
                 scenario.run('distributed', vars(args).copy())
 
-            scenario.run('distributed', vars(args).copy())
+            # scenario.run('distributed', vars(args).copy())
         print(f"Spice EV simulation complete. (Iteration {i})")
 
         if i < args.iterations - 1:
