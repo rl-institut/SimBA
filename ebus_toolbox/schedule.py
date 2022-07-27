@@ -546,17 +546,27 @@ class Schedule:
                     print("Warning: price csv file '{}' does not exist yet".format(price_csv_path))
 
         if args.battery:
-            for idx, (capacity, c_rate, gc) in enumerate(args.battery):
+            for idx, bat in enumerate(args.battery, 1):
+                capacity, c_rate, gc = bat[:3]
+                if gc not in grid_connectors:
+                    # no vehicle charges here
+                    continue
                 if capacity > 0:
                     max_power = c_rate * capacity
                 else:
                     # unlimited battery: set power directly
                     max_power = c_rate
-                batteries["BAT{}".format(idx + 1)] = {
+                batteries[f"BAT{idx}"] = {
                     "parent": gc,
                     "capacity": capacity,
-                    "charging_curve": [[0, max_power], [1, max_power]]
+                    "charging_curve": [[0, max_power], [1, max_power]],
                 }
+                if len(bat) == 4:
+                    # discharge curve can be passed as optional 4th param
+                    batteries[f"BAT{idx}"].update({
+                        "discharge_curve": bat[3]
+                    })
+
         # create final dict
         self.scenario = {
             "scenario": {
