@@ -30,12 +30,18 @@ class Consumption:
         :return: Consumed energy [kWh] and delta SOC as tuple
         :rtype: (float, float)
         """
+
+        vt_ct = f"{vehicle_type}_{charging_type}"
+
+        # in case a constant mileage is provided
+        if isinstance(self.vehicle_types[vt_ct]['mileage'], float):
+            return self.vehicle_types[vt_ct]['mileage'] * distance / 1000
+
         temp = np.interp(time.hour,
                          list(self.temperatures_by_hour.keys()),
                          list(self.temperatures_by_hour.values()))
 
         # load consumption csv
-        vt_ct = f"{vehicle_type}_{charging_type}"
         consumption_file = self.vehicle_types[vt_ct]["mileage"]
         try:
             consumption = self.consumption_files[consumption_file]
