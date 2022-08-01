@@ -21,6 +21,17 @@ def simulate(args):
         with open("data/examples/vehicle_types.json") as f:
             vehicle_types = json.load(f)
 
+    # parse strategy options for Spice EV
+    if hasattr(args, 'strategy_option'):
+        for opt_key, opt_val in args.strategy_option:
+            try:
+                # option may be number
+                opt_val = float(opt_val)
+            except ValueError:
+                # or not
+                pass
+            setattr(args, opt_key, opt_val)
+
     schedule = Schedule.from_csv(args.input_schedule, vehicle_types)
     # setup consumption calculator that can be accessed by all trips
     Trip.consumption = Consumption(vehicle_types)
