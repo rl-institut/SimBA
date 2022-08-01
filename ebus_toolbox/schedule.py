@@ -231,13 +231,14 @@ class Schedule:
         except AttributeError:
             return []
         # get matching rotations
-        negative_rotations = []
-        for v_id, time in negative_vehicles.items():
-            time = datetime.datetime.fromisoformat(time)
-            rides = {k: v for k, v in self.rotations.items() if v.vehicle_id == v_id}
-            negative_rotations.append([k for k, v in rides.items() if time >= v.departure_time and
-                                       time <= v.arrival_time][0])
-        return negative_rotations
+        negative_rotations = set()
+        for v_id, times in negative_vehicles.items():
+            for t_str in times:
+                time = datetime.datetime.fromisoformat(t_str)
+                rides = {k: v for k, v in self.rotations.items() if v.vehicle_id == v_id}
+                negative_rotations.add([k for k, v in rides.items()
+                                        if time >= v.departure_time and time <= v.arrival_time][0])
+        return list(negative_rotations)
 
     def generate_scenario(self, args):
         """ Generate scenario.json for spiceEV
