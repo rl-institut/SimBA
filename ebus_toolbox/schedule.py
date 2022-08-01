@@ -289,13 +289,27 @@ class Schedule:
 
             # define start conditions
             first_rotation = list(vehicle_rotations.values())[0]
+            departure = first_rotation.departure_time
+            # trips list is sorted by time
+            arrival = first_rotation.trips[0].arrival_time
             vehicles[v_name] = {
                 "connected_charging_station": f'{v_name}_{first_rotation.departure_name}_deps',
-                "estimated_time_of_departure": first_rotation.departure_time.isoformat(),
+                "estimated_time_of_departure": departure.isoformat(),
                 "desired_soc": None,
                 "soc": args.desired_soc,
                 "vehicle_type": vt + "_" + ct
             }
+            # initial departure event from starting depot
+            events["vehicle_events"].append({
+                "signal_time": (departure + datetime.timedelta(
+                                minutes=-args.signal_time_dif)).isoformat(),
+                "start_time": departure.isoformat(),
+                "vehicle_id": v_name,
+                "event_type": "departure",
+                "update": {
+                    "estimated_time_of_arrival": arrival.isoformat()
+                }
+            })
 
             for i, v in enumerate(rotation_ids):
                 departure_event_in_input = True
