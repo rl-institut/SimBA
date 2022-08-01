@@ -248,6 +248,9 @@ class Schedule:
                  simulation outputs.
         :rtype:  spice_ev.src.Scenario
         """
+
+        random.seed(args.seed)
+
         # load stations file
         if args.electrified_stations is None:
             args.electrified_stations = "examples/electrified_stations.json"
