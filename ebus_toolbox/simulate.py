@@ -22,7 +22,7 @@ def simulate(args):
             vehicle_types = json.load(f)
 
     # parse strategy options for Spice EV
-    if hasattr(args, 'strategy_option'):
+    if args.strategy_option is not None:
         for opt_key, opt_val in args.strategy_option:
             try:
                 # option may be number
