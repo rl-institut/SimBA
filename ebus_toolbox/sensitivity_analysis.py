@@ -95,13 +95,10 @@ def get_temperature():
 
     return day
 
-# gc_power_opps, gc_power_deps (Netzauslastung)
-# cs_power_opps, cs_power_deps_depb, cs_power_deps_oppb (Technik)
-
-# cs_power_opps
 
 def get_reduced_power():
-    "creates list of different values which are smaller then the default power "
+    """creates list of different values which are smaller then the default power
+    """
     power_opps = np.arange(start=50, stop=350, step=50)
     reduced_power_opps = random.choice(power_opps)
 
