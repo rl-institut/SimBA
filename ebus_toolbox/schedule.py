@@ -123,7 +123,7 @@ class Schedule:
                 # calculate min_standing_time deps
                 r = rotations_in_progress.pop(0)
                 if rot.departure_time > r.earliest_departure_next_rot:
-                    idle_vehicles.append(r.vehicle_id)
+                    idle_vehicles.append((r.vehicle_id, r.arrival_name))
                 else:
                     rotations_in_progress.insert(0, r)
                     break
@@ -131,14 +131,16 @@ class Schedule:
             # find idle vehicle for rotation if exists
             # else generate new vehicle id
             vt_ct = f"{rot.vehicle_type}_{rot.charging_type}"
-            vehicle_id = next((id for id in idle_vehicles if vt_ct in id), None)
-            if vehicle_id is None:
-                vehicle_type_counts[vt_ct] += 1
-                vehicle_id = f"{vt_ct}_{vehicle_type_counts[vt_ct]}"
+            for item in idle_vehicles:
+                id, deps = item
+                if vt_ct in id and deps == rot.departure_name:
+                    rot.vehicle_id = id
+                    idle_vehicles.remove(item)
+                    break
             else:
-                idle_vehicles.remove(vehicle_id)
-
-            rot.vehicle_id = vehicle_id
+                # no vehicle available for dispatch, generate new one
+                vehicle_type_counts[vt_ct] += 1
+                rot.vehicle_id = f"{vt_ct}_{vehicle_type_counts[vt_ct]}"
 
             # keep list of rotations in progress sorted
             i = 0
@@ -146,6 +148,9 @@ class Schedule:
                 # go through rotations in order, stop at same or higher departure
                 if r.earliest_departure_next_rot >= rot.earliest_departure_next_rot:
                     break
+            else:
+                # highest departure, insert at
+                i = i + 1
             # insert at calculated index
             rotations_in_progress.insert(i, rot)
 
@@ -231,13 +236,14 @@ class Schedule:
         except AttributeError:
             return []
         # get matching rotations
-        negative_rotations = []
-        for v_id, time in negative_vehicles.items():
-            time = datetime.datetime.fromisoformat(time)
-            rides = {k: v for k, v in self.rotations.items() if v.vehicle_id == v_id}
-            negative_rotations.append([k for k, v in rides.items() if time >= v.departure_time and
-                                       time <= v.arrival_time][0])
-        return negative_rotations
+        negative_rotations = set()
+        for v_id, times in negative_vehicles.items():
+            for t_str in times:
+                time = datetime.datetime.fromisoformat(t_str)
+                rides = {k: v for k, v in self.rotations.items() if v.vehicle_id == v_id}
+                negative_rotations.add([k for k, v in rides.items()
+                                        if time >= v.departure_time and time <= v.arrival_time][0])
+        return list(negative_rotations)
 
     def generate_scenario(self, args):
         """ Generate scenario.json for spiceEV
@@ -248,6 +254,9 @@ class Schedule:
                  simulation outputs.
         :rtype:  spice_ev.src.Scenario
         """
+
+        random.seed(args.seed)
+
         # load stations file
         if args.electrified_stations is None:
             args.electrified_stations = "examples/electrified_stations.json"
@@ -286,13 +295,27 @@ class Schedule:
 
             # define start conditions
             first_rotation = list(vehicle_rotations.values())[0]
+            departure = first_rotation.departure_time
+            # trips list is sorted by time
+            arrival = first_rotation.trips[0].arrival_time
             vehicles[v_name] = {
                 "connected_charging_station": f'{v_name}_{first_rotation.departure_name}_deps',
-                "estimated_time_of_departure": first_rotation.departure_time.isoformat(),
+                "estimated_time_of_departure": departure.isoformat(),
                 "desired_soc": None,
                 "soc": args.desired_soc,
                 "vehicle_type": vt + "_" + ct
             }
+            # initial departure event from starting depot
+            events["vehicle_events"].append({
+                "signal_time": (departure + datetime.timedelta(
+                                minutes=-args.signal_time_dif)).isoformat(),
+                "start_time": departure.isoformat(),
+                "vehicle_id": v_name,
+                "event_type": "departure",
+                "update": {
+                    "estimated_time_of_arrival": arrival.isoformat()
+                }
+            })
             charging_stations[vehicles[v_name]['connected_charging_station']] = {
                 "max_power": args.gc_power_deps,
                 "min_power": 0.1 * args.gc_power_deps,
@@ -559,17 +582,27 @@ class Schedule:
                     print("Warning: price csv file '{}' does not exist yet".format(price_csv_path))
 
         if args.battery:
-            for idx, (capacity, c_rate, gc) in enumerate(args.battery):
+            for idx, bat in enumerate(args.battery, 1):
+                capacity, c_rate, gc = bat[:3]
+                if gc not in grid_connectors:
+                    # no vehicle charges here
+                    continue
                 if capacity > 0:
                     max_power = c_rate * capacity
                 else:
                     # unlimited battery: set power directly
                     max_power = c_rate
-                batteries["BAT{}".format(idx + 1)] = {
+                batteries[f"BAT{idx}"] = {
                     "parent": gc,
                     "capacity": capacity,
-                    "charging_curve": [[0, max_power], [1, max_power]]
+                    "charging_curve": [[0, max_power], [1, max_power]],
                 }
+                if len(bat) == 4:
+                    # discharge curve can be passed as optional 4th param
+                    batteries[f"BAT{idx}"].update({
+                        "discharge_curve": bat[3]
+                    })
+
         # create final dict
         self.scenario = {
             "scenario": {
