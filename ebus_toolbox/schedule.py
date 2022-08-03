@@ -131,11 +131,13 @@ class Schedule:
             # find idle vehicle for rotation if exists
             # else generate new vehicle id
             vt_ct = f"{rot.vehicle_type}_{rot.charging_type}"
-            try:
-                rot.vehicle_id = [
-                    id for id, deps in idle_vehicles if vt_ct in id and deps == rot.departure_name
-                ].pop(0)
-            except IndexError:
+            for item in idle_vehicles:
+                id, deps = item
+                if vt_ct in id and deps == rot.departure_name:
+                    rot.vehicle_id = id
+                    idle_vehicles.remove(item)
+                    break
+            else:
                 # no vehicle available for dispatch, generate new one
                 vehicle_type_counts[vt_ct] += 1
                 rot.vehicle_id = f"{vt_ct}_{vehicle_type_counts[vt_ct]}"
