@@ -123,7 +123,7 @@ class Schedule:
                 # calculate min_standing_time deps
                 r = rotations_in_progress.pop(0)
                 if rot.departure_time > r.earliest_departure_next_rot:
-                    idle_vehicles.append(r.vehicle_id)
+                    idle_vehicles.append((r.vehicle_id, r.arrival_name))
                 else:
                     rotations_in_progress.insert(0, r)
                     break
@@ -131,14 +131,14 @@ class Schedule:
             # find idle vehicle for rotation if exists
             # else generate new vehicle id
             vt_ct = f"{rot.vehicle_type}_{rot.charging_type}"
-            vehicle_id = next((id for id in idle_vehicles if vt_ct in id), None)
-            if vehicle_id is None:
+            try:
+                rot.vehicle_id = [
+                    id for id, deps in idle_vehicles if vt_ct in id and deps == rot.departure_name
+                ].pop(0)
+            except IndexError:
+                # no vehicle available for dispatch, generate new one
                 vehicle_type_counts[vt_ct] += 1
-                vehicle_id = f"{vt_ct}_{vehicle_type_counts[vt_ct]}"
-            else:
-                idle_vehicles.remove(vehicle_id)
-
-            rot.vehicle_id = vehicle_id
+                rot.vehicle_id = f"{vt_ct}_{vehicle_type_counts[vt_ct]}"
 
             # keep list of rotations in progress sorted
             i = 0
