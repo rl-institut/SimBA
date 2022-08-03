@@ -146,6 +146,9 @@ class Schedule:
                 # go through rotations in order, stop at same or higher departure
                 if r.earliest_departure_next_rot >= rot.earliest_departure_next_rot:
                     break
+            else:
+                # highest departure, insert at
+                i = i + 1
             # insert at calculated index
             rotations_in_progress.insert(i, rot)
 
