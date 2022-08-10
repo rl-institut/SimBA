@@ -94,6 +94,8 @@ if __name__ == '__main__':
     args = parser.parse_args()
 
     util.set_options_from_config(args, check=True, verbose=False)
+    # rename special options
+    args.timing = args.eta
 
     if args.input_schedule is None:
         raise SystemExit("The following argument is required: input_schedule")

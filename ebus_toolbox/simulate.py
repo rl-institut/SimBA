@@ -48,7 +48,7 @@ def simulate(args):
     # single out negative rotations. Try to run these with common non-negative rotations
     original_rotations = deepcopy(schedule.rotations)
     negative_rotations = schedule.get_negative_rotations(scenario)
-    print(f"Initially, rotations {sorted(negative_rotations, key=lambda r: int(r))} have neg. SoC.")
+    print(f"Initially, rotations {sorted(negative_rotations)} have neg. SoC.")
 
     negative_sets = {}
     for rot_key in negative_rotations:
