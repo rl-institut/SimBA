@@ -28,6 +28,11 @@ class Rotation:
         """
         new_trip = Trip(self, **trip)
 
+        # set charging type if given
+        if ('charging_type' in trip and
+                any(trip['charging_type'] == t for t in ['depb', 'oppb'])):
+            self.charging_type = trip['charging_type']
+
         self.distance += new_trip.distance
         if new_trip.line:
             self.lines.add(new_trip.line)
