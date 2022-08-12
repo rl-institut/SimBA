@@ -310,8 +310,8 @@ class Schedule:
         ext = args.electrified_stations.split('.')[-1]
         if ext != "json":
             print("File extension mismatch: electrified_stations file should be .json")
-        with open(args.electrified_stations) as json_file:
-            stations_dict = json.load(json_file)
+        # with open(args.electrified_stations) as json_file:
+            # stations_dict = json.load(json_file)
 
         interval = datetime.timedelta(minutes=args.interval)
 
