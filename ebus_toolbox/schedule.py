@@ -255,6 +255,9 @@ class Schedule:
                         # both at same station. Check for same time
                         for t in times:
                             for alt_t in alt_stations[station_name]:
+                                if t[1] is None or alt_t[1] is None:
+                                    # no departure: ignore
+                                    continue
                                 if max(t[0], alt_t[0]) < min(t[1], alt_t[1]):
                                     # overlap
                                     rot_set[rot_key][r] = min(t[0], alt_t[0])

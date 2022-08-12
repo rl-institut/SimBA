@@ -75,8 +75,9 @@ def simulate(args):
 
     # run singled-out rotations
     ignored = []
-    for rot, s in negative_sets.items():
+    for i, (rot, s) in enumerate(negative_sets.items()):
         schedule.rotations = {r: original_rotations[r] for r in s}
+        print(f"{i+1} / {len(negative_sets)} negative schedules: {rot}")
         scenario = schedule.run(args)
         if scenario.negative_soc_tracker:
             # still fail: try just the negative rotation
@@ -87,7 +88,7 @@ def simulate(args):
                 print(f"Rotation {rot} will stay negative")
             else:
                 # works alone with other non-negative rotations
-                print(f"Rotation {rot} works with alone")
+                print(f"Rotation {rot} works alone")
             ignored.append(rot)
 
     negative_sets = {k: v for k, v in negative_sets.items() if k not in ignored}
@@ -96,15 +97,16 @@ def simulate(args):
     # try to combine them
     possible = [(a, b) for a in negative_sets for b in negative_sets if a != b]
     while possible:
+        print(f"{len(possible)} combinations remain")
         r1, r2 = possible.pop()
         combined = negative_sets[r1].union(negative_sets[r2])
-        schedule.rotations = {r: original_rotations[r] for r in s}
+        schedule.rotations = {r: original_rotations[r] for r in combined}
         scenario = schedule.run(args)
         if not scenario.negative_soc_tracker:
             # compatible (don't interfere): keep union, remove r2
             negative_sets[r1] = combined
             # simplified. What about triangle? (r1+r2, r1+r3, r2!+r3)?
-            possible = [t for t in possible if t[1] != r2]
+            possible = [t for t in possible if r2 not in t]
 
     print(negative_sets)
 
