@@ -14,8 +14,8 @@ class Costs:
         :type args: argparse.Namespace
         :param schedule: Information about the whole bus schedule and all used parameters.
         :type schedule: object
-        :return: Investment costs [€/a]
-        :rtype: (float)
+        :return: Investment cost [€], annual investment cost [€/a], annual maintenance cost [€/a]
+        :rtype: (float, float, float)
         """
         # general settings and imports for calculation
         round_to_numbers = 2
@@ -81,7 +81,8 @@ class Costs:
                          c_params["maintenance"]["articulated_bus_per_km"]
         c_maintenance_annual = round(m_infra + m_bus, round_to_numbers)
 
-        invest_costs = c_busses + c_cs + c_gcs
-        invest_costs_annual = c_busses_annual + c_cs_annual + c_gcs_annual + c_maintenance_annual
+        c_invest = c_busses + c_cs + c_gcs
+        c_invest_annual = c_busses_annual + c_cs_annual + c_gcs_annual
 
-        return {"invest_costs": invest_costs, "invest_costs_annual": invest_costs_annual}
+        return {"c_invest": c_invest, "c_invest_annual": c_invest_annual,
+                "c_maintenance_annual": c_maintenance_annual}

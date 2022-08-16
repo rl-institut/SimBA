@@ -59,11 +59,11 @@ def simulate(args):
         print(f"Spice EV simulation complete. (Iteration {i})")
 
         # Calculate Costs of Iteration
-        capex = Costs.calculate_costs(args, schedule)
-        opex_annual = 0  # ToDo: Import annual OPEX from SpiceEV
-        costs = capex["invest_costs"]
-        costs_annual = capex["invest_costs_annual"] + opex_annual
-        print(f"Investment costs: {costs} €. Total annual costs: {costs_annual} €.")
+        costs = Costs.calculate_costs(args, schedule)
+        opex_energy_annual = 0  # ToDo: Import annual energy costs from SpiceEV
+        cost_invest = costs["c_invest"]
+        cost_annual = costs["c_invest_annual"] + costs["c_maintenance_annual"] + opex_energy_annual
+        print(f"Investment cost: {cost_invest} €. Total annual cost: {cost_annual} €.")
 
         if i < args.iterations - 1:
             # TODO: replace with optimizer step in the future
