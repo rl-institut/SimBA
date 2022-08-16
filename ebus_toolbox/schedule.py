@@ -74,7 +74,7 @@ class Schedule:
         """ Change charging type of either all or specified rotations. Adjust minimum standing time
             at depot after completion of rotation.
 
-        :param preferred_ct: Choose this charging type wheneever possible. Either 'depb' or 'oppb'.
+        :param preferred_ct: Choose this charging type whenever possible. Either 'depb' or 'oppb'.
         :type preferred_ct: str
         :param args: Command line arguments and/or arguments from config file.
         :type args: argparse.Namespace
@@ -117,7 +117,7 @@ class Schedule:
         rotations = sorted(self.rotations.values(), key=lambda rot: rot.departure_time)
 
         for rot in rotations:
-            # find vehicles that have completed rotation and stood for a minimum staning time
+            # find vehicles that have completed rotation and stood for a minimum standing time
             # mark those vehicle as idle
             while rotations_in_progress:
                 # calculate min_standing_time deps
@@ -230,7 +230,7 @@ class Schedule:
         :rtype: list
         """
 
-        # get dict of vehicles with negative soc's
+        # get dict of vehicles with negative SOCs
         try:
             negative_vehicles = scenario.negative_soc_tracker
         except AttributeError:
@@ -417,6 +417,7 @@ class Schedule:
                                 if number_cs != "None":
                                     gc_power = number_cs * cs_power
                                 else:
+                                    # ToDo: Check reason! Calculate via number of busses?
                                     # add a really large number
                                     gc_power = 100 * cs_power
 
@@ -640,7 +641,7 @@ class Schedule:
                                 "distance": rotation.distance,
                                 "charging_type": rotation.charging_type,
                                 "SOC_at_arrival": rotation_soc_ts[-1],
-                                "Minumum_SOC": min(rotation_soc_ts),
+                                "Minimum_SOC": min(rotation_soc_ts),
                                 "Negative_SOC": 1 if id in negative_rotations else 0
                              }
             rotation_infos.append(rotation_info)

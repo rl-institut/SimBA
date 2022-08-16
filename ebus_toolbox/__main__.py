@@ -4,10 +4,10 @@ from os import path
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(
-        description='Ebus Toolbox - \
-        Simulation Program for Ebus Fleets.')
+        description='eBus-Toolbox - \
+        Simulation Program for electric Bus Fleets.')
     parser.add_argument('--input_schedule', nargs='?',
-                        help='Path to CSV file containing all trips of schdedule to be analyzed.')
+                        help='Path to CSV file containing all trips of schedule to be analyzed.')
     parser.add_argument('--output_directory', default='data/sim_outputs', nargs='?',
                         help='Location where all simulation outputs are stored')
     parser.add_argument('--preferred_charging_type', '-pct', default='depot',
@@ -25,13 +25,13 @@ if __name__ == '__main__':
                         help='set number of minutes for each timestep (Δt)')
     parser.add_argument('--desired-soc', metavar='SOC', type=float, default=0.8,
                         help='set minimum desired SOC (0 - 1) for each charging process')
-    parser.add_argument('--gc_power_opps', metavar='POPP', type=float, default=1500,
+    parser.add_argument('--gc_power_opps', metavar='POPP', type=float, default=None,
                         help='max power of grid connector at opp stations')
-    parser.add_argument('--gc_power_deps', metavar='PDEP', type=float, default=1500,
+    parser.add_argument('--gc_power_deps', metavar='PDEP', type=float, default=None,
                         help='max power of grid connector at depot stations')
-    parser.add_argument('--cs_power_opps', metavar='CSPOPP', type=float, default=150,
+    parser.add_argument('--cs_power_opps', metavar='CSPOPP', type=float, default=450,
                         help='max power of charging station at opp stations')
-    parser.add_argument('--cs_power_deps_depb', metavar='CSPDEPDEP', type=float, default=150,
+    parser.add_argument('--cs_power_deps_depb', metavar='CSPDEPDEP', type=float, default=100,
                         help='max power of charging station at depot stations for depot busses')
     parser.add_argument('--cs_power_deps_oppb', metavar='CSPDEPOPP', type=float, default=150,
                         help='max power of charging station at depot stations for opp busses')
@@ -64,6 +64,8 @@ if __name__ == '__main__':
                         default='data/examples/electrified_stations.json')
     parser.add_argument('--vehicle_types', help='include vehicle_types json',
                         default='examples/vehicle_types.json')
+    parser.add_argument('--cost_params', help='include cost_params json',
+                        default='examples/cost_params.json')
     parser.add_argument('--min_charging_time_opps', help='define minimum time of charging at opps',
                         default=2)
     parser.add_argument('--default_buffer_time_opps', help='time to subtract off of standing time '

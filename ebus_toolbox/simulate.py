@@ -4,6 +4,7 @@ import warnings
 from ebus_toolbox.consumption import Consumption
 from ebus_toolbox.schedule import Schedule
 from ebus_toolbox.trip import Trip
+from ebus_toolbox.costs import Costs
 from ebus_toolbox import report  # , optimizer
 
 
@@ -56,6 +57,13 @@ def simulate(args):
             warnings.simplefilter('ignore', UserWarning)
             scenario.run('distributed', vars(args).copy())
         print(f"Spice EV simulation complete. (Iteration {i})")
+
+        # Calculate Costs of Iteration
+        capex = Costs.calculate_costs(args, schedule)
+        opex_annual = 0  # ToDo: Import annual OPEX from SpiceEV
+        costs = capex["invest_costs"]
+        costs_annual = capex["invest_costs_annual"] + opex_annual
+        print(f"Investment costs: {costs} €. Total annual costs: {costs_annual} €.")
 
         if i < args.iterations - 1:
             # TODO: replace with optimizer step in the future

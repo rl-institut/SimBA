@@ -1,0 +1,31 @@
+{
+    "bus": {
+        "solo_bus": 420000,
+        "articulated_bus": 600000,
+        "battery_kwh": 250,
+        "lifespan_bus": 14,
+        "lifespan_battery": 7
+    },
+    "gc": {
+        "building_cost_subsidy_per_kW": 158.3,
+        "fix": 62500,
+        "variable_per_meter": 562.5,
+        "transformer": 80000,
+        "lifespan_gc": 20
+    },
+    "cs": {
+        "depot_cs_per_kW": 877.5,
+        "opportunity_cs_per_kW": 1000,
+        "lifespan_cs": 20
+    },
+    "garage": {
+        "n_charging_stations": 1,
+        "busses_per_positions": 10,
+        "costs_position": 200000
+    },
+    "maintenance": {
+        "solo_bus_per_km": 0.24,
+        "articulated_bus_per_km": 0.30,
+        "percentage_of_cs_infra": 0.02
+    }
+}
