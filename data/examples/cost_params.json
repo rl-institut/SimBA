@@ -9,7 +9,7 @@
     "gc": {
         "building_cost_subsidy_per_kW": 158.3,
         "fix": 62500,
-        "variable_per_meter": 562.5,
+        "variable": 562.5,
         "transformer": 80000,
         "lifespan_gc": 20
     },
@@ -20,8 +20,9 @@
     },
     "garage": {
         "n_charging_stations": 1,
+        "power_cs": 50,
         "busses_per_positions": 10,
-        "costs_position": 200000
+        "cost_per_position": 200000
     },
     "maintenance": {
         "solo_bus_per_km": 0.24,

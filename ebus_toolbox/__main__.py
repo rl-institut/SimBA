@@ -5,7 +5,7 @@ from os import path
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(
         description='eBus-Toolbox - \
-        Simulation Program for electric Bus Fleets.')
+        simulation program for electric bus fleets.')
     parser.add_argument('--input_schedule', nargs='?',
                         help='Path to CSV file containing all trips of schedule to be analyzed.')
     parser.add_argument('--output_directory', default='data/sim_outputs', nargs='?',
@@ -94,17 +94,18 @@ if __name__ == '__main__':
                         help='Append additional options to the charging strategy.')
     parser.add_argument('--config', help='Use config file to set arguments')
     args = parser.parse_args()
-
-    util.set_options_from_config(args, check=True, verbose=False)
-
-    if args.input_schedule is None:
-        raise SystemExit("The following argument is required: input_schedule")
-
     # arguments relevant to SpiceEV, setting automatically to reduce clutter in config
     args.ALLOW_NEGATIVE_SOC = True
     args.attach_vehicle_soc = True
     args.save_timeseries = path.join(args.output_directory, "simulation_spiceEV.csv")
     args.save_results = path.join(args.output_directory, "simulation_spiceEV.json")
     args.save_soc = path.join(args.output_directory, "simulation_soc_spiceEV.csv")
+
+    util.set_options_from_config(args, check=True, verbose=False)
+    # rename special options
+    args.timing = args.eta
+
+    if args.input_schedule is None:
+        raise SystemExit("The following argument is required: input_schedule")
 
     simulate.simulate(args)

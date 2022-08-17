@@ -4,7 +4,7 @@ import warnings
 from ebus_toolbox.consumption import Consumption
 from ebus_toolbox.schedule import Schedule
 from ebus_toolbox.trip import Trip
-from ebus_toolbox.costs import Costs
+from ebus_toolbox.costs import calculate_costs
 from ebus_toolbox import report  # , optimizer
 
 
@@ -59,7 +59,7 @@ def simulate(args):
         print(f"Spice EV simulation complete. (Iteration {i})")
 
         # Calculate Costs of Iteration
-        costs = Costs.calculate_costs(args, schedule)
+        costs = calculate_costs(args, schedule)
         opex_energy_annual = 0  # ToDo: Import annual energy costs from SpiceEV
         cost_invest = costs["c_invest"]
         cost_annual = costs["c_invest_annual"] + costs["c_maintenance_annual"] + opex_energy_annual

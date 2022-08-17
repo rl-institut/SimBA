@@ -423,6 +423,7 @@ class Schedule:
 
                             # add one charging station for each bus at bus station
                             charging_stations[cs_name_and_type] = {
+                                "type": station_type,
                                 "max_power": cs_power,
                                 "min_power": 0.1 * cs_power,
                                 "parent": gc_name
