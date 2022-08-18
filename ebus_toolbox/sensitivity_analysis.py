@@ -6,6 +6,7 @@ import pandas as pd
 import numpy as np
 from random import *
 import random
+import secrets
 
 # define sturgeon values
 
@@ -88,10 +89,9 @@ def get_temperature():
 
     day = weather_data[(weather_data.year == year) & (weather_data.month == month) & (weather_data.day == day)]
     day = day[['Date', 'TT_TU']]
+    day['Date'] = day['Date'].dt.hour
+    day.rename(columns={'Date': 'hour', 'TT_TU': 'temperature'}, inplace=True)
     day = day.reset_index(drop=True)
-    day = day.drop(['Date'], axis=1)
-
-    day = day.to_dict()
 
     return day
 
@@ -99,7 +99,7 @@ def get_temperature():
 def get_reduced_power():
     """creates list of different values which are smaller then the default power
     """
-    power_opps = np.arange(start=50, stop=350, step=50)
+    power_opps = np.arange(start=50, stop=400, step=50)
     reduced_power_opps = random.choice(power_opps)
 
 
@@ -114,25 +114,6 @@ def get_reduced_power():
 
     return reduced_power_opps, reduced_power_depb, reduced_power_oppb
 
-# 4. network utilization
-# gc_power_opps, gc_power_deps (Netzauslastung)
-
-def get_grid_utilization():
-    """
-    Gets grid utilization
-    :return:
-    """
-    return
-
-# 5. extra mileage
-
-
-def get_extra_mileage():
-    """
-    Gets extra mileage
-    :return:
-    """
-    return
 
 # 6. default hpc
 
@@ -142,7 +123,14 @@ def get_default_hpc():
     Gets default hpc
     :return:
     """
-    return
+    list_json = ["data/bvg_test/electrified_stations_v4.json",
+                 "data/bvg_test/electrified_stations_v1.json",
+                 "data/bvg_test/electrified_stations_v2.json",
+                 "data/bvg_test/electrified_stations_v3.json"]
+
+    default_hpc = secrets.choice(list_json)
+
+    return default_hpc
 
 # 7. battery aging
 
