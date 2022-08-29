@@ -38,7 +38,12 @@ def simulate(args):
     # setup consumption calculator that can be accessed by all trips
     Trip.consumption = Consumption(vehicle_types)
     schedule.calculate_consumption()
-    schedule.set_charging_type(preferred_ct=args.preferred_charging_type, args=args)
+    # set charging type for all rotations without explicitly specified charging type
+    for rot_id, rot in schedule.rotations.items():
+        if rot.charging_type is None:
+            schedule.set_charging_type(preferred_ct=args.preferred_charging_type,
+                                       args=args,
+                                       rotation_ids=[rot_id])
 
     common_stations = schedule.get_common_stations(only_opps=True)
 

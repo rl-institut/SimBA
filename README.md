@@ -38,3 +38,7 @@ To analyze your own electric bus schedule, the data needs to be provided as a CS
 | distance       | Distance traveled in **m**                                   | 1340              |
 | vehicle_type   | ID of vehicle type defined in vehicle types file. Set path of this file in config.<br />(see default for reference: `data/examples/vehicle_types.json`) | some_bus_type     |
 
+| Column Name   | Description                                                  | Example                      |
+| :------------ | :----------------------------------------------------------- | ---------------------------- |
+| line          | The bus line                                                 | 512, M10, X11 etc            |
+| charging_type | The preferred charging type for this trip.<br />NOTE: All trips of a rotation need to have the same charging type. If omitted, charging type is set according to preferred charging type provided in the config file. | Options: **depb**,  **oppb** |
