@@ -31,7 +31,13 @@ class Consumption:
         :rtype: (float, float)
         """
 
-        vt_ct = f"{vehicle_type}_{charging_type}"
+        # the charging type may not be set
+        # picking one of the available charging types as only vehicle's mileage is
+        # needed which does not depend on charging type
+        if charging_type is None:
+            vt_ct = next((t for t in self.vehicle_types.keys() if vehicle_type in t))
+        else:
+            vt_ct = f"{vehicle_type}_{charging_type}"
 
         # in case a constant mileage is provided
         if isinstance(self.vehicle_types[vt_ct]['mileage'], float):

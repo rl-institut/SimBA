@@ -38,7 +38,12 @@ def simulate(args):
     # filter trips according to args
     schedule.filter_rotations()
     schedule.calculate_consumption()
-    schedule.set_charging_type(preferred_ct=args.preferred_charging_type, args=args)
+    # set charging type for all rotations without explicitly specified charging type
+    for rot_id, rot in schedule.rotations.items():
+        if rot.charging_type is None:
+            schedule.set_charging_type(preferred_ct=args.preferred_charging_type,
+                                       args=args,
+                                       rotation_ids=[rot_id])
 
     for i in range(args.iterations):
         # (re)calculate the change in SoC for every trip

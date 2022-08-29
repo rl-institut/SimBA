@@ -88,17 +88,17 @@ class Schedule:
 
         for id in rotation_ids:
             rot = self.rotations[id]
-            vehicle_type = self.vehicle_types[f"{rot.vehicle_type}_{rot.charging_type}"]
-            capacity = vehicle_type["capacity"]
-            if preferred_ct == "oppb" or capacity < rot.consumption:
+            capacity_depb = self.vehicle_types[f"{rot.vehicle_type}_depb"]["capacity"]
+            if preferred_ct == "oppb" or capacity_depb < rot.consumption:
                 self.rotations[id].charging_type = "oppb"
+                capacity_oppb = self.vehicle_types[f"{rot.vehicle_type}_depb"]["capacity"]
                 min_standing_time = \
-                    (capacity / args.cs_power_deps_oppb) * args.min_recharge_deps_oppb
+                    (capacity_oppb / args.cs_power_deps_oppb) * args.min_recharge_deps_oppb
             else:
                 self.rotations[id].charging_type = "depb"
                 min_standing_time = (rot.consumption / args.cs_power_deps_depb)
                 desired_max_standing_time = \
-                    (capacity / args.cs_power_deps_depb) * args.min_recharge_deps_oppb
+                    (capacity_depb / args.cs_power_deps_depb) * args.min_recharge_deps_oppb
                 if min_standing_time > desired_max_standing_time:
                     min_standing_time = desired_max_standing_time
 
