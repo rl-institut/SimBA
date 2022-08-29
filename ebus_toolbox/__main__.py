@@ -8,11 +8,15 @@ if __name__ == '__main__':
         Simulation Program for Ebus Fleets.')
     parser.add_argument('--input_schedule', nargs='?',
                         help='Path to CSV file containing all trips of schdedule to be analyzed.')
+    parser.add_argument('--mode', default='sim', choices=['sim', 'service_optimization'],
+                        help='Specify what you want to do. Choose one from {sim, \
+                        service_optimization}. sim runs a single simulation with the given inputs. \
+                        service optimization finds the largest set of electrified rotations.')
     parser.add_argument('--output_directory', default='data/sim_outputs', nargs='?',
                         help='Location where all simulation outputs are stored')
-    parser.add_argument('--preferred_charging_type', '-pct', default='depot',
-                        choices=['depot', 'opp'], help="Preferred charging type. Choose one\
-                        from <depb> and <oppb>. opp stands for opportunity.")
+    parser.add_argument('--preferred_charging_type', '-pct', default='depb',
+                        choices=['depb', 'oppb'], help="Preferred charging type. Choose one\
+                        from {depb, oppb}. opp stands for opportunity.")
     parser.add_argument('--vehicle-types', default="./data/examples/vehicle_types.json",
                         help='location of vehicle type definitions')
     parser.add_argument('--min_recharge_deps_oppb', default=1,
