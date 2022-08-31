@@ -16,6 +16,7 @@ def simulate(args):
     try:
         with open(args.vehicle_types) as f:
             vehicle_types = json.load(f)
+            del args.vehicle_types
     except FileNotFoundError:
         warnings.warn("Invalid path for vehicle type JSON. Using default types from EXAMPLE dir.")
         with open("data/examples/vehicle_types.json") as f:
@@ -32,16 +33,14 @@ def simulate(args):
                 pass
             setattr(args, opt_key, opt_val)
 
-    schedule = Schedule.from_csv(args.input_schedule, vehicle_types, args.electrified_stations)
+    schedule = Schedule.from_csv(args.input_schedule, vehicle_types, args.electrified_stations, **vars(args))
     # setup consumption calculator that can be accessed by all trips
     Trip.consumption = Consumption(vehicle_types)
     schedule.calculate_consumption()
     # set charging type for all rotations without explicitly specified charging type
-    for rot_id, rot in schedule.rotations.items():
+    for rot in schedule.rotations.values():
         if rot.charging_type is None:
-            schedule.set_charging_type(preferred_ct=args.preferred_charging_type,
-                                       args=args,
-                                       rotation_ids=[rot_id])
+            rot.set_charging_type(ct=args.preferred_charging_type)
 
     # run the mode specified in config
     if args.mode == 'service_optimization':

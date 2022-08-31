@@ -11,16 +11,18 @@ from src.scenario import Scenario
 
 class Schedule:
 
-    def __init__(self, vehicle_types, stations_file):
+    def __init__(self, vehicle_types, stations_file, **kwargs):
         """Constructs Schedule object from CSV file containing all trips of schedule
 
         :param vehicle_types: Collection of vehicle types and their properties.
         :type vehicle_types: dict
         :param stations_file: json of electrified stations
         :type stations_file: string
+        :param kwargs: Command line arguments
         """
         # Check if all bus types have both an opp and depot version
         # Also make sure that both versions have the same mileage
+        # TODO: remove check for constant mileage completely
         vehicle_type_names = list(vehicle_types.keys())
         for name in vehicle_type_names:
             try:
@@ -46,8 +48,22 @@ class Schedule:
         self.original_rotations = None
         self.consumption = 0
 
+        # mandatory config parameters
+        mandatory_options = [
+            "min_recharge_deps_oppb",
+            "min_recharge_deps_depb",
+            "gc_power_opps",
+            "gc_power_deps",
+            "cs_power_opps",
+            "cs_power_deps_depb",
+            "cs_power_deps_oppb",
+        ]
+        for opt in mandatory_options:
+            assert opt in kwargs, f"Missing config paramter: {opt}"
+            setattr(self, opt, kwargs.get(opt))
+
     @classmethod
-    def from_csv(cls, path_to_csv, vehicle_types, stations):
+    def from_csv(cls, path_to_csv, vehicle_types, stations, **kwargs):
         """Constructs Schedule object from CSV file containing all trips of schedule.
 
         :param path_to_csv: Path to csv file containing trip data
@@ -56,10 +72,12 @@ class Schedule:
         :type vehicle_types: dict
         :param stations: json of electrified stations
         :type stations: string
+        :param kwargs: Command line arguments
+        :type kwargs: dict
         :return: Returns a new instance of Schedule with all trips from csv loaded.
         :rtype: Schedule
         """
-        schedule = cls(vehicle_types, stations)
+        schedule = cls(vehicle_types, stations, **kwargs)
 
         with open(path_to_csv, 'r') as trips_file:
             trip_reader = csv.DictReader(trips_file)
@@ -67,7 +85,9 @@ class Schedule:
                 rotation_id = trip['rotation_id']
                 if rotation_id not in schedule.rotations.keys():
                     schedule.rotations.update({
-                        rotation_id: Rotation(id=rotation_id, vehicle_type=trip['vehicle_type'])})
+                        rotation_id: Rotation(id=rotation_id,
+                                              vehicle_type=trip['vehicle_type'],
+                                              schedule=schedule)})
                 schedule.rotations[rotation_id].add_trip(trip)
 
         return schedule
@@ -90,41 +110,6 @@ class Schedule:
 
         return scenario
 
-    def set_charging_type(self, preferred_ct, args, rotation_ids=None):
-        """ Change charging type of either all or specified rotations. Adjust minimum standing time
-            at depot after completion of rotation.
-
-        :param preferred_ct: Choose this charging type wheneever possible. Either 'depb' or 'oppb'.
-        :type preferred_ct: str
-        :param args: Command line arguments and/or arguments from config file.
-        :type args: argparse.Namespace
-        :param rotation_ids: IDs of rotations for which to set charging type. If None set charging
-                             charging type for all rotations.
-        :type rotation_ids: list
-        """
-        assert preferred_ct in ["oppb", "depb"], f"Invalid charging type: {preferred_ct}"
-        if rotation_ids is None:
-            rotation_ids = self.rotations.keys()
-
-        for id in rotation_ids:
-            rot = self.rotations[id]
-            capacity_depb = self.vehicle_types[f"{rot.vehicle_type}_depb"]["capacity"]
-            if preferred_ct == "oppb" or capacity_depb < rot.consumption:
-                self.rotations[id].charging_type = "oppb"
-                capacity_oppb = self.vehicle_types[f"{rot.vehicle_type}_depb"]["capacity"]
-                min_standing_time = \
-                    (capacity_oppb / args.cs_power_deps_oppb) * args.min_recharge_deps_oppb
-            else:
-                self.rotations[id].charging_type = "depb"
-                min_standing_time = (rot.consumption / args.cs_power_deps_depb)
-                desired_max_standing_time = \
-                    (capacity_depb / args.cs_power_deps_depb) * args.min_recharge_deps_oppb
-                if min_standing_time > desired_max_standing_time:
-                    min_standing_time = desired_max_standing_time
-
-            rot.earliest_departure_next_rot = \
-                rot.arrival_time + datetime.timedelta(hours=min_standing_time)
-
     def assign_vehicles(self):
         """ Assign vehicle IDs to rotations. A FIFO approach is used.
             For every rotation it is checked whether vehicles with matching type are idle, in which
@@ -133,6 +118,7 @@ class Schedule:
         """
         rotations_in_progress = []
         idle_vehicles = []
+        # TODO: create vehicle type counts dict with ct and vt values of all types
         vehicle_type_counts = {vehicle_type: 0 for vehicle_type in self.vehicle_types.keys()}
 
         rotations = sorted(self.rotations.values(), key=lambda rot: rot.departure_time)
@@ -635,6 +621,8 @@ class Schedule:
                     batteries[f"BAT{idx}"].update({
                         "discharge_curve": bat[3]
                     })
+
+        # TODO: restructure vehicle types for SpiceEV
 
         # create final dict
         self.scenario = {

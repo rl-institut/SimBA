@@ -1,11 +1,14 @@
+import datetime
+
 from ebus_toolbox.trip import Trip
 
 
 class Rotation:
 
-    def __init__(self, id, vehicle_type) -> None:
+    def __init__(self, id, vehicle_type, schedule) -> None:
         self.id = id
         self.trips = []
+        self.schedule = schedule
 
         self.vehicle_type = vehicle_type
         self.vehicle_id = None
@@ -27,11 +30,6 @@ class Rotation:
         :type trip: dict
         """
         new_trip = Trip(self, **trip)
-
-        # set charging type if given
-        if ('charging_type' in trip and
-                any(trip['charging_type'] == t for t in ['depb', 'oppb'])):
-            self.charging_type = trip['charging_type']
 
         self.distance += new_trip.distance
         if new_trip.line:
@@ -57,6 +55,13 @@ class Rotation:
                 self.arrival_time = new_trip.arrival_time
                 self.arrival_name = new_trip.arrival_name
 
+        # set charging type if given
+        if ('charging_type' in trip and
+                any(trip['charging_type'] == t for t in ['depb', 'oppb'])):
+            assert (self.charging_type is None or self.charging_type == trip['charging_type']),\
+                f"Two trips of rotation {self.id} have distinct charging types"
+            self.set_charging_type(trip['charging_type'])
+
         self.trips.append(new_trip)
 
     def calculate_consumption(self):
@@ -79,3 +84,29 @@ class Rotation:
         """
         for trip in self.trips:
             trip.get_delta_soc()
+
+    def set_charging_type(self, ct):
+        """ Change charging type of either all or specified rotations. Adjust minimum standing time
+            at depot after completion of rotation.
+
+        :param ct: Choose this charging type wheneever possible. Either 'depb' or 'oppb'.
+        :type ct: str
+        """
+        assert ct in ["oppb", "depb"], f"Invalid charging type: {ct}"
+
+        capacity_depb = self.schedule.vehicle_types[f"{self.vehicle_type}_depb"]["capacity"]
+        if ct == "oppb" or capacity_depb < self.consumption:
+            self.charging_type = "oppb"
+            capacity_oppb = self.schedule.vehicle_types[f"{self.vehicle_type}_oppb"]["capacity"]
+            min_standing_time = ((capacity_oppb / self.schedule.cs_power_deps_oppb)
+                                 * self.schedule.min_recharge_deps_oppb)
+        else:
+            self.charging_type = "depb"
+            min_standing_time = (self.consumption / self.schedule.cs_power_deps_depb)
+            desired_max_standing_time = ((capacity_depb / self.schedule.cs_power_deps_depb)
+                                         * self.schedule.min_recharge_deps_depb)
+            if min_standing_time > desired_max_standing_time:
+                min_standing_time = desired_max_standing_time
+
+        self.earliest_departure_next_rot = \
+            self.arrival_time + datetime.timedelta(hours=min_standing_time)
