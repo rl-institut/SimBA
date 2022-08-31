@@ -43,9 +43,12 @@ def simulate(args):
                                        args=args,
                                        rotation_ids=[rot_id])
 
+    # run the mode specified in config
     if args.mode == 'service_optimization':
         scenario = optimization.service_optimization(schedule, args)
-    else:
+    elif args.mode == "sim":
+        # DEFAULT if mode argument is not specified by user
+
         # calculate the change in SoC for every trip
         # charging types may have changed which may impact battery capacity
         # while mileage is assumed to stay constant
