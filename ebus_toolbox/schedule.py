@@ -672,6 +672,9 @@ class Schedule:
             vehicle_soc = scenario.vehicle_socs[vehicle_id]
             start_idx = (rotation.departure_time - sim_start_time) // interval
             end_idx = start_idx + ((rotation.arrival_time-rotation.departure_time) // interval)
+            if end_idx > len(vehicle_soc):
+                # SpiceEV stopped before rotation was fully simulated
+                continue
             rotation_soc_ts = vehicle_soc[start_idx:end_idx]
 
             rotation_info = {
