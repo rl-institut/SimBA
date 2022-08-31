@@ -33,7 +33,10 @@ def simulate(args):
                 pass
             setattr(args, opt_key, opt_val)
 
-    schedule = Schedule.from_csv(args.input_schedule, vehicle_types, args.electrified_stations, **vars(args))
+    schedule = Schedule.from_csv(args.input_schedule,
+                                 vehicle_types,
+                                 args.electrified_stations,
+                                 **vars(args))
     # setup consumption calculator that can be accessed by all trips
     Trip.consumption = Consumption(vehicle_types)
     schedule.calculate_consumption()

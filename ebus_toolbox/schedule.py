@@ -19,6 +19,7 @@ class Schedule:
         :param stations_file: json of electrified stations
         :type stations_file: string
         :param kwargs: Command line arguments
+        :type kwargs: dict
         """
         # Check if all bus types have both an opp and depot version
         # Also make sure that both versions have the same mileage
@@ -109,6 +110,21 @@ class Schedule:
             scenario.run('distributed', vars(args).copy())
 
         return scenario
+
+    def set_charging_type(self, ct, rotation_ids=None):
+        """ Change charging type of either all or specified rotations. Adjust minimum standing time
+        at depot after completion of rotation.
+        :param ct: Choose this charging type wheneever possible. Either 'depb' or 'oppb'.
+        :type ct: str
+        :param rotation_ids: IDs of rotations for which to set charging type. If None set charging
+                            charging type for all rotations.
+        :type rotation_ids: list
+        """
+        assert ct in ["oppb", "depb"], f"Invalid charging type: {ct}"
+
+        for id, rot in self.rotations.items():
+            if rotation_ids is None or id in rotation_ids:
+                rot.set_charging_type(ct)
 
     def assign_vehicles(self):
         """ Assign vehicle IDs to rotations. A FIFO approach is used.
