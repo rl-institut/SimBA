@@ -53,11 +53,11 @@ def calculate_costs(args, schedule):
             distance_transformer = el_stations[gcID]["distance_transformer"]
         except KeyError:
             distance_transformer = c_params["gc"]["default_distance"]
-        c_gc = c_params["gc"]["building_cost_subsidy_per_kW"] * gc_keys["max_power"] + \
-               c_params["gc"]["capex_gc_fix"] + \
-               c_params["gc"]["capex_gc_per_meter"] * distance_transformer
-        c_transformer = c_params["gc"]["capex_transformer_fix"] + \
-                        c_params["gc"]["capex_transformer_per_kW"] * gc_keys["max_power"]
+        c_gc = (c_params["gc"]["building_cost_subsidy_per_kW"] * gc_keys["max_power"] +
+                c_params["gc"]["capex_gc_fix"] +
+                c_params["gc"]["capex_gc_per_meter"] * distance_transformer)
+        c_transformer = (c_params["gc"]["capex_transformer_fix"] +
+                         c_params["gc"]["capex_transformer_per_kW"] * gc_keys["max_power"])
         c_gcs += c_gc + c_transformer
 
         # calculate annual costs of grid connectors, depending the lifetime of gc and transformator
@@ -87,8 +87,8 @@ def calculate_costs(args, schedule):
                             + c_garage_workstations / c_params["garage"]["lifetime_workstations"],
                             ROUND_TO_PLACES)
     # MAINTENANCE
-    m_infra = c_cs * c_params["cs"]["c_maint_cs_per_year"] + \
-              c_transformer * c_params["gc"]["c_maint_transformer_per_year"]
+    m_infra = (c_cs * c_params["cs"]["c_maint_cs_per_year"] +
+               c_transformer * c_params["gc"]["c_maint_transformer_per_year"])
     m_vehicles = 0
     # calculate (ceil) number of days in scenario
     drive_days = -(-(schedule.scenario["scenario"]["n_intervals"] *
