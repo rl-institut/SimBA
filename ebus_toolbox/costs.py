@@ -34,15 +34,15 @@ def calculate_costs(args, schedule):
                 # sum up cost of vehicles and their batteries, depending on how often the battery
                 # has to be replaced in the lifetime of the vehicles
                 c_vehicles_vt = schedule.vehicle_type_counts[v_type] * \
-                                (costs_vehicle - (-c_params["vehicles"][v_type.split("_")[0]]["lifetime"]
-                                                 // c_params["batteries"]["lifetime_battery"]) *
-                                v_keys["capacity"] * c_params["batteries"]["cost_per_kWh"])
+                                (costs_vehicle -
+                                 (-c_params["vehicles"][v_type.split("_")[0]]["lifetime"]
+                                  // c_params["batteries"]["lifetime_battery"]) *
+                                 v_keys["capacity"] * c_params["batteries"]["cost_per_kWh"])
                 c_vehicles += c_vehicles_vt
                 # calculate annual cost of vehicles of this type, depending on their lifetime
-                c_vehicles_annual +=round(c_vehicles_vt/
-                                          c_params["vehicles"][v_type.split("_")[0]]["lifetime"],
+                c_vehicles_annual += round(c_vehicles_vt /
+                                           c_params["vehicles"][v_type.split("_")[0]]["lifetime"],
                                            ROUND_TO_PLACES)
-
 
     # GRID CONNECTION POINTS
     c_gcs = 0
@@ -62,8 +62,8 @@ def calculate_costs(args, schedule):
 
         # calculate annual costs of grid connectors, depending the lifetime of gc and transformator
         c_gcs_annual += round(c_gc / c_params["gc"]["lifetime_gc"] +
-                             c_transformer / c_params["gc"]["lifetime_transformer"],
-                             ROUND_TO_PLACES)
+                              c_transformer / c_params["gc"]["lifetime_transformer"],
+                              ROUND_TO_PLACES)
 
     # CHARGING INFRASTRUCTURE
     c_cs = 0
@@ -84,8 +84,8 @@ def calculate_costs(args, schedule):
                               c_params["garage"]["cost_per_workstation"])
     c_garage = c_garage_cs + c_garage_workstations
     c_garage_annual = round(c_garage_cs / c_params["cs"]["lifetime_cs"]
-                            + c_garage_workstations / c_params["garage"]["lifetime_workstations"]
-                            , ROUND_TO_PLACES)
+                            + c_garage_workstations / c_params["garage"]["lifetime_workstations"],
+                            ROUND_TO_PLACES)
     # MAINTENANCE
     m_infra = c_cs * c_params["cs"]["c_maint_cs_per_year"] + \
               c_transformer * c_params["gc"]["c_maint_transformer_per_year"]
