@@ -2,56 +2,46 @@
     "Station-0": {
         "type": "deps",
         "n_charging_stations": "None",
-        "distance_transformer": 0
+        "distance_transformer": 150
     },
     "Station-3": {
         "type": "opps",
-        "n_charging_stations": 3,
-        "distance_transformer": 50
+        "n_charging_stations": 3
     },
     "Station-10": {
         "type": "opps",
-        "n_charging_stations": 1,
-        "distance_transformer": 50
+        "n_charging_stations": 1
     },
     "Station-21": {
         "type": "opps",
-        "n_charging_stations": 2,
-        "distance_transformer": 50
+        "n_charging_stations": 2
     },
     "Station-22": {
         "type": "deps",
-        "n_charging_stations": "None",
-        "distance_transformer": 0
+        "n_charging_stations": "None"
     },
     "Station-26": {
         "type": "opps",
-        "n_charging_stations": 5,
-        "distance_transformer": 50
+        "n_charging_stations": 5
     },
     "Station-28": {
         "type": "opps",
-        "n_charging_stations": 4,
-        "distance_transformer": 50
+        "n_charging_stations": 4
     },
     "Station-30": {
         "type": "opps",
-        "n_charging_stations": 4,
-        "distance_transformer": 50
+        "n_charging_stations": 4
     },
     "Station-32": {
         "type": "opps",
-        "n_charging_stations": 3,
-        "distance_transformer": 50
+        "n_charging_stations": 3
     },
     "Station-39": {
         "type": "opps",
-        "n_charging_stations": 5,
-        "distance_transformer": 50
+        "n_charging_stations": 5
     },
     "Station-42": {
         "type": "deps",
-        "n_charging_stations": "None",
-        "distance_transformer": 0
+        "n_charging_stations": "None"
     }
 }
