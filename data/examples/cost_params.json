@@ -4,7 +4,7 @@
             "capex": 420000,
                 "c_maint_per_km": 0.24,
                 "lifetime": 14
-                },
+        },
         "AB": {
             "capex": 600000,
             "c_maint_per_km": 0.3,
