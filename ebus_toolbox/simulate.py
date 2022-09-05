@@ -64,7 +64,5 @@ def simulate(args):
             scenario.run('distributed', vars(args).copy())
         print("Spice EV simulation complete.")
 
-        print(f"Rotations {schedule.get_negative_rotations(scenario)} have negative SoC.")
-
     # create report
     report.generate(schedule, scenario, args)
