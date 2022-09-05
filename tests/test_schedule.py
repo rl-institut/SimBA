@@ -13,5 +13,5 @@ import json
 def test_schedule_from_csv():
     with open('./data/examples/vehicle_types.json') as f:
         vehicle_types = json.load(f)
-    empty_schedule = schedule.Schedule(vehicle_types, './data/examples/vehicle_types.json')
+    empty_schedule = schedule.Schedule(vehicle_types, './data/examples/electrified_stations.json')
     assert empty_schedule.rotations == {}

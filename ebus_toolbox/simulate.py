@@ -58,19 +58,20 @@ def simulate(args):
             # todo: actually this case should not happen, but it still does happen.. why?
         else:
             # oppb: build non-interfering sets of negative rotations
+            # (these include the dependent non-negative rotations)
             s = {rot_key}
             vid = rotation.vehicle_id
             last_neg_soc_time = scenario.negative_soc_tracker[vid][-1]
             last_neg_soc_time = datetime.datetime.fromisoformat(last_neg_soc_time)
-            dep_stations = {r: t for r, t in common_stations[rot_key].items()
-                            if t <= last_neg_soc_time}
-            while dep_stations:
-                r, t = dep_stations.popitem()
+            dependent_stations = {r: t for r, t in common_stations[rot_key].items()
+                                  if t <= last_neg_soc_time}
+            while dependent_stations:
+                r, t = dependent_stations.popitem()
                 if r not in negative_rotations:
                     s.add(r)
                     # add dependencies of r
-                    dep_stations.update({r2: t2 for r2, t2
-                                        in common_stations[r].items() if t2 <= t})
+                    dependent_stations.update({r2: t2 for r2, t2
+                                               in common_stations[r].items() if t2 <= t})
             negative_sets[rot_key] = s
 
     # run singled-out rotations
