@@ -40,7 +40,7 @@ class Consumption:
             vt_ct = f"{vehicle_type}_{charging_type}"
 
         # in case a constant mileage is provided
-        if isinstance(self.vehicle_types[vt_ct]['mileage'], float):
+        if isinstance(self.vehicle_types[vt_ct]['mileage'], (int, float)):
             return self.vehicle_types[vt_ct]['mileage'] * distance / 1000
 
         temp = np.interp(time.hour,
