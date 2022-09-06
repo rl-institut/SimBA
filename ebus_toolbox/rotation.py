@@ -92,21 +92,39 @@ class Rotation:
         :param ct: Choose this charging type wheneever possible. Either 'depb' or 'oppb'.
         :type ct: str
         """
+        if ct == self.charging_type:
+            return
+
         assert ct in ["oppb", "depb"], f"Invalid charging type: {ct}"
 
+        old_consumption = self.consumption
+
         capacity_depb = self.schedule.vehicle_types[f"{self.vehicle_type}_depb"]["capacity"]
-        if ct == "oppb" or capacity_depb < self.consumption:
-            self.charging_type = "oppb"
-            capacity_oppb = self.schedule.vehicle_types[f"{self.vehicle_type}_oppb"]["capacity"]
-            min_standing_time = ((capacity_oppb / self.schedule.cs_power_deps_oppb)
-                                 * self.schedule.min_recharge_deps_oppb)
-        else:
+        # if we want to set charging type to depb assume capacity suffices
+        # and set all parameters accordingly
+        if ct == "depb":
             self.charging_type = "depb"
+            self.consumption = self.calculate_consumption()
+            # time to recharge to SOC to level at departure
             min_standing_time = (self.consumption / self.schedule.cs_power_deps_depb)
+            # time to charge battery from 0 to desired SOC
             desired_max_standing_time = ((capacity_depb / self.schedule.cs_power_deps_depb)
                                          * self.schedule.min_recharge_deps_depb)
             if min_standing_time > desired_max_standing_time:
                 min_standing_time = desired_max_standing_time
 
+        # if we want oppb set all parameters accordingly
+        # also set everything to oppb in case the solution in if clause above
+        # did not produce a valid result
+        if ct == "oppb" or capacity_depb < self.consumption:
+            self.charging_type = "oppb"
+            self.consumption = self.calculate_consumption()
+            capacity_oppb = self.schedule.vehicle_types[f"{self.vehicle_type}_oppb"]["capacity"]
+            min_standing_time = ((capacity_oppb / self.schedule.cs_power_deps_oppb)
+                                 * self.schedule.min_recharge_deps_oppb)
+
         self.earliest_departure_next_rot = \
             self.arrival_time + datetime.timedelta(hours=min_standing_time)
+
+        # recalculate consumption
+        self.schedule.consumption += self.consumption - old_consumption
