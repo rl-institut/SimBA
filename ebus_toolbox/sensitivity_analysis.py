@@ -95,6 +95,7 @@ def get_temperature():
 
     return day
 
+# 3. reduced power
 
 def get_reduced_power():
     """creates list of different values which are smaller then the default power
@@ -115,7 +116,7 @@ def get_reduced_power():
     return reduced_power_opps, reduced_power_depb, reduced_power_oppb
 
 
-# 6. default hpc
+# 4. default hpc
 
 
 def get_default_hpc():
@@ -132,7 +133,7 @@ def get_default_hpc():
 
     return default_hpc
 
-# 7. battery aging
+# 5. battery aging
 
 
 def get_battery_aging():
@@ -140,9 +141,17 @@ def get_battery_aging():
     Gets battery aging
     :return:
     """
-    return
+    list_json = ["data/bvg_test/vehicle_types_5.json",
+                 "data/bvg_test/vehicle_types_10.json",
+                 "data/bvg_test/vehicle_types_15.json",
+                 "data/bvg_test/vehicle_types_20.json",
+                 "data/bvg_test/vehicle_types.json"]
 
-# 8. depot delay
+    battery_aging = secrets.choice(list_json)
+
+    return battery_aging
+
+# 6. depot delay
 
 
 def get_depot_delay():
