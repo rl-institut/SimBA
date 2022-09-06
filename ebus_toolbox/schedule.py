@@ -232,10 +232,8 @@ class Schedule:
             rotations[rot_key] = {}
             for t in rotation.trips:
                 arr_station = self.stations.get(t.arrival_name)
-                if (
-                    arr_station is None and not only_opps or
-                    arr_station is not None and arr_station["type"] == "opps"
-                ):
+                if not only_opps or arr_station is not None and arr_station["type"] == "opps":
+                    # dependent station: add to rotation with arrival time
                     if t.arrival_name in rotations[rot_key]:
                         rotations[rot_key][t.arrival_name].append([t.arrival_time, None])
                     else:
