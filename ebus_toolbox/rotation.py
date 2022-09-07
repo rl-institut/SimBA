@@ -60,6 +60,9 @@ class Rotation:
                 any(trip['charging_type'] == t for t in ['depb', 'oppb'])):
             assert (self.charging_type is None or self.charging_type == trip['charging_type']),\
                 f"Two trips of rotation {self.id} have distinct charging types"
+            assert (f'{self.vehicle_type}_{trip["charging_type"]}' in self.schedule.vehicle_types),\
+                f"The required vehicle type {self.vehicle_type}({trip['charging_type']}) is not "
+            "given in the vehicle_types.json file."
             self.set_charging_type(trip['charging_type'])
 
         self.trips.append(new_trip)
@@ -92,10 +95,12 @@ class Rotation:
         :param ct: Choose this charging type wheneever possible. Either 'depb' or 'oppb'.
         :type ct: str
         """
+        assert ct in ["oppb", "depb"], f"Invalid charging type: {ct}"
+
         if ct == self.charging_type:
             return
-
-        assert ct in ["oppb", "depb"], f"Invalid charging type: {ct}"
+        if f'{self.vehicle_type}_{ct}' not in self.schedule.vehicle_types:
+            return
 
         old_consumption = self.consumption
 
