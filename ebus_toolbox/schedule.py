@@ -21,8 +21,6 @@ class Schedule:
         :param kwargs: Command line arguments
         :type kwargs: dict
         """
-        self.vehicle_types = vehicle_types
-
         # load stations file
         if stations_file is None:
             stations_file = "examples/electrified_stations.json"
@@ -33,8 +31,9 @@ class Schedule:
             self.stations = json.load(f)
 
         self.rotations = {}
-        self.original_rotations = None
         self.consumption = 0
+        self.vehicle_types = vehicle_types
+        self.original_rotations = None
 
         # mandatory config parameters
         mandatory_options = [
