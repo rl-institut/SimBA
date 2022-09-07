@@ -21,19 +21,6 @@ class Schedule:
         :param kwargs: Command line arguments
         :type kwargs: dict
         """
-        # Check if all bus types have both an opp and depot version
-        # Also make sure that both versions have the same mileage
-        # TODO: remove check for constant mileage completely
-        vehicle_type_names = list(vehicle_types.keys())
-        for name in vehicle_type_names:
-            try:
-                base, ct = name.rsplit('_', 1)
-            except ValueError:
-                continue
-            if f"{base}_oppb" in vehicle_types and ct == 'dep':
-                assert vehicle_types[name]["mileage"] == vehicle_types[f"{base}_oppb"]["mileage"]
-            elif f"{base}_depb" in vehicle_types and ct == 'opp':
-                assert vehicle_types[name]["mileage"] == vehicle_types[f"{base}_depb"]["mileage"]
         self.vehicle_types = vehicle_types
 
         # load stations file
