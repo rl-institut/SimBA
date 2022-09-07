@@ -92,17 +92,18 @@ class Rotation:
 
         if ct == self.charging_type:
             return
-        if f'{self.vehicle_type}_{ct}' not in self.schedule.vehicle_types:
-            return
+        assert f'{self.vehicle_type}_{ct}' in self.schedule.vehicle_types,\
+            f"Combination of vehicle type {self.vehicle_type} and {ct} not defined."
 
         old_consumption = self.consumption
+        self.charging_type = ct
+        # consumption may have changed with new charging type
+        self.consumption = self.calculate_consumption()
 
-        capacity_depb = self.schedule.vehicle_types[f"{self.vehicle_type}_depb"]["capacity"]
-        # if we want to set charging type to depb assume capacity suffices
-        # and set all parameters accordingly
+        # calculate earliest possible departure for this bus after completion
+        # of this rotation
         if ct == "depb":
-            self.charging_type = "depb"
-            self.consumption = self.calculate_consumption()
+            capacity_depb = self.schedule.vehicle_types[f"{self.vehicle_type}_depb"]["capacity"]
             # time to recharge to SOC to level at departure
             min_standing_time = (self.consumption / self.schedule.cs_power_deps_depb)
             # time to charge battery from 0 to desired SOC
@@ -110,13 +111,7 @@ class Rotation:
                                          * self.schedule.min_recharge_deps_depb)
             if min_standing_time > desired_max_standing_time:
                 min_standing_time = desired_max_standing_time
-
-        # if we want oppb set all parameters accordingly
-        # also set everything to oppb in case the solution in if clause above
-        # did not produce a valid result
-        if ct == "oppb" or capacity_depb < self.consumption:
-            self.charging_type = "oppb"
-            self.consumption = self.calculate_consumption()
+        elif ct == "oppb":
             capacity_oppb = self.schedule.vehicle_types[f"{self.vehicle_type}_oppb"]["capacity"]
             min_standing_time = ((capacity_oppb / self.schedule.cs_power_deps_oppb)
                                  * self.schedule.min_recharge_deps_oppb)
