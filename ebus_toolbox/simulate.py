@@ -39,7 +39,6 @@ def simulate(args):
                                  **vars(args))
     # setup consumption calculator that can be accessed by all trips
     Trip.consumption = Consumption(vehicle_types)
-    schedule.calculate_consumption()
     # set charging type for all rotations without explicitly specified charging type
     for rot in schedule.rotations.values():
         if rot.charging_type is None:
