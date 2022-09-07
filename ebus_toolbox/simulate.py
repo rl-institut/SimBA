@@ -51,10 +51,6 @@ def simulate(args):
     elif args.mode == "sim":
         # DEFAULT if mode argument is not specified by user
 
-        # calculate the change in SoC for every trip
-        # charging types may have changed which may impact battery capacity
-        # while mileage is assumed to stay constant
-        schedule.delta_soc_all_trips()
         # each rotation is assigned a vehicle ID
         schedule.assign_vehicles()
         scenario = schedule.generate_scenario(args)

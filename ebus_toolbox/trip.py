@@ -29,7 +29,7 @@ class Trip:
         :rtype: float
         """
         try:
-            self.consumption = \
+            self.consumption, self. delta_soc = \
                 Trip.consumption.calculate_consumption(self.arrival_time,
                                                        self.distance,
                                                        self.rotation.vehicle_type,
@@ -39,12 +39,3 @@ class Trip:
                    and linked to Trip class.""")
 
         return self.consumption
-
-    def get_delta_soc(self):
-        """ Compute change in state of charge (SOC) for this trip."""
-        if self.consumption is None:
-            self.calculate_consumption()
-
-        self.delta_soc = Trip.consumption.get_delta_soc(self.consumption,
-                                                        self.rotation.vehicle_type,
-                                                        self.rotation.charging_type)

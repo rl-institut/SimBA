@@ -81,13 +81,6 @@ class Rotation:
 
         return rotation_consumption
 
-    def delta_soc_all_trips(self):
-        """ Compute change in state of charge (SOC) for every trip
-            of this rotation. Stored in the trip objects.
-        """
-        for trip in self.trips:
-            trip.get_delta_soc()
-
     def set_charging_type(self, ct):
         """ Change charging type of either all or specified rotations. Adjust minimum standing time
             at depot after completion of rotation.

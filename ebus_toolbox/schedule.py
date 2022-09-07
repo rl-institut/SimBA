@@ -80,11 +80,6 @@ class Schedule:
         return schedule
 
     def run(self, args):
-        # (re)calculate the change in SoC for every trip
-        # charging types may have changed which may impact battery capacity
-        # while mileage is assumed to stay constant
-        self.delta_soc_all_trips()
-
         # each rotation is assigned a vehicle ID
         self.assign_vehicles()
 
@@ -177,15 +172,6 @@ class Schedule:
             self.consumption += rot.calculate_consumption()
 
         return self.consumption
-
-    def delta_soc_all_trips(self):
-        """ Computes delta SOC for all trips of all rotations.
-            Depends on vehicle type and on charging type, since
-            busses of the same vehicle type may have different
-            battery sizes for different charging types."""
-
-        for rot in self.rotations.values():
-            rot.delta_soc_all_trips()
 
     def get_departure_of_first_trip(self):
         """ Finds earliest departure time among all rotations.
