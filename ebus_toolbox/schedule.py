@@ -661,9 +661,10 @@ class Schedule:
                              }
             rotation_infos.append(rotation_info)
 
-        warnings.warn("SpiceEV stopped before simulation of the following rotations was completed. "
-                      "Omit config parameter <days> to simulate entire schedule.\n",
-                      ", ".join(incomplete_rotations))
+        if incomplete_rotations:
+            warnings.warn("SpiceEV stopped before simulation of the following rotations "
+                          "was completed. Omit parameter <days> to simulate entire schedule.\n",
+                          ", ".join(incomplete_rotations))
 
         with open(path.join(args.output_directory, "rotations.csv"), "w+") as f:
             csv_writer = csv.DictWriter(f, list(rotation_infos[0].keys()))
