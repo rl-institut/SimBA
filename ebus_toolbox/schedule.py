@@ -629,6 +629,7 @@ class Schedule:
         sim_start_time = \
             self.get_departure_of_first_trip() - datetime.timedelta(minutes=args.signal_time_dif)
 
+        incomplete_rotations = []
         for id, rotation in self.rotations.items():
             # get SOC timeseries for this rotation
             vehicle_id = rotation.vehicle_id
@@ -639,8 +640,7 @@ class Schedule:
             end_idx = start_idx + ((rotation.arrival_time-rotation.departure_time) // interval)
             if end_idx > len(vehicle_soc):
                 # SpiceEV stopped before rotation was fully simulated
-                print(f"SpiceEV stopped before simulation of rotation {id} was completed. "
-                      "Omit config parameter <days> to simulate entire schedule.")
+                incomplete_rotations.append(id)
                 continue
             rotation_soc_ts = vehicle_soc[start_idx:end_idx]
 
@@ -660,6 +660,10 @@ class Schedule:
                                 "Negative_SOC": 1 if id in negative_rotations else 0
                              }
             rotation_infos.append(rotation_info)
+
+        warnings.warn("SpiceEV stopped before simulation of the following rotations was completed. "
+                      "Omit config parameter <days> to simulate entire schedule.\n",
+                      ", ".join(incomplete_rotations))
 
         with open(path.join(args.output_directory, "rotations.csv"), "w+") as f:
             csv_writer = csv.DictWriter(f, list(rotation_infos[0].keys()))
