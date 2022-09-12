@@ -69,7 +69,7 @@ if __name__ == '__main__':
     parser.add_argument('--vehicle_types', help='include vehicle_types json',
                         default='examples/vehicle_types.json')
     parser.add_argument('--cost_params', help='include cost_params json',
-                        default='examples/cost_params.json')
+                        default=None)
     parser.add_argument('--min_charging_time_opps', help='define minimum time of charging at opps',
                         default=2)
     parser.add_argument('--default_buffer_time_opps', help='time to subtract off of standing time '

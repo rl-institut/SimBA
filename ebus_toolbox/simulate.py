@@ -53,6 +53,7 @@ def simulate(args):
         # Scenario simulated once
         scenario = schedule.run(args)
 
+    if args.cost_params is not None:
         # Calculate Costs of Iteration
         costs = calculate_costs(args, schedule)
         opex_energy_annual = 0  # ToDo: Import annual energy costs from SpiceEV
