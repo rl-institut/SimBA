@@ -1,7 +1,6 @@
 import numpy as np
 import csv
 import pandas as pd
-
 from scipy.interpolate import interpn
 
 
@@ -30,8 +29,6 @@ class Consumption:
 
         :param time: The date and time at which the trip ends
         :type time: datetime.datetime
-
-        # Is Distance traveled in km correct? seems to be in m
         :param distance: Distance travelled [m]
         :type distance: float
         :param vehicle_type: The vehicle type for which to calculate consumption
