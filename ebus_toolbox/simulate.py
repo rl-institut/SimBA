@@ -1,6 +1,5 @@
 # imports
 import json
-import warnings
 from ebus_toolbox.consumption import Consumption
 from ebus_toolbox.schedule import Schedule
 from ebus_toolbox.trip import Trip
@@ -13,15 +12,34 @@ def simulate(args):
 
     :param args: Configuration arguments specified in config files contained in configs directory.
     :type args: argparse.Namespace
+
+    :raises SystemExit: If an input file does not exist, exit the program.
     """
+    # load vehicle types
     try:
         with open(args.vehicle_types) as f:
             vehicle_types = json.load(f)
             del args.vehicle_types
     except FileNotFoundError:
-        warnings.warn("Invalid path for vehicle type JSON. Using default types from EXAMPLE dir.")
-        with open("data/examples/vehicle_types.json") as f:
-            vehicle_types = json.load(f)
+        raise SystemExit(f"Path to vehicle types ({args.vehicle_types}) "
+                         "does not exist. Exiting...")
+
+    # load stations file
+    try:
+        with open(args.electrified_stations) as f:
+            stations = json.load(f)
+    except FileNotFoundError:
+        raise SystemExit(f"Path to electrified stations ({args.electrified_stations}) "
+                         "does not exist. Exiting...")
+
+    # load cost parameters
+    if args.cost_params is not None:
+        try:
+            with open(args.cost_params) as f:
+                cost_params = json.load(f)
+        except FileNotFoundError:
+            raise SystemExit(f"Path to cost parameters ({args.cost_params}) "
+                             "does not exist. Exiting...")
 
     # parse strategy options for Spice EV
     if args.strategy_option is not None:
@@ -36,7 +54,7 @@ def simulate(args):
 
     schedule = Schedule.from_csv(args.input_schedule,
                                  vehicle_types,
-                                 args.electrified_stations,
+                                 stations,
                                  **vars(args))
     # setup consumption calculator that can be accessed by all trips
     Trip.consumption = Consumption(vehicle_types)
@@ -55,7 +73,7 @@ def simulate(args):
 
     if args.cost_params is not None:
         # Calculate Costs of Iteration
-        costs = calculate_costs(args, schedule)
+        costs = calculate_costs(cost_params, schedule)
         opex_energy_annual = 0  # ToDo: Import annual energy costs from SpiceEV
         cost_invest = costs["c_invest"]
         cost_annual = costs["c_invest_annual"] + costs["c_maintenance_annual"] + opex_energy_annual

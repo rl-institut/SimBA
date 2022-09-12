@@ -1,22 +1,15 @@
-import json
-
-
-def calculate_costs(args, schedule):
+def calculate_costs(c_params, schedule):
     """ Calculates annual costs of all necessary vehicles and infrastructure.
 
-    :param args: Command line arguments and/or arguments from config file.
-    :type args: argparse.Namespace
+    :param c_params: Cost of various infrastructure components.
+    :type c_params: dict
     :param schedule: Information about the whole bus schedule and all used parameters.
     :type schedule: object
     :return: Investment cost [€], annual investment cost [€/a], annual maintenance cost [€/a]
-    :rtype: (float, float, float)
+    :rtype: dict
     """
     # general settings and imports for calculation
     ROUND_TO_PLACES = 2
-    with open(args.cost_params) as json_file:
-        c_params = json.load(json_file)
-    with open(args.electrified_stations) as json_file:
-        el_stations = json.load(json_file)
 
     # VEHICLES
     c_vehicles = 0
@@ -30,19 +23,19 @@ def calculate_costs(args, schedule):
             except KeyError:
                 print("Warning: No capex defined for vehicle type " + v_type.split("_")[0] +
                       ". Unable to calculate investment costs for this vehicle type.")
-            else:
-                # sum up cost of vehicles and their batteries, depending on how often the battery
-                # has to be replaced in the lifetime of the vehicles
-                c_vehicles_vt = schedule.vehicle_type_counts[v_type] * \
-                                (costs_vehicle -
-                                 (-c_params["vehicles"][v_type.split("_")[0]]["lifetime"]
-                                  // c_params["batteries"]["lifetime_battery"]) *
-                                 v_keys["capacity"] * c_params["batteries"]["cost_per_kWh"])
-                c_vehicles += c_vehicles_vt
-                # calculate annual cost of vehicles of this type, depending on their lifetime
-                c_vehicles_annual += round(c_vehicles_vt /
-                                           c_params["vehicles"][v_type.split("_")[0]]["lifetime"],
-                                           ROUND_TO_PLACES)
+                continue
+            # sum up cost of vehicles and their batteries, depending on how often the battery
+            # has to be replaced in the lifetime of the vehicles
+            c_vehicles_vt = schedule.vehicle_type_counts[v_type] * \
+                (costs_vehicle +
+                    (c_params["vehicles"][v_type.split("_")[0]]["lifetime"]
+                        // c_params["batteries"]["lifetime_battery"]) *
+                    v_keys["capacity"] * c_params["batteries"]["cost_per_kWh"])
+            c_vehicles += c_vehicles_vt
+            # calculate annual cost of vehicles of this type, depending on their lifetime
+            c_vehicles_annual += round(c_vehicles_vt /
+                                       c_params["vehicles"][v_type.split("_")[0]]["lifetime"],
+                                       ROUND_TO_PLACES)
 
     # GRID CONNECTION POINTS
     c_gcs = 0
@@ -50,7 +43,7 @@ def calculate_costs(args, schedule):
     gcs = schedule.scenario["constants"]["grid_connectors"]
     for gcID, gc_keys in gcs.items():
         try:
-            distance_transformer = el_stations[gcID]["distance_transformer"]
+            distance_transformer = schedule.stations[gcID]["distance_transformer"]
         except KeyError:
             distance_transformer = c_params["gc"]["default_distance"]
         c_gc = (c_params["gc"]["building_cost_subsidy_per_kW"] * gc_keys["max_power"] +
@@ -107,5 +100,8 @@ def calculate_costs(args, schedule):
     c_invest_annual = round(c_vehicles_annual + c_cs_annual + c_gcs_annual + c_garage_annual,
                             ROUND_TO_PLACES)
 
-    return {"c_invest": c_invest, "c_invest_annual": c_invest_annual,
-            "c_maintenance_annual": c_maintenance_annual}
+    return {
+        "c_invest": c_invest,
+        "c_invest_annual": c_invest_annual,
+        "c_maintenance_annual": c_maintenance_annual
+    }
