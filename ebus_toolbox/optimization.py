@@ -31,7 +31,6 @@ def service_optimization(schedule, args):
         rotation = schedule.rotations[rot_key]
         if rotation.charging_type == "depb":
             schedule.set_charging_type("oppb", args, [rot_key])
-            # todo: actually this case should not happen, but it still does happen.. why?
         else:
             # oppb: build non-interfering sets of negative rotations
             # (these include the dependent non-negative rotations)
