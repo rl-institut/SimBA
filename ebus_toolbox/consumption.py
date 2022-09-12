@@ -1,5 +1,8 @@
 import numpy as np
 import csv
+import pandas as pd
+
+from scipy.interpolate import interpn
 
 
 class Consumption:
@@ -12,23 +15,40 @@ class Consumption:
             for row in reader:
                 self.temperatures_by_hour.update({int(row['hour']): float(row['temperature'])})
 
+        with open(kwargs.get("level_of_loading_over_day", "data/examples/default_level_of_loading_over_day.csv")) as f:
+            reader = csv.DictReader(f)
+            self.lol_by_hour = {}
+            for row in reader:
+                self.lol_by_hour.update({int(row['hour']): float(row['level_of_loading'])})
+
         self.consumption_files = {}
         self.vehicle_types = vehicle_types
 
-    def calculate_consumption(self, time, distance, vehicle_type, charging_type):
+    def calculate_consumption(self, time, distance, vehicle_type, charging_type,
+                              height_difference=0, level_of_loading=None, mean_speed=18):
         """ Calculates consumed amount of energy for a given distance.
 
         :param time: The date and time at which the trip ends
         :type time: datetime.datetime
-        :param distance: Distance travelled [km]
+
+        # Is Distance traveled in km correct? seems to be in m
+        :param distance: Distance travelled [m]
         :type distance: float
         :param vehicle_type: The vehicle type for which to calculate consumption
         :type vehicle_type: str
         :param charging_type: Charging type for the trip. Consumption differs between
                               distinct types.
         :type charging_type: str
-        :return: Consumed energy [kWh] and delta SOC as tuple
-        :rtype: (float, float)
+        :param height_difference: difference in height between stations in meters-
+        :type height_difference: float
+        :param level_of_loading: Level of loading of the bus between empty (=0) and completely full (=1.0). If None
+        is provided, Level of loading will be interpolated from timeseries
+        :type level_of_loading: float
+        :param mean_speed: Mean speed between two stops in km/h
+        :type mean_speed: float
+
+        :return: Consumed energy [kWh]
+        :rtype: float
         """
 
         # the charging type may not be set
@@ -47,25 +67,58 @@ class Consumption:
                          list(self.temperatures_by_hour.keys()),
                          list(self.temperatures_by_hour.values()))
 
+        # If no specific LoL is given, interpolate from demand time series.
+        if level_of_loading is None:
+            level_of_loading = np.interp(time.hour,
+                                         list(self.lol_by_hour.keys()),
+                                         list(self.lol_by_hour.values()))
+
         # load consumption csv
         consumption_file = self.vehicle_types[vt_ct]["mileage"]
+
+        # Consumption_files holds interpol functions of csv files which are called directly and held in memory
+        vehicle_type_nr = dict(SB=0, VDL=0, AB=1, CKB=1)[vehicle_type]
         try:
-            consumption = self.consumption_files[consumption_file]
+            mileage = self.consumption_files[consumption_file](vehicle_type=vehicle_type_nr,
+                                                               incline=height_difference / distance,
+                                                               temp=temp,
+                                                               lol=level_of_loading,
+                                                               speed=mean_speed)
+            return mileage * distance
         except KeyError:
-            consumption = {'temperature': [], 'consumption': []}
-            with open(consumption_file, 'r') as f:
-                reader = csv.DictReader(f)
-                for row in reader:
-                    consumption['temperature'].append(float(row['Temp.']))
-                    consumption['consumption'].append(float(row['Kat. B']))
-            self.consumption_files.update({consumption_file: consumption})
+            # Creating the interpol function from csv file.
+            df = pd.read_csv(consumption_file, sep=",")
+            vehicle_type_u = list(df["vehicle_type"].unique())
+            incline_u = list(df["incline"].unique())
+            temp_u = list(df["temp"].unique())
+            lol_u = list(df["level_of_loading"].unique())
+            speed_u = list(df["mean_speed_kmh"].unique())
+            points = (vehicle_type_u, incline_u, temp_u, lol_u, speed_u)
+            values = np.zeros((len(vehicle_type_u), len(incline_u), len(temp_u), len(lol_u), len(speed_u)))
 
-        xp = self.consumption_files[consumption_file]['temperature']
-        fp = self.consumption_files[consumption_file]['consumption']
+            # Nested loops for creating values in grid
+            for i, vt in enumerate(vehicle_type_u):
+                for ii, inc in enumerate(incline_u):
+                    for iii, temp in enumerate(temp_u):
+                        for iv, lol in enumerate(lol_u):
+                            for v, speed in enumerate(speed_u):
+                                values[i, ii, iii, iv, v] = df[(df["vehicle_type"] == vt) * (df["incline"] == inc) *
+                                                               (df["temp"] == temp) * (df["level_of_loading"] == lol) *
+                                                               (df["mean_speed_kmh"] == speed)][
+                                    "consumption_kwh_per_km"]
 
-        mileage = np.interp(temp, xp, fp)  # kWh / m
+            def interpol_function(this_vehicle_type, this_incline, this_temp, this_lol, this_speed):
+                point = (this_vehicle_type, this_incline, this_temp, this_lol, this_speed)
+                return interpn(points, values, point)[0]
+
+            self.consumption_files.update({consumption_file: interpol_function})
+
+        mileage = self.consumption_files[consumption_file](vehicle_type=vehicle_type_nr,
+                                                           incline=height_difference / distance,
+                                                           temp=temp,
+                                                           lol=level_of_loading,
+                                                           speed=mean_speed)
         consumed_energy = mileage * distance / 1000  # kWh
-
         return consumed_energy
 
     def get_delta_soc(self, consumed_energy, vehicle_type, charging_type):

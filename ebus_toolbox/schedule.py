@@ -288,7 +288,9 @@ class Schedule:
             # filter all rides for that bus
             vehicle_rotations = {k: v for k, v in self.rotations.items() if v.vehicle_id == v_name}
             # sort events for their departure time, so that the matching departure time of an
-            # arrival event can be read out of the next element in vid_list
+            # arrival event can be read out of the
+            # ,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,
+            # element in vid_list
             vehicle_rotations = {k: v for k, v in sorted(
                                  vehicle_rotations.items(), key=lambda x: x[1].departure_time)}
             rotation_ids = list(vehicle_rotations.keys())
