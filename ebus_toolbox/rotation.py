@@ -1,15 +1,18 @@
+import datetime
+
 from ebus_toolbox.trip import Trip
 
 
 class Rotation:
 
-    def __init__(self, id, vehicle_type) -> None:
+    def __init__(self, id, vehicle_type, schedule) -> None:
         self.id = id
         self.trips = []
+        self.schedule = schedule
 
         self.vehicle_type = vehicle_type
         self.vehicle_id = None
-        self.charging_type = 'depb'
+        self.charging_type = None
 
         self.consumption = 0
         self.distance = 0
@@ -27,11 +30,6 @@ class Rotation:
         :type trip: dict
         """
         new_trip = Trip(self, **trip)
-
-        # set charging type if given
-        if ('charging_type' in trip and
-                any(trip['charging_type'] == t for t in ['depb', 'oppb'])):
-            self.charging_type = trip['charging_type']
 
         self.distance += new_trip.distance
         if new_trip.line:
@@ -57,6 +55,15 @@ class Rotation:
                 self.arrival_time = new_trip.arrival_time
                 self.arrival_name = new_trip.arrival_name
 
+        # set charging type if given
+        if ('charging_type' in trip and trip['charging_type'] in ['depb', 'oppb']):
+            assert (self.charging_type is None or self.charging_type == trip['charging_type']),\
+                f"Two trips of rotation {self.id} have distinct charging types"
+            assert (f'{self.vehicle_type}_{trip["charging_type"]}' in self.schedule.vehicle_types),\
+                f"The required vehicle type {self.vehicle_type}({trip['charging_type']}) is not "
+            "given in the vehicle_types.json file."
+            self.set_charging_type(trip['charging_type'])
+
         self.trips.append(new_trip)
 
     def calculate_consumption(self):
@@ -73,9 +80,43 @@ class Rotation:
 
         return rotation_consumption
 
-    def delta_soc_all_trips(self):
-        """ Compute change in state of charge (SOC) for every trip
-            of this rotation. Stored in the trip objects.
+    def set_charging_type(self, ct):
+        """ Change charging type of either all or specified rotations. Adjust minimum standing time
+            at depot after completion of rotation.
+
+        :param ct: Choose this charging type wheneever possible. Either 'depb' or 'oppb'.
+        :type ct: str
         """
-        for trip in self.trips:
-            trip.get_delta_soc()
+        assert ct in ["oppb", "depb"], f"Invalid charging type: {ct}"
+
+        if ct == self.charging_type:
+            return
+        assert f'{self.vehicle_type}_{ct}' in self.schedule.vehicle_types,\
+            f"Combination of vehicle type {self.vehicle_type} and {ct} not defined."
+
+        old_consumption = self.consumption
+        self.charging_type = ct
+        # consumption may have changed with new charging type
+        self.consumption = self.calculate_consumption()
+
+        # calculate earliest possible departure for this bus after completion
+        # of this rotation
+        if ct == "depb":
+            capacity_depb = self.schedule.vehicle_types[f"{self.vehicle_type}_depb"]["capacity"]
+            # minimum time needed to recharge consumed power from depot charger
+            min_standing_time = (self.consumption / self.schedule.cs_power_deps_depb)
+            # time to charge battery from 0 to desired SOC
+            desired_max_standing_time = ((capacity_depb / self.schedule.cs_power_deps_depb)
+                                         * self.schedule.min_recharge_deps_depb)
+            if min_standing_time > desired_max_standing_time:
+                min_standing_time = desired_max_standing_time
+        elif ct == "oppb":
+            capacity_oppb = self.schedule.vehicle_types[f"{self.vehicle_type}_oppb"]["capacity"]
+            min_standing_time = ((capacity_oppb / self.schedule.cs_power_deps_oppb)
+                                 * self.schedule.min_recharge_deps_oppb)
+
+        self.earliest_departure_next_rot = \
+            self.arrival_time + datetime.timedelta(hours=min_standing_time)
+
+        # recalculate consumption
+        self.schedule.consumption += self.consumption - old_consumption
