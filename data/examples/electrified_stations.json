@@ -1,7 +1,8 @@
 {
     "Station-0": {
         "type": "deps",
-        "n_charging_stations": null
+        "n_charging_stations": null,
+        "distance_transformer": 150
     },
     "Station-3": {
         "type": "opps",

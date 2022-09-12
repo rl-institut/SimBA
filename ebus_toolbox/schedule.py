@@ -1,5 +1,4 @@
 import csv
-import json
 import random
 import datetime
 from os import path
@@ -11,28 +10,21 @@ from src.scenario import Scenario
 
 class Schedule:
 
-    def __init__(self, vehicle_types, stations_file, **kwargs):
+    def __init__(self, vehicle_types, stations, **kwargs):
         """Constructs Schedule object from CSV file containing all trips of schedule
 
         :param vehicle_types: Collection of vehicle types and their properties.
         :type vehicle_types: dict
-        :param stations_file: json of electrified stations
-        :type stations_file: string
+        :param stations: electrified stations
+        :type stations: dict
 
         :raises SystemExit: In case not all mandatory options are provided
 
         :param kwargs: Command line arguments
         :type kwargs: dict
         """
-        # load stations file
-        if stations_file is None:
-            stations_file = "examples/electrified_stations.json"
-        ext = stations_file.split('.')[-1]
-        if ext != "json":
-            print("File extension mismatch: electrified_stations file should be .json")
-        with open(stations_file) as f:
-            self.stations = json.load(f)
 
+        self.stations = stations
         self.rotations = {}
         self.consumption = 0
         self.vehicle_types = vehicle_types
@@ -127,7 +119,7 @@ class Schedule:
         rotations = sorted(self.rotations.values(), key=lambda rot: rot.departure_time)
 
         for rot in rotations:
-            # find vehicles that have completed rotation and stood for a minimum staning time
+            # find vehicles that have completed rotation and stood for a minimum standing time
             # mark those vehicle as idle
             while rotations_in_progress:
                 # calculate min_standing_time deps
@@ -255,7 +247,7 @@ class Schedule:
         :rtype: list
         """
 
-        # get dict of vehicles with negative soc's
+        # get dict of vehicles with negative SOCs
         try:
             negative_vehicles = scenario.negative_soc_tracker
         except AttributeError:
@@ -432,11 +424,13 @@ class Schedule:
                                 if number_cs is not None:
                                     gc_power = number_cs * cs_power
                                 else:
+                                    # ToDo: Check reason! Calculate via number of busses?
                                     # add a really large number
                                     gc_power = 100 * cs_power
 
                             # add one charging station for each bus at bus station
                             charging_stations[cs_name_and_type] = {
+                                "type": station_type,
                                 "max_power": cs_power,
                                 "min_power": 0.1 * cs_power,
                                 "parent": gc_name
@@ -662,7 +656,7 @@ class Schedule:
                                 "distance": rotation.distance,
                                 "charging_type": rotation.charging_type,
                                 "SOC_at_arrival": rotation_soc_ts[-1],
-                                "Minumum_SOC": min(rotation_soc_ts),
+                                "Minimum_SOC": min(rotation_soc_ts),
                                 "Negative_SOC": 1 if id in negative_rotations else 0
                              }
             rotation_infos.append(rotation_info)
