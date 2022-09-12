@@ -1,8 +1,9 @@
 .vscode/
 .DS_Store
 .python-version
-*	.pyc
+*.pyc
 .idea/
+.env
 __pycache__
 
 docs/_build
