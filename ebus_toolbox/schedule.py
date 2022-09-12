@@ -18,6 +18,9 @@ class Schedule:
         :type vehicle_types: dict
         :param stations_file: json of electrified stations
         :type stations_file: string
+
+        :raises SystemExit: In case not all mandatory options are provided
+
         :param kwargs: Command line arguments
         :type kwargs: dict
         """
@@ -45,9 +48,12 @@ class Schedule:
             "cs_power_deps_depb",
             "cs_power_deps_oppb",
         ]
-        for opt in mandatory_options:
-            assert opt in kwargs, f"Missing config paramter: {opt}"
-            setattr(self, opt, kwargs.get(opt))
+        missing = [opt for opt in mandatory_options if kwargs.get(opt) is None]
+        if missing:
+            raise SystemExit("The following arguments are required: {}".format(", ".join(missing)))
+        else:
+            for opt in mandatory_options:
+                setattr(self, opt, kwargs.get(opt))
 
     @classmethod
     def from_csv(cls, path_to_csv, vehicle_types, stations, **kwargs):
@@ -275,15 +281,6 @@ class Schedule:
         """
 
         random.seed(args.seed)
-
-        # load stations file
-        if args.electrified_stations is None:
-            args.electrified_stations = "examples/electrified_stations.json"
-        ext = args.electrified_stations.split('.')[-1]
-        if ext != "json":
-            print("File extension mismatch: electrified_stations file should be .json")
-        # with open(args.electrified_stations) as json_file:
-            # stations_dict = json.load(json_file)
 
         interval = datetime.timedelta(minutes=args.interval)
 
@@ -648,6 +645,8 @@ class Schedule:
             end_idx = start_idx + ((rotation.arrival_time-rotation.departure_time) // interval)
             if end_idx > len(vehicle_soc):
                 # SpiceEV stopped before rotation was fully simulated
+                print(f"SpiceEV stopped before simulation of rotation {id} was completed. "
+                      "Omit config parameter <days> to simulate entire schedule.")
                 continue
             rotation_soc_ts = vehicle_soc[start_idx:end_idx]
 

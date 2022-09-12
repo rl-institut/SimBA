@@ -1,8 +1,10 @@
+""" Reusable functions that support tests
+"""
 import json
 from ebus_toolbox import schedule, trip, consumption
 
 
-def mockSchedule():
+def generate_basic_schedule():
     schedule_path = 'tests/test_input_files/trips.csv'
     station_path = 'tests/test_input_files/electrified_stations.json'
     with open("tests/test_input_files/vehicle_types.json", 'r') as f:

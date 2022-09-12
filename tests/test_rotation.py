@@ -6,11 +6,11 @@ https://github.com/rl-institut/workshop/tree/master/test-driven-development.
 Otherwise https://docs.pytest.org/en/latest/ and https://docs.python.org/3/library/unittest.html
 are also good support.
 """
-from tests.mocks import mockSchedule
+from tests.helpers import generate_basic_schedule
 
 
 def test_set_charging_type():
-    s = mockSchedule()
+    s = generate_basic_schedule()
     rot = list(s.rotations.values())[0]
 
     # set charging type to oppb
@@ -18,14 +18,7 @@ def test_set_charging_type():
     assert rot.charging_type == 'oppb'
     assert rot.consumption == 420
 
-    # try setting charging type to depb
-    # not possible since capacity < consumption
+    # set charging type to depb
     rot.set_charging_type('depb')
-    assert rot.charging_type == 'oppb'
-    assert rot.consumption == 420
-
-    # increase capacity of depb and try again
-    s.vehicle_types["CKB_depb"]["capacity"] = 700
-    rot.set_charging_type("depb")
     assert rot.charging_type == 'depb'
     assert rot.consumption == 630

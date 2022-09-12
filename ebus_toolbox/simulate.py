@@ -49,15 +49,8 @@ def simulate(args):
         scenario = optimization.service_optimization(schedule, args)
     elif args.mode == "sim":
         # DEFAULT if mode argument is not specified by user
-
-        # each rotation is assigned a vehicle ID
-        schedule.assign_vehicles()
-        scenario = schedule.generate_scenario(args)
-        print("Running Spice EV...")
-        with warnings.catch_warnings():
-            warnings.simplefilter('ignore', UserWarning)
-            scenario.run('distributed', vars(args).copy())
-        print("Spice EV simulation complete.")
+        # Scenario simulated once
+        scenario = schedule.run(args)
 
     # create report
     report.generate(schedule, scenario, args)

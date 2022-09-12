@@ -56,8 +56,7 @@ class Rotation:
                 self.arrival_name = new_trip.arrival_name
 
         # set charging type if given
-        if ('charging_type' in trip and
-                any(trip['charging_type'] == t for t in ['depb', 'oppb'])):
+        if ('charging_type' in trip and trip['charging_type'] in ['depb', 'oppb']):
             assert (self.charging_type is None or self.charging_type == trip['charging_type']),\
                 f"Two trips of rotation {self.id} have distinct charging types"
             assert (f'{self.vehicle_type}_{trip["charging_type"]}' in self.schedule.vehicle_types),\
@@ -104,7 +103,7 @@ class Rotation:
         # of this rotation
         if ct == "depb":
             capacity_depb = self.schedule.vehicle_types[f"{self.vehicle_type}_depb"]["capacity"]
-            # time to recharge to SOC to level at departure
+            # minimum time needed to recharge consumed power from depot charger
             min_standing_time = (self.consumption / self.schedule.cs_power_deps_depb)
             # time to charge battery from 0 to desired SOC
             desired_max_standing_time = ((capacity_depb / self.schedule.cs_power_deps_depb)

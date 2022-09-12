@@ -6,6 +6,16 @@ from copy import deepcopy
 
 
 def service_optimization(schedule, args):
+    """ Optimize rotations based on feasability.
+        Try to find sets of rotations that produce no negative SoC
+
+    :param schedule: Schedule to be optimized
+    :type schedule: ebus_toolbox.Schedule
+    :param args: Command line arguments
+    :type args: argparse.Namespace
+    :return: Random scenario
+    :rtype: spice_ev.src.scenario
+    """
     common_stations = schedule.get_common_stations(only_opps=True)
 
     # initial run
@@ -77,4 +87,5 @@ def service_optimization(schedule, args):
 
     print(negative_sets)
 
+    # TODO: return sensible scenario (and negative_sets?), adapt docstring afterwards
     return scenario
