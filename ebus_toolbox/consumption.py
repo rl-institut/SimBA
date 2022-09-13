@@ -44,8 +44,8 @@ class Consumption:
         :param mean_speed: Mean speed between two stops in km/h
         :type mean_speed: float
 
-        :return: Consumed energy [kWh]
-        :rtype: float
+        :return: Consumed energy [kWh] and delta SOC as tuple
+        :rtype: (float, float)
         """
 
         # the charging type may not be set
