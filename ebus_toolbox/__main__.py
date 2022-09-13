@@ -1,6 +1,7 @@
 import argparse
 from ebus_toolbox import simulate, util
-from os import path
+from os import path, makedirs
+from datetime import datetime
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(
@@ -12,7 +13,7 @@ if __name__ == '__main__':
                         help='Specify what you want to do. Choose one from {sim, \
                         service_optimization}. sim runs a single simulation with the given inputs. \
                         service optimization finds the largest set of electrified rotations.')
-    parser.add_argument('--output_directory', default='data/sim_outputs', nargs='?',
+    parser.add_argument('--output_directory', default="/data/sim_outputs", nargs='?',
                         help='Location where all simulation outputs are stored')
     parser.add_argument('--preferred_charging_type', '-pct', default='depb',
                         choices=['depb', 'oppb'], help="Preferred charging type. Choose one\
@@ -101,11 +102,22 @@ if __name__ == '__main__':
     # arguments relevant to SpiceEV, setting automatically to reduce clutter in config
     args.ALLOW_NEGATIVE_SOC = True
     args.attach_vehicle_soc = True
+
+    util.set_options_from_config(args, check=True, verbose=False)
+
+    # Create subfolder for specific sim results with timestamp.
+    # If folder doesnt exists, create folder.
+    # Needs to happen after set_options_from_config since args.output_directory can be overwritten by config
+    output_folder = path.join(args.output_directory, datetime.now().strftime("%Y-%m-%d-%H-%M-%S") + "_eBus_results")
+    args.output_directory = output_folder
+    if not path.isdir(args.output_directory):
+        makedirs(args.output_directory)
+
     args.save_timeseries = path.join(args.output_directory, "simulation_spiceEV.csv")
     args.save_results = path.join(args.output_directory, "simulation_spiceEV.json")
     args.save_soc = path.join(args.output_directory, "simulation_soc_spiceEV.csv")
 
-    util.set_options_from_config(args, check=True, verbose=False)
+
     # rename special options
     args.timing = args.eta
 
