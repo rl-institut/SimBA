@@ -1,0 +1,47 @@
+{
+    "vehicles": {
+        "SB": {
+            "capex": 420000,
+                "c_maint_per_km": 0.24,
+                "lifetime": 14
+        },
+        "AB": {
+            "capex": 600000,
+            "c_maint_per_km": 0.3,
+            "lifetime": 14
+        },
+        "CKB": {
+            "capex": 600000,
+            "c_maint_per_km": 0.3,
+            "lifetime": 14
+        }
+    },
+    "batteries": {
+        "lifetime_battery": 7,
+        "cost_per_kWh": 250
+    },
+    "gc": {
+        "building_cost_subsidy_per_kW": 158.3,
+        "capex_gc_fix": 62500,
+        "capex_gc_per_meter": 562.5,
+        "default_distance": 50,
+        "lifetime_gc": 50,
+        "capex_transformer_fix": 80000,
+        "capex_transformer_per_kW": 0,
+        "c_maint_transformer_per_year": 0.02,
+        "lifetime_transformer": 20
+    },
+    "cs":{
+        "capex_opps_per_kW": 877.5,
+        "capex_deps_per_kW": 1000,
+        "lifetime_cs": 20,
+        "c_maint_cs_per_year": 0.02
+    },
+    "garage": {
+        "n_charging_stations": 1,
+        "power_cs": 50,
+        "vehicles_per_workstation": 20,
+        "cost_per_workstation": 245000,
+        "lifetime_workstations": 20
+    }
+}

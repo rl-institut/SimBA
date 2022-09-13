@@ -1,7 +1,8 @@
 {
     "Station-0": {
         "type": "deps",
-        "n_charging_stations": "None"
+        "n_charging_stations": null,
+        "distance_transformer": 150
     },
     "Station-3": {
         "type": "opps",
@@ -17,7 +18,7 @@
     },
     "Station-22": {
         "type": "deps",
-        "n_charging_stations": "None"
+        "n_charging_stations": null
     },
     "Station-26": {
         "type": "opps",
@@ -41,6 +42,6 @@
     },
     "Station-42": {
         "type": "deps",
-        "n_charging_stations": "None"
+        "n_charging_stations": null
     }
 }
