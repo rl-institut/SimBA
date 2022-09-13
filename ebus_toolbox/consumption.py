@@ -57,7 +57,7 @@ class Consumption:
             vt_ct = f"{vehicle_type}_{charging_type}"
 
         # in case a constant mileage is provided
-        if isinstance(self.vehicle_types[vt_ct]['mileage'], float):
+        if isinstance(self.vehicle_types[vt_ct]['mileage'],(int, float)):
             consumed_energy = self.vehicle_types[vt_ct]['mileage'] * distance / 1000
             delta_soc = -1 * (consumed_energy / self.vehicle_types[vt_ct]["capacity"])
             return consumed_energy, delta_soc
