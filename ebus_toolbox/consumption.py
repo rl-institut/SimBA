@@ -58,7 +58,9 @@ class Consumption:
 
         # in case a constant mileage is provided
         if isinstance(self.vehicle_types[vt_ct]['mileage'], float):
-            return self.vehicle_types[vt_ct]['mileage'] * distance / 1000
+            consumed_energy = self.vehicle_types[vt_ct]['mileage'] * distance / 1000
+            delta_soc = -1 * (consumed_energy / self.vehicle_types[vt_ct]["capacity"])
+            return consumed_energy, delta_soc
 
         temp = np.interp(time.hour,
                          list(self.temperatures_by_hour.keys()),
@@ -116,8 +118,7 @@ class Consumption:
                                                            lol=level_of_loading,
                                                            speed=mean_speed)
         consumed_energy = mileage * distance / 1000  # kWh
-        return consumed_energy
 
-    def get_delta_soc(self, consumed_energy, vehicle_type, charging_type):
-        vt_ct = f"{vehicle_type}_{charging_type}"
-        return -1 * (consumed_energy / self.vehicle_types[vt_ct]["capacity"])
+        delta_soc = -1 * (consumed_energy / self.vehicle_types[vt_ct]["capacity"])
+
+        return consumed_energy, delta_soc
