@@ -79,12 +79,14 @@ class Consumption:
         # Consumption_files holds interpol functions of csv files which are called directly and held in memory
         vehicle_type_nr = dict(SB=0, VDL=0, AB=1, CKB=1)[vehicle_type]
         try:
-            mileage = self.consumption_files[consumption_file](vehicle_type=vehicle_type_nr,
-                                                               incline=height_difference / distance,
-                                                               temp=temp,
-                                                               lol=level_of_loading,
-                                                               speed=mean_speed)
-            return mileage * distance
+            mileage = self.consumption_files[consumption_file](this_vehicle_type=vehicle_type_nr,
+                                                               this_incline=height_difference / distance,
+                                                               this_temp=temp,
+                                                               this_lol=level_of_loading,
+                                                               this_speed=mean_speed)
+            consumed_energy= mileage * distance
+            delta_soc = -1 * (consumed_energy / self.vehicle_types[vt_ct]["capacity"])
+            return consumed_energy, delta_soc
         except KeyError:
             # Creating the interpol function from csv file.
             df = pd.read_csv(consumption_file, sep=",")
@@ -113,11 +115,11 @@ class Consumption:
 
             self.consumption_files.update({consumption_file: interpol_function})
 
-        mileage = self.consumption_files[consumption_file](vehicle_type=vehicle_type_nr,
-                                                           incline=height_difference / distance,
-                                                           temp=temp,
-                                                           lol=level_of_loading,
-                                                           speed=mean_speed)
+        mileage = self.consumption_files[consumption_file](this_vehicle_type=vehicle_type_nr,
+                                                           this_incline=height_difference / distance,
+                                                           this_temp=temp,
+                                                           this_lol=level_of_loading,
+                                                           this_speed=mean_speed)
         consumed_energy = mileage * distance / 1000  # kWh
 
         delta_soc = -1 * (consumed_energy / self.vehicle_types[vt_ct]["capacity"])
