@@ -40,8 +40,8 @@ class Consumption:
         :param height_diff: difference in height between stations in meters-
         :type height_diff: float
         :param level_of_loading: Level of loading of the bus between empty (=0) and
-        completely full (=1.0). If None
-        is provided, Level of loading will be interpolated from timeseries
+                                 completely full (=1.0). If None
+                                 is provided, Level of loading will be interpolated from time series
         :type level_of_loading: float
         :param mean_speed: Mean speed between two stops in km/h
         :type mean_speed: float
