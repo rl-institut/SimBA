@@ -74,7 +74,9 @@ if __name__ == '__main__':
     parser.add_argument('--min_charging_time_opps', help='define minimum time of charging at opps',
                         default=2)
     parser.add_argument('--default_buffer_time_opps', help='time to subtract off of standing time '
-                        'at opp station to simulate docking procedure.', default=1)
+                                                           'at opp station to simulate docking '
+                                                           'procedure.',
+                        default=1)
     parser.add_argument('--signal_time_dif', help='time difference between signal time and actual '
                                                   'start time of a vehicle event im min.',
                         default=10)
@@ -107,8 +109,10 @@ if __name__ == '__main__':
 
     # Create subfolder for specific sim results with timestamp.
     # If folder doesnt exists, create folder.
-    # Needs to happen after set_options_from_config since args.output_directory can be overwritten by config
-    output_folder = path.join(args.output_directory, datetime.now().strftime("%Y-%m-%d-%H-%M-%S") + "_eBus_results")
+    # Needs to happen after set_options_from_config since args.output_directory
+    # can be overwritten by config
+    output_folder = path.join(args.output_directory, datetime.now().
+                              strftime("%Y-%m-%d-%H-%M-%S") + "_eBus_results")
     args.output_directory = output_folder
     if not path.isdir(args.output_directory):
         makedirs(args.output_directory)
@@ -116,7 +120,6 @@ if __name__ == '__main__':
     args.save_timeseries = path.join(args.output_directory, "simulation_spiceEV.csv")
     args.save_results = path.join(args.output_directory, "simulation_spiceEV.json")
     args.save_soc = path.join(args.output_directory, "simulation_soc_spiceEV.csv")
-
 
     # rename special options
     args.timing = args.eta
