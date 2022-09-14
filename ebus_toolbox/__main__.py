@@ -105,19 +105,18 @@ if __name__ == '__main__':
 
     util.set_options_from_config(args, check=True, verbose=False)
 
-    out_path = Path(args.output_directory)
-    out_path = out_path / str(datetime.now().strftime("%Y-%m-%d-%H-%M-%S") + "_eBus_results")
+    args.output_directory = Path(args.output_directory) / \
+        str(datetime.now().strftime("%Y-%m-%d-%H-%M-%S") + "_eBus_results")
 
     # Create subfolder for specific sim results with timestamp.
     # If folder doesnt exists, create folder.
     # Needs to happen after set_options_from_config since
     # args.output_directory can be overwritten by config
-    args.output_directory = out_path
-    Path(out_path).mkdir(parents=True, exist_ok=True)
+    args.output_directory.mkdir(parents=True, exist_ok=True)
 
-    args.save_timeseries = out_path / "simulation_spiceEV.csv"
-    args.save_results = out_path / "simulation_spiceEV.json"
-    args.save_soc = out_path / "simulation_soc_spiceEV.csv"
+    args.save_timeseries = args.output_directory / "simulation_spiceEV.csv"
+    args.save_results = args.output_directory / "simulation_spiceEV.json"
+    args.save_soc = args.output_directory / "simulation_soc_spiceEV.csv"
 
     # rename special options
     args.timing = args.eta
