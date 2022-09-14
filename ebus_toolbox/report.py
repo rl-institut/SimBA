@@ -32,20 +32,20 @@ def generate(schedule, scenario, args):
         rotation_soc_ts = vehicle_soc[start_idx:end_idx]
 
         rotation_info = {
-                            "rotation_id": id,
-                            "start_time": rotation.departure_time.isoformat(),
-                            "end_time": rotation.arrival_time.isoformat(),
-                            "vehicle_type": rotation.vehicle_type,
-                            "vehicle_id": rotation.vehicle_id,
-                            "depot_name": rotation.departure_name,
-                            "lines": ':'.join(rotation.lines),
-                            "total_consumption_[kWh]": rotation.consumption,
-                            "distance": rotation.distance,
-                            "charging_type": rotation.charging_type,
-                            "SOC_at_arrival": rotation_soc_ts[-1],
-                            "Minimum_SOC": min(rotation_soc_ts),
-                            "Negative_SOC": 1 if id in negative_rotations else 0
-                            }
+            "rotation_id": id,
+            "start_time": rotation.departure_time.isoformat(),
+            "end_time": rotation.arrival_time.isoformat(),
+            "vehicle_type": rotation.vehicle_type,
+            "vehicle_id": rotation.vehicle_id,
+            "depot_name": rotation.departure_name,
+            "lines": ':'.join(rotation.lines),
+            "total_consumption_[kWh]": rotation.consumption,
+            "distance": rotation.distance,
+            "charging_type": rotation.charging_type,
+            "SOC_at_arrival": rotation_soc_ts[-1],
+            "Minimum_SOC": min(rotation_soc_ts),
+            "Negative_SOC": 1 if id in negative_rotations else 0
+        }
         rotation_infos.append(rotation_info)
 
     if incomplete_rotations:
