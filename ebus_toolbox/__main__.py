@@ -119,7 +119,6 @@ if __name__ == '__main__':
     args.save_results = out_path / "simulation_spiceEV.json"
     args.save_soc = out_path / "simulation_soc_spiceEV.csv"
 
-
     # rename special options
     args.timing = args.eta
 
