@@ -1,8 +1,8 @@
 import csv
 import random
 import datetime
-from os import path
 import warnings
+from pathlib import Path
 
 from ebus_toolbox.rotation import Rotation
 from src.scenario import Scenario
@@ -520,7 +520,6 @@ class Schedule:
 
         if args.include_ext_load_csv:
             for filename, gc_name in args.include_ext_load_csv:
-                basename = path.splitext(path.basename(filename))[0]
                 options = {
                     "csv_file": filename,
                     "start_time": start.isoformat(),
@@ -533,15 +532,14 @@ class Schedule:
                         if key == "step_duration_s":
                             value = int(value)
                         options[key] = value
-                events['external_load'][basename] = options
+                events['external_load'][Path(filename).stem] = options
                 # check if CSV file exists
-                ext_csv_path = path.join(args.output_directory, filename)
-                if not path.exists(ext_csv_path):
+                ext_csv_path = Path(args.output_directory) / filename
+                if not ext_csv_path.exists():
                     print("Warning: external csv file '{}' does not exist yet".format(ext_csv_path))
 
         if args.include_feed_in_csv:
             for filename, gc_name in args.include_feed_in_csv:
-                basename = path.splitext(path.basename(filename))[0]
                 options = {
                     "csv_file": filename,
                     "start_time": start.isoformat(),
@@ -554,9 +552,9 @@ class Schedule:
                         if key == "step_duration_s":
                             value = int(value)
                         options[key] = value
-                events['energy_feed_in'][basename] = options
-                feed_in_path = path.join(args.output_directory, filename)
-                if not path.exists(feed_in_path):
+                events['energy_feed_in'][Path(filename).stem] = options
+                feed_in_path = Path(args.output_directory) / filename
+                if not feed_in_path.exists():
                     print("Warning: feed-in csv file '{}' does not exist yet".format(feed_in_path))
 
         if args.include_price_csv:
@@ -573,8 +571,8 @@ class Schedule:
                         value = int(value)
                     options[key] = value
                 events['energy_price_from_csv'] = options
-                price_csv_path = path.join(args.output_directory, filename)
-                if not path.exists(price_csv_path):
+                price_csv_path = Path(args.output_directory) / filename
+                if not price_csv_path.exists():
                     print("Warning: price csv file '{}' does not exist yet".format(price_csv_path))
 
         if args.battery:

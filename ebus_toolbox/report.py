@@ -4,7 +4,7 @@ import csv
 import datetime
 import warnings
 
-from os import path
+from pathlib import Path
 
 
 def generate(schedule, scenario, args):
@@ -54,7 +54,7 @@ def generate(schedule, scenario, args):
                       "Omit parameter <days> to simulate entire schedule.",
                       stacklevel=100)
 
-    with open(path.join(args.output_directory, "rotations.csv"), "w+") as f:
+    with open(Path(args.output_directory) / "rotations.csv", "w+") as f:
         csv_writer = csv.DictWriter(f, list(rotation_infos[0].keys()))
         csv_writer.writeheader()
         csv_writer.writerows(rotation_infos)

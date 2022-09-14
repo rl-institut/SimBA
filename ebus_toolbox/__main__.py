@@ -1,6 +1,6 @@
 import argparse
 from ebus_toolbox import simulate, util
-from os import path
+from pathlib import Path
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(
@@ -101,9 +101,11 @@ if __name__ == '__main__':
     # arguments relevant to SpiceEV, setting automatically to reduce clutter in config
     args.ALLOW_NEGATIVE_SOC = True
     args.attach_vehicle_soc = True
-    args.save_timeseries = path.join(args.output_directory, "simulation_spiceEV.csv")
-    args.save_results = path.join(args.output_directory, "simulation_spiceEV.json")
-    args.save_soc = path.join(args.output_directory, "simulation_soc_spiceEV.csv")
+
+    out_path = Path(args.output_directory)
+    args.save_timeseries = out_path / "simulation_spiceEV.csv"
+    args.save_results = out_path / "simulation_spiceEV.json"
+    args.save_soc = out_path / "simulation_soc_spiceEV.csv"
 
     util.set_options_from_config(args, check=True, verbose=False)
     # rename special options
