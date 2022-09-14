@@ -4,8 +4,6 @@ import csv
 import datetime
 import warnings
 
-from pathlib import Path
-
 
 def generate(schedule, scenario, args):
     rotation_infos = []
