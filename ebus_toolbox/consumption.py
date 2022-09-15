@@ -75,32 +75,40 @@ class Consumption:
                                          list(self.lol_by_hour.values()))
 
         # load consumption csv
-        consumption_file = self.vehicle_types[vt_ct]["mileage"]
+        consumption_func = self.vehicle_types[vt_ct]["mileage"]
 
         # Consumption_files holds interpol functions of csv files which are called directly
         vehicle_type_nr = dict(SB=0, VDL=0, AB=1, CKB=1)[vehicle_type]
+
+        # Try to use the interpol function. If it does not exist yet its created in except case.
         try:
-            mileage = self.consumption_files[consumption_file](this_vehicle_type=vehicle_type_nr,
+            mileage = self.consumption_files[consumption_func](this_vehicle_type=vehicle_type_nr,
                                                                this_incline=height_diff / distance,
                                                                this_temp=temp,
                                                                this_lol=level_of_loading,
                                                                this_speed=mean_speed)
-            consumed_energy = mileage * distance
-            delta_soc = -1 * (consumed_energy / self.vehicle_types[vt_ct]["capacity"])
-            return consumed_energy, delta_soc
         except KeyError:
             # Creating the interpol function from csv file.
-            df = pd.read_csv(consumption_file, sep=",")
-            vehicle_type_u = list(df["vehicle_type"].unique())
-            incline_u = list(df["incline"].unique())
-            temp_u = list(df["temp"].unique())
-            lol_u = list(df["level_of_loading"].unique())
-            speed_u = list(df["mean_speed_kmh"].unique())
+            # Find the unique values of the grid for each dimension, e.g. unique temperatures
+            # for which consumption values are present.
+            df = pd.read_csv(consumption_func, sep=",")
+            vehicle_type_u = df["vehicle_type"].unique()
+            incline_u = df["incline"].unique()
+            temp_u = df["temp"].unique()
+            lol_u = df["level_of_loading"].unique()
+            speed_u = df["mean_speed_kmh"].unique()
             points = (vehicle_type_u, incline_u, temp_u, lol_u, speed_u)
             values = np.zeros((len(vehicle_type_u), len(incline_u),
                                len(temp_u), len(lol_u), len(speed_u)))
 
             # Nested loops for creating values in grid
+            # Each given dependence of consumption, e.g. temperature, speed, level of loading,
+            # creates a dimension of the value matrix. Eg. 2*Temperatures,4*speeds and
+            # 3* levels of loading  create a 3d matrix, with the shape (2,4,3). While one matrix
+            # holds all the input values (see "points") another one has to hold all the output
+            # consumption values. This matrix is filled with this nested for loop (loops in loops)
+            # Later on the scypy interpn function can get created with the "points" from above and
+            # the here created value grid.
             for i, vt in enumerate(vehicle_type_u):
                 mask_vt = df["vehicle_type"] == vt
                 for ii, inc in enumerate(incline_u):
@@ -110,24 +118,23 @@ class Consumption:
                         for iv, lol in enumerate(lol_u):
                             mask_lol = df["level_of_loading"] == lol
                             for v, speed in enumerate(speed_u):
-                                values[i, ii, iii, iv, v] = df[mask_vt * mask_inc *
-                                                               mask_temp * mask_lol *
-                                                               (df["mean_speed_kmh"] == speed)][
-                                    "consumption_kwh_per_km"]
+                                values[i, ii, iii, iv, v] = \
+                                    df[mask_vt * mask_inc * mask_temp * mask_lol *
+                                       (df["mean_speed_kmh"] == speed)]["consumption_kwh_per_km"]
 
             def interpol_function(this_vehicle_type, this_incline, this_temp, this_lol, this_speed):
                 point = (this_vehicle_type, this_incline, this_temp, this_lol, this_speed)
                 return interpn(points, values, point)[0]
 
-            self.consumption_files.update({consumption_file: interpol_function})
+            self.consumption_files.update({consumption_func: interpol_function})
 
-        mileage = self.consumption_files[consumption_file](this_vehicle_type=vehicle_type_nr,
-                                                           this_incline=height_diff / distance,
-                                                           this_temp=temp,
-                                                           this_lol=level_of_loading,
-                                                           this_speed=mean_speed)
+            mileage = self.consumption_files[consumption_func](this_vehicle_type=vehicle_type_nr,
+                                                               this_incline=height_diff / distance,
+                                                               this_temp=temp,
+                                                               this_lol=level_of_loading,
+                                                               this_speed=mean_speed)
+
         consumed_energy = mileage * distance / 1000  # kWh
-
         delta_soc = -1 * (consumed_energy / self.vehicle_types[vt_ct]["capacity"])
 
         return consumed_energy, delta_soc
