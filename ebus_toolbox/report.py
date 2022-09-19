@@ -17,6 +17,7 @@ def generate(schedule, scenario, args):
         schedule.get_departure_of_first_trip() - datetime.timedelta(minutes=args.signal_time_dif)
 
     incomplete_rotations = []
+    rotation_socs = {}
     for id, rotation in schedule.rotations.items():
         # get SOC timeseries for this rotation
         vehicle_id = rotation.vehicle_id
@@ -25,7 +26,7 @@ def generate(schedule, scenario, args):
         vehicle_soc = scenario.vehicle_socs[vehicle_id]
         start_idx = (rotation.departure_time - sim_start_time) // interval
         end_idx = start_idx + ((rotation.arrival_time-rotation.departure_time) // interval)
-        if end_idx > len(vehicle_soc):
+        if end_idx > scenario.n_intervals:
             # SpiceEV stopped before rotation was fully simulated
             incomplete_rotations.append(id)
             continue
@@ -48,13 +49,24 @@ def generate(schedule, scenario, args):
         }
         rotation_infos.append(rotation_info)
 
+        # save SOCs for each rotation
+        rotation_socs[id] = [None]*scenario.n_intervals
+        rotation_socs[id][start_idx:end_idx] = rotation_soc_ts
+
     if incomplete_rotations:
         warnings.warn("SpiceEV stopped before simulation of the these rotations were completed:\n"
                       f"{', '.join(incomplete_rotations)}\n"
                       "Omit parameter <days> to simulate entire schedule.",
                       stacklevel=100)
 
-    with open(Path(args.output_directory) / "rotations.csv", "w+") as f:
+    with open(Path(args.output_directory) / "rotation_socs.csv", "w+") as f:
+        csv_writer = csv.writer(f)
+        csv_writer.writerow(("time",) + tuple(rotation_socs.keys()))
+        for i, row in enumerate(zip(*rotation_socs.values())):
+            t = sim_start_time + i * scenario.interval
+            csv_writer.writerow((t,) + row)
+
+    with open(Path(args.output_directory) / "rotation_summary.csv", "w+") as f:
         csv_writer = csv.DictWriter(f, list(rotation_infos[0].keys()))
         csv_writer.writeheader()
         csv_writer.writerows(rotation_infos)
