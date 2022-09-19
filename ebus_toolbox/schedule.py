@@ -287,6 +287,14 @@ class Schedule:
             "vehicle_events": []
         }
 
+        # define start and stop times
+        start_simulation = \
+            self.get_departure_of_first_trip() - datetime.timedelta(minutes=args.signal_time_dif)
+        stop_simulation = self.get_arrival_of_last_trip() + interval
+        if args.days is not None:
+            stop_simulation = min(
+                stop_simulation, start_simulation + datetime.timedelta(days=args.days))
+
         # add vehicle events
         for vehicle_id in {rot.vehicle_id for rot in self.rotations.values()}:
             v_name = vehicle_id
@@ -343,7 +351,7 @@ class Schedule:
                                 vehicle_rotations[rotation_ids[i + 1]].trips[0].arrival_time
                         except IndexError:
                             departure_event_in_input = False
-                            departure = arrival + datetime.timedelta(hours=8)
+                            departure = stop_simulation
                             # no more rotations
 
                     # calculate total minutes spend at station
@@ -471,33 +479,27 @@ class Schedule:
 
         # ######## END OF VEHICLE EVENTS ########## #
 
-        # define start and stop times
-        start = \
-            self.get_departure_of_first_trip() - datetime.timedelta(minutes=args.signal_time_dif)
-        stop = self.get_arrival_of_last_trip() + interval
-        if args.days is not None:
-            stop = min(stop, start + datetime.timedelta(days=args.days))
         daily = datetime.timedelta(days=1)
         # price events
         for key in grid_connectors.keys():
             if not args.include_price_csv:
-                now = start - daily
-                while now < stop + 2 * daily:
+                now = start_simulation - daily
+                while now < stop_simulation + 2 * daily:
                     now += daily
                     for v_id, v in vehicles.items():
-                        if now >= stop:
+                        if now >= stop_simulation:
                             # after end of scenario: keep generating trips, but don't include in
                             # scenario
                             continue
 
                     # generate prices for the day
-                    if now < stop:
+                    if now < stop_simulation:
                         morning = now + datetime.timedelta(hours=6)
                         evening_by_month = now + datetime.timedelta(
                             hours=22 - abs(6 - now.month))
                         events['grid_operator_signals'] += [{
                             # day (6-evening): 15ct
-                            "signal_time": max(start, now - daily).isoformat(),
+                            "signal_time": max(start_simulation, now - daily).isoformat(),
                             "grid_connector_id": key,
                             "start_time": morning.isoformat(),
                             "cost": {
@@ -506,7 +508,7 @@ class Schedule:
                             }
                         }, {
                             # night (depending on month - 6): 5ct
-                            "signal_time": max(start, now - daily).isoformat(),
+                            "signal_time": max(start_simulation, now - daily).isoformat(),
                             "grid_connector_id": key,
                             "start_time": evening_by_month.isoformat(),
                             "cost": {
@@ -522,7 +524,7 @@ class Schedule:
             for filename, gc_name in args.include_ext_load_csv:
                 options = {
                     "csv_file": filename,
-                    "start_time": start.isoformat(),
+                    "start_time": start_simulation.isoformat(),
                     "step_duration_s": 900,  # 15 minutes
                     "grid_connector_id": gc_name,
                     "column": "energy"
@@ -542,7 +544,7 @@ class Schedule:
             for filename, gc_name in args.include_feed_in_csv:
                 options = {
                     "csv_file": filename,
-                    "start_time": start.isoformat(),
+                    "start_time": start_simulation.isoformat(),
                     "step_duration_s": 3600,  # 60 minutes
                     "grid_connector_id": gc_name,
                     "column": "energy"
@@ -561,7 +563,7 @@ class Schedule:
             for filename, gc_name in args.include_price_csv:
                 options = {
                     "csv_file": filename,
-                    "start_time": start.isoformat(),
+                    "start_time": start_simulation.isoformat(),
                     "step_duration_s": 3600,  # 60 minutes
                     "grid_connector_id": gc_name,
                     "column": "price [ct/kWh]"
@@ -602,9 +604,9 @@ class Schedule:
         # create final dict
         self.scenario = {
             "scenario": {
-                "start_time": start.isoformat(),
+                "start_time": start_simulation.isoformat(),
                 "interval": interval.days * 24 * 60 + interval.seconds // 60,
-                "n_intervals": (stop - start) // interval
+                "n_intervals": (stop_simulation - start_simulation) // interval
             },
             "constants": {
                 "vehicle_types": self.vehicle_types,
