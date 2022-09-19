@@ -534,7 +534,7 @@ class Schedule:
                         options[key] = value
                 events['external_load'][Path(filename).stem] = options
                 # check if CSV file exists
-                ext_csv_path = Path(args.output_directory) / filename
+                ext_csv_path = args.output_directory / filename
                 if not ext_csv_path.exists():
                     print("Warning: external csv file '{}' does not exist yet".format(ext_csv_path))
 
@@ -553,7 +553,7 @@ class Schedule:
                             value = int(value)
                         options[key] = value
                 events['energy_feed_in'][Path(filename).stem] = options
-                feed_in_path = Path(args.output_directory) / filename
+                feed_in_path = args.output_directory / filename
                 if not feed_in_path.exists():
                     print("Warning: feed-in csv file '{}' does not exist yet".format(feed_in_path))
 
@@ -571,7 +571,7 @@ class Schedule:
                         value = int(value)
                     options[key] = value
                 events['energy_price_from_csv'] = options
-                price_csv_path = Path(args.output_directory) / filename
+                price_csv_path = args.output_directory / filename
                 if not price_csv_path.exists():
                     print("Warning: price csv file '{}' does not exist yet".format(price_csv_path))
 
