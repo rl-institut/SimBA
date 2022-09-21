@@ -316,7 +316,8 @@ class Schedule:
                     next_departure_time = vehicle_trips[i+1].departure_time
                 except IndexError:
                     # last trip
-                    next_departure_time = stop_simulation
+                    next_departure_time = max(stop_simulation,
+                                              trip.arrival_time + datetime.timedelta(hours=8))
 
                 # connect cs and add gc if station is electrified
                 connected_charging_station = None
@@ -379,8 +380,9 @@ class Schedule:
                 # do not connect charging station
                 # 2. if current station has no charger or a depot bus arrives at opp charger,
                 # do not connect charging station either
-                if (station_type is not None and
-                        (standing_time >= args.min_charging_time_opps)):
+                if (station_type == 'deps' or
+                    (station_type == 'opps' and
+                        (standing_time >= args.min_charging_time_opps))):
 
                     cs_name_and_type = f"{cs_name}_{station_type}"
                     connected_charging_station = cs_name_and_type
@@ -445,7 +447,7 @@ class Schedule:
                 # create arrival event
                 events["vehicle_events"].append({
                     "signal_time": (arrival_time
-                                    + datetime.timedelta(minutes=-args.signal_time_dif)
+                                    - datetime.timedelta(minutes=args.signal_time_dif)
                                     ).isoformat(),
                     "start_time": arrival_time.isoformat(),
                     "vehicle_id": vehicle_id,
