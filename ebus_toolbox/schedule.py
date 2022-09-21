@@ -385,8 +385,7 @@ class Schedule:
                     (station_type == 'opps' and
                         (standing_time >= args.min_charging_time_opps))):
 
-                    cs_name_and_type = f"{cs_name}_{station_type}"
-                    connected_charging_station = cs_name_and_type
+                    connected_charging_station = f"{cs_name}_{station_type}"
 
                     if cs_name not in charging_stations or gc_name not in grid_connectors:
                         number_cs = station["n_charging_stations"]
@@ -404,12 +403,12 @@ class Schedule:
                             if number_cs is not None:
                                 gc_power = number_cs * cs_power
                             else:
-                                # ToDo: Check reason! Calculate via number of busses?
+                                # TODO: Check reason! Calculate via number of busses?
                                 # add a really large number
                                 gc_power = 100 * cs_power
 
                         # add one charging station for each bus at bus station
-                        charging_stations[cs_name_and_type] = {
+                        charging_stations[connected_charging_station] = {
                             "type": station_type,
                             "max_power": cs_power,
                             "min_power": 0.1 * cs_power,
