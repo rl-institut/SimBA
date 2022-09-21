@@ -369,14 +369,15 @@ class Schedule:
                             # buffer time not specified for hour of current stop
                             buffer_time = args.default_buffer_time_opps
                     # adapt arrival time with buffer time
-                    arrival_time = trip.arrival_time + datetime.timedelta(minutes=buffer_time)
+                    arrival_time = min(trip.arrival_time + datetime.timedelta(minutes=buffer_time),
+                                       next_departure_time)
                 else:
                     arrival_time = trip.arrival_time
 
                 # calculate total minutes spend at station
                 standing_time = (next_departure_time - arrival_time).seconds / 60
 
-                # 1. if standing time - buffer time shorter than min_charging_time,
+                # 1. if standing time is shorter than min_charging_time,
                 # do not connect charging station
                 # 2. if current station has no charger or a depot bus arrives at opp charger,
                 # do not connect charging station either
