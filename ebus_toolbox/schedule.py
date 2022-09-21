@@ -296,66 +296,46 @@ class Schedule:
                 stop_simulation, start_simulation + datetime.timedelta(days=args.days))
 
         # add vehicle events
-        for vehicle_id in {rot.vehicle_id for rot in self.rotations.values()}:
-            v_name = vehicle_id
-            vt = vehicle_id.split("_")[0]
-            ct = vehicle_id.split("_")[1]
-
+        for vehicle_id in sorted({rot.vehicle_id for rot in self.rotations.values()}):
             # filter all rides for that bus
-            vehicle_rotations = {k: v for k, v in self.rotations.items() if v.vehicle_id == v_name}
+            vehicle_rotations = {k: v for k, v in self.rotations.items()
+                                 if v.vehicle_id == vehicle_id}
             # sort events for their departure time, so that the matching departure time of an
             # arrival event can be read out of the next element in vid_list
             vehicle_rotations = {k: v for k, v in sorted(
                                  vehicle_rotations.items(), key=lambda x: x[1].departure_time)}
-            rotation_ids = list(vehicle_rotations.keys())
 
-            # define start conditions
-            first_rotation = list(vehicle_rotations.values())[0]
-            departure = first_rotation.departure_time
-            # trips list is sorted by time
-            arrival = first_rotation.trips[0].arrival_time
-            vehicles[v_name] = {
-                "connected_charging_station": f'{v_name}_{first_rotation.departure_name}_deps',
-                "estimated_time_of_departure": departure.isoformat(),
-                "desired_soc": None,
-                "soc": args.desired_soc,
-                "vehicle_type": vt + "_" + ct
-            }
-            # initial departure event from starting depot
-            events["vehicle_events"].append({
-                "signal_time": (departure + datetime.timedelta(
-                                minutes=-args.signal_time_dif)).isoformat(),
-                "start_time": departure.isoformat(),
-                "vehicle_id": v_name,
-                "event_type": "departure",
-                "update": {
-                    "estimated_time_of_arrival": arrival.isoformat()
-                }
-            })
+            vehicle_trips = [t for rot in vehicle_rotations.values() for t in rot.trips]
 
-            for i, v in enumerate(rotation_ids):
-                departure_event_in_input = True
-                # create events for all trips of one rotation
-                for j, trip in enumerate(vehicle_rotations[v].trips):
-                    cs_name = "{}_{}".format(v_name, trip.arrival_name)
-                    gc_name = trip.arrival_name
-                    arrival = trip.arrival_time
-                    try:
-                        departure = vehicle_rotations[v].trips[j + 1].departure_time
-                        next_arrival = vehicle_rotations[v].trips[j + 1].arrival_time
-                    except IndexError:
-                        # get departure of the first trip of the next rotation
-                        try:
-                            departure = vehicle_rotations[rotation_ids[i + 1]].departure_time
-                            next_arrival = \
-                                vehicle_rotations[rotation_ids[i + 1]].trips[0].arrival_time
-                        except IndexError:
-                            departure_event_in_input = False
-                            departure = stop_simulation
-                            # no more rotations
+            for i, trip in enumerate(vehicle_trips):
 
-                    # calculate total minutes spend at station
-                    standing_time = (departure - arrival).seconds / 60
+                cs_name = f"{vehicle_id}_{trip.arrival_name}"
+                gc_name = trip.arrival_name
+
+                try:
+                    next_departure_time = vehicle_trips[i+1].departure_time
+                except IndexError:
+                    # last trip
+                    next_departure_time = stop_simulation
+
+                # connect cs and add gc if station is electrified
+                connected_charging_station = None
+                desired_soc = 0
+                try:
+                    # assume electrified station
+                    station = self.stations[gc_name]
+                    station_type = station["type"]
+                    if station_type == 'opps' and trip.rotation.charging_type == 'depb':
+                        # a depot bus cannot charge at an opp station
+                        station_type = None
+                    else:
+                        # at opp station, always try to charge as much as you can
+                        desired_soc = 1 if station_type == "opps" else args.desired_soc
+                except KeyError:
+                    # non-electrified station
+                    station_type = None
+
+                if station_type == 'opps':
                     # get buffer time from user configuration
                     # buffer time resembles amount of time deducted off of the planned standing
                     # time. It may resemble things like delays and/or docking procedures
@@ -369,7 +349,7 @@ class Schedule:
                     if isinstance(buffer_time, dict):
                         # sort dict to make sure 'else' key is last key
                         buffer_time = {key: buffer_time[key] for key in sorted(buffer_time)}
-                        current_hour = arrival.hour
+                        current_hour = trip.arrival_time.hour
                         for time_range, buffer in buffer_time.items():
                             if time_range == 'else':
                                 buffer_time = buffer
@@ -387,95 +367,96 @@ class Schedule:
                         else:
                             # buffer time not specified for hour of current stop
                             buffer_time = args.default_buffer_time_opps
+                    # adapt arrival time with buffer time
+                    arrival_time = trip.arrival_time + datetime.timedelta(minutes=buffer_time)
+                else:
+                    arrival_time = trip.arrival_time
 
-                    # connect cs and add gc if station is electrified
-                    connected_charging_station = None
-                    desired_soc = 0
-                    try:
-                        # assume electrified station
-                        station = self.stations[gc_name]
-                        station_type = station["type"]
-                        if station_type == 'opps' and vehicle_rotations[v].charging_type == 'depb':
-                            # a depot bus cannot charge at an opp station
-                            station_type = None
-                        else:
-                            # at opp station, always try to charge as much as you can
-                            desired_soc = 1 if station_type == "opps" else args.desired_soc
-                    except KeyError:
-                        # non-electrified station
-                        station_type = None
+                # calculate total minutes spend at station
+                standing_time = (next_departure_time - arrival_time).seconds / 60
 
-                    # 1. if standing time - buffer time shorter than min_charging_time,
-                    # do not connect charging station
-                    # 2. if current station has no charger or a depot bus arrives at opp charger,
-                    # do not connect charging station either
-                    if (station_type is not None and
-                            (standing_time - buffer_time >= args.min_charging_time_opps)):
+                # 1. if standing time - buffer time shorter than min_charging_time,
+                # do not connect charging station
+                # 2. if current station has no charger or a depot bus arrives at opp charger,
+                # do not connect charging station either
+                if (station_type is not None and
+                        (standing_time >= args.min_charging_time_opps)):
 
-                        cs_name_and_type = cs_name + "_" + station_type
-                        connected_charging_station = cs_name_and_type
+                    cs_name_and_type = f"{cs_name}_{station_type}"
+                    connected_charging_station = cs_name_and_type
 
-                        if cs_name not in charging_stations or gc_name not in grid_connectors:
-                            number_cs = station["n_charging_stations"]
-                            if station_type == "deps":
-                                cs_power = args.cs_power_deps_oppb if ct == 'oppb' \
-                                    else args.cs_power_deps_depb
-                                gc_power = args.gc_power_deps
-                            elif station_type == "opps":
-                                # delay the arrival time to account for docking procedure
-                                arrival = arrival + datetime.timedelta(minutes=buffer_time)
-                                cs_power = args.cs_power_opps
-                                gc_power = args.gc_power_opps
+                    if cs_name not in charging_stations or gc_name not in grid_connectors:
+                        number_cs = station["n_charging_stations"]
+                        if station_type == "deps":
+                            cs_power = args.cs_power_deps_oppb \
+                                if trip.rotation.charging_type == 'oppb' \
+                                else args.cs_power_deps_depb
+                            gc_power = args.gc_power_deps
+                        elif station_type == "opps":
+                            cs_power = args.cs_power_opps
+                            gc_power = args.gc_power_opps
 
-                            # gc power is not set in config
-                            if gc_power is None:
-                                if number_cs is not None:
-                                    gc_power = number_cs * cs_power
-                                else:
-                                    # ToDo: Check reason! Calculate via number of busses?
-                                    # add a really large number
-                                    gc_power = 100 * cs_power
+                        # gc power is not set in config
+                        if gc_power is None:
+                            if number_cs is not None:
+                                gc_power = number_cs * cs_power
+                            else:
+                                # ToDo: Check reason! Calculate via number of busses?
+                                # add a really large number
+                                gc_power = 100 * cs_power
 
-                            # add one charging station for each bus at bus station
-                            charging_stations[cs_name_and_type] = {
-                                "type": station_type,
-                                "max_power": cs_power,
-                                "min_power": 0.1 * cs_power,
-                                "parent": gc_name
-                            }
-                            # add one grid connector for each bus station
-                            grid_connectors[gc_name] = {
-                                "max_power": gc_power,
-                                "cost": {"type": "fixed", "value": 0.3},
-                                "number_cs": number_cs
-                            }
-
-                    # create arrival events
-                    events["vehicle_events"].append({
-                        "signal_time": (arrival + datetime.timedelta(minutes=-args.signal_time_dif)
-                                        ).isoformat(),
-                        "start_time": arrival.isoformat(),
-                        "vehicle_id": v_name,
-                        "event_type": "arrival",
-                        "update": {
-                            "connected_charging_station": connected_charging_station,
-                            "estimated_time_of_departure": departure.isoformat(),
-                            "soc_delta": trip.delta_soc,
-                            "desired_soc": desired_soc
+                        # add one charging station for each bus at bus station
+                        charging_stations[cs_name_and_type] = {
+                            "type": station_type,
+                            "max_power": cs_power,
+                            "min_power": 0.1 * cs_power,
+                            "parent": gc_name
                         }
-                    })
-                    # create departure events
-                    if departure_event_in_input:
-                        events["vehicle_events"].append({
-                            "signal_time": (departure + datetime.timedelta(
-                                            minutes=-args.signal_time_dif)).isoformat(),
-                            "start_time": departure.isoformat(),
-                            "vehicle_id": v_name,
-                            "event_type": "departure",
-                            "update": {
-                                "estimated_time_of_arrival": next_arrival.isoformat()
-                            }
-                        })
+                        # add one grid connector for each bus station
+                        grid_connectors[gc_name] = {
+                            "max_power": gc_power,
+                            "cost": {"type": "fixed", "value": 0.3},
+                            "number_cs": number_cs
+                        }
+
+                # initial condition of vehicle
+                if i == 0:
+                    vehicles[vehicle_id] = {
+                        "connected_charging_station": connected_charging_station,
+                        "estimated_time_of_departure": trip.departure_time.isoformat(),
+                        "desired_soc": None,
+                        "soc": args.desired_soc,
+                        "vehicle_type":
+                            f"{trip.rotation.vehicle_type}_{trip.rotation.charging_type}"
+                    }
+
+                # create departure event
+                events["vehicle_events"].append({
+                    "signal_time": (trip.departure_time + datetime.timedelta(
+                                    minutes=-args.signal_time_dif)).isoformat(),
+                    "start_time": trip.departure_time.isoformat(),
+                    "vehicle_id": vehicle_id,
+                    "event_type": "departure",
+                    "update": {
+                        "estimated_time_of_arrival": arrival_time.isoformat()
+                    }
+                })
+
+                # create arrival event
+                events["vehicle_events"].append({
+                    "signal_time": (arrival_time
+                                    + datetime.timedelta(minutes=-args.signal_time_dif)
+                                    ).isoformat(),
+                    "start_time": arrival_time.isoformat(),
+                    "vehicle_id": vehicle_id,
+                    "event_type": "arrival",
+                    "update": {
+                        "connected_charging_station": connected_charging_station,
+                        "estimated_time_of_departure": next_departure_time.isoformat(),
+                        "soc_delta": trip.delta_soc,
+                        "desired_soc": desired_soc
+                    }
+                })
 
         # ######## END OF VEHICLE EVENTS ########## #
 
