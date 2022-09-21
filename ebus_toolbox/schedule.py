@@ -351,7 +351,7 @@ class Schedule:
                                 vehicle_rotations[rotation_ids[i + 1]].trips[0].arrival_time
                         except IndexError:
                             departure_event_in_input = False
-                            departure = stop_simulation
+                            departure = max(stop_simulation, arrival + datetime.timedelta(hours=1))
                             # no more rotations
 
                     # calculate total minutes spend at station
