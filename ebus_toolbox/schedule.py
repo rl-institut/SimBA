@@ -316,8 +316,7 @@ class Schedule:
                     next_departure_time = vehicle_trips[i+1].departure_time
                 except IndexError:
                     # last trip
-                    next_departure_time = max(stop_simulation,
-                                              trip.arrival_time + datetime.timedelta(hours=8))
+                    next_departure_time = trip.arrival_time + datetime.timedelta(hours=8)
 
                 # connect cs and add gc if station is electrified
                 connected_charging_station = None
