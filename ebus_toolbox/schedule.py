@@ -336,20 +336,16 @@ class Schedule:
                     # non-electrified station
                     station_type = None
 
-                # add buffer time to arrival time for opps
-                if station_type == 'opps':
-                    # get buffer time from user configuration
-                    # buffer time resembles amount of time deducted off of the planned standing
-                    # time. It may resemble things like delays and/or docking procedures
-                    # use buffer time from electrified stations JSON or in case none is
-                    # provided use global default from config file
-                    buffer_time = util.get_buffer_time(schedule=self,
-                                                       trip=trip,
-                                                       default=args.default_buffer_time_opps)
-                    arrival_time = min(trip.arrival_time + datetime.timedelta(minutes=buffer_time),
-                                       next_departure_time)
-                else:
-                    arrival_time = trip.arrival_time
+                # get buffer time from user configuration
+                # buffer time resembles amount of time deducted off of the planned standing
+                # time. It may resemble things like delays and/or docking procedures
+                # use buffer time from electrified stations JSON or in case none is
+                # provided use global default from config file
+                buffer_time = util.get_buffer_time(schedule=self,
+                                                   trip=trip,
+                                                   default=args.default_buffer_time_opps)
+                arrival_time = min(trip.arrival_time + datetime.timedelta(minutes=buffer_time),
+                                   next_departure_time)
 
                 # calculate total minutes spend at station
                 standing_time = (next_departure_time - arrival_time).seconds / 60
@@ -359,7 +355,7 @@ class Schedule:
                 # 2. if current station has no charger or a depot bus arrives at opp charger,
                 # do not connect charging station either
                 if (station_type is not None and
-                        (standing_time >= args.min_charging_time_opps)):
+                        (standing_time >= args.min_charging_time)):
                     # vehicle connects to charging station
                     connected_charging_station = f"{cs_name}_{station_type}"
                     # create charging station and grid connector if necessary
