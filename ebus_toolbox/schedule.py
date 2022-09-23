@@ -4,6 +4,7 @@ import datetime
 import warnings
 from pathlib import Path
 
+from ebus_toolbox import util
 from ebus_toolbox.rotation import Rotation
 from src.scenario import Scenario
 
@@ -300,18 +301,18 @@ class Schedule:
             # filter all rides for that bus
             vehicle_rotations = {k: v for k, v in self.rotations.items()
                                  if v.vehicle_id == vehicle_id}
-            # sort events for their departure time, so that the matching departure time of an
-            # arrival event can be read out of the next element in vid_list
+            # get sorted list of all trips for current vehicle
+            # sort rotations by time leveraging the fact that the
+            # list of trips per rotation is always sorted
             vehicle_rotations = {k: v for k, v in sorted(
                                  vehicle_rotations.items(), key=lambda x: x[1].departure_time)}
-
             vehicle_trips = [t for rot in vehicle_rotations.values() for t in rot.trips]
 
             for i, trip in enumerate(vehicle_trips):
-
                 cs_name = f"{vehicle_id}_{trip.arrival_name}"
                 gc_name = trip.arrival_name
 
+                # departure time of next trip for standing time calculation
                 try:
                     next_departure_time = vehicle_trips[i+1].departure_time
                 except IndexError:
@@ -335,39 +336,16 @@ class Schedule:
                     # non-electrified station
                     station_type = None
 
+                # add buffer time to arrival time for opps
                 if station_type == 'opps':
                     # get buffer time from user configuration
                     # buffer time resembles amount of time deducted off of the planned standing
                     # time. It may resemble things like delays and/or docking procedures
                     # use buffer time from electrified stations JSON or in case none is
                     # provided use global default from config file
-                    buffer_time = self.stations.get(trip.arrival_name, {})\
-                        .get('buffer_time', args.default_buffer_time_opps)
-
-                    # distinct buffer times depending on time of day can be provided
-                    # in that case buffer time is of type dict instead of int
-                    if isinstance(buffer_time, dict):
-                        # sort dict to make sure 'else' key is last key
-                        buffer_time = {key: buffer_time[key] for key in sorted(buffer_time)}
-                        current_hour = trip.arrival_time.hour
-                        for time_range, buffer in buffer_time.items():
-                            if time_range == 'else':
-                                buffer_time = buffer
-                                break
-                            else:
-                                start_hour, end_hour = [int(t) for t in time_range.split('-')]
-                                if end_hour < start_hour:
-                                    if current_hour >= start_hour or current_hour < end_hour:
-                                        buffer_time = buffer
-                                        break
-                                else:
-                                    if start_hour <= current_hour < end_hour:
-                                        buffer_time = buffer
-                                        break
-                        else:
-                            # buffer time not specified for hour of current stop
-                            buffer_time = args.default_buffer_time_opps
-                    # adapt arrival time with buffer time
+                    buffer_time = util.get_buffer_time(schedule=self,
+                                                       trip=trip,
+                                                       default=args.default_buffer_time_opps)
                     arrival_time = min(trip.arrival_time + datetime.timedelta(minutes=buffer_time),
                                        next_departure_time)
                 else:
@@ -383,9 +361,10 @@ class Schedule:
                 if (station_type == 'deps' or
                     (station_type == 'opps' and
                         (standing_time >= args.min_charging_time_opps))):
-
+                    # vehicle connects to charging station
                     connected_charging_station = f"{cs_name}_{station_type}"
 
+                    # create charging station and grid connector if necessary
                     if cs_name not in charging_stations or gc_name not in grid_connectors:
                         number_cs = station["n_charging_stations"]
                         if station_type == "deps":
@@ -433,8 +412,9 @@ class Schedule:
 
                 # create departure event
                 events["vehicle_events"].append({
-                    "signal_time": (trip.departure_time + datetime.timedelta(
-                                    minutes=-args.signal_time_dif)).isoformat(),
+                    "signal_time": (trip.departure_time
+                                    - datetime.timedelta(minutes=args.signal_time_dif)
+                                    ).isoformat(),
                     "start_time": trip.departure_time.isoformat(),
                     "vehicle_id": vehicle_id,
                     "event_type": "departure",

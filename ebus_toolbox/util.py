@@ -43,3 +43,33 @@ def set_options_from_config(args, check=False, verbose=True):
         # Give overview of options
         if verbose:
             print("Options: {}".format(vars(args)))
+
+
+def get_buffer_time(schedule, trip, default):
+    buffer_time = schedule.stations.get(trip.arrival_name, {}).get('buffer_time', default)
+
+    # distinct buffer times depending on time of day can be provided
+    # in that case buffer time is of type dict instead of int
+    if isinstance(buffer_time, dict):
+        # sort dict to make sure 'else' key is last key
+        buffer_time = {key: buffer_time[key] for key in sorted(buffer_time)}
+        current_hour = trip.arrival_time.hour
+        for time_range, buffer in buffer_time.items():
+            if time_range == 'else':
+                buffer_time = buffer
+                break
+            else:
+                start_hour, end_hour = [int(t) for t in time_range.split('-')]
+                if end_hour < start_hour:
+                    if current_hour >= start_hour or current_hour < end_hour:
+                        buffer_time = buffer
+                        break
+                else:
+                    if start_hour <= current_hour < end_hour:
+                        buffer_time = buffer
+                        break
+        else:
+            # buffer time not specified for hour of current stop
+            buffer_time = default
+
+    return buffer_time
