@@ -45,7 +45,17 @@ def set_options_from_config(args, check=False, verbose=True):
             print("Options: {}".format(vars(args)))
 
 
-def get_buffer_time(schedule, trip, default):
+def get_buffer_time(trip, default):
+    """ Get buffer time at arrival station of a trip
+
+    :param trip: The of buffer time of this trips arrival is returned.
+    :type trip: ebus_toolbox.Trip
+    :param default: Default buffer time if no station specific buffer time is given.
+    :type default: dict, numeric
+    :return: Buffer time
+    :rtype: numeric
+    """
+    schedule = trip.rotation.schedule
     buffer_time = schedule.stations.get(trip.arrival_name, {}).get('buffer_time', default)
 
     # distinct buffer times depending on time of day can be provided
@@ -68,8 +78,8 @@ def get_buffer_time(schedule, trip, default):
                     if start_hour <= current_hour < end_hour:
                         buffer_time = buffer
                         break
-        else:
-            # buffer time not specified for hour of current stop
-            buffer_time = default
+    else:
+        # buffer time not specified for hour of current stop
+        buffer_time = default
 
     return buffer_time

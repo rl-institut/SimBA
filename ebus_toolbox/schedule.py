@@ -341,8 +341,7 @@ class Schedule:
                 # time. It may resemble things like delays and/or docking procedures
                 # use buffer time from electrified stations JSON or in case none is
                 # provided use global default from config file
-                buffer_time = util.get_buffer_time(schedule=self,
-                                                   trip=trip,
+                buffer_time = util.get_buffer_time(trip=trip,
                                                    default=args.default_buffer_time_opps)
                 arrival_time = min(trip.arrival_time + datetime.timedelta(minutes=buffer_time),
                                    next_departure_time)
