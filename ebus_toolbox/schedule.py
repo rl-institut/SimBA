@@ -319,7 +319,7 @@ class Schedule:
                     # last trip
                     next_departure_time = trip.arrival_time + datetime.timedelta(hours=8)
 
-                # connect cs and add gc if station is electrified
+                # get current station if electrified
                 connected_charging_station = None
                 desired_soc = 0
                 try:
@@ -347,13 +347,11 @@ class Schedule:
                 arrival_time = min(trip.arrival_time + datetime.timedelta(minutes=buffer_time),
                                    next_departure_time)
 
-                # calculate total minutes spend at station
+                # total minutes spend at station
                 standing_time = (next_departure_time - arrival_time).seconds / 60
 
-                # 1. if standing time is shorter than min_charging_time,
-                # do not connect charging station
-                # 2. if current station has no charger or a depot bus arrives at opp charger,
-                # do not connect charging station either
+                # connect to charging station
+                # generate gc and cs if they dont exist
                 if station_type is not None and standing_time >= args.min_charging_time:
                     # vehicle connects to charging station
                     connected_charging_station = f"{cs_name}_{station_type}"
@@ -368,15 +366,6 @@ class Schedule:
                         elif station_type == "opps":
                             cs_power = args.cs_power_opps
                             gc_power = args.gc_power_opps
-
-                        # gc power is not set in config
-                        if gc_power is None:
-                            if number_cs is not None:
-                                gc_power = number_cs * cs_power
-                            else:
-                                # TODO: Check reason! Calculate via number of busses?
-                                # add a really large number
-                                gc_power = 100 * cs_power
 
                         # add one charging station for each bus at bus station
                         charging_stations[connected_charging_station] = {
@@ -395,7 +384,7 @@ class Schedule:
                 # initial condition of vehicle
                 if i == 0:
                     vehicles[vehicle_id] = {
-                        "connected_charging_station": connected_charging_station,
+                        "connected_charging_station": None,
                         "estimated_time_of_departure": trip.departure_time.isoformat(),
                         "desired_soc": None,
                         "soc": args.desired_soc,
