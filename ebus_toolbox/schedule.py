@@ -354,8 +354,7 @@ class Schedule:
                 # do not connect charging station
                 # 2. if current station has no charger or a depot bus arrives at opp charger,
                 # do not connect charging station either
-                if (station_type is not None and
-                        (standing_time >= args.min_charging_time)):
+                if station_type is not None and standing_time >= args.min_charging_time:
                     # vehicle connects to charging station
                     connected_charging_station = f"{cs_name}_{station_type}"
                     # create charging station and grid connector if necessary
