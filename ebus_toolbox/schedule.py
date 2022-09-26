@@ -343,8 +343,11 @@ class Schedule:
                 # provided use global default from config file
                 buffer_time = util.get_buffer_time(trip=trip,
                                                    default=args.default_buffer_time_opps)
+                # arrival event must occur no later than next departure and
+                # one step before simulation terminates for arrival event to be taken into account
                 arrival_time = min(trip.arrival_time + datetime.timedelta(minutes=buffer_time),
-                                   next_departure_time)
+                                   next_departure_time,
+                                   stop_simulation - interval)
 
                 # total minutes spend at station
                 standing_time = (next_departure_time - arrival_time).seconds / 60
