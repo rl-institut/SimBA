@@ -30,6 +30,14 @@ def generate(schedule, scenario, args):
             continue
         rotation_soc_ts = vehicle_soc[start_idx:end_idx]
 
+        # bus does not return before simulation end
+        # replace trailing None values with last numeric value
+        for i, soc in enumerate(reversed(rotation_soc_ts)):
+            if soc is not None:
+                break
+        last_known_idx = len(rotation_soc_ts) - 1 - i
+        rotation_soc_ts[last_known_idx+1:] = i * [rotation_soc_ts[last_known_idx]]
+
         rotation_info = {
             "rotation_id": id,
             "start_time": rotation.departure_time.isoformat(),
