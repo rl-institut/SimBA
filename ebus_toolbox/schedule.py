@@ -342,16 +342,21 @@ class Schedule:
 
                 # get buffer time from user configuration
                 # buffer time resembles amount of time deducted off of the planned standing
-                # time. It may resemble things like delays and/or docking procedures
+                # time.
+                # It may resemble things like delays and/or docking procedures
                 # use buffer time from electrified stations JSON or in case none is
                 # provided use global default from config file
-                buffer_time = util.get_buffer_time(trip=trip,
-                                                   default=args.default_buffer_time_opps)
+                # ignore buffer time for end of last trip to make sure vehicles arrive
+                # before simulation ends
+                if i < len(vehicle_trips) - 1:
+                    buffer_time = util.get_buffer_time(trip=trip,
+                                                       default=args.default_buffer_time_opps)
+                else:
+                    buffer_time = 0
                 # arrival event must occur no later than next departure and
                 # one step before simulation terminates for arrival event to be taken into account
                 arrival_time = min(trip.arrival_time + datetime.timedelta(minutes=buffer_time),
-                                   next_departure_time,
-                                   stop_simulation - interval)
+                                   next_departure_time)
 
                 # total minutes spend at station
                 standing_time = (next_departure_time - arrival_time).seconds / 60
