@@ -309,6 +309,10 @@ class Schedule:
             vehicle_trips = [t for rot in vehicle_rotations.values() for t in rot.trips]
 
             for i, trip in enumerate(vehicle_trips):
+                # dont generated events that start after simulation has stopped
+                if trip.departure_time >= stop_simulation:
+                    break
+
                 cs_name = f"{vehicle_id}_{trip.arrival_name}"
                 gc_name = trip.arrival_name
 
