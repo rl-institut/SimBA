@@ -356,7 +356,7 @@ class Schedule:
                                    next_departure_time)
 
                 # total minutes spend at station
-                standing_time = (next_departure_time - arrival_time).total_seconds / 60
+                standing_time = (next_departure_time - arrival_time).total_seconds() / 60
 
                 # connect to charging station
                 # generate gc and cs if they dont exist
