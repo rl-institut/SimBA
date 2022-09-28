@@ -27,6 +27,9 @@ class Consumption:
         :param charging_type: Charging type for the trip. Consumption differs between
                               distinct types.
         :type charging_type: str
+
+        :raises SystemExit: Charging type must be defined.
+
         :return: Consumed energy [kWh] and delta SOC as tuple
         :rtype: (float, float)
         """
@@ -35,7 +38,8 @@ class Consumption:
         # picking one of the available charging types as only vehicle's mileage is
         # needed which does not depend on charging type
         if charging_type is None:
-            vt_ct = next((t for t in self.vehicle_types.keys() if vehicle_type in t))
+            raise SystemExit("Charging types must be defined for all rotations "
+                             "to allow for consumption calculation.")
         else:
             vt_ct = f"{vehicle_type}_{charging_type}"
 
