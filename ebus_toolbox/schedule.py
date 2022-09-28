@@ -76,6 +76,13 @@ class Schedule:
                                               schedule=schedule)})
                 schedule.rotations[rotation_id].add_trip(trip)
 
+        # set charging type for all rotations without explicitly specified charging type
+        # charging type may have been set above if a trip of a rotation has a specified
+        # charging type
+        for rot in schedule.rotations.values():
+            if rot.charging_type is None:
+                rot.set_charging_type(ct=kwargs.get('preferred_charging_type', 'oppb'))
+
         return schedule
 
     def run(self, args):
