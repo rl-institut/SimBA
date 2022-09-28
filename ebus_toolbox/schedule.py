@@ -115,7 +115,9 @@ class Schedule:
         rotations_in_progress = []
         idle_vehicles = []
         # TODO: create vehicle type counts dict with ct and vt values of all types
-        vehicle_type_counts = {vehicle_type: 0 for vehicle_type in self.vehicle_types.keys()}
+        vehicle_type_counts = {f'{vehicle_type}_{charging_type}': 0
+                               for vehicle_type, charging_types in self.vehicle_types.items()
+                               for charging_type in charging_types.keys()}
 
         rotations = sorted(self.rotations.values(), key=lambda rot: rot.departure_time)
 
@@ -554,7 +556,10 @@ class Schedule:
                         "discharge_curve": bat[3]
                     })
 
-        # TODO: restructure vehicle types for SpiceEV
+        # reformat vehicle types for spiceEV
+        vehicle_types_spiceev = {f'{vehicle_type}_{charging_type}': body
+                                 for vehicle_type, subtypes in self.vehicle_types.items()
+                                 for charging_type, body in subtypes.items()}
 
         # create final dict
         self.scenario = {
@@ -564,7 +569,7 @@ class Schedule:
                 "n_intervals": (stop_simulation - start_simulation) // interval
             },
             "constants": {
-                "vehicle_types": self.vehicle_types,
+                "vehicle_types": vehicle_types_spiceev,
                 "vehicles": vehicles,
                 "grid_connectors": grid_connectors,
                 "charging_stations": charging_stations,

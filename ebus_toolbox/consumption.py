@@ -31,18 +31,12 @@ class Consumption:
         :rtype: (float, float)
         """
 
-        # the charging type may not be set
-        # picking one of the available charging types as only vehicle's mileage is
-        # needed which does not depend on charging type
-        if charging_type is None:
-            vt_ct = next((t for t in self.vehicle_types.keys() if vehicle_type in t))
-        else:
-            vt_ct = f"{vehicle_type}_{charging_type}"
-
         # in case a constant mileage is provided
-        if isinstance(self.vehicle_types[vt_ct]['mileage'], (int, float)):
-            consumed_energy = self.vehicle_types[vt_ct]['mileage'] * distance / 1000
-            delta_soc = -1 * (consumed_energy / self.vehicle_types[vt_ct]["capacity"])
+        if isinstance(self.vehicle_types[vehicle_type][charging_type]['mileage'], (int, float)):
+            consumed_energy = \
+                self.vehicle_types[vehicle_type][charging_type]['mileage'] * distance / 1000
+            delta_soc = -1 * (consumed_energy /
+                              self.vehicle_types[vehicle_type][charging_type]["capacity"])
             return consumed_energy, delta_soc
 
         temp = np.interp(time.hour,
@@ -50,7 +44,7 @@ class Consumption:
                          list(self.temperatures_by_hour.values()))
 
         # load consumption csv
-        consumption_file = self.vehicle_types[vt_ct]["mileage"]
+        consumption_file = self.vehicle_types[vehicle_type][charging_type]["mileage"]
         try:
             consumption = self.consumption_files[consumption_file]
         except KeyError:
@@ -68,6 +62,7 @@ class Consumption:
         mileage = np.interp(temp, xp, fp)  # kWh / m
         consumed_energy = mileage * distance / 1000  # kWh
 
-        delta_soc = -1 * (consumed_energy / self.vehicle_types[vt_ct]["capacity"])
+        delta_soc = -1 * (consumed_energy /
+                          self.vehicle_types[vehicle_type][charging_type]["capacity"])
 
         return consumed_energy, delta_soc

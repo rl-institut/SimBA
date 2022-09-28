@@ -91,7 +91,7 @@ class Rotation:
 
         if ct == self.charging_type:
             return
-        assert f'{self.vehicle_type}_{ct}' in self.schedule.vehicle_types,\
+        assert self.schedule.vehicle_types.get(self.vehicle_type).get(ct),\
             f"Combination of vehicle type {self.vehicle_type} and {ct} not defined."
 
         old_consumption = self.consumption
@@ -102,7 +102,7 @@ class Rotation:
         # calculate earliest possible departure for this bus after completion
         # of this rotation
         if ct == "depb":
-            capacity_depb = self.schedule.vehicle_types[f"{self.vehicle_type}_depb"]["capacity"]
+            capacity_depb = self.schedule.vehicle_types[self.vehicle_type]["depb"]["capacity"]
             # minimum time needed to recharge consumed power from depot charger
             min_standing_time = (self.consumption / self.schedule.cs_power_deps_depb)
             # time to charge battery from 0 to desired SOC
@@ -111,7 +111,7 @@ class Rotation:
             if min_standing_time > desired_max_standing_time:
                 min_standing_time = desired_max_standing_time
         elif ct == "oppb":
-            capacity_oppb = self.schedule.vehicle_types[f"{self.vehicle_type}_oppb"]["capacity"]
+            capacity_oppb = self.schedule.vehicle_types[self.vehicle_type]["oppb"]["capacity"]
             min_standing_time = ((capacity_oppb / self.schedule.cs_power_deps_oppb)
                                  * self.schedule.min_recharge_deps_oppb)
 
