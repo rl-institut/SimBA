@@ -309,7 +309,7 @@ class Schedule:
             vehicle_trips = [t for rot in vehicle_rotations.values() for t in rot.trips]
 
             for i, trip in enumerate(vehicle_trips):
-                # dont generated events that start after simulation has stopped
+                # don't generate events that start after simulation has stopped
                 if trip.departure_time >= stop_simulation:
                     break
 
@@ -341,11 +341,8 @@ class Schedule:
                     station_type = None
 
                 # get buffer time from user configuration
-                # buffer time resembles amount of time deducted off of the planned standing
-                # time.
-                # It may resemble things like delays and/or docking procedures
-                # use buffer time from electrified stations JSON or in case none is
-                # provided use global default from config file
+                # buffer_time is an abstraction of delays like docking procedures and
+                # is added to the planned arrival time
                 # ignore buffer time for end of last trip to make sure vehicles arrive
                 # before simulation ends
                 if i < len(vehicle_trips) - 1:
@@ -359,7 +356,7 @@ class Schedule:
                                    next_departure_time)
 
                 # total minutes spend at station
-                standing_time = (next_departure_time - arrival_time).seconds / 60
+                standing_time = (next_departure_time - arrival_time).total_seconds / 60
 
                 # connect to charging station
                 # generate gc and cs if they dont exist
