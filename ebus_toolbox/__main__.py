@@ -15,7 +15,7 @@ if __name__ == '__main__':
                         service optimization finds the largest set of electrified rotations.')
     parser.add_argument('--output_directory', default="./data/sim_outputs", nargs='?',
                         help='Location where all simulation outputs are stored')
-    parser.add_argument('--preferred_charging_type', '-pct', default='depb',
+    parser.add_argument('--preferred_charging_type', '-pct', default='oppb',
                         choices=['depb', 'oppb'], help="Preferred charging type. Choose one\
                         from {depb, oppb}. opp stands for opportunity.")
     parser.add_argument('--vehicle-types', default="./data/examples/vehicle_types.json",

@@ -80,7 +80,7 @@ class Schedule:
         # charging type
         for rot in schedule.rotations.values():
             if rot.charging_type is None:
-                rot.set_charging_type(ct=kwargs.get('preferred_charging_type'))
+                rot.set_charging_type(ct=kwargs.get('preferred_charging_type', 'oppb'))
 
         return schedule
 
