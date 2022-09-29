@@ -28,8 +28,6 @@ class Consumption:
                               distinct types.
         :type charging_type: str
 
-        :raises SystemExit: Charging type must be defined.
-
         :return: Consumed energy [kWh] and delta SOC as tuple
         :rtype: (float, float)
         """
