@@ -121,7 +121,8 @@ class Schedule:
         """
         rotations_in_progress = []
         idle_vehicles = []
-        # TODO: create vehicle type counts dict with ct and vt values of all types
+        # count number of vehicles per type
+        # used for unique vehicle id e.g. vehicletype_chargingtype_id
         vehicle_type_counts = {f'{vehicle_type}_{charging_type}': 0
                                for vehicle_type, charging_types in self.vehicle_types.items()
                                for charging_type in charging_types.keys()}

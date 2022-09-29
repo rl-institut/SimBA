@@ -32,12 +32,15 @@ class Consumption:
         :rtype: (float, float)
         """
 
+        assert self.vehicle_types.get(vehicle_type, {}).get(charging_type),\
+            f"Combination of vehicle type {vehicle_type} and {charging_type} not defined."
+
+        vehicle_info = self.vehicle_types[vehicle_type][charging_type]
+
         # in case a constant mileage is provided
-        if isinstance(self.vehicle_types[vehicle_type][charging_type]['mileage'], (int, float)):
-            consumed_energy = \
-                self.vehicle_types[vehicle_type][charging_type]['mileage'] * distance / 1000
-            delta_soc = -1 * (consumed_energy /
-                              self.vehicle_types[vehicle_type][charging_type]["capacity"])
+        if isinstance(vehicle_info['mileage'], (int, float)):
+            consumed_energy = vehicle_info['mileage'] * distance / 1000
+            delta_soc = -1 * (consumed_energy / vehicle_info["capacity"])
             return consumed_energy, delta_soc
 
         temp = np.interp(time.hour,
@@ -45,7 +48,7 @@ class Consumption:
                          list(self.temperatures_by_hour.values()))
 
         # load consumption csv
-        consumption_file = self.vehicle_types[vehicle_type][charging_type]["mileage"]
+        consumption_file = vehicle_info["mileage"]
         try:
             consumption = self.consumption_files[consumption_file]
         except KeyError:
@@ -63,7 +66,6 @@ class Consumption:
         mileage = np.interp(temp, xp, fp)  # kWh / m
         consumed_energy = mileage * distance / 1000  # kWh
 
-        delta_soc = -1 * (consumed_energy /
-                          self.vehicle_types[vehicle_type][charging_type]["capacity"])
+        delta_soc = -1 * (consumed_energy / vehicle_info["capacity"])
 
         return consumed_energy, delta_soc
