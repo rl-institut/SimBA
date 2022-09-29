@@ -7,22 +7,22 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser(
         description='eBus-Toolbox - \
         simulation program for electric bus fleets.')
-    parser.add_argument('--input_schedule', nargs='?',
+    parser.add_argument('--input-schedule', nargs='?',
                         help='Path to CSV file containing all trips of schdedule to be analyzed.')
     parser.add_argument('--mode', default='sim', choices=['sim', 'service_optimization'],
                         help='Specify what you want to do. Choose one from {sim, \
                         service_optimization}. sim runs a single simulation with the given inputs. \
                         service optimization finds the largest set of electrified rotations.')
-    parser.add_argument('--output_directory', default="./data/sim_outputs", nargs='?',
+    parser.add_argument('--output-directory', default="./data/sim_outputs", nargs='?',
                         help='Location where all simulation outputs are stored')
-    parser.add_argument('--preferred_charging_type', '-pct', default='oppb',
+    parser.add_argument('--preferred-charging-type', '-pct', default='depb',
                         choices=['depb', 'oppb'], help="Preferred charging type. Choose one\
                         from {depb, oppb}. opp stands for opportunity.")
     parser.add_argument('--vehicle-types', default="./data/examples/vehicle_types.json",
                         help='location of vehicle type definitions')
-    parser.add_argument('--min_recharge_deps_oppb', default=1,
+    parser.add_argument('--min-recharge-deps-oppb', default=1,
                         help='Minimum fraction of capacity for recharge when leaving the depot.')
-    parser.add_argument('--min_recharge_deps_depb', default=1,
+    parser.add_argument('--min-recharge-deps-depb', default=1,
                         help='Minimum fraction of capacity for recharge when leaving the depot.')
     parser.add_argument('--days', metavar='N', type=int, default=None,
                         help='set duration of scenario as number of days')
@@ -30,15 +30,15 @@ if __name__ == '__main__':
                         help='set number of minutes for each timestep (Δt)')
     parser.add_argument('--desired-soc', metavar='SOC', type=float, default=0.8,
                         help='set minimum desired SOC (0 - 1) for each charging process')
-    parser.add_argument('--gc_power_opps', metavar='POPP', type=float, default=None,
+    parser.add_argument('--gc-power-opps', metavar='POPP', type=float, default=None,
                         help='max power of grid connector at opp stations')
-    parser.add_argument('--gc_power_deps', metavar='PDEP', type=float, default=None,
+    parser.add_argument('--gc-power-deps', metavar='PDEP', type=float, default=None,
                         help='max power of grid connector at depot stations')
-    parser.add_argument('--cs_power_opps', metavar='CSPOPP', type=float, default=450,
+    parser.add_argument('--cs-power-opps', metavar='CSPOPP', type=float, default=450,
                         help='max power of charging station at opp stations')
-    parser.add_argument('--cs_power_deps_depb', metavar='CSPDEPDEP', type=float, default=100,
+    parser.add_argument('--cs-power-deps-depb', metavar='CSPDEPDEP', type=float, default=100,
                         help='max power of charging station at depot stations for depot busses')
-    parser.add_argument('--cs_power_deps_oppb', metavar='CSPDEPOPP', type=float, default=150,
+    parser.add_argument('--cs-power-deps-oppb', metavar='CSPDEPOPP', type=float, default=150,
                         help='max power of charging station at depot stations for opp busses')
     parser.add_argument('--battery', '-b', default=[], nargs=2, type=float, action='append',
                         help='add battery with specified capacity in kWh and C-rate \
@@ -62,24 +62,21 @@ if __name__ == '__main__':
     parser.add_argument('--include-price-csv-option', '-po', metavar=('KEY', 'VALUE'),
                         nargs=2, default=[], action='append',
                         help='append additional argument to price signals')
-    parser.add_argument('--start_date', default='2018-01-02',
+    parser.add_argument('--start-date', default='2018-01-02',
                         help='Provide start date of simulation in format YYYY-MM-DD.E.g. '
                              '2018-01-31')
-    parser.add_argument('--electrified_stations', help='include electrified_stations json',
+    parser.add_argument('--electrified-stations', help='include electrified_stations json',
                         default='data/examples/electrified_stations.json')
-    parser.add_argument('--vehicle_types', help='include vehicle_types json',
-                        default='examples/vehicle_types.json')
-    parser.add_argument('--cost_params', help='include cost_params json',
+    parser.add_argument('--cost-params', help='include cost_params json',
                         default=None)
-    parser.add_argument('--min_charging_time_opps', help='define minimum time of charging at opps',
+    parser.add_argument('--min-charging-time', help='define minimum time of charging',
                         default=2)
-    parser.add_argument('--default_buffer_time_opps', help='time to subtract off of standing time '
+    parser.add_argument('--default-buffer-time-opps', help='time to subtract off of standing time '
                         'at opp station to simulate docking procedure.', default=1)
-    parser.add_argument('--signal_time_dif', help='time difference between signal time and actual '
+    parser.add_argument('--signal-time-dif', help='time difference between signal time and actual '
                                                   'start time of a vehicle event im min.',
                         default=10)
     parser.add_argument('--visual', '-v', action='store_true', help='Show plots of the results')
-    parser.add_argument('--desired_soc', default=1, help='desired_soc of vehicles')
     parser.add_argument('--eta', action='store_true',
                         help='Show estimated time to finish simulation after each step, \
                         instead of progress bar. Not recommended for fast computations.')
