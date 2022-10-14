@@ -67,17 +67,17 @@ class Schedule:
         if kwargs.get("station_data_path") is not None:
             try:
                 reader = csv.DictReader(kwargs.get("station_data_path"))
-                station_data=dict()
+                station_data = dict()
                 for row in reader:
                     station_data.update({int(row['Station']): float(row['Height_m'])})
-            except:
+            except FileNotFoundError or KeyError:
                 station_data = dict()
 
         with open(path_to_csv, 'r') as trips_file:
             trip_reader = csv.DictReader(trips_file)
             for trip in trip_reader:
                 rotation_id = trip['rotation_id']
-                trip["station_data"]=station_data
+                trip["station_data"] = station_data
                 if rotation_id not in schedule.rotations.keys():
                     schedule.rotations.update({
                         rotation_id: Rotation(id=rotation_id,
@@ -308,7 +308,7 @@ class Schedule:
             # sort events for their departure time, so that the matching departure time of an
             # arrival event can be read out of the next element in vid_list
             vehicle_rotations = {k: v for k, v in sorted(
-                                 vehicle_rotations.items(), key=lambda x: x[1].departure_time)}
+                vehicle_rotations.items(), key=lambda x: x[1].departure_time)}
             rotation_ids = list(vehicle_rotations.keys())
 
             # define start conditions
@@ -326,7 +326,7 @@ class Schedule:
             # initial departure event from starting depot
             events["vehicle_events"].append({
                 "signal_time": (departure + datetime.timedelta(
-                                minutes=-args.signal_time_dif)).isoformat(),
+                    minutes=-args.signal_time_dif)).isoformat(),
                 "start_time": departure.isoformat(),
                 "vehicle_id": v_name,
                 "event_type": "departure",
@@ -363,7 +363,7 @@ class Schedule:
                     # time. It may resemble things like delays and/or docking procedures
                     # use buffer time from electrified stations JSON or in case none is
                     # provided use global default from config file
-                    buffer_time = self.stations.get(trip.arrival_name, {})\
+                    buffer_time = self.stations.get(trip.arrival_name, {}) \
                         .get('buffer_time', args.default_buffer_time_opps)
 
                     # distinct buffer times depending on time of day can be provided
@@ -470,7 +470,7 @@ class Schedule:
                     if departure_event_in_input:
                         events["vehicle_events"].append({
                             "signal_time": (departure + datetime.timedelta(
-                                            minutes=-args.signal_time_dif)).isoformat(),
+                                minutes=-args.signal_time_dif)).isoformat(),
                             "start_time": departure.isoformat(),
                             "vehicle_id": v_name,
                             "event_type": "departure",

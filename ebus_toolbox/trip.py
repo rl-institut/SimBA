@@ -1,5 +1,6 @@
 from datetime import datetime, timedelta
 
+
 class Trip:
     def __init__(self, rotation, departure_time, departure_name,
                  arrival_time, arrival_name, distance, **kwargs):
@@ -12,18 +13,19 @@ class Trip:
         self.temperature = kwargs.get('temperature', None)
         height_diff = kwargs.get("height_difference", None)
         if height_diff is None:
-            station_data=  kwargs.get("station_data", dict())
+            station_data = kwargs.get("station_data", dict())
             try:
-                height_diff = station_data[self.arrival_name]["height"]\
-                              -station_data[self.departure_name]["height"]
+                height_diff = station_data[self.arrival_name]["height"] \
+                              - station_data[self.departure_name]["height"]
             except KeyError:
-                height_diff=0
+                height_diff = 0
         self.height_diff = height_diff
         self.level_of_loading = None
         # Meanspeed in km/h from distance and travel time or from initalization
         # Travel time is at least 1 min
-        mean_speed = kwargs.get("mean_speed", (self.distance /1000)/\
-                         max(1/60,((self.arrival_time- self.departure_time)/timedelta(hours=1))))
+        mean_speed = kwargs.get("mean_speed", (self.distance / 1000) /
+                                max(1 / 60, ((self.arrival_time - self.departure_time) / timedelta(
+                                    hours=1))))
         self.mean_speed = mean_speed
 
         # Attention: Circular reference!
@@ -43,9 +45,8 @@ class Trip:
         :rtype: float
         """
 
-
         try:
-            self.consumption, self. delta_soc = \
+            self.consumption, self.delta_soc = \
                 Trip.consumption.calculate_consumption(self.arrival_time,
                                                        self.distance,
                                                        self.rotation.vehicle_type,

@@ -1,5 +1,4 @@
 # imports
-import csv
 import json
 from ebus_toolbox.consumption import Consumption
 from ebus_toolbox.schedule import Schedule

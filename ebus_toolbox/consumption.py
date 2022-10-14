@@ -1,7 +1,6 @@
 import numpy as np
 import csv
 import pandas as pd
-from scipy.interpolate import interpn
 
 
 class Consumption:
@@ -24,7 +23,7 @@ class Consumption:
         self.consumption_files = {}
         self.vehicle_types = vehicle_types
 
-    def calculate_consumption(self, time, distance, vehicle_type, charging_type,temp=None,
+    def calculate_consumption(self, time, distance, vehicle_type, charging_type, temp=None,
                               height_diff=0, level_of_loading=None, mean_speed=18):
         """ Calculates consumed amount of energy for a given distance.
 
@@ -99,7 +98,7 @@ class Consumption:
             lol_col = df["level_of_loading"]
             speed_col = df["mean_speed_kmh"]
             cons_col = df["consumption_kwh_per_km"]
-            data_table= list(zip(vt_col, inc_col, tmp_col, lol_col, speed_col,cons_col))
+            data_table = list(zip(vt_col, inc_col, tmp_col, lol_col, speed_col, cons_col))
 
             def interpol_function(this_vehicle_type, this_incline, this_temp, this_lol, this_speed):
                 input_point = (this_vehicle_type, this_incline, this_temp, this_lol, this_speed)
