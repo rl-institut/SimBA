@@ -15,8 +15,8 @@ class Trip:
         if height_diff is None:
             station_data = kwargs.get("station_data", dict())
             try:
-                height_diff = station_data[self.arrival_name]["height"] \
-                              - station_data[self.departure_name]["height"]
+                height_diff = station_data[self.arrival_name]["Height_m"] \
+                              - station_data[self.departure_name]["Height_m"]
             except KeyError:
                 height_diff = 0
         self.height_diff = height_diff

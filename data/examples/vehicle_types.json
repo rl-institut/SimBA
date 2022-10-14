@@ -1,70 +1,60 @@
 {
-    "AB_oppb": {
-        "name": "articulated bus - opportunity charging",
-        "capacity": 50,
-        "charging_curve": [[0, 150], [0.8, 150], [1, 150]],
-        "min_charging_power": 0,
-        "v2g": false,
-        "v2g_power_factor": 0.5
+    "AB": {
+        "depb": {
+            "name": "articulated bus - depot charging",
+            "capacity": 150,
+            "charging_curve": [[0, 150], [0.8, 150], [1, 150]],
+            "min_charging_power": 0,
+            "v2g": false,
+            "v2g_power_factor": 0.5
+        },
+        "oppb": {
+            "name": "articulated bus - opportunity charging",
+            "capacity": 50,
+            "charging_curve": [[0, 150], [0.8, 150], [1, 150]],
+            "min_charging_power": 0,
+            "v2g": false,
+            "v2g_power_factor": 0.5
+        }
     },
-    "AB_depb": {
-        "name": "articulated bus - opportunity charging",
-        "capacity": 150,
-        "charging_curve": [[0, 150], [0.8, 150], [1, 150]],
-        "min_charging_power": 0,
-        "v2g": false,
-        "v2g_power_factor": 0.5
+    "CKB": {
+        "depb": {
+            "name": "articulated bus",
+            "capacity": 310,
+            "charging_curve": [[0, 250], [0.8, 250], [1, 250]],
+            "min_charging_power": 0,
+            "v2g": false,
+            "mileage": "data/examples/energy_consumption_example.csv",
+            "hc": "winter"
+        },
+        "oppb": {
+            "name": "articulated bus",
+            "capacity": 190,
+            "charging_curve": [[0, 190], [0.8, 190], [1, 190]],
+            "min_charging_power": 0,
+            "v2g": false,
+            "mileage": "data/examples/energy_consumption_example.csv",
+            "hc": "winter"
+        }
     },
-    "CKB_depb": {
-        "name": "articulated bus",
-        "capacity": 310,
-        "charging_curve": [[0, 250], [0.8, 250], [1, 250]],
-        "min_charging_power": 0,
-        "v2g": false,
-        "mileage": "data/examples/energy_consumption_example.csv",
-        "hc": "winter"
-    },
-    "CKB_oppb": {
-        "name": "articulated bus",
-        "capacity": 190,
-        "charging_curve": [[0, 190], [0.8, 190], [1, 190]],
-        "min_charging_power": 0,
-        "v2g": false,
-        "mileage": "data/examples/energy_consumption_example.csv",
-        "hc": "winter"
-    },
-    "VDL_depb": {
-        "name": "solo bus",
-        "capacity": 250,
-        "charging_curve": [[0, 250], [0.8, 250], [1, 250]],
-        "min_charging_power": 0,
-        "v2g": false,
-        "mileage": "data/examples/energy_consumption_example.csv",
-        "hc": "winter"
-    },
-    "VDL_oppb": {
-        "name": "solo bus",
-        "capacity": 250,
-        "charging_curve": [[0, 250], [0.8, 250], [1, 250]],
-        "min_charging_power": 0,
-        "v2g": false,
-        "mileage": "data/examples/energy_consumption_example.csv",
-        "hc": "winter"
-    },
-    "minimum_information": {
-        "name": "Displayed name",
-        "capacity": 0,
-        "mileage": 0,
-        "charging_curve": [[0,1],[1,0]]
-    },
-    "all_information": {
-        "name": "Displayed name",
-        "capacity": 0,
-        "mileage": 0,
-        "charging_curve": [[0,1],[1,0]],
-        "min_charging_power": 0,
-        "v2g": false,
-        "v2g_power_factor": 0.5,
-        "battery_efficiency": 0.95
+    "VDL": {
+        "depb": {
+            "name": "solo bus",
+            "capacity": 250,
+            "charging_curve": [[0, 250], [0.8, 250], [1, 250]],
+            "min_charging_power": 0,
+            "v2g": false,
+            "mileage": "data/examples/energy_consumption_example.csv",
+            "hc": "winter"
+        },
+        "oppb": {
+            "name": "solo bus",
+            "capacity": 250,
+            "charging_curve": [[0, 250], [0.8, 250], [1, 250]],
+            "min_charging_power": 0,
+            "v2g": false,
+            "mileage": "data/examples/energy_consumption_example.csv",
+            "hc": "winter"
+        }
     }
 }

@@ -52,17 +52,13 @@ def simulate(args):
                 pass
             setattr(args, opt_key, opt_val)
 
+    # setup consumption calculator that can be accessed by all trips
+    Trip.consumption = Consumption(vehicle_types)
+
     schedule = Schedule.from_csv(args.input_schedule,
                                  vehicle_types,
                                  stations,
                                  **vars(args))
-
-    # setup consumption calculator that can be accessed by all trips
-    Trip.consumption = Consumption(vehicle_types)
-    # set charging type for all rotations without explicitly specified charging type
-    for rot in schedule.rotations.values():
-        if rot.charging_type is None:
-            rot.set_charging_type(ct=args.preferred_charging_type)
 
     # run the mode specified in config
     if args.mode == 'service_optimization':

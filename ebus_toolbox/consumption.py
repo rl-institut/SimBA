@@ -2,9 +2,7 @@ import numpy as np
 import csv
 import pandas as pd
 
-
 class Consumption:
-
     def __init__(self, vehicle_types, **kwargs) -> None:
         # load temperature of the day, now dummy winter day
         self.temperatures_by_hour = {}
@@ -47,18 +45,16 @@ class Consumption:
         :return: Consumed energy [kWh] and delta SOC as tuple
         :rtype: (float, float)
         """
-        # the charging type may not be set
-        # picking one of the available charging types as only vehicle's mileage is
-        # needed which does not depend on charging type
-        if charging_type is None:
-            vt_ct = next((t for t in self.vehicle_types.keys() if vehicle_type in t))
-        else:
-            vt_ct = f"{vehicle_type}_{charging_type}"
+
+        assert self.vehicle_types.get(vehicle_type, {}).get(charging_type),\
+            f"Combination of vehicle type {vehicle_type} and {charging_type} not defined."
+
+        vehicle_info = self.vehicle_types[vehicle_type][charging_type]
 
         # in case a constant mileage is provided
-        if isinstance(self.vehicle_types[vt_ct]['mileage'], (int, float)):
-            consumed_energy = self.vehicle_types[vt_ct]['mileage'] * distance / 1000
-            delta_soc = -1 * (consumed_energy / self.vehicle_types[vt_ct]["capacity"])
+        if isinstance(vehicle_info['mileage'], (int, float)):
+            consumed_energy = vehicle_info['mileage'] * distance / 1000
+            delta_soc = -1 * (consumed_energy / vehicle_info["capacity"])
             return consumed_energy, delta_soc
 
         # If no specific LoL is given, interpolate from demand time series.
@@ -74,7 +70,7 @@ class Consumption:
                                          list(self.lol_by_hour.values()))
 
         # load consumption csv
-        consumption_path = self.vehicle_types[vt_ct]["mileage"]
+        consumption_path =  vehicle_info["mileage"]
 
         # Consumption_files holds interpol functions of csv files which are called directly
         vehicle_type_nr = dict(SB=0, VDL=0, AB=1, CKB=1)[vehicle_type]
@@ -89,7 +85,6 @@ class Consumption:
         except KeyError:
             # Creating the interpol function from csv file.
             df = pd.read_csv(consumption_path, sep=",")
-
             # Create lookup table and make sure its in the same order as the input point
             # which will be the input for the nd lookup
             vt_col = df["vehicle_type"]
@@ -113,9 +108,10 @@ class Consumption:
                                                                this_speed=mean_speed)
 
         consumed_energy = mileage * distance / 1000  # kWh
-        delta_soc = -1 * (consumed_energy / self.vehicle_types[vt_ct]["capacity"])
+        delta_soc = -1 * (consumed_energy /  vehicle_info["capacity"])
 
         return consumed_energy, delta_soc
+
 
 
 def nd_interp(input_values, lookup_table):
