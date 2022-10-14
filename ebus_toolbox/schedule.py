@@ -64,10 +64,20 @@ class Schedule:
         """
         schedule = cls(vehicle_types, stations, **kwargs)
 
+        if kwargs.get("station_data_path") is not None:
+            try:
+                reader = csv.DictReader(kwargs.get("station_data_path"))
+                station_data=dict()
+                for row in reader:
+                    station_data.update({int(row['Station']): float(row['Height_m'])})
+            except:
+                station_data = dict()
+
         with open(path_to_csv, 'r') as trips_file:
             trip_reader = csv.DictReader(trips_file)
             for trip in trip_reader:
                 rotation_id = trip['rotation_id']
+                trip["station_data"]=station_data
                 if rotation_id not in schedule.rotations.keys():
                     schedule.rotations.update({
                         rotation_id: Rotation(id=rotation_id,
@@ -287,8 +297,8 @@ class Schedule:
             "vehicle_events": []
         }
 
-        # add vehicle events
-        for vehicle_id in {rot.vehicle_id for rot in self.rotations.values()}:
+        # add vehicle events. Cast to sorted list for reproducible vehicle assigning
+        for vehicle_id in sorted({rot.vehicle_id for rot in self.rotations.values()}):
             v_name = vehicle_id
             vt = vehicle_id.split("_")[0]
             ct = vehicle_id.split("_")[1]

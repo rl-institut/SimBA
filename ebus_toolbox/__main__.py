@@ -97,6 +97,10 @@ if __name__ == '__main__':
                         nargs=2, action='append',
                         help='Append additional options to the charging strategy.')
     parser.add_argument('--config', help='Use config file to set arguments')
+    parser.add_argument('--station_data_path', help='Use station data to back calculation       \
+                                                    of consumption with height information of   \
+                                                    stations')
+
     args = parser.parse_args()
     # arguments relevant to SpiceEV, setting automatically to reduce clutter in config
     args.ALLOW_NEGATIVE_SOC = True

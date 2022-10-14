@@ -1,4 +1,5 @@
 # imports
+import csv
 import json
 from ebus_toolbox.consumption import Consumption
 from ebus_toolbox.schedule import Schedule
@@ -56,6 +57,7 @@ def simulate(args):
                                  vehicle_types,
                                  stations,
                                  **vars(args))
+
     # setup consumption calculator that can be accessed by all trips
     Trip.consumption = Consumption(vehicle_types)
     # set charging type for all rotations without explicitly specified charging type
