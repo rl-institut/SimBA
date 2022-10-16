@@ -1,6 +1,44 @@
 import json
 
 
+def json_comment_handler(json_file, path):
+    """Removes comments from the json_file and returns it.
+
+    First a new file object is instantiated.
+    Then we iterate through the lines of the :param json_file and
+    if a hashtag appears, which signals a comment, the rest of the line is removed.
+
+    :param json_file: input JSON file
+    :type json_file: str
+    :return uncommented_json_file: updated JSON file
+    :rtype str
+    """
+    # create new updated file
+    uncommented_json_file = None
+    try:
+        uncommented_json_file = open(f"updated {json_file}", "w")
+    except FileNotFoundError:
+        print("Couldn't create file")
+
+    try:
+        with open(path) as f:
+            lines = f.readlines()
+            for line in lines:
+                if '#' in line:     # if we find a hashtag then the rest of the line is a comment
+                    line = line.partition("#")[0] + "\n"
+                uncommented_json_file.write(line)
+    except FileNotFoundError:
+        print("Couldn't read file.")
+
+    return json_file
+
+
+if __name__ == '__main__':
+    name = "vehicle_types.json"
+    path = "../data/examples/vehicle_types.json"
+    json_comment_handler(name, path)
+
+
 def set_options_from_config(args, check=False, verbose=True):
     """Read options from config file, update given args, try to parse options
     , ignore comment lines (begin with #)
