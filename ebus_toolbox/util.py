@@ -1,4 +1,8 @@
 import json
+import os
+
+HASHTAG = '#'
+TRIPLE_QUOTATION_MARK = '"""'
 
 
 def json_comment_handler(json_file, path):
@@ -10,33 +14,49 @@ def json_comment_handler(json_file, path):
 
     :param json_file: input JSON file
     :type json_file: str
+    :param path: path to the JSON file
+    :type path: str
     :return uncommented_json_file: updated JSON file
     :rtype str
     """
     # create new updated file
     uncommented_json_file = None
     try:
-        uncommented_json_file = open(f"updated {json_file}", "w")
+        uncommented_json_file = open(f"updated_{json_file}", "w")
     except FileNotFoundError:
         print("Couldn't create file")
 
+    in_comment_bool = False
     try:
         with open(path) as f:
             lines = f.readlines()
             for line in lines:
-                if '#' in line:     # if we find a hashtag then the rest of the line is a comment
+                if TRIPLE_QUOTATION_MARK in line and in_comment_bool:
+                    in_comment_bool = False
+                    continue
+                if in_comment_bool:
+                    continue
+                if TRIPLE_QUOTATION_MARK in line and not in_comment_bool:
+                    in_comment_bool = True
+                    continue
+                if HASHTAG in line:
                     line = line.partition("#")[0] + "\n"
                 uncommented_json_file.write(line)
     except FileNotFoundError:
         print("Couldn't read file.")
 
-    return json_file
+    # TODO convert to dict
+
+    return uncommented_json_file
 
 
 if __name__ == '__main__':
     name = "vehicle_types.json"
     path = "../data/examples/vehicle_types.json"
-    json_comment_handler(name, path)
+    name1 = "new_file.txt"
+    path1 = "new_file.txt"
+    dictionary = json_comment_handler(name1, path1)
+    print(dictionary)
 
 
 def set_options_from_config(args, check=False, verbose=True):
