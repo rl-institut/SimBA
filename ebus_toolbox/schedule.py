@@ -71,7 +71,8 @@ class Schedule:
                     reader = csv.DictReader(f)
                     station_data = dict()
                     for row in reader:
-                        station_data.update({str(row['Station']): {"Height_m":float(row['Height_m'])}})
+                        station_data.update({str(row['Station']):
+                                            {"Height_m": float(row['Height_m'])}})
             except FileNotFoundError or KeyError:
                 station_data = dict()
 
@@ -317,7 +318,6 @@ class Schedule:
             stop_simulation = min(
                 stop_simulation, start_simulation + datetime.timedelta(days=args.days))
 
-
         # add vehicle events
         for vehicle_id in sorted({rot.vehicle_id for rot in self.rotations.values()}):
             # filter all rides for that bus
@@ -326,7 +326,8 @@ class Schedule:
             # get sorted list of all trips for current vehicle
             # sort rotations by time leveraging the fact that the
             # list of trips per rotation is always sorted
-            vehicle_rotations = {k: v for k, v in sorted(vehicle_rotations.items(), key=lambda x: x[1].departure_time)}
+            vehicle_rotations = {k: v for k, v in sorted(vehicle_rotations.items(),
+                                                         key=lambda x: x[1].departure_time)}
             vehicle_trips = [t for rot in vehicle_rotations.values() for t in rot.trips]
 
             for i, trip in enumerate(vehicle_trips):
@@ -342,7 +343,6 @@ class Schedule:
                 except IndexError:
                     # last trip
                     next_departure_time = trip.arrival_time + datetime.timedelta(hours=8)
-
 
                 # get current station if electrified
                 connected_charging_station = None

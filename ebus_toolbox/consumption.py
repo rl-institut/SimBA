@@ -2,6 +2,7 @@ import numpy as np
 import csv
 import pandas as pd
 
+
 class Consumption:
     def __init__(self, vehicle_types, **kwargs) -> None:
         # load temperature of the day, now dummy winter day
@@ -46,7 +47,7 @@ class Consumption:
         :rtype: (float, float)
         """
 
-        assert self.vehicle_types.get(vehicle_type, {}).get(charging_type),\
+        assert self.vehicle_types.get(vehicle_type, {}).get(charging_type), \
             f"Combination of vehicle type {vehicle_type} and {charging_type} not defined."
 
         vehicle_info = self.vehicle_types[vehicle_type][charging_type]
@@ -70,7 +71,7 @@ class Consumption:
                                          list(self.lol_by_hour.values()))
 
         # load consumption csv
-        consumption_path =  vehicle_info["mileage"]
+        consumption_path = vehicle_info["mileage"]
 
         # Consumption_files holds interpol functions of csv files which are called directly
         vehicle_type_nr = dict(SB=0, VDL=0, AB=1, CKB=1)[vehicle_type]
@@ -108,10 +109,9 @@ class Consumption:
                                                                this_speed=mean_speed)
 
         consumed_energy = mileage * distance / 1000  # kWh
-        delta_soc = -1 * (consumed_energy /  vehicle_info["capacity"])
+        delta_soc = -1 * (consumed_energy / vehicle_info["capacity"])
 
         return consumed_energy, delta_soc
-
 
 
 def nd_interp(input_values, lookup_table):
