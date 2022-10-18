@@ -26,6 +26,7 @@ class Consumption:
                               height_diff=0, level_of_loading=None, mean_speed=18):
         """ Calculates consumed amount of energy for a given distance.
 
+
         :param time: The date and time at which the trip ends
         :type time: datetime.datetime
         :param distance: Distance travelled [m]
@@ -35,6 +36,8 @@ class Consumption:
         :param charging_type: Charging type for the trip. Consumption differs between
                               distinct types.
         :type charging_type: str
+        :param temp: Temperature outside of the bus in °Celsius
+        :type temp: float
         :param height_diff: difference in height between stations in meters-
         :type height_diff: float
         :param level_of_loading: Level of loading of the bus between empty (=0) and
