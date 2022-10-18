@@ -80,7 +80,6 @@ class Schedule:
                       "(Needed column names are 'Station' and 'Height_m')".
                       format(station_path))
 
-
         with open(path_to_csv, 'r') as trips_file:
             trip_reader = csv.DictReader(trips_file)
             for trip in trip_reader:
