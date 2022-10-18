@@ -66,9 +66,10 @@ class Schedule:
         schedule = cls(vehicle_types, stations, **kwargs)
 
         station_data = dict()
-        if kwargs.get("station_data_path") is not None:
+        station_path = kwargs.get("station_data_path")
+        if station_path is not None:
             try:
-                with open(kwargs.get("station_data_path"), "r") as f:
+                with open(str(station_path), "r") as f:
                     reader = csv.DictReader(f)
                     station_data = dict()
                     for row in reader:
@@ -77,7 +78,7 @@ class Schedule:
             except FileNotFoundError or KeyError:
                 print("Warning: external csv file '{}' not found or not named properly"
                       "(Needed column names are 'Station' and 'Height_m')".
-                      format(kwargs.get("station_data_path")))
+                      format(station_path))
 
 
         with open(path_to_csv, 'r') as trips_file:
