@@ -65,6 +65,7 @@ class Schedule:
         """
         schedule = cls(vehicle_types, stations, **kwargs)
 
+        station_data = dict()
         if kwargs.get("station_data_path") is not None:
             try:
                 with open(kwargs.get("station_data_path"), "r") as f:
@@ -74,12 +75,17 @@ class Schedule:
                         station_data.update({str(row['Station']):
                                             {"Height_m": float(row['Height_m'])}})
             except FileNotFoundError or KeyError:
-                station_data = dict()
+                print("Warning: external csv file '{}' not found or not named properly"
+                      "(Needed column names are 'Station' and 'Height_m')".
+                      format(kwargs.get("station_data_path")))
+
 
         with open(path_to_csv, 'r') as trips_file:
             trip_reader = csv.DictReader(trips_file)
             for trip in trip_reader:
                 rotation_id = trip['rotation_id']
+                # Trip gets reference to station data and calculates height diff during Trip
+                # initialization. Could also get the height difference from here on
                 trip["station_data"] = station_data
                 if rotation_id not in schedule.rotations.keys():
                     schedule.rotations.update({
