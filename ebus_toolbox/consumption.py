@@ -129,10 +129,13 @@ def nd_interp(input_values, lookup_table):
     lower = [None] * len(input_values)
     upper = [None] * len(input_values)
     for i, v in enumerate(input_values):
+        # initialize for out of bound values -> Constant value
+        lower[i] = dim_values[i][0]
+        upper[i] = dim_values[i][-1]
         for c in dim_values[i]:
             if v >= c:
                 lower[i] = c
-            if v <= c and upper[i] is None:
+            if v <= c:
                 upper[i] = c
                 break
     # find rows in table made up of only lower or upper values
