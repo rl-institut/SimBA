@@ -13,16 +13,17 @@ def service_optimization(schedule, args):
     :type schedule: ebus_toolbox.Schedule
     :param args: Command line arguments
     :type args: argparse.Namespace
-    :return: Random scenario
-    :rtype: spice_ev.src.scenario
+    :return: original and most optimized scenario (highest electrification rate)
+    :rtype: dict of tuple of schedule and spice_ev.src.scenario
     """
     common_stations = schedule.get_common_stations(only_opps=True)
 
     # initial run
     scenario = schedule.run(args)
+    original = (deepcopy(schedule), deepcopy(scenario))
+    optimal = (None, None)
 
     # single out negative rotations. Try to run these with common non-negative rotations
-    original_rotations = deepcopy(schedule.rotations)
     negative_rotations = schedule.get_negative_rotations(scenario)
     print(f"Initially, rotations {sorted(negative_rotations)} have neg. SoC.")
 
@@ -48,16 +49,22 @@ def service_optimization(schedule, args):
                     dependent_station.update({r2: t2 for r2, t2
                                               in common_stations[r].items() if t2 <= t})
             negative_sets[rot_key] = s
+            # remove negative rotation from initial schedule
+            del schedule.rotations[rot_key]
 
-    # run singled-out rotations
+    # run scenario with non-negative rotations only
+    scenario = schedule.run(args)
+    optimal = (deepcopy(schedule), deepcopy(scenario))
+
+    # run singled-out negative rotations
     ignored = []
     for i, (rot, s) in enumerate(negative_sets.items()):
-        schedule.rotations = {r: original_rotations[r] for r in s}
+        schedule.rotations = {r: original[0].rotations[r] for r in s}
         print(f"{i+1} / {len(negative_sets)} negative schedules: {rot}")
         scenario = schedule.run(args)
         if scenario.negative_soc_tracker:
             # still fail: try just the negative rotation
-            schedule.rotations = {rot: original_rotations[rot]}
+            schedule.rotations = {rot: original[0].rotations[rot]}
             scenario = schedule.run(args)
             if scenario.negative_soc_tracker:
                 # no hope, this just won't work
@@ -76,7 +83,7 @@ def service_optimization(schedule, args):
         print(f"{len(possible)} combinations remain")
         r1, r2 = possible.pop()
         combined = negative_sets[r1].union(negative_sets[r2])
-        schedule.rotations = {r: original_rotations[r] for r in combined}
+        schedule.rotations = {r: original[0].rotations[r] for r in combined}
         scenario = schedule.run(args)
         if not scenario.negative_soc_tracker:
             # compatible (don't interfere): keep union, remove r2
@@ -84,7 +91,13 @@ def service_optimization(schedule, args):
             # simplified. What about triangle? (r1+r2, r1+r3, r2!+r3)?
             possible = [t for t in possible if r2 not in t]
 
+            # save scenario with highest electrification rate
+            if len(scenario[0].rotations) > len(optimal[0].rotations):
+                optimal = (deepcopy(schedule), deepcopy(scenario))
+
     print(negative_sets)
 
-    # TODO: return sensible scenario (and negative_sets?), adapt docstring afterwards
-    return scenario
+    return {
+        "original": original,
+        "optimized": optimal,
+    }

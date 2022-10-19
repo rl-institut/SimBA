@@ -269,8 +269,10 @@ class Schedule:
             for t_str in times:
                 time = datetime.datetime.fromisoformat(t_str)
                 rides = {k: v for k, v in self.rotations.items() if v.vehicle_id == v_id}
-                negative_rotations.add([k for k, v in rides.items()
-                                        if time >= v.departure_time and time <= v.arrival_time][0])
+                if rides:
+                    negative_rotations.add([k for k, v in rides.items()
+                                            if time >= v.departure_time
+                                            and time <= v.arrival_time][0])
         return list(negative_rotations)
 
     def generate_scenario(self, args):
