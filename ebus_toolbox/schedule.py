@@ -268,11 +268,21 @@ class Schedule:
         for v_id, times in negative_vehicles.items():
             for t_str in times:
                 time = datetime.datetime.fromisoformat(t_str)
+                # filter rotations by vehicle ID
                 rides = {k: v for k, v in self.rotations.items() if v.vehicle_id == v_id}
-                if rides:
-                    negative_rotations.add([k for k, v in rides.items()
-                                            if time >= v.departure_time
-                                            and time <= v.arrival_time][0])
+                # sort rotations by departure time
+                rides = sorted(rides.items(), key=lambda r: r[1].departure_time)
+                # find rotation before negative arrival
+                last_rot_id = None
+                for k, v in rides:
+                    if v.departure_time >= time:
+                        # departure after negative arrival found: stop search
+                        break
+                    last_rot_id = k
+                # end of iteration (next departure found / end of list): add last rotation ID
+                if last_rot_id is not None:
+                    negative_rotations.add(last_rot_id)
+
         return list(negative_rotations)
 
     def generate_scenario(self, args):
