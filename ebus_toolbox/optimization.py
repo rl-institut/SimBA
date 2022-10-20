@@ -30,27 +30,27 @@ def service_optimization(schedule, args):
     negative_sets = {}
     for rot_key in negative_rotations:
         rotation = schedule.rotations[rot_key]
-        if rotation.charging_type == "depb":
-            schedule.set_charging_type("oppb", args, [rot_key])
-        else:
-            # oppb: build non-interfering sets of negative rotations
-            # (these include the dependent non-negative rotations)
-            s = {rot_key}
-            vid = rotation.vehicle_id
-            last_neg_soc_time = scenario.negative_soc_tracker[vid][-1]
-            last_neg_soc_time = datetime.datetime.fromisoformat(last_neg_soc_time)
-            dependent_station = {r: t for r, t in common_stations[rot_key].items()
-                                 if t <= last_neg_soc_time}
-            while dependent_station:
-                r, t = dependent_station.popitem()
-                if r not in negative_rotations:
-                    s.add(r)
-                    # add dependencies of r
-                    dependent_station.update({r2: t2 for r2, t2
-                                              in common_stations[r].items() if t2 <= t})
-            negative_sets[rot_key] = s
-            # remove negative rotation from initial schedule
-            del schedule.rotations[rot_key]
+        if rotation.charging_type != "oppb":
+            raise Exception(f"Rotation {rot_key} should be optimized, "
+                            "but is of type {rotation.charging_type}.")
+        # oppb: build non-interfering sets of negative rotations
+        # (these include the dependent non-negative rotations)
+        s = {rot_key}
+        vid = rotation.vehicle_id
+        last_neg_soc_time = scenario.negative_soc_tracker[vid][-1]
+        last_neg_soc_time = datetime.datetime.fromisoformat(last_neg_soc_time)
+        dependent_station = {r: t for r, t in common_stations[rot_key].items()
+                             if t <= last_neg_soc_time}
+        while dependent_station:
+            r, t = dependent_station.popitem()
+            if r not in negative_rotations:
+                s.add(r)
+                # add dependencies of r
+                dependent_station.update({r2: t2 for r2, t2
+                                          in common_stations[r].items() if t2 <= t})
+        negative_sets[rot_key] = s
+        # remove negative rotation from initial schedule
+        del schedule.rotations[rot_key]
 
     # run scenario with non-negative rotations only
     scenario = schedule.run(args)
