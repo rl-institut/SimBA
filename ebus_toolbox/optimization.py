@@ -54,8 +54,9 @@ def service_optimization(schedule, args):
         del schedule.rotations[rot_key]
 
     # run scenario with non-negative rotations only
-    scenario = schedule.run(args)
-    optimal = (deepcopy(schedule), deepcopy(scenario))
+    if schedule.rotations:
+        scenario = schedule.run(args)
+        optimal = (deepcopy(schedule), deepcopy(scenario))
 
     # run singled-out negative rotations
     ignored = []
@@ -93,7 +94,7 @@ def service_optimization(schedule, args):
             possible = [t for t in possible if r2 not in t]
 
             # save scenario with highest electrification rate
-            if len(scenario[0].rotations) > len(optimal[0].rotations):
+            if optimal is None or len(scenario[0].rotations) > len(optimal[0].rotations):
                 optimal = (deepcopy(schedule), deepcopy(scenario))
 
     print(negative_sets)
