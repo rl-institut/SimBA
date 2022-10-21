@@ -62,11 +62,24 @@ def simulate(args):
 
     # run the mode specified in config
     if args.mode == 'service_optimization':
-        scenario = optimization.service_optimization(schedule, args)
-    elif args.mode == "sim":
+        schedule, scenario = optimization.service_optimization(schedule, args)["optimized"]
+    elif args.mode in ["sim", "neg_depb_to_oppb"]:
         # DEFAULT if mode argument is not specified by user
         # Scenario simulated once
         scenario = schedule.run(args)
+    if args.mode == "neg_depb_to_oppb":
+        # simple optimization: change charging type from depot to opportunity, simulate again
+        neg_rot = schedule.get_negative_rotations(scenario)
+        # only depot rotations relevant
+        neg_rot = [r for r in neg_rot if schedule.rotations[r].charging_type == "depb"]
+        if neg_rot:
+            print("Changing charging type from depb to oppb for rotations " + ', '.join(neg_rot))
+            schedule.set_charging_type("oppb", neg_rot)
+            # simulate again
+            scenario = schedule.run(args)
+            neg_rot = schedule.get_negative_rotations(scenario)
+            if neg_rot:
+                print(f"Rotations {', '.join(neg_rot)} remain negative.")
 
     if args.cost_params is not None:
         # Calculate Costs of Iteration
