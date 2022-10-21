@@ -9,10 +9,14 @@ if __name__ == '__main__':
         simulation program for electric bus fleets.')
     parser.add_argument('--input-schedule', nargs='?',
                         help='Path to CSV file containing all trips of schdedule to be analyzed.')
-    parser.add_argument('--mode', default='sim', choices=['sim', 'service_optimization'],
-                        help='Specify what you want to do. Choose one from {sim, \
-                        service_optimization}. sim runs a single simulation with the given inputs. \
-                        service optimization finds the largest set of electrified rotations.')
+    parser.add_argument('--mode', default='[sim]', type=list,
+                        help='Specify what you want to do. Choose one or more from \
+                        {sim, neg_depb_to_oppb, service_optimization, report, cost}. \
+                        sim runs a single simulation with the given inputs. \
+                        neg_depb_to_oppb changes charging type of negative depb rotations. \
+                        service optimization finds the largest set of electrified rotations. \
+                        report generates simulation output files. \
+                        cost calculates scenario costs.')
     parser.add_argument('--output-directory', default="./data/sim_outputs", nargs='?',
                         help='Location where all simulation outputs are stored')
     parser.add_argument('--preferred-charging-type', '-pct', default='depb',

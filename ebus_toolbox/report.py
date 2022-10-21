@@ -5,7 +5,7 @@ import datetime
 import warnings
 
 
-def generate(schedule, scenario, args):
+def generate(schedule, scenario, args, prefix=""):
     rotation_infos = []
 
     negative_rotations = schedule.get_negative_rotations(scenario)
@@ -65,14 +65,14 @@ def generate(schedule, scenario, args):
                       "Omit parameter <days> to simulate entire schedule.",
                       stacklevel=100)
 
-    with open(args.output_directory / "rotation_socs.csv", "w+", newline='') as f:
+    with open(args.output_directory / (prefix + "rotation_socs.csv"), "w+", newline='') as f:
         csv_writer = csv.writer(f)
         csv_writer.writerow(("time",) + tuple(rotation_socs.keys()))
         for i, row in enumerate(zip(*rotation_socs.values())):
             t = sim_start_time + i * scenario.interval
             csv_writer.writerow((t,) + row)
 
-    with open(args.output_directory / "rotation_summary.csv", "w+", newline='') as f:
+    with open(args.output_directory / (prefix + "rotation_summary.csv"), "w+", newline='') as f:
         csv_writer = csv.DictWriter(f, list(rotation_infos[0].keys()))
         csv_writer.writeheader()
         csv_writer.writerows(rotation_infos)

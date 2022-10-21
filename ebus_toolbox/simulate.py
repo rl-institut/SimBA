@@ -59,35 +59,51 @@ def simulate(args):
                                  vehicle_types,
                                  stations,
                                  **vars(args))
+    scenario = None
 
-    # run the mode specified in config
-    if args.mode == 'service_optimization':
-        schedule, scenario = optimization.service_optimization(schedule, args)["optimized"]
-    elif args.mode in ["sim", "neg_depb_to_oppb"]:
-        # DEFAULT if mode argument is not specified by user
-        # Scenario simulated once
-        scenario = schedule.run(args)
-    if args.mode == "neg_depb_to_oppb":
-        # simple optimization: change charging type from depot to opportunity, simulate again
-        neg_rot = schedule.get_negative_rotations(scenario)
-        # only depot rotations relevant
-        neg_rot = [r for r in neg_rot if schedule.rotations[r].charging_type == "depb"]
-        if neg_rot:
-            print("Changing charging type from depb to oppb for rotations " + ', '.join(neg_rot))
-            schedule.set_charging_type("oppb", neg_rot)
-            # simulate again
+    # run the mode(s) specified in config
+    if type(args.mode) != list:
+        # backwards compatibility: run single mode
+        args.mode = [args.mode]
+
+    for i, mode in enumerate(args.mode):
+        if mode == "sim":
+            # scenario simulated once
+            # default if mode argument is not specified by user
             scenario = schedule.run(args)
+        elif mode == "neg_depb_to_oppb":
+            # simple optimization
+            # change charging type of negative depb rotations from depot to opportunity
+            if scenario is None:
+                # not simulated yet
+                scenario = schedule.run(args)
             neg_rot = schedule.get_negative_rotations(scenario)
+            # only depot rotations relevant
+            neg_rot = [r for r in neg_rot if schedule.rotations[r].charging_type == "depb"]
             if neg_rot:
-                print(f"Rotations {', '.join(neg_rot)} remain negative.")
-
-    if args.cost_params is not None:
-        # Calculate Costs of Iteration
-        costs = calculate_costs(cost_params, schedule)
-        opex_energy_annual = 0  # ToDo: Import annual energy costs from SpiceEV
-        cost_invest = costs["c_invest"]
-        cost_annual = costs["c_invest_annual"] + costs["c_maintenance_annual"] + opex_energy_annual
-        print(f"Investment cost: {cost_invest} €. Total annual cost: {cost_annual} €.")
-
-    # create report
-    report.generate(schedule, scenario, args)
+                print("Changing charging type to oppb for rotations " + ', '.join(neg_rot))
+                schedule.set_charging_type("oppb", neg_rot)
+                # simulate again
+                scenario = schedule.run(args)
+                neg_rot = schedule.get_negative_rotations(scenario)
+                if neg_rot:
+                    print(f"Rotations {', '.join(neg_rot)} remain negative.")
+        elif mode == 'service_optimization':
+            # find largest set of rotations that produce no negative SoC
+            schedule, scenario = optimization.service_optimization(schedule, args)["optimized"]
+            if scenario is None:
+                print("*"*49 + "\nNo optimization possible (all rotations negative)")
+        elif mode == 'report':
+            # create report based on all previous modes
+            assert scenario is not None, "Can't report without simulation"
+            report_name = '__'.join([m for m in args.mode[:i] if m not in ["report", "cost"]])
+            report.generate(schedule, scenario, args, prefix=report_name + '_')
+        elif mode == 'cost' and args.cost_params is not None:
+            # calculate costs of iteration
+            costs = calculate_costs(cost_params, schedule)
+            opex_energy_annual = 0  # ToDo: Import annual energy costs from SpiceEV
+            cost_invest = costs["c_invest"]
+            cost_annual = (opex_energy_annual
+                           + costs["c_invest_annual"]
+                           + costs["c_maintenance_annual"])
+            print(f"Investment cost: {cost_invest} €. Total annual cost: {cost_annual} €.")
