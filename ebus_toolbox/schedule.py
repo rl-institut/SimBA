@@ -338,20 +338,21 @@ class Schedule:
             # get sorted list of all trips for current vehicle
             # sort rotations by time leveraging the fact that the
             # list of trips per rotation is always sorted
-            vehicle_rotations = {k: v for k, v in sorted(vehicle_rotations.items(),
-                                                         key=lambda x: x[1].departure_time)}
+            vehicle_rotations = {k: v for k, v in sorted(
+                vehicle_rotations.items(), key=lambda x: x[1].departure_time)}
             vehicle_trips = [t for rot in vehicle_rotations.values() for t in rot.trips]
 
             for i, trip in enumerate(vehicle_trips):
                 # don't generate events that start after simulation has stopped
                 if trip.departure_time >= stop_simulation:
                     break
+
                 cs_name = f"{vehicle_id}_{trip.arrival_name}"
                 gc_name = trip.arrival_name
 
                 # departure time of next trip for standing time calculation
                 try:
-                    next_departure_time = vehicle_trips[i + 1].departure_time
+                    next_departure_time = vehicle_trips[i+1].departure_time
                 except IndexError:
                     # last trip
                     next_departure_time = trip.arrival_time + datetime.timedelta(hours=8)
