@@ -1,20 +1,25 @@
 import numpy as np
 import csv
 import pandas as pd
+from ebus_toolbox import util
 
 
 class Consumption:
     def __init__(self, vehicle_types, **kwargs) -> None:
         # load temperature of the day, now dummy winter day
         self.temperatures_by_hour = {}
-        with open(kwargs.get("outside_temperatures", "data/examples/default_temp_winter.csv")) as f:
-            reader = csv.DictReader(f)
+        temp_path = kwargs.get("outside_temperatures", "data/examples/default_temp_winter.csv")
+        with open(temp_path) as f:
+            delim = util.get_csv_delim(temp_path)
+            reader = csv.DictReader(f, delimiter=delim)
             for row in reader:
                 self.temperatures_by_hour.update({int(row['hour']): float(row['temperature'])})
 
-        with open(kwargs.get("level_of_loading_over_day",
-                             "data/examples/default_level_of_loading_over_day.csv")) as f:
-            reader = csv.DictReader(f)
+        lol_path = kwargs.get("level_of_loading_over_day",
+                              "data/examples/default_level_of_loading_over_day.csv")
+        with open(lol_path) as f:
+            delim = util.get_csv_delim(lol_path)
+            reader = csv.DictReader(f, delimiter=delim)
             self.lol_by_hour = {}
             for row in reader:
                 self.lol_by_hour.update({int(row['hour']): float(row['level_of_loading'])})
@@ -88,7 +93,8 @@ class Consumption:
                                                                this_speed=mean_speed)
         except KeyError:
             # Creating the interpol function from csv file.
-            df = pd.read_csv(consumption_path, sep=",")
+            delim = util.get_csv_delim(consumption_path)
+            df = pd.read_csv(consumption_path, sep=delim)
             # Create lookup table and make sure its in the same order as the input point
             # which will be the input for the nd lookup
             vt_col = df["vehicle_type"]
