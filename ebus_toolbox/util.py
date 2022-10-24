@@ -94,3 +94,27 @@ def get_buffer_time(trip, default=0):
                         break
 
     return buffer_time
+
+
+def get_csv_delim(path):
+    possible_delims = [",", ";", "\t", " ", ]
+    counters = [[] for x in possible_delims]
+    skip_delim = set()
+    with open(path, "r") as f:
+        for line_nr, line in enumerate(f):
+            for delim_nr, delim in enumerate(possible_delims):
+                if delim in skip_delim: continue
+                counters[delim_nr].append(line.count(delim))
+            if line_nr > 0:
+                for delim_nr, delim in enumerate(possible_delims):
+                    if len(set(counters[delim_nr])) > 1 or counters[delim_nr][-1] == 0:
+                        skip_delim.add(delim)
+                if len(skip_delim) == len(possible_delims) - 1:
+                    return set(possible_delims).difference(skip_delim).pop()
+                elif len(skip_delim) >= len(possible_delims):
+                    print("Warning: Delimiter could not be found.\n"
+                          "returning standard Delimiter ','")
+                    return ","
+    print("Warning: Delimiter could not be found.\n"
+          "returning standard Delimiter ','")
+    return ","

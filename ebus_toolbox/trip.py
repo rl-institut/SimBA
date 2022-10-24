@@ -15,13 +15,13 @@ class Trip:
         if height_diff is None:
             station_data = kwargs.get("station_data", dict())
             try:
-                height_diff = station_data[self.arrival_name]["Height_m"] \
-                              - station_data[self.departure_name]["Height_m"]
-            except KeyError:
+                height_diff = station_data[self.arrival_name]["elevation"] \
+                              - station_data[self.departure_name]["elevation"]
+            except KeyError or ArithmeticError:
                 height_diff = 0
         self.height_diff = height_diff
         self.level_of_loading = None
-        # Meandered in km/h from distance and travel time or from initialization
+        # Mean Speed in km/h from distance and travel time or from initialization
         # Travel time is at least 1 min
         mean_speed = kwargs.get("mean_speed", (self.distance / 1000) /
                                 max(1 / 60, ((self.arrival_time - self.departure_time) / timedelta(

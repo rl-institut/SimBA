@@ -67,17 +67,24 @@ class Schedule:
 
         station_data = dict()
         station_path = kwargs.get("station_data_path")
+
+
         if station_path is not None:
             try:
                 with open(str(station_path), "r") as f:
-                    reader = csv.DictReader(f)
+                    delim=util.get_csv_delim(station_path)
+                    reader = csv.DictReader(f, delimiter=delim)
                     station_data = dict()
                     for row in reader:
-                        station_data.update({str(row['Station']):
-                                            {"Height_m": float(row['Height_m'])}})
+                        station_data.update({str(row['Endhaltestelle']):
+                                            {"elevation": float(row['elevation'])}})
             except FileNotFoundError or KeyError:
-                print("Warning: external csv file '{}' not found or not named properly"
-                      "(Needed column names are 'Station' and 'Height_m')".
+                print("Warning: external csv file '{}' not found or not named properly \n"
+                      "(Needed column names are 'Endhaltestelle' and 'elevation')".
+                      format(station_path))
+            except ValueError:
+                print("Warning: external csv file '{}' does not contain numeric values in the \n"
+                      "column 'elevation'. Station data is discarded".
                       format(station_path))
 
         with open(path_to_csv, 'r') as trips_file:
