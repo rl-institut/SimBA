@@ -68,11 +68,10 @@ class Schedule:
         station_data = dict()
         station_path = kwargs.get("station_data_path")
 
-
         if station_path is not None:
             try:
                 with open(str(station_path), "r") as f:
-                    delim=util.get_csv_delim(station_path)
+                    delim = util.get_csv_delim(station_path)
                     reader = csv.DictReader(f, delimiter=delim)
                     station_data = dict()
                     for row in reader:
@@ -352,7 +351,7 @@ class Schedule:
 
                 # departure time of next trip for standing time calculation
                 try:
-                    next_departure_time = vehicle_trips[i+1].departure_time
+                    next_departure_time = vehicle_trips[i + 1].departure_time
                 except IndexError:
                     # last trip
                     next_departure_time = trip.arrival_time + datetime.timedelta(hours=8)

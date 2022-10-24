@@ -103,7 +103,8 @@ def get_csv_delim(path):
     with open(path, "r") as f:
         for line_nr, line in enumerate(f):
             for delim_nr, delim in enumerate(possible_delims):
-                if delim in skip_delim: continue
+                if delim in skip_delim:
+                    continue
                 counters[delim_nr].append(line.count(delim))
             if line_nr > 0:
                 for delim_nr, delim in enumerate(possible_delims):
