@@ -1,6 +1,7 @@
 import json
 import warnings
 
+
 def set_options_from_config(args, check=False, verbose=True):
     """Read options from config file, update given args, try to parse options
     , ignore comment lines (begin with #)
@@ -118,13 +119,16 @@ def get_csv_delim(path, other_delims=set()):
         # count delims in first line
         line = f.readline()
         counters = {d: line.count(d) for d in possible_delims if line.count(d) > 0}
+
+        # count delims in all following lines, rejecting those with different count than before
         for line_nr, line in enumerate(f):
             # for every delimiter in the dictionary. Casting to set creates new instance
             # needed in case of counter changing during the iteration.
             possible_delims = set(counters.keys())
             for delim in possible_delims:
-                # Append the list with the counted amount
+                # compare the counted amount with the first row values
                 amount = line.count(delim)
+                # delete the counter if its different to the first row
                 if counters[delim] != amount:
                     del counters[delim]
                 # if only one delimiter is remaining
