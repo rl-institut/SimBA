@@ -9,7 +9,7 @@ class Consumption:
         self.temperatures_by_hour = {}
         temperature_file_path = kwargs.get("outside_temperatures",
                                            "data/examples/default_temp_winter.csv")
-        # Parsing the Temperature to a dict
+        # parsing the Temperature to a dict
         with open(temperature_file_path) as f:
             delim = util.get_csv_delim(temperature_file_path)
             reader = csv.DictReader(f, delimiter=delim)
@@ -18,7 +18,7 @@ class Consumption:
 
         lol_file_path = kwargs.get("level_of_loading_over_day",
                                    "data/examples/default_level_of_loading_over_day.csv")
-        # Parsing the level of loading to a dict
+        # parsing the level of loading to a dict
         with open(lol_file_path) as f:
             delim = util.get_csv_delim(lol_file_path)
             reader = csv.DictReader(f, delimiter=delim)
@@ -66,21 +66,21 @@ class Consumption:
             delta_soc = -1 * (consumed_energy / vehicle_info["capacity"])
             return consumed_energy, delta_soc
 
-        # If no specific Temperature is given, lookup temperature
+        # if no specific Temperature is given, lookup temperature
         if temp is None:
             temp = self.temperatures_by_hour[time.hour]
 
-        # If no specific LoL is given, lookup temperature
+        # if no specific LoL is given, lookup temperature
         if level_of_loading is None:
             level_of_loading = self.lol_by_hour[time.hour]
 
         # load consumption csv
         consumption_path = vehicle_info["mileage"]
 
-        # Consumption_files holds interpol functions of csv files which are called directly
+        # consumption_files holds interpol functions of csv files which are called directly
         vehicle_type_nr = dict(SB=0, VDL=0, AB=1, CKB=1)[vehicle_type]
 
-        # Try to use the interpol function. If it does not exist yet its created in except case.
+        # try to use the interpol function. If it does not exist yet its created in except case.
         try:
             mileage = self.consumption_files[consumption_path](this_vehicle_type=vehicle_type_nr,
                                                                this_incline=height_diff / distance,
@@ -88,10 +88,10 @@ class Consumption:
                                                                this_lol=level_of_loading,
                                                                this_speed=mean_speed)
         except KeyError:
-            # Creating the interpol function from csv file.
+            # creating the interpol function from csv file.
             delim = util.get_csv_delim(consumption_path)
             df = pd.read_csv(consumption_path, sep=delim)
-            # Create lookup table and make sure its in the same order as the input point
+            # create lookup table and make sure its in the same order as the input point
             # which will be the input for the nd lookup
             vt_col = df["vehicle_type"]
             inc_col = df["incline"]

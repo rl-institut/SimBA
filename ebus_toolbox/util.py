@@ -110,20 +110,20 @@ def get_csv_delim(path, other_delims=set()):
     :rtype: str
     """
 
-    # Create union of default and optional other delimiters
+    # create union of default and optional other delimiters
     possible_delims = {",", ";", "\t"}.union(other_delims)
-    # Create a dict which counts the occurances of the delimiter per row
+    # create a dict which counts the occurances of the delimiter per row
     counters = {delim: list() for delim in possible_delims}
     with open(path, "r") as f:
         for line_nr, line in enumerate(f):
 
-            # For every delimiter in the dictionary
+            # for every delimiter in the dictionary
             for delim in counters.keys():
                 # Append the list with the counted amount
                 amount = line.count(delim)
                 counters[delim].append(amount)
 
-            # After the first row
+            # after the first row
             if line_nr > 0:
                 # for every delimiter in the counters dictionary
                 keys = set(counters.keys())
@@ -133,17 +133,17 @@ def get_csv_delim(path, other_delims=set()):
                     if len(set(counters[delim])) > 1 or counters[delim][-1] == 0:
                         # remove this delimiter from the dictionary
                         counters.pop(delim)
-                # If only one delimiter is remaining
+                # if only one delimiter is remaining
                 if len(counters) == 1:
-                    # Take the last item and return the key
+                    # take the last item and return the key
                     return counters.popitem()[0]
 
-                # If not even a single delimiter is remaining
+                # if not even a single delimiter is remaining
                 elif len(counters) < 1:
                     print("Warning: Delimiter could not be found.\n"
                           "returning standard Delimiter ','")
                     return ","
-    # Multiple delimiters are possible. Every row was checked but more than 1 delimiter
+    #  multiple delimiters are possible. Every row was checked but more than 1 delimiter
     # has the same amount of occurences (>0) in every row.
     print("Warning: Delimiter could not be found.\n"
           "returning standard Delimiter ','")
@@ -161,7 +161,6 @@ def nd_interp(input_values, lookup_table):
     :return: interpolated value
     :rtype: float
     """
-
     # find all unique values in table per column
     dim_sets = [set() for _ in input_values]
     for row in lookup_table:
