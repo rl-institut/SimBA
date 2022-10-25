@@ -112,20 +112,22 @@ def get_csv_delim(path, other_delims=set()):
 
     # Create union of default and optional other delimiters
     possible_delims = {",", ";", "\t"}.union(other_delims)
-    # Create a dict which counts the occurances of the delimter per row
-    counters = dict.fromkeys(possible_delims, [])
+    # Create a dict which counts the occurances of the delimiter per row
+    counters = {delim:list() for delim in possible_delims}
     with open(path, "r") as f:
         for line_nr, line in enumerate(f):
 
             # For every delimiter in the dictionary
             for delim in counters.keys():
                 # Append the list with the counted amount
-                counters[delim].append(line.count(delim))
+                amount=line.count(delim)
+                counters[delim].append(amount)
 
             # After the first row
             if line_nr > 0:
                 # for every delimiter in the counters dictionary
-                for delim in counters.keys():
+                keys = set(counters.keys())
+                for delim in keys:
                     # if different amounts of this delimiter were counted from row to row or the
                     # last amount was 0
                     if len(set(counters[delim])) > 1 or counters[delim][-1] == 0:
@@ -133,7 +135,8 @@ def get_csv_delim(path, other_delims=set()):
                         counters.pop(delim)
                 # If only one delimiter is remaining
                 if len(counters) == 1:
-                    return counters.keys()[0]
+                    # Take the last item and return the key
+                    return counters.popitem()[0]
 
                 # If not even a single delimiter is remaining
                 elif len(counters) < 1:
