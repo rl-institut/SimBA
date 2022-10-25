@@ -113,14 +113,14 @@ def get_csv_delim(path, other_delims=set()):
     # Create union of default and optional other delimiters
     possible_delims = {",", ";", "\t"}.union(other_delims)
     # Create a dict which counts the occurances of the delimiter per row
-    counters = {delim:list() for delim in possible_delims}
+    counters = {delim: list() for delim in possible_delims}
     with open(path, "r") as f:
         for line_nr, line in enumerate(f):
 
             # For every delimiter in the dictionary
             for delim in counters.keys():
                 # Append the list with the counted amount
-                amount=line.count(delim)
+                amount = line.count(delim)
                 counters[delim].append(amount)
 
             # After the first row
