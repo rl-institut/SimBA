@@ -17,7 +17,7 @@ class Trip:
             try:
                 height_diff = station_data[self.arrival_name]["elevation"] \
                               - station_data[self.departure_name]["elevation"]
-            except KeyError or ArithmeticError:
+            except KeyError or TypeError:
                 height_diff = 0
         self.height_diff = height_diff
         self.level_of_loading = None

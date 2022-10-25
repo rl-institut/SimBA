@@ -78,13 +78,15 @@ class Schedule:
                         station_data.update({str(row['Endhaltestelle']):
                                             {"elevation": float(row['elevation'])}})
             except FileNotFoundError or KeyError:
-                print("Warning: external csv file '{}' not found or not named properly \n"
-                      "(Needed column names are 'Endhaltestelle' and 'elevation')".
-                      format(station_path))
+                warnings.warn("Warning: external csv file '{}' not found or not named properly "
+                              "(Needed column names are 'Endhaltestelle' and 'elevation')".
+                              format(station_path),
+                              stacklevel=100)
             except ValueError:
-                print("Warning: external csv file '{}' does not contain numeric values in the \n"
-                      "column 'elevation'. Station data is discarded".
-                      format(station_path))
+                warnings.warn("Warning: external csv file '{}' does not contain numeric"
+                              "values in the column 'elevation'. Station data is discarded".
+                              format(station_path),
+                              stacklevel=100)
 
         with open(path_to_csv, 'r') as trips_file:
             trip_reader = csv.DictReader(trips_file)

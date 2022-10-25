@@ -96,26 +96,130 @@ def get_buffer_time(trip, default=0):
     return buffer_time
 
 
-def get_csv_delim(path):
-    possible_delims = [",", ";", "\t", " ", ]
-    counters = [[] for x in possible_delims]
-    skip_delim = set()
+def get_csv_delim(path, other_delims=set()):
+    """ Get the delimiter of a character separated file.
+     Checks the file for ",", "tabulator" and ";" as well as optional other characters
+     or strings.
+     In case no clear delimiter is found "," as delimiter is returned
+
+    :param path: Path to file to be checked
+    :type path: str
+    :param other_delims: Other delimiters besides the default delimiters to be checked
+    :type other_delims: set() of str
+    :return: delimiter
+    :rtype: str
+    """
+
+    # Create union of default and optional other delimiters
+    possible_delims = {",", ";", "\t"}.union(other_delims)
+    # Create a dict which counts the occurances of the delimter per row
+    counters = dict.fromkeys(possible_delims, [])
     with open(path, "r") as f:
         for line_nr, line in enumerate(f):
-            for delim_nr, delim in enumerate(possible_delims):
-                if delim in skip_delim:
-                    continue
-                counters[delim_nr].append(line.count(delim))
+
+            # For every delimiter in the dictionary
+            for delim in counters.keys():
+                # Append the list with the counted amount
+                counters[delim].append(line.count(delim))
+
+            # After the first row
             if line_nr > 0:
-                for delim_nr, delim in enumerate(possible_delims):
-                    if len(set(counters[delim_nr])) > 1 or counters[delim_nr][-1] == 0:
-                        skip_delim.add(delim)
-                if len(skip_delim) == len(possible_delims) - 1:
-                    return set(possible_delims).difference(skip_delim).pop()
-                elif len(skip_delim) >= len(possible_delims):
+                # for every delimiter in the counters dictionary
+                for delim in counters.keys():
+                    # if different amounts of this delimiter were counted from row to row or the
+                    # last amount was 0
+                    if len(set(counters[delim])) > 1 or counters[delim][-1] == 0:
+                        # remove this delimiter from the dictionary
+                        counters.pop(delim)
+                # If only one delimiter is remaining
+                if len(counters) == 1:
+                    return counters.keys()[0]
+
+                # If not even a single delimiter is remaining
+                elif len(counters) < 1:
                     print("Warning: Delimiter could not be found.\n"
                           "returning standard Delimiter ','")
                     return ","
+    # Multiple delimiters are possible. Every row was checked but more than 1 delimiter
+    # has the same amount of occurences (>0) in every row.
     print("Warning: Delimiter could not be found.\n"
           "returning standard Delimiter ','")
     return ","
+
+
+def nd_interp(input_values, lookup_table):
+    """ Get the interpolated output value for a given input value of n dimensions and a given
+    lookup table with n+1 columns. Input values outside of the lookup table are
+    clipped to the bounds.
+    :param input_values: tuple with n input values
+    :type input_values: tuple(floats)
+    :param lookup_table: Table with n+1 columns, with the output values in the (n+1)th column
+    :type lookup_table: list() of lists()
+    :return: interpolated value
+    :rtype: float
+    """
+
+    # find all unique values in table per column
+    dim_sets = [set() for _ in input_values]
+    for row in lookup_table:
+        for i, v in enumerate(row[:-1]):
+            dim_sets[i].add(v)
+    dim_values = [sorted(s) for s in dim_sets]
+    # find nearest value(s) per column
+    # go through sorted column values until last less / first greater
+    lower = [None] * len(input_values)
+    upper = [None] * len(input_values)
+    for i, v in enumerate(input_values):
+        # initialize for out of bound values -> Constant value since lower and upper will both
+        # be the same boundary value. Still allows for interpolation in other dimensions
+        # forcing lower<upper could be implemented for extrapolation beyond the bounds.
+        lower[i] = dim_values[i][0]
+        upper[i] = dim_values[i][-1]
+        for c in dim_values[i]:
+            if v >= c:
+                lower[i] = c
+            if v <= c:
+                upper[i] = c
+                break
+    # find rows in table made up of only lower or upper values
+    points = []
+    for row in lookup_table:
+        for i, v in enumerate(row[:-1]):
+            if lower[i] != v and upper[i] != v:
+                break
+        else:
+            points.append(row)
+
+    # interpolate between points that differ only in current dimension
+    for i, x in enumerate(input_values):
+        new_points = []
+        # find points that differ in just that dimension
+        for j, p1 in enumerate(points):
+            for p2 in points[j + 1:]:
+                for k in range(len(input_values)):
+                    if p1[k] != p2[k] and i != k:
+                        break
+                else:
+                    # differing row found
+                    x1 = p1[i]
+                    y1 = p1[-1]
+                    x2 = p2[i]
+                    y2 = p2[-1]
+                    dx = x2 - x1
+                    dy = y2 - y1
+                    m = dy / dx
+                    n = y1 - m * x1
+                    y = m * x + n
+                    # generate new point at interpolation
+                    p = [v for v in p1]
+                    p[i] = x
+                    p[-1] = y
+                    new_points.append(p)
+                    # only couple
+                    break
+            else:
+                # no matching row (singleton dimension?)
+                new_points.append(p1)
+        points = new_points
+
+    return points[0][-1]

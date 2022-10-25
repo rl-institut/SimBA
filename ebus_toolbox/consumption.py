@@ -1,4 +1,3 @@
-import numpy as np
 import csv
 import pandas as pd
 from ebus_toolbox import util
@@ -8,17 +7,20 @@ class Consumption:
     def __init__(self, vehicle_types, **kwargs) -> None:
         # load temperature of the day, now dummy winter day
         self.temperatures_by_hour = {}
-        temp_path = kwargs.get("outside_temperatures", "data/examples/default_temp_winter.csv")
-        with open(temp_path) as f:
-            delim = util.get_csv_delim(temp_path)
+        temperature_file_path = kwargs.get("outside_temperatures",
+                                           "data/examples/default_temp_winter.csv")
+        # Parsing the Temperature to a dict
+        with open(temperature_file_path) as f:
+            delim = util.get_csv_delim(temperature_file_path)
             reader = csv.DictReader(f, delimiter=delim)
             for row in reader:
                 self.temperatures_by_hour.update({int(row['hour']): float(row['temperature'])})
 
-        lol_path = kwargs.get("level_of_loading_over_day",
-                              "data/examples/default_level_of_loading_over_day.csv")
-        with open(lol_path) as f:
-            delim = util.get_csv_delim(lol_path)
+        lol_file_path = kwargs.get("level_of_loading_over_day",
+                                   "data/examples/default_level_of_loading_over_day.csv")
+        # Parsing the level of loading to a dict
+        with open(lol_file_path) as f:
+            delim = util.get_csv_delim(lol_file_path)
             reader = csv.DictReader(f, delimiter=delim)
             self.lol_by_hour = {}
             for row in reader:
@@ -30,8 +32,6 @@ class Consumption:
     def calculate_consumption(self, time, distance, vehicle_type, charging_type, temp=None,
                               height_diff=0, level_of_loading=None, mean_speed=18):
         """ Calculates consumed amount of energy for a given distance.
-
-
         :param time: The date and time at which the trip ends
         :type time: datetime.datetime
         :param distance: Distance travelled [m]
@@ -55,7 +55,7 @@ class Consumption:
         :rtype: (float, float)
         """
 
-        assert self.vehicle_types.get(vehicle_type, {}).get(charging_type), \
+        assert self.vehicle_types.get(vehicle_type, {}).get(charging_type),\
             f"Combination of vehicle type {vehicle_type} and {charging_type} not defined."
 
         vehicle_info = self.vehicle_types[vehicle_type][charging_type]
@@ -66,17 +66,13 @@ class Consumption:
             delta_soc = -1 * (consumed_energy / vehicle_info["capacity"])
             return consumed_energy, delta_soc
 
-        # If no specific LoL is given, interpolate from demand time series.
+        # If no specific Temperature is given, lookup temperature
         if temp is None:
-            temp = np.interp(time.hour,
-                             list(self.temperatures_by_hour.keys()),
-                             list(self.temperatures_by_hour.values()))
+            temp = self.temperatures_by_hour[time.hour]
 
-        # If no specific LoL is given, interpolate from demand time series.
+        # If no specific LoL is given, lookup temperature
         if level_of_loading is None:
-            level_of_loading = np.interp(time.hour,
-                                         list(self.lol_by_hour.keys()),
-                                         list(self.lol_by_hour.values()))
+            level_of_loading = self.lol_by_hour[time.hour]
 
         # load consumption csv
         consumption_path = vehicle_info["mileage"]
@@ -107,7 +103,7 @@ class Consumption:
 
             def interpol_function(this_vehicle_type, this_incline, this_temp, this_lol, this_speed):
                 input_point = (this_vehicle_type, this_incline, this_temp, this_lol, this_speed)
-                return nd_interp(input_point, data_table)
+                return util.nd_interp(input_point, data_table)
 
             self.consumption_files.update({consumption_path: interpol_function})
 
@@ -121,68 +117,3 @@ class Consumption:
         delta_soc = -1 * (consumed_energy / vehicle_info["capacity"])
 
         return consumed_energy, delta_soc
-
-
-def nd_interp(input_values, lookup_table):
-    # find all unique values in table per column
-    dim_sets = [set() for _ in input_values]
-    for row in lookup_table:
-        for i, v in enumerate(row[:-1]):
-            dim_sets[i].add(v)
-    dim_values = [sorted(s) for s in dim_sets]
-    # find nearest value(s) per column
-    # go through sorted column values until last less / first greater
-    lower = [None] * len(input_values)
-    upper = [None] * len(input_values)
-    for i, v in enumerate(input_values):
-        # initialize for out of bound values -> Constant value
-        lower[i] = dim_values[i][0]
-        upper[i] = dim_values[i][-1]
-        for c in dim_values[i]:
-            if v >= c:
-                lower[i] = c
-            if v <= c:
-                upper[i] = c
-                break
-    # find rows in table made up of only lower or upper values
-    points = []
-    for row in lookup_table:
-        for i, v in enumerate(row[:-1]):
-            if lower[i] != v and upper[i] != v:
-                break
-        else:
-            points.append(row)
-
-    # interpolate between points that differ only in current dimension
-    for i, x in enumerate(input_values):
-        new_points = []
-        # find points that differ in just that dimension
-        for j, p1 in enumerate(points):
-            for p2 in points[j + 1:]:
-                for k in range(len(input_values)):
-                    if p1[k] != p2[k] and i != k:
-                        break
-                else:
-                    # differing row found
-                    x1 = p1[i]
-                    y1 = p1[-1]
-                    x2 = p2[i]
-                    y2 = p2[-1]
-                    dx = x2 - x1
-                    dy = y2 - y1
-                    m = dy / dx
-                    n = y1 - m * x1
-                    y = m * x + n
-                    # generate new point at interpolation
-                    p = [v for v in p1]
-                    p[i] = x
-                    p[-1] = y
-                    new_points.append(p)
-                    # only couple
-                    break
-            else:
-                # no matching row (singleton dimension?)
-                new_points.append(p1)
-        points = new_points
-
-    return points[0][-1]
