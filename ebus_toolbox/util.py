@@ -1,5 +1,5 @@
 import json
-
+import warnings
 
 def set_options_from_config(args, check=False, verbose=True):
     """Read options from config file, update given args, try to parse options
@@ -112,41 +112,34 @@ def get_csv_delim(path, other_delims=set()):
 
     # create union of default and optional other delimiters
     possible_delims = {",", ";", "\t"}.union(other_delims)
-    # create a dict which counts the occurances of the delimiter per row
-    counters = {delim: list() for delim in possible_delims}
-    with open(path, "r") as f:
-        for line_nr, line in enumerate(f):
+    # create a dict which counts the occurrences of the delimiter per row
 
-            # for every delimiter in the dictionary
-            for delim in counters.keys():
+    with open(path, "r") as f:
+        # count delims in first line
+        line = f.readline()
+        counters = {d: line.count(d) for d in possible_delims if line.count(d) > 0}
+        for line_nr, line in enumerate(f):
+            # for every delimiter in the dictionary. Casting to set creates new instance
+            # needed in case of counter changing during the iteration.
+            possible_delims = set(counters.keys())
+            for delim in possible_delims:
                 # Append the list with the counted amount
                 amount = line.count(delim)
-                counters[delim].append(amount)
-
-            # after the first row
-            if line_nr > 0:
-                # for every delimiter in the counters dictionary
-                keys = set(counters.keys())
-                for delim in keys:
-                    # if different amounts of this delimiter were counted from row to row or the
-                    # last amount was 0
-                    if len(set(counters[delim])) > 1 or counters[delim][-1] == 0:
-                        # remove this delimiter from the dictionary
-                        counters.pop(delim)
+                if counters[delim] != amount:
+                    del counters[delim]
                 # if only one delimiter is remaining
                 if len(counters) == 1:
                     # take the last item and return the key
                     return counters.popitem()[0]
-
                 # if not even a single delimiter is remaining
-                elif len(counters) < 1:
-                    print("Warning: Delimiter could not be found.\n"
-                          "returning standard Delimiter ','")
+                elif not counters:
+                    warnings.warn("Warning: Delimiter could not be found.\n"
+                                  "Returning standard Delimiter ','", stacklevel=100)
                     return ","
     #  multiple delimiters are possible. Every row was checked but more than 1 delimiter
-    # has the same amount of occurences (>0) in every row.
-    print("Warning: Delimiter could not be found.\n"
-          "returning standard Delimiter ','")
+    # has the same amount of occurrences (>0) in every row.
+    warnings.warn("Warning: Delimiter could not be found.\n"
+                  "Returning standard Delimiter ','", stacklevel=100)
     return ","
 
 
