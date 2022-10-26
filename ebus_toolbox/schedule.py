@@ -65,10 +65,36 @@ class Schedule:
         """
         schedule = cls(vehicle_types, stations, **kwargs)
 
+        station_data = dict()
+        station_path = kwargs.get("station_data_path")
+
+        if station_path is not None:
+            try:
+                with open(str(station_path), "r") as f:
+                    delim = util.get_csv_delim(station_path)
+                    reader = csv.DictReader(f, delimiter=delim)
+                    station_data = dict()
+                    for row in reader:
+                        station_data.update({str(row['Endhaltestelle']):
+                                            {"elevation": float(row['elevation'])}})
+            except FileNotFoundError or KeyError:
+                warnings.warn("Warning: external csv file '{}' not found or not named properly "
+                              "(Needed column names are 'Endhaltestelle' and 'elevation')".
+                              format(station_path),
+                              stacklevel=100)
+            except ValueError:
+                warnings.warn("Warning: external csv file '{}' does not contain numeric"
+                              "values in the column 'elevation'. Station data is discarded".
+                              format(station_path),
+                              stacklevel=100)
+
         with open(path_to_csv, 'r') as trips_file:
             trip_reader = csv.DictReader(trips_file)
             for trip in trip_reader:
                 rotation_id = trip['rotation_id']
+                # trip gets reference to station data and calculates height diff during trip
+                # initialization. Could also get the height difference from here on
+                trip["station_data"] = station_data
                 if rotation_id not in schedule.rotations.keys():
                     schedule.rotations.update({
                         rotation_id: Rotation(id=rotation_id,
@@ -327,7 +353,7 @@ class Schedule:
             # sort rotations by time leveraging the fact that the
             # list of trips per rotation is always sorted
             vehicle_rotations = {k: v for k, v in sorted(
-                                 vehicle_rotations.items(), key=lambda x: x[1].departure_time)}
+                vehicle_rotations.items(), key=lambda x: x[1].departure_time)}
             vehicle_trips = [t for rot in vehicle_rotations.values() for t in rot.trips]
 
             for i, trip in enumerate(vehicle_trips):

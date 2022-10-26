@@ -1,33 +1,56 @@
-import numpy as np
 import csv
+import pandas as pd
+from ebus_toolbox import util
 
 
 class Consumption:
-
     def __init__(self, vehicle_types, **kwargs) -> None:
         # load temperature of the day, now dummy winter day
         self.temperatures_by_hour = {}
-        with open(kwargs.get("outside_temperatures", "data/examples/default_temp_winter.csv")) as f:
-            reader = csv.DictReader(f)
+        temperature_file_path = kwargs.get("outside_temperatures",
+                                           "data/examples/default_temp_winter.csv")
+        # parsing the Temperature to a dict
+        with open(temperature_file_path) as f:
+            delim = util.get_csv_delim(temperature_file_path)
+            reader = csv.DictReader(f, delimiter=delim)
             for row in reader:
                 self.temperatures_by_hour.update({int(row['hour']): float(row['temperature'])})
+
+        lol_file_path = kwargs.get("level_of_loading_over_day",
+                                   "data/examples/default_level_of_loading_over_day.csv")
+        # parsing the level of loading to a dict
+        with open(lol_file_path) as f:
+            delim = util.get_csv_delim(lol_file_path)
+            reader = csv.DictReader(f, delimiter=delim)
+            self.lol_by_hour = {}
+            for row in reader:
+                self.lol_by_hour.update({int(row['hour']): float(row['level_of_loading'])})
 
         self.consumption_files = {}
         self.vehicle_types = vehicle_types
 
-    def calculate_consumption(self, time, distance, vehicle_type, charging_type):
+    def calculate_consumption(self, time, distance, vehicle_type, charging_type, temp=None,
+                              height_diff=0, level_of_loading=None, mean_speed=18):
         """ Calculates consumed amount of energy for a given distance.
-
         :param time: The date and time at which the trip ends
         :type time: datetime.datetime
-        :param distance: Distance travelled [km]
+        :param distance: Distance travelled [m]
         :type distance: float
         :param vehicle_type: The vehicle type for which to calculate consumption
         :type vehicle_type: str
         :param charging_type: Charging type for the trip. Consumption differs between
                               distinct types.
         :type charging_type: str
-
+        :param temp: Temperature outside of the bus in °Celsius
+        :type temp: float
+        :param height_diff: difference in height between stations in meters-
+        :type height_diff: float
+        :param level_of_loading: Level of loading of the bus between empty (=0) and
+                                 completely full (=1.0). If None
+                                 is provided, Level of loading will be interpolated from time series
+        :type level_of_loading: float
+        :param mean_speed: Mean speed between two stops in km/h
+        :type mean_speed: float
         :return: Consumed energy [kWh] and delta SOC as tuple
         :rtype: (float, float)
         """
@@ -43,29 +66,54 @@ class Consumption:
             delta_soc = -1 * (consumed_energy / vehicle_info["capacity"])
             return consumed_energy, delta_soc
 
-        temp = np.interp(time.hour,
-                         list(self.temperatures_by_hour.keys()),
-                         list(self.temperatures_by_hour.values()))
+        # if no specific Temperature is given, lookup temperature
+        if temp is None:
+            temp = self.temperatures_by_hour[time.hour]
+
+        # if no specific LoL is given, lookup temperature
+        if level_of_loading is None:
+            level_of_loading = self.lol_by_hour[time.hour]
 
         # load consumption csv
-        consumption_file = vehicle_info["mileage"]
+        consumption_path = vehicle_info["mileage"]
+
+        # consumption_files holds interpol functions of csv files which are called directly
+        vehicle_type_nr = dict(SB=0, VDL=0, AB=1, CKB=1)[vehicle_type]
+
+        # try to use the interpol function. If it does not exist yet its created in except case.
         try:
-            consumption = self.consumption_files[consumption_file]
+            mileage = self.consumption_files[consumption_path](this_vehicle_type=vehicle_type_nr,
+                                                               this_incline=height_diff / distance,
+                                                               this_temp=temp,
+                                                               this_lol=level_of_loading,
+                                                               this_speed=mean_speed)
         except KeyError:
-            consumption = {'temperature': [], 'consumption': []}
-            with open(consumption_file, 'r') as f:
-                reader = csv.DictReader(f)
-                for row in reader:
-                    consumption['temperature'].append(float(row['Temp.']))
-                    consumption['consumption'].append(float(row['Kat. B']))
-            self.consumption_files.update({consumption_file: consumption})
+            # creating the interpol function from csv file.
+            delim = util.get_csv_delim(consumption_path)
+            df = pd.read_csv(consumption_path, sep=delim)
+            # create lookup table and make sure its in the same order as the input point
+            # which will be the input for the nd lookup
+            vt_col = df["vehicle_type"]
+            inc_col = df["incline"]
+            tmp_col = df["temp"]
+            lol_col = df["level_of_loading"]
+            speed_col = df["mean_speed_kmh"]
+            cons_col = df["consumption_kwh_per_km"]
+            data_table = list(zip(vt_col, inc_col, tmp_col, lol_col, speed_col, cons_col))
 
-        xp = self.consumption_files[consumption_file]['temperature']
-        fp = self.consumption_files[consumption_file]['consumption']
+            def interpol_function(this_vehicle_type, this_incline, this_temp, this_lol, this_speed):
+                input_point = (this_vehicle_type, this_incline, this_temp, this_lol, this_speed)
+                return util.nd_interp(input_point, data_table)
 
-        mileage = np.interp(temp, xp, fp)  # kWh / m
+            self.consumption_files.update({consumption_path: interpol_function})
+
+            mileage = self.consumption_files[consumption_path](this_vehicle_type=vehicle_type_nr,
+                                                               this_incline=height_diff / distance,
+                                                               this_temp=temp,
+                                                               this_lol=level_of_loading,
+                                                               this_speed=mean_speed)
+
         consumed_energy = mileage * distance / 1000  # kWh
-
         delta_soc = -1 * (consumed_energy / vehicle_info["capacity"])
 
         return consumed_energy, delta_soc
