@@ -116,11 +116,11 @@ def get_csv_delim(path, other_delims=set()):
     # create a dict which counts the occurrences of the delimiter per row
 
     with open(path, "r") as f:
-        # count delims in first line
+        # count delimiters in first line
         line = f.readline()
         counters = {d: line.count(d) for d in possible_delims if line.count(d) > 0}
 
-        # count delims in all following lines, rejecting those with different count than before
+        # count delimiters in all following lines, rejecting those with different count than before
         for line_nr, line in enumerate(f):
             # for every delimiter in the dictionary. Casting to set creates new instance
             # needed in case of counter changing during the iteration.
@@ -128,7 +128,7 @@ def get_csv_delim(path, other_delims=set()):
             for delim in possible_delims:
                 # compare the counted amount with the first row values
                 amount = line.count(delim)
-                # delete the counter if its different to the first row
+                # delete the counter if it is different to the first row
                 if counters[delim] != amount:
                     del counters[delim]
                 # if only one delimiter is remaining
@@ -143,7 +143,7 @@ def get_csv_delim(path, other_delims=set()):
     #  multiple delimiters are possible. Every row was checked but more than 1 delimiter
     # has the same amount of occurrences (>0) in every row.
     warnings.warn("Warning: Delimiter could not be found.\n"
-                  "Returning standard Delimiter ','", stacklevel=100)
+                  "Returning standard delimiter ','", stacklevel=100)
     return ","
 
 

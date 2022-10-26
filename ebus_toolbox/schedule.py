@@ -92,7 +92,7 @@ class Schedule:
             trip_reader = csv.DictReader(trips_file)
             for trip in trip_reader:
                 rotation_id = trip['rotation_id']
-                # Trip gets reference to station data and calculates height diff during Trip
+                # trip gets reference to station data and calculates height diff during trip
                 # initialization. Could also get the height difference from here on
                 trip["station_data"] = station_data
                 if rotation_id not in schedule.rotations.keys():

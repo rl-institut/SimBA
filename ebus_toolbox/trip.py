@@ -21,8 +21,8 @@ class Trip:
                 height_diff = 0
         self.height_diff = height_diff
         self.level_of_loading = None
-        # Mean Speed in km/h from distance and travel time or from initialization
-        # Travel time is at least 1 min
+        # mean speed in km/h from distance and travel time or from initialization
+        # travel time is at least 1 min
         mean_speed = kwargs.get("mean_speed", (self.distance / 1000) /
                                 max(1 / 60, ((self.arrival_time - self.departure_time) / timedelta(
                                     hours=1))))
