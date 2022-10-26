@@ -16,8 +16,8 @@ def json_comment_handler(json_file, path_with_filename):
     :type json_file: str
     :param path_with_filename: path to the JSON file
     :type path_with_filename: str
-    :return uncommented_json_file: updated JSON file
-    :rtype str
+    :return return_dict: dictionary with JSON file contents
+    :rtype dict
     """
 
     uncommented_json_file = None
