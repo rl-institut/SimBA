@@ -5,7 +5,7 @@ HASHTAG = '#'
 TRIPLE_QUOTATION_MARK = '"""'
 
 
-def json_comment_handler(json_file, path):
+def json_comment_handler(json_file, path_with_filename):
     """Removes comments from the json_file and returns it.
 
     First a new file object is instantiated.
@@ -14,21 +14,24 @@ def json_comment_handler(json_file, path):
 
     :param json_file: input JSON file
     :type json_file: str
-    :param path: path to the JSON file
-    :type path: str
+    :param path_with_filename: path to the JSON file
+    :type path_with_filename: str
     :return uncommented_json_file: updated JSON file
     :rtype str
     """
-    # create new updated file
+
     uncommented_json_file = None
+    updated_json_file = f"updated_{json_file}"
+
+    # create new updated file
     try:
-        uncommented_json_file = open(f"updated_{json_file}", "w")
+        uncommented_json_file = open(updated_json_file, "w")
     except FileNotFoundError:
-        print("Couldn't create file")
+        print("Couldn't create updated JSON file")
 
     in_comment_bool = False
     try:
-        with open(path) as f:
+        with open(path_with_filename) as f:
             lines = f.readlines()
             for line in lines:
                 if TRIPLE_QUOTATION_MARK in line and in_comment_bool:
@@ -40,23 +43,26 @@ def json_comment_handler(json_file, path):
                     in_comment_bool = True
                     continue
                 if HASHTAG in line:
-                    line = line.partition("#")[0] + "\n"
+                    line = line.partition("#")[0] # + "\n"
                 uncommented_json_file.write(line)
+            uncommented_json_file.flush()
+    except FileNotFoundError:
+        print("Couldn't read JSON file.")
+
+    return_dict = None
+    try:
+        with open(updated_json_file, 'r') as f:
+            f_string = f.read()
+            return_dict = json.loads(f_string)
     except FileNotFoundError:
         print("Couldn't read file.")
 
-    # TODO convert to dict
+    if os.path.exists(updated_json_file):
+        os.remove(updated_json_file)
+    else:
+        print("The updated JSON file does not exist")
 
-    return uncommented_json_file
-
-
-if __name__ == '__main__':
-    name = "vehicle_types.json"
-    path = "../data/examples/vehicle_types.json"
-    name1 = "new_file.txt"
-    path1 = "new_file.txt"
-    dictionary = json_comment_handler(name1, path1)
-    print(dictionary)
+    return return_dict
 
 
 def set_options_from_config(args, check=False, verbose=True):
