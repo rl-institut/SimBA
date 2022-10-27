@@ -109,6 +109,40 @@ class Schedule:
             if rot.charging_type is None:
                 rot.set_charging_type(ct=kwargs.get('preferred_charging_type', 'oppb'))
 
+        """
+        check expectations, such as
+        - each rotation has one "Einsetzfahrt"
+        - each rotation has one "Aussetzfahrt"
+        - the "Einsatzfahrt" starts where the "Aussetzfahrt" ends
+        - the rotation name is unique
+        - every trip within a rotation starts where the previous trip ended
+        """
+        for rot_id, rotation in schedule.rotations.items():
+            # iterate over trips, looking for initial and final stations
+            dep_name = None
+            arr_name = None
+            prev_station_name = None
+            try:
+                for trip in rotation.trips:
+                    if trip.line == "Einsetzfahrt":
+                        # must have exactly one "Einsetzfahrt"
+                        assert dep_name is None, "Einsetzfahrt encountered mutliple times"
+                        dep_name = trip.departure_name
+                    if trip.line == "Aussetzfahrt":
+                        # must have exactly one "Aussetzfahrt"
+                        assert arr_name is None, "Aussetzfahrt encountered multiple times"
+                        arr_name = trip.arrival_name
+                    if prev_station_name is not None:
+                        # must depart from the previous station
+                        assert trip.departure_name == prev_station_name, "Wrong departure station"
+                        prev_station_name = trip.arrival_name
+                # must have exactly one "Einsetzfahrt" and "Aussetzfahrt"
+                assert dep_name is not None and arr_name is not None, "No Ein- or Aussetzfahrt"
+                # rotation must end where it started
+                assert dep_name == arr_name, "Start and end of rotation differ"
+            except AssertionError as e:
+                print(f"Rotation {rot_id}: {e}")
+
         return schedule
 
     def run(self, args):
