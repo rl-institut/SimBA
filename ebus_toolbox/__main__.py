@@ -28,8 +28,10 @@ if __name__ == '__main__':
                         help='set duration of scenario as number of days')
     parser.add_argument('--interval', metavar='MIN', type=int, default=15,
                         help='set number of minutes for each timestep (Δt)')
-    parser.add_argument('--desired-soc', metavar='SOC', type=float, default=0.8,
-                        help='set minimum desired SOC (0 - 1) for each charging process')
+    parser.add_argument('--desired-soc-deps', metavar='SOC', type=float, default=1.0,
+                        help='set minimum desired SOC (0 - 1) for depot charging')
+    parser.add_argument('--desired-soc-opps', metavar='SOC', type=float, default=0.8,
+                        help='set minimum desired SOC (0 - 1) for opportunity charging')
     parser.add_argument('--gc-power-opps', metavar='POPP', type=float, default=None,
                         help='max power of grid connector at opp stations')
     parser.add_argument('--gc-power-deps', metavar='PDEP', type=float, default=None,

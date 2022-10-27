@@ -382,8 +382,8 @@ class Schedule:
                         # a depot bus cannot charge at an opp station
                         station_type = None
                     else:
-                        # at opp station, always try to charge as much as you can
-                        desired_soc = 1 if station_type == "opps" else args.desired_soc
+                        # get desired soc by station type
+                        desired_soc = vars(args).get("desired_soc_" + station_type)
                 except KeyError:
                     # non-electrified station
                     station_type = None
@@ -443,7 +443,7 @@ class Schedule:
                         "connected_charging_station": None,
                         "estimated_time_of_departure": trip.departure_time.isoformat(),
                         "desired_soc": None,
-                        "soc": args.desired_soc,
+                        "soc": args.desired_soc_deps,
                         "vehicle_type":
                             f"{trip.rotation.vehicle_type}_{trip.rotation.charging_type}"
                     }
