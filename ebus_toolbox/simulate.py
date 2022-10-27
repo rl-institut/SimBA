@@ -1,10 +1,9 @@
 # imports
-import json
 from ebus_toolbox.consumption import Consumption
 from ebus_toolbox.schedule import Schedule
 from ebus_toolbox.trip import Trip
 from ebus_toolbox.costs import calculate_costs
-from ebus_toolbox import report, optimization
+from ebus_toolbox import report, optimization, util
 
 
 def simulate(args):
@@ -18,7 +17,7 @@ def simulate(args):
     # load vehicle types
     try:
         with open(args.vehicle_types) as f:
-            vehicle_types = json.load(f)
+            vehicle_types = util.uncomment_json_file(f)
             del args.vehicle_types
     except FileNotFoundError:
         raise SystemExit(f"Path to vehicle types ({args.vehicle_types}) "
@@ -27,7 +26,7 @@ def simulate(args):
     # load stations file
     try:
         with open(args.electrified_stations) as f:
-            stations = json.load(f)
+            stations = util.uncomment_json_file(f)
     except FileNotFoundError:
         raise SystemExit(f"Path to electrified stations ({args.electrified_stations}) "
                          "does not exist. Exiting...")
@@ -36,7 +35,7 @@ def simulate(args):
     if args.cost_params is not None:
         try:
             with open(args.cost_params) as f:
-                cost_params = json.load(f)
+                cost_params = util.uncomment_json_file(f)
         except FileNotFoundError:
             raise SystemExit(f"Path to cost parameters ({args.cost_params}) "
                              "does not exist. Exiting...")

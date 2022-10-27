@@ -97,6 +97,30 @@ def get_buffer_time(trip, default=0):
     return buffer_time
 
 
+def uncomment_json_file(f, char='#'):
+    """
+    Remove comments from JSON file.
+
+    Wouldn't it be nice to have comments in JSON data? Now you can!
+    Both full-line comments and trailing lines are supported.
+    :param f: file to read
+    :type f: JSON file handle
+    :param char: char used for commenting, defaults to #
+    :type char: char
+    :return: JSON file content
+    :rtype: dict
+    """
+    uncommented_data = ""
+    for line in f:
+        try:
+            comment_idx = line.index(char)
+            uncommented_data += line[:comment_idx]
+        except ValueError:
+            # no comment in line
+            uncommented_data += line
+    return json.loads(uncommented_data)
+
+
 def get_csv_delim(path, other_delims=set()):
     """ Get the delimiter of a character separated file.
      Checks the file for ",", "tabulator" and ";" as well as optional other characters
