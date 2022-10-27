@@ -115,9 +115,12 @@ if __name__ == '__main__':
     # args.output_directory can be overwritten by config
     args.output_directory.mkdir(parents=True, exist_ok=True)
 
-    args.save_timeseries = args.output_directory / "simulation_spiceEV.csv"
-    args.save_results = args.output_directory / "simulation_spiceEV.json"
-    args.save_soc = args.output_directory / "simulation_soc_spiceEV.csv"
+    if not args.save_timeseries:
+        args.save_timeseries = args.output_directory / "simulation_spiceEV.csv"
+    if not args.save_results:
+        args.save_results = args.output_directory / "simulation_spiceEV.json"
+    if not args.save_soc:
+        args.save_soc = args.output_directory / "simulation_soc_spiceEV.csv"
 
     # rename special options
     args.timing = args.eta
