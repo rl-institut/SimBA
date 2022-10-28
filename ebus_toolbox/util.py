@@ -5,7 +5,7 @@ HASHTAG = '#'
 TRIPLE_QUOTATION_MARK = '"""'
 
 
-def json_comment_handler(json_file, path_with_filename):
+def json_comment_handler(json_file, path_with_filename, create_file=False):
     """Removes comments from the json_file and returns it.
 
     First a new file object is instantiated.
@@ -16,19 +16,16 @@ def json_comment_handler(json_file, path_with_filename):
     :type json_file: str
     :param path_with_filename: path to the JSON file
     :type path_with_filename: str
+    :param create_file: should a uncommented JSON-file be created?
+    _type create_file: bool
     :return return_dict: dictionary with JSON file contents
     :rtype dict
     """
 
-    uncommented_json_file = None
-    updated_json_file = f"updated_{json_file}"
+    uncommented_json_file_string = ""
+    updated_json_file_name = f"updated_{json_file}"
 
-    # create new updated file
-    try:
-        uncommented_json_file = open(updated_json_file, "w")
-    except FileNotFoundError:
-        print("Couldn't create updated JSON file")
-
+    # remove comments
     in_comment_bool = False
     try:
         with open(path_with_filename) as f:
@@ -43,24 +40,18 @@ def json_comment_handler(json_file, path_with_filename):
                     in_comment_bool = True
                     continue
                 if HASHTAG in line:
-                    line = line.partition("#")[0] # + "\n"
-                uncommented_json_file.write(line)
-            uncommented_json_file.flush()
+                    line = line.partition("#")[0]
+                uncommented_json_file_string += line
     except FileNotFoundError:
         print("Couldn't read JSON file.")
 
-    return_dict = None
-    try:
-        with open(updated_json_file, 'r') as f:
-            f_string = f.read()
-            return_dict = json.loads(f_string)
-    except FileNotFoundError:
-        print("Couldn't read file.")
+    # convert JSON-string to JSON-file
+    if create_file:
+        uncommented_json_file = open(updated_json_file_name, 'w')
+        uncommented_json_file.write(uncommented_json_file_string)
 
-    if os.path.exists(updated_json_file):
-        os.remove(updated_json_file)
-    else:
-        print("The updated JSON file does not exist")
+    # convert JSON-string to dictionary
+    return_dict = json.loads(uncommented_json_file_string)
 
     return return_dict
 
