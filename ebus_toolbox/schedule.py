@@ -127,7 +127,8 @@ class Schedule:
 
         return schedule
 
-    def check_consistency(schedule):
+    @classmethod
+    def check_consistency(cls, schedule):
         """
         Check rotation expectations, such as
         - each rotation has one "Einsetzfahrt"
