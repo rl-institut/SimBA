@@ -24,6 +24,10 @@ if __name__ == '__main__':
                         help='Minimum fraction of capacity for recharge when leaving the depot.')
     parser.add_argument('--min-recharge-deps-depb', default=1,
                         help='Minimum fraction of capacity for recharge when leaving the depot.')
+    parser.add_argument('--check-rotation-consistency', action='store_true',
+                        help='Check rotation assumptions when building schedule.')
+    parser.add_argument('--ignore-inconsistent-rotations', action='store_true',
+                        help='Remove rotations from schedule that violate assumptions. ')
     parser.add_argument('--days', metavar='N', type=int, default=None,
                         help='set duration of scenario as number of days')
     parser.add_argument('--interval', metavar='MIN', type=int, default=15,

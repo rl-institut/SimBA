@@ -109,14 +109,39 @@ class Schedule:
             if rot.charging_type is None:
                 rot.set_charging_type(ct=kwargs.get('preferred_charging_type', 'oppb'))
 
+        if kwargs.get("check_rotation_consistency"):
+            # check rotation expectations
+            ignored_rotations = cls.check_consistency(schedule)
+            if ignored_rotations:
+                # write errors to file
+                with open(kwargs["output_directory"] / "removed_rotations.csv", "w") as f:
+                    for rot_id, e in ignored_rotations.items():
+                        f.write(f"Rotation {rot_id}: {e}\n")
+                        print(f"Rotation {rot_id}: {e}")
+                        if kwargs.get("ignore_inconsistent_rotations"):
+                            # remove this rotation from schedule
+                            del schedule.rotations[rot_id]
+        elif kwargs.get("ignore_inconsistent_rotations"):
+            warnings.warn("Option ignore_inconsistent_rotations ignored, "
+                          "as check_rotation_consistency is not set")
+
+        return schedule
+
+    def check_consistency(schedule):
         """
-        check expectations, such as
+        Check rotation expectations, such as
         - each rotation has one "Einsetzfahrt"
         - each rotation has one "Aussetzfahrt"
         - the "Einsatzfahrt" starts where the "Aussetzfahrt" ends
         - the rotation name is unique
         - every trip within a rotation starts where the previous trip ended
+
+        :param schedule: the schedule to check
+        :type schedule: dict
+        :return: faulty rotations. Dict of rotation ID -> error message
+        :rtype: dict
         """
+        ignored_rotations = {}
         for rot_id, rotation in schedule.rotations.items():
             # iterate over trips, looking for initial and final stations
             dep_name = None
@@ -141,9 +166,11 @@ class Schedule:
                 # rotation must end where it started
                 assert dep_name == arr_name, "Start and end of rotation differ"
             except AssertionError as e:
-                print(f"Rotation {rot_id}: {e}")
+                # some assumption is violated
+                # save error text
+                ignored_rotations[rot_id] = e
 
-        return schedule
+        return ignored_rotations
 
     def run(self, args):
         # each rotation is assigned a vehicle ID
