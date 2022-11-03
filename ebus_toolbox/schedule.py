@@ -114,7 +114,7 @@ class Schedule:
             ignored_rotations = cls.check_consistency(schedule)
             if ignored_rotations:
                 # write errors to file
-                with open(kwargs["output_directory"] / "removed_rotations.csv", "w") as f:
+                with open(kwargs["output_directory"] / "inconsistent_rotations.csv", "w") as f:
                     for rot_id, e in ignored_rotations.items():
                         f.write(f"Rotation {rot_id}: {e}\n")
                         print(f"Rotation {rot_id}: {e}")
