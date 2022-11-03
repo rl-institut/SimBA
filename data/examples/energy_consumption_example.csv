@@ -1,4 +1,4 @@
-vehicle_type,level_of_loading,incline,mean_speed_kmh,temp,consumption_kwh_per_km
+vehicle_type,level_of_loading,incline,mean_speed_kmh,t_amb,consumption_kwh_per_km
 0,0,-0.04,12.1,-15,2.967
 0,0,-0.04,12.1,-5,1.823
 0,0,-0.04,12.1,5,0.844

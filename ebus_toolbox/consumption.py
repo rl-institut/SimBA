@@ -78,11 +78,10 @@ class Consumption:
         consumption_path = vehicle_info["mileage"]
 
         # consumption_files holds interpol functions of csv files which are called directly
-        vehicle_type_nr = dict(SB=0, VDL=0, AB=1, CKB=1)[vehicle_type]
 
         # try to use the interpol function. If it does not exist yet its created in except case.
         try:
-            mileage = self.consumption_files[consumption_path](this_vehicle_type=vehicle_type_nr,
+            mileage = self.consumption_files[consumption_path](this_vehicle_type=vehicle_type,
                                                                this_incline=height_diff / distance,
                                                                this_temp=temp,
                                                                this_lol=level_of_loading,
@@ -95,7 +94,7 @@ class Consumption:
             # which will be the input for the nd lookup
             vt_col = df["vehicle_type"]
             inc_col = df["incline"]
-            tmp_col = df["temp"]
+            tmp_col = df["t_amb"]
             lol_col = df["level_of_loading"]
             speed_col = df["mean_speed_kmh"]
             cons_col = df["consumption_kwh_per_km"]
@@ -107,7 +106,7 @@ class Consumption:
 
             self.consumption_files.update({consumption_path: interpol_function})
 
-            mileage = self.consumption_files[consumption_path](this_vehicle_type=vehicle_type_nr,
+            mileage = self.consumption_files[consumption_path](this_vehicle_type=vehicle_type,
                                                                this_incline=height_diff / distance,
                                                                this_temp=temp,
                                                                this_lol=level_of_loading,
