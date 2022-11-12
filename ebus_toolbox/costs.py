@@ -26,7 +26,7 @@ def calculate_costs(c_params, scenario, schedule, args):
              "c_el_taxes_annual": 0, "c_el_feed_in_remuneration_annual": 0,
              "c_electricity_annual": 0}
 
-    ##### INVESTMENT COSTS #####
+    # INVESTMENT COSTS #
 
     # VEHICLES
     v_types = schedule.scenario["constants"]["vehicle_types"]
@@ -40,10 +40,10 @@ def calculate_costs(c_params, scenario, schedule, args):
                 continue
             # sum up cost of vehicles and their batteries, depending on how often the battery
             # has to be replaced in the lifetime of the vehicles
-            c_vehicles_vt = schedule.vehicle_type_counts[v_type] * \
-                            (costs_vehicle + (c_params["vehicles"][v_type]["lifetime"] //
-                                              c_params["batteries"]["lifetime_battery"]) *
-                             v_keys["capacity"] * c_params["batteries"]["cost_per_kWh"])
+            c_vehicles_vt = (schedule.vehicle_type_counts[v_type] *
+                             (costs_vehicle + (c_params["vehicles"][v_type]["lifetime"] //
+                                               c_params["batteries"]["lifetime_battery"]) *
+                             v_keys["capacity"] * c_params["batteries"]["cost_per_kWh"]))
             costs["c_vehicles"] += c_vehicles_vt
             # calculate annual cost of vehicles of this type, depending on their lifetime
             costs["c_vehicles_annual"] += c_vehicles_vt / c_params["vehicles"][v_type]["lifetime"]
@@ -106,7 +106,8 @@ def calculate_costs(c_params, scenario, schedule, args):
     costs["c_invest_annual"] = (costs["c_vehicles_annual"] + costs["c_cs_annual"] +
                                 costs["c_gcs_annual"] + costs["c_garage_annual"])
 
-    ##### ELECTRICITY COSTS #####
+    # ELECTRICITY COSTS #
+
     for gcID, gc in scenario.constants.grid_connectors.items():
         pv = sum([pv.nominal_power for pv in scenario.constants.photovoltaics.values()
                   if pv.parent == gcID])
