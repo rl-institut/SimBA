@@ -691,7 +691,7 @@ class Schedule:
                 "grid_connectors": grid_connectors,
                 "charging_stations": charging_stations,
                 "batteries": batteries,
-                "photovoltaics": photovoltaics,
+                "photovoltaics": photovoltaics
             },
             "events": events
         }
