@@ -389,6 +389,7 @@ class Schedule:
 
         vehicles = {}
         batteries = {}
+        photovoltaics = {}
         charging_stations = {}
         grid_connectors = {}
         events = {
@@ -498,6 +499,17 @@ class Schedule:
                             "cost": {"type": "fixed", "value": 0.3},
                             "number_cs": number_cs
                         }
+                        # add feed-in name and power at grid connector if exists
+                        if args.include_feed_in_csv:
+                            if gc_name == args.include_feed_in_csv[0][1]:
+                                # ToDo: Make universal! Adjust how to include feed-in timeseries?
+                                #  also in SpiceEV?
+                                photovoltaics[gc_name] = {
+                                    "parent": gc_name,
+                                    "nominal_power": vars(args).get("pv_power", 0)
+                                    # ToDo: Allow to set pv_power for specific GC
+                                    #  (include in include_feed_in_csv as third argument?)
+                                }
 
                 # initial condition of vehicle
                 if i == 0:
@@ -678,7 +690,8 @@ class Schedule:
                 "vehicles": vehicles,
                 "grid_connectors": grid_connectors,
                 "charging_stations": charging_stations,
-                "batteries": batteries
+                "batteries": batteries,
+                "photovoltaics": photovoltaics,
             },
             "events": events
         }

@@ -76,3 +76,15 @@ def generate(schedule, scenario, args):
         csv_writer = csv.DictWriter(f, list(rotation_infos[0].keys()))
         csv_writer.writeheader()
         csv_writer.writerows(rotation_infos)
+
+    # summary of used vehicle types and all costs
+    with open(args.output_directory / "costs_summary.csv", "w+", newline='') as f:
+        csv_writer = csv.writer(f)
+        csv_writer.writerow(["vehicle type", "number"])
+        for key, value in schedule.vehicle_type_counts.items():
+            if value > 0:
+                csv_writer.writerow([key, value])
+        csv_writer.writerow(["", ""])
+        csv_writer.writerow(["cost parameter", "€"])
+        for key, value in scenario.costs.items():
+            csv_writer.writerow([key, round(value, 2)])
