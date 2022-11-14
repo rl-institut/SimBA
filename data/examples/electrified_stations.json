@@ -8,12 +8,19 @@
             "start_time": "2018-01-01T00:00:00+02:00",
             "step_duration_s": 3600,
             "column": "Feed-in Total (kW)",
-            "factor": 1
+            "factor": 10
         }
     },
     "Station-3": {
         "type": "opps",
-        "n_charging_stations": 3
+        "n_charging_stations": 3,
+        "energy_feed_in": {
+            "csv_file": "example_pv_feedin.csv",
+            "start_time": "2018-01-01T00:00:00+02:00",
+            "step_duration_s": 3600,
+            "column": "Feed-in Total (kW)",
+            "factor": 2
+        }
     },
     "Station-10": {
         "type": "opps",
