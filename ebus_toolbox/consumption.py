@@ -82,7 +82,7 @@ class Consumption:
         # try to use the interpol function. If it does not exist yet its created in except case.
         consumption_function = vehicle_type+"_from_"+consumption_path
         try:
-            mileage = self.consumption_files[consumption_function](\
+            mileage = self.consumption_files[consumption_function](
                                                                this_incline=height_diff / distance,
                                                                this_temp=temp,
                                                                this_lol=level_of_loading,
@@ -94,7 +94,7 @@ class Consumption:
             # create lookup table and make sure its in the same order as the input point
             # which will be the input for the nd lookup
             df = df[df["vehicle_type"] == vehicle_type]
-            assert len(df)>0, f"Vehicle type {vehicle_type} not found in {consumption_path}"
+            assert len(df) > 0, f"Vehicle type {vehicle_type} not found in {consumption_path}"
             inc_col = df["incline"]
             tmp_col = df["t_amb"]
             lol_col = df["level_of_loading"]
