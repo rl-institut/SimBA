@@ -83,8 +83,8 @@ class Schedule:
                               format(station_path),
                               stacklevel=100)
             except ValueError:
-                warnings.warn("Warning: external csv file '{}' does not contain numeric"
-                              "values in the column 'elevation'. Station data is discarded".
+                warnings.warn("Warning: external csv file '{}' does not contain numeric "
+                              "values in the column 'elevation'. Station data is discarded.".
                               format(station_path),
                               stacklevel=100)
 
