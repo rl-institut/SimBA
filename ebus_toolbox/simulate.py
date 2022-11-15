@@ -58,6 +58,7 @@ def simulate(args):
                                  vehicle_types,
                                  stations,
                                  **vars(args))
+    schedule.calculate_consumption()
 
     # run the mode specified in config
     if args.mode == 'service_optimization':
