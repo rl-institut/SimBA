@@ -114,8 +114,6 @@ if __name__ == '__main__':
                                                                 level of loading in case they are \
                                                                 not in trips.csv")
 
-
-
     args = parser.parse_args()
     # arguments relevant to SpiceEV, setting automatically to reduce clutter in config
     args.ALLOW_NEGATIVE_SOC = True

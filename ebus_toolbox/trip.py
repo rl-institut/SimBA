@@ -34,8 +34,6 @@ class Trip:
         # In Case of None or empty string
         except ValueError:
             self.level_of_loading = None
-
-
         # mean speed in km/h from distance and travel time or from initialization
         # travel time is at least 1 min
         mean_speed = kwargs.get("mean_speed", (self.distance / 1000) /
