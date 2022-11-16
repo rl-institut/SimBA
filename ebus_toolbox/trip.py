@@ -14,7 +14,7 @@ class Trip:
         try:
             self.temperature = float(self.temperature)
             # In case of empty temperature column or no column at all
-        except TypeError or ValueError:
+        except (TypeError, ValueError):
             self.temperature = None
 
         height_diff = kwargs.get("height_difference", None)
@@ -23,7 +23,7 @@ class Trip:
             try:
                 height_diff = station_data[self.arrival_name]["elevation"] \
                               - station_data[self.departure_name]["elevation"]
-            except KeyError or TypeError:
+            except (KeyError, TypeError):
                 height_diff = 0
         self.height_diff = height_diff
         self.level_of_loading = kwargs.get('level_of_loading', None)
@@ -31,7 +31,7 @@ class Trip:
             # Clip level of loading to [0,1]
             self.level_of_loading = max(0, min(float(self.level_of_loading), 1))
         # In case of empty temperature column or no column at all
-        except TypeError or ValueError:
+        except (TypeError, ValueError):
             self.level_of_loading = None
         # mean speed in km/h from distance and travel time or from initialization
         # travel time is at least 1 min
