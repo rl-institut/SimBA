@@ -1,6 +1,11 @@
 import json
 import warnings
+import subprocess
 
+def get_git_revision_hash() -> str:
+    return subprocess.check_output(['git', 'rev-parse', 'HEAD']).decode('ascii').strip()
+
+print(get_git_revision_hash())
 
 def set_options_from_config(args, check=False, verbose=True):
     """Read options from config file, update given args, try to parse options

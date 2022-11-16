@@ -1,4 +1,5 @@
 import argparse
+import shutil
 from ebus_toolbox import simulate, util
 from pathlib import Path
 from datetime import datetime
@@ -128,6 +129,13 @@ if __name__ == '__main__':
     if not args.save_soc:
         args.save_soc = args.output_directory / "simulation_soc_spiceEV.csv"
 
+    # Copy input files to output to ensure reproducibility
+    copy_list=[args.config, args.cost_params, args.electrified_stations, args.vehicle_types]
+    for c_file in copy_list:
+        shutil.copy(str(c_file), str(args.output_directory / Path(c_file).name))
+
+
+
     # rename special options
     args.timing = args.eta
 
@@ -135,3 +143,4 @@ if __name__ == '__main__':
         raise SystemExit("The following argument is required: input_schedule")
 
     simulate.simulate(args)
+
