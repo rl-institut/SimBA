@@ -101,8 +101,8 @@ if __name__ == '__main__':
                         nargs=2, action='append',
                         help='Append additional options to the charging strategy.')
     parser.add_argument('--config', help='Use config file to set arguments')
-    parser.add_argument('--station_data_path', help='Use station data to back calculation \
-                                                    of consumption with height information of \
+    parser.add_argument('--station_data_path', help='Use station data to back calculation       \
+                                                    of consumption with height information of   \
                                                     stations')
     parser.add_argument('--outside_temperature_over_day_path', help="Use csv. data with 'hour' and \
                                                                'temperature' columns to set \

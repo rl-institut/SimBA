@@ -11,10 +11,9 @@ class Trip:
         self.distance = float(distance)
         self.line = kwargs.get('line', None)
         self.temperature = kwargs.get('temperature', None)
-        # In case of empty temperature column
         try:
             self.temperature = float(self.temperature)
-            # In Case of None or empty string
+            # In case of empty temperature column or no column at all
         except TypeError or ValueError:
             self.temperature = None
 
@@ -31,7 +30,7 @@ class Trip:
         try:
             # Clip level of loading to [0,1]
             self.level_of_loading = max(0, min(float(self.level_of_loading), 1))
-        # In Case of None or empty string
+        # In case of empty temperature column or no column at all
         except TypeError or ValueError:
             self.level_of_loading = None
         # mean speed in km/h from distance and travel time or from initialization
