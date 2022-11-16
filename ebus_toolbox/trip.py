@@ -15,7 +15,7 @@ class Trip:
         try:
             self.temperature = float(self.temperature)
             # In Case of None or empty string
-        except ValueError:
+        except TypeError or ValueError:
             self.temperature = None
 
         height_diff = kwargs.get("height_difference", None)
@@ -32,7 +32,7 @@ class Trip:
             # Clip level of loading to [0,1]
             self.level_of_loading = max(0, min(float(self.level_of_loading), 1))
         # In Case of None or empty string
-        except ValueError:
+        except TypeError or ValueError:
             self.level_of_loading = None
         # mean speed in km/h from distance and travel time or from initialization
         # travel time is at least 1 min
