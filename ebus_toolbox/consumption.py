@@ -7,8 +7,8 @@ class Consumption:
     def __init__(self, vehicle_types, **kwargs) -> None:
         # load temperature of the day, now dummy winter day
         self.temperatures_by_hour = {}
-        temperature_file_path = kwargs.get("outside_temperatures",
-                                           "data/examples/default_temp_winter.csv")
+
+        temperature_file_path = kwargs.get("outside_temperatures")
         # parsing the Temperature to a dict
         with open(temperature_file_path) as f:
             delim = util.get_csv_delim(temperature_file_path)
@@ -16,8 +16,7 @@ class Consumption:
             for row in reader:
                 self.temperatures_by_hour.update({int(row['hour']): float(row['temperature'])})
 
-        lol_file_path = kwargs.get("level_of_loading_over_day",
-                                   "data/examples/default_level_of_loading_over_day.csv")
+        lol_file_path = kwargs.get("level_of_loading_over_day")
         # parsing the level of loading to a dict
         with open(lol_file_path) as f:
             delim = util.get_csv_delim(lol_file_path)

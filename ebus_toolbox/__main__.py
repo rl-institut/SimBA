@@ -101,9 +101,20 @@ if __name__ == '__main__':
                         nargs=2, action='append',
                         help='Append additional options to the charging strategy.')
     parser.add_argument('--config', help='Use config file to set arguments')
-    parser.add_argument('--station_data_path', help='Use station data to back calculation       \
-                                                    of consumption with height information of   \
+    parser.add_argument('--station_data_path', help='Use station data to back calculation \
+                                                    of consumption with height information of \
                                                     stations')
+    parser.add_argument('--outside_temperature_over_day_path', help="Use csv. data with 'hour' and \
+                                                               'temperature' columns to set \
+                                                                temperatures in case they are not \
+                                                                in trips.csv")
+
+    parser.add_argument('--level_of_loading_over_day_path', help="Use csv. data with 'hour' and \
+                                                               'level_of_loading' columns to set \
+                                                                level of loading in case they are \
+                                                                not in trips.csv")
+
+
 
     args = parser.parse_args()
     # arguments relevant to SpiceEV, setting automatically to reduce clutter in config
