@@ -76,7 +76,6 @@ if __name__ == '__main__':
     parser.add_argument('--cost-calculation', '-cc', action='store_true',
                         help='Calculate costs')
     parser.add_argument('--cost-parameters-file', help='include cost_params json', default=None)
-    parser.add_argument('--voltage-level', '-vl', help='choose voltage level for cost calculation')
     parser.add_argument('--pv-power', type=int, default=0, help='set nominal power for local '
                                                                 'photovoltaic power plant in kWp')
     parser.add_argument('--min-charging-time', help='define minimum time of charging',
