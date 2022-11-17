@@ -1,4 +1,6 @@
 import os
+import warnings
+
 from calculate_costs import calculate_costs as calc_costs_spice_ev
 
 
@@ -13,18 +15,16 @@ def calculate_costs(c_params, scenario, schedule, args):
     :type schedule: object
     :param args: Configuration arguments specified in config files contained in configs directory.
     :type args: argparse.Namespace
-    :return: scenario
-    :rtype: object
     """
 
     # initialize dictionary with all costs
-    costs = {"c_vehicles": 0, "c_vehicles_annual": 0, "c_gcs": 0, "c_gcs_annual": 0, "c_cs": 0,
-             "c_cs_annual": 0, "c_garage_cs": 0, "c_garage_workstations": 0, "c_garage": 0,
-             "c_garage_annual": 0, "c_invest": 0, "c_invest_annual": 0,
-             "c_maint_infrastructure_annual": 0, "c_maint_vehicles_annual": 0, "c_maint_annual": 0,
-             "c_el_procurement_annual": 0, "c_el_power_price": 0, "c_el_energy_price_annual": 0,
-             "c_el_taxes_annual": 0, "c_el_feed_in_remuneration_annual": 0,
-             "c_electricity_annual": 0}
+    costs = {cost: 0 for cost in ["c_vehicles", "c_vehicles_annual", "c_gcs", "c_gcs_annual",
+                                  "c_cs", "c_cs_annual", "c_garage_cs", "c_garage_workstations",
+                                  "c_garage", "c_garage_annual", "c_invest", "c_invest_annual",
+                                  "c_maint_infrastructure_annual", "c_maint_vehicles_annual",
+                                  "c_maint_annual", "c_el_procurement_annual", "c_el_power_price",
+                                  "c_el_energy_price_annual", "c_el_taxes_annual",
+                                  "c_el_feed_in_remuneration_annual", "c_electricity_annual"]}
 
     # INVESTMENT COSTS #
 
@@ -35,8 +35,8 @@ def calculate_costs(c_params, scenario, schedule, args):
             try:
                 costs_vehicle = c_params["vehicles"][v_type]["capex"]
             except KeyError:
-                print("Warning: No capex defined for vehicle type " + v_type +
-                      ". Unable to calculate investment costs for this vehicle type.")
+                warnings.warn("No capex defined for vehicle type " + v_type +
+                              ". Unable to calculate investment costs for this vehicle type.")
                 continue
             # sum up cost of vehicles and their batteries, depending on how often the battery
             # has to be replaced in the lifetime of the vehicles
@@ -71,7 +71,7 @@ def calculate_costs(c_params, scenario, schedule, args):
             costs["c_cs"] += c_params["cs"]["capex_deps_per_kW"] * csID["max_power"]
         elif csID["type"] == "opps":
             costs["c_cs"] += c_params["cs"]["capex_opps_per_kW"] * csID["max_power"]
-    # Calculate annual cost of charging stations, depending on their lifetime
+    # calculate annual cost of charging stations, depending on their lifetime
     costs["c_cs_annual"] = costs["c_cs"] / c_params["cs"]["lifetime_cs"]
 
     # GARAGE
@@ -97,9 +97,9 @@ def calculate_costs(c_params, scenario, schedule, args):
             costs["c_maint_vehicles_annual"] += (rot.distance / 1000 / drive_days * 365) * \
                                                 c_params["vehicles"][v_type_rot]["c_maint_per_km"]
         except KeyError:
-            print("Warning: No maintenance costs defined for vehicle type " +
-                  c_params["vehicles"][v_type_rot] +
-                  ". Unable to calculate maintenance costs for this vehicle type.")
+            warnings.warn("No maintenance costs defined for vehicle type " +
+                          c_params["vehicles"][v_type_rot] +
+                          ". Unable to calculate maintenance costs for this vehicle type.")
     costs["c_maint_annual"] = (costs["c_maint_infrastructure_annual"] +
                                costs["c_maint_vehicles_annual"])
     costs["c_invest"] = costs["c_vehicles"] + costs["c_cs"] + costs["c_gcs"] + costs["c_garage"]
@@ -120,7 +120,7 @@ def calculate_costs(c_params, scenario, schedule, args):
         # calculate costs for electricity
         costs_electricity = calc_costs_spice_ev(
             strategy=args.strategy,
-            voltage_level=args.voltage_level,
+            voltage_level=gc.voltage_level,
             interval=scenario.interval,
             timestamps_list=timeseries.get("time"),
             power_grid_supply_list=timeseries.get("grid power [kW]"),
@@ -153,4 +153,3 @@ def calculate_costs(c_params, scenario, schedule, args):
           f"Annual costs for electricity: {costs['c_electricity_annual']} €/a.")
 
     setattr(scenario, "costs", costs)
-    return {scenario}

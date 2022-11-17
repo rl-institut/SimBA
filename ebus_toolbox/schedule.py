@@ -497,7 +497,8 @@ class Schedule:
                         grid_connectors[gc_name] = {
                             "max_power": gc_power,
                             "cost": {"type": "fixed", "value": 0.3},
-                            "number_cs": number_cs
+                            "number_cs": number_cs,
+                            "voltage_level": self.stations[gc_name]["voltage_level"]
                         }
                         # add feed-in name and power at grid connector if exists
                         if args.include_feed_in_csv:
@@ -691,7 +692,7 @@ class Schedule:
                 "grid_connectors": grid_connectors,
                 "charging_stations": charging_stations,
                 "batteries": batteries,
-                "photovoltaics": photovoltaics
+                "photovoltaics": photovoltaics,
             },
             "events": events
         }
