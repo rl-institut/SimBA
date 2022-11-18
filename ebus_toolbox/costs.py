@@ -22,9 +22,10 @@ def calculate_costs(c_params, scenario, schedule, args):
                                   "c_cs", "c_cs_annual", "c_garage_cs", "c_garage_workstations",
                                   "c_garage", "c_garage_annual", "c_invest", "c_invest_annual",
                                   "c_maint_infrastructure_annual", "c_maint_vehicles_annual",
-                                  "c_maint_annual", "c_el_procurement_annual", "c_el_power_price",
-                                  "c_el_energy_price_annual", "c_el_taxes_annual",
-                                  "c_el_feed_in_remuneration_annual", "c_electricity_annual"]}
+                                  "c_maint_annual", "c_el_procurement_annual",
+                                  "c_el_power_price_annual", "c_el_energy_price_annual",
+                                  "c_el_taxes_annual", "c_el_feed_in_remuneration_annual",
+                                  "c_el_annual"]}
 
     # INVESTMENT COSTS #
 
@@ -113,10 +114,13 @@ def calculate_costs(c_params, scenario, schedule, args):
                   if pv.parent == gcID])
         timeseries = vars(scenario).get(f"{gcID}_timeseries")
 
+        # Todo: Decide, if costs are saved to json here or later in report.py.
+        #  If so, the following three lines can be removed
         # add GC name to results file for cost calculation
         file_name, ext = os.path.splitext(args.save_results)
         save_results = f"{file_name}_{gcID}{ext}"
 
+        # Todo: Decide, if currently unnecessary params should be given to calc_costs_spice_ev
         # calculate costs for electricity
         costs_electricity = calc_costs_spice_ev(
             strategy=args.strategy,
@@ -132,14 +136,15 @@ def calculate_costs(c_params, scenario, schedule, args):
             results_json=save_results,
             power_pv_nominal=pv,
         )
-        print(f"Costs for electricity at {gcID}: {costs_electricity['total_costs_per_year']} €/a")
+        # ToDo: Decide if gc-specific costs should be added to scenario object to use in report.py
+        # setattr(scenario.constants.grid_connectors[gcID], "costs_electricity", costs_electricity)
         costs["c_el_procurement_annual"] += costs_electricity['power_procurement_per_year']
-        costs["c_el_power_price"] += costs_electricity['capacity_costs_eur']
+        costs["c_el_power_price_annual"] += costs_electricity['capacity_costs_eur']
         costs["c_el_energy_price_annual"] += costs_electricity['commodity_costs_eur_per_year']
         costs["c_el_taxes_annual"] += costs_electricity['levies_fees_and_taxes_per_year']
         costs["c_el_feed_in_remuneration_annual"] += costs_electricity[
             'feed_in_remuneration_per_year']
-        costs["c_electricity_annual"] += costs_electricity['total_costs_per_year']
+        costs["c_el_annual"] += costs_electricity['total_costs_per_year']
 
     # round all costs to ct
     for key, v in costs.items():
@@ -150,6 +155,6 @@ def calculate_costs(c_params, scenario, schedule, args):
           f"Investment cost: {costs['c_invest']} €. "
           f"Annual investment costs: {costs['c_invest_annual']} €/a. "
           f"Annual maintenance costs: {costs['c_maint_annual']} €/a. "
-          f"Annual costs for electricity: {costs['c_electricity_annual']} €/a.")
+          f"Annual costs for electricity: {costs['c_el_annual']} €/a.")
 
     setattr(scenario, "costs", costs)
