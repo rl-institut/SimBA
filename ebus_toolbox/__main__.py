@@ -1,4 +1,5 @@
 import argparse
+import shutil
 from ebus_toolbox import simulate, util
 from pathlib import Path
 from datetime import datetime
@@ -124,9 +125,9 @@ if __name__ == '__main__':
     args.output_directory = Path(args.output_directory) / \
         str(datetime.now().strftime("%Y-%m-%d-%H-%M-%S") + "_eBus_results")
 
-    # Create subfolder for specific sim results with timestamp.
-    # If folder doesnt exists, create folder.
-    # Needs to happen after set_options_from_config since
+    # create subfolder for specific sim results with timestamp.
+    # if folder doesnt exists, create folder.
+    # needs to happen after set_options_from_config since
     # args.output_directory can be overwritten by config
     args.output_directory.mkdir(parents=True, exist_ok=True)
 
@@ -136,6 +137,17 @@ if __name__ == '__main__':
         args.save_results = args.output_directory / "simulation_spiceEV.json"
     if not args.save_soc:
         args.save_soc = args.output_directory / "simulation_soc_spiceEV.csv"
+
+    # copy input files to output to ensure reproducibility
+    copy_list = [args.config, args.electrified_stations, args.vehicle_types]
+
+    # only copy cost params if they exist
+    if args.cost_params is not None:
+        copy_list.append(args.cost_params)
+    for c_file in copy_list:
+        shutil.copy(str(c_file), str(args.output_directory / Path(c_file).name))
+
+    util.save_version(Path(args.output_directory / "program_version.txt"))
 
     # rename special options
     args.timing = args.eta
