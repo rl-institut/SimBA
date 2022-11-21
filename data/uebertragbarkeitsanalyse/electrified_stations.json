@@ -1,0 +1,322 @@
+{
+    "Luebben Betriebshof": {
+        "type": "deps",
+        "n_charging_stations": "None"
+    },
+    "Luebben Postbautenstr": {
+        "type": "opps",
+        "n_charging_stations": 3
+    },
+    "Krausnick Wendeplatz": {
+        "type": "opps",
+        "n_charging_stations": 1
+    },
+    "Neu Luebbenau Hauptstr": {
+        "type": "opps",
+        "n_charging_stations": 2
+    },
+    "Luebben Cottbuser Str": {
+        "type": "deps",
+        "n_charging_stations": "None"
+    },
+    "Groeditsch Schule": {
+        "type": "opps",
+        "n_charging_stations": 5
+    },
+    "Goyatz Schule": {
+        "type": "opps",
+        "n_charging_stations": 4
+    },
+    "Leibsch Leibscher Hauptstr": {
+        "type": "opps",
+        "n_charging_stations": 4
+    },
+    "Luebben Am Ostbahnhof": {
+        "type": "opps",
+        "n_charging_stations": 3
+    },
+    "Radensdorf Hauptstr": {
+        "type": "opps",
+        "n_charging_stations": 5
+    },
+    "Schoenwalde Bahnhof": {
+        "type": "deps",
+        "n_charging_stations": "None"
+    },
+    "Luebben Stellplatz Betriebshof": {
+        "type": "deps",
+        "n_charging_stations": "None"
+    },
+    "Wittmannsdorf Kossenblatter Str": {
+        "type": "deps",
+        "n_charging_stations": "None"
+    },
+    "Luebben Reha-Zentrum": {
+        "type": "deps",
+        "n_charging_stations": "None"
+    },
+    "Goyatz Am Bahnhof": {
+        "type": "deps",
+        "n_charging_stations": "None"
+    },
+    "Glietz": {
+        "type": "deps",
+        "n_charging_stations": "None"
+    },
+    "Klein Leuthen": {
+        "type": "deps",
+        "n_charging_stations": "None"
+    },
+    "Schlepzig Bergstr": {
+        "type": "deps",
+        "n_charging_stations": "None"
+    },
+    "Lieberose Markt": {
+        "type": "deps",
+        "n_charging_stations": "None"
+    },
+    "Burg Stuetzpunkt CV": {
+       "type": "deps",
+       "n_charging_stations": "None"
+    },
+    "Burg Lindenstr": {
+       "type": "deps",
+       "n_charging_stations": "None"
+    },
+    "Burg Hotel Bleske": {
+       "type": "deps",
+       "n_charging_stations": "None"
+    },
+    "Maerkisch Buchholz Markt": {
+       "type": "deps",
+       "n_charging_stations": "None"
+    },
+    "Hermsdorf": {
+       "type": "deps",
+       "n_charging_stations": "None"
+    },
+    "Teupitz Markt": {
+       "type": "deps",
+       "n_charging_stations": "None"
+    },
+    "Hermsdorf Stellplatz": {
+       "type": "deps",
+       "n_charging_stations": "None"
+    },
+    "S Koenigs Wusterhausen Bhf": {
+       "type": "deps",
+       "n_charging_stations": "None"
+    },
+    "Abstellplatz (M. -Gorki-Str)": {
+       "type": "deps",
+       "n_charging_stations": "None"
+    },
+    "Luckau Am Anger": {
+       "type": "deps",
+       "n_charging_stations": "None"
+    },
+    "Luckau Stellplatz Betriebshof": {
+       "type": "deps",
+       "n_charging_stations": "None"
+    },
+    "Luckau Schwimmbad": {
+       "type": "deps",
+       "n_charging_stations": "None"
+    },
+    "Hartmannsdorf Schauna": {
+       "type": "deps",
+       "n_charging_stations": "None"
+    },
+    "Rietzneuendorf Gemeindeamt": {
+       "type": "deps",
+       "n_charging_stations": "None"
+    },
+    "Luebben Frankfurter Str": {
+       "type": "deps",
+       "n_charging_stations": "None"
+    },
+    "Kuschkow Dorfanger": {
+       "type": "deps",
+       "n_charging_stations": "None"
+    },
+    "Neu Luebbenau Kita": {
+       "type": "deps",
+       "n_charging_stations": "None"
+    },
+    "Briesensee Kreuzung": {
+       "type": "deps",
+       "n_charging_stations": "None"
+    },
+    "Straupitz Schule": {
+       "type": "deps",
+       "n_charging_stations": "None"
+    },
+    "Luckau Busbahnhof": {
+       "type": "deps",
+       "n_charging_stations": "None"
+    },
+    "Golssen Markt": {
+       "type": "deps",
+       "n_charging_stations": "None"
+    },
+    "Luebben An der Kupka": {
+       "type": "deps",
+       "n_charging_stations": "None"
+    },
+    "Luebben Berliner Str": {
+       "type": "deps",
+       "n_charging_stations": "None"
+    },
+    "Schoenwalde Schule": {
+       "type": "deps",
+       "n_charging_stations": "None"
+    },
+    "Schlepzig Kirche": {
+       "type": "deps",
+       "n_charging_stations": "None"
+    },
+    "Neuendorf am See": {
+       "type": "deps",
+       "n_charging_stations": "None"
+    },
+    "Pretschen Pretschener Anger": {
+       "type": "deps",
+       "n_charging_stations": "None"
+    },
+     "Birkenhainchen B 87": {
+       "type": "deps",
+       "n_charging_stations": "None"
+    },
+    "Biebersdorf Kita": {
+       "type": "deps",
+       "n_charging_stations": "None"
+    },
+    "Leibchel Gasthof B 87": {
+       "type": "deps",
+       "n_charging_stations": "None"
+    },
+    "Halbe Goetheplatz": {
+       "type": "deps",
+       "n_charging_stations": "None"
+    },
+    "Brand Bahnhof": {
+       "type": "deps",
+       "n_charging_stations": "None"
+    },
+    "Wittmannsdorf Zur Kirche": {
+       "type": "deps",
+       "n_charging_stations": "None"
+    },
+    "Burg Schule": {
+       "type": "deps",
+       "n_charging_stations": "None"
+    },
+    "Gross Leine Neue Dorfstr": {
+       "type": "deps",
+       "n_charging_stations": "None"
+    },
+    "Luebben Briesener Zergoweg": {
+       "type": "deps",
+       "n_charging_stations": "None"
+    },
+    "Dahme Otto-Zacke-Platz": {
+       "type": "deps",
+       "n_charging_stations": "None"
+    },
+    "Dahme Stellplatz Stuetzpunk": {
+       "type": "deps",
+       "n_charging_stations": "None"
+    },
+    "Luckau Krankenhaus": {
+       "type": "deps",
+       "n_charging_stations": "None"
+    },
+    "Caminchen": {
+       "type": "deps",
+       "n_charging_stations": "None"
+    },
+    "Byhlen": {
+       "type": "deps",
+       "n_charging_stations": "None"
+    },
+    "Luebben Wettiner Str": {
+       "type": "deps",
+       "n_charging_stations": "None"
+    },
+    "Luebbenau W.-Seelenbinder-Str": {
+       "type": "deps",
+       "n_charging_stations": "None"
+    },
+    "Schoenwalde Amtsverwaltung": {
+       "type": "deps",
+       "n_charging_stations": "None"
+    },
+    "Koethen": {
+       "type": "deps",
+       "n_charging_stations": "None"
+    },
+    "Jessern Wendeplatz": {
+       "type": "deps",
+       "n_charging_stations": "None"
+    },
+    "Jamlitz Sportplatz": {
+       "type": "deps",
+       "n_charging_stations": "None"
+    },
+    "Siegadel": {
+       "type": "deps",
+       "n_charging_stations": "None"
+    },
+    "Radensdorf AH Fa UELV": {
+       "type": "deps",
+       "n_charging_stations": "None"
+    },
+    "Straupitz Dorfplatz": {
+       "type": "deps",
+       "n_charging_stations": "None"
+    },
+    "Briesensee Dorfstr": {
+       "type": "deps",
+       "n_charging_stations": "None"
+    },
+    "Straupitz Stuetzpunkt": {
+       "type": "deps",
+       "n_charging_stations": "None"
+    },
+    "Lubolz Hauptstr": {
+       "type": "deps",
+       "n_charging_stations": "None"
+    },
+    "Lieberose AH Fa Halbasch": {
+       "type": "deps",
+       "n_charging_stations": "None"
+    },
+    "Blasdorf Dorfstr": {
+       "type": "deps",
+       "n_charging_stations": "None"
+    },
+    "Jamlitz Gasthaus": {
+       "type": "deps",
+       "n_charging_stations": "None"
+    },
+    "Lieberose Schule": {
+       "type": "deps",
+       "n_charging_stations": "None"
+    },
+    "Leeskow": {
+       "type": "deps",
+       "n_charging_stations": "None"
+    },
+    "Staakow": {
+       "type": "deps",
+       "n_charging_stations": "None"
+    },
+    "Zaue Campingplatz": {
+       "type": "deps",
+       "n_charging_stations": "None"
+    },
+    "Zaue Stellplatz": {
+       "type": "deps",
+       "n_charging_stations": "None"
+    }
+}
