@@ -78,14 +78,15 @@ def generate(schedule, scenario, args):
         csv_writer.writerows(rotation_infos)
 
     # summary of used vehicle types and all costs
-    with open(args.output_directory / "summary_vehicles_costs.csv", "w", newline='') as f:
-        csv_writer = csv.writer(f)
-        csv_writer.writerow(["parameter", "value", "unit"])
-        for key, value in schedule.vehicle_type_counts.items():
-            if value > 0:
-                csv_writer.writerow([key, value, "vehicles"])
-        for key, value in scenario.costs.items():
-            if "annual" in key:
-                csv_writer.writerow([key, round(value, 2), "€/year"])
-            else:
-                csv_writer.writerow([key, round(value, 2), "€"])
+    if args.cost_calculation:
+        with open(args.output_directory / "summary_vehicles_costs.csv", "w", newline='') as f:
+            csv_writer = csv.writer(f)
+            csv_writer.writerow(["parameter", "value", "unit"])
+            for key, value in schedule.vehicle_type_counts.items():
+                if value > 0:
+                    csv_writer.writerow([key, value, "vehicles"])
+            for key, value in scenario.costs.items():
+                if "annual" in key:
+                    csv_writer.writerow([key, round(value, 2), "€/year"])
+                else:
+                    csv_writer.writerow([key, round(value, 2), "€"])
