@@ -1,5 +1,15 @@
 import json
 import warnings
+import subprocess
+
+
+def get_git_revision_hash() -> str:
+    return subprocess.check_output(['git', 'rev-parse', 'HEAD']).decode('ascii').strip()
+
+
+def save_version(file_path):
+    with open(file_path, "w") as f:
+        f.write("Git Hash eBus-Toolbox:" + get_git_revision_hash())
 
 
 def set_options_from_config(args, check=False, verbose=True):
