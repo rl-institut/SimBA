@@ -70,7 +70,7 @@ class Schedule:
 
         if station_path is not None:
             try:
-                with open(str(station_path), "r") as f:
+                with open(str(station_path), "r", encoding='utf-8') as f:
                     delim = util.get_csv_delim(station_path)
                     reader = csv.DictReader(f, delimiter=delim)
                     station_data = dict()
@@ -83,12 +83,12 @@ class Schedule:
                               format(station_path),
                               stacklevel=100)
             except ValueError:
-                warnings.warn("Warning: external csv file '{}' does not contain numeric"
-                              "values in the column 'elevation'. Station data is discarded".
+                warnings.warn("Warning: external csv file '{}' does not contain numeric "
+                              "values in the column 'elevation'. Station data is discarded.".
                               format(station_path),
                               stacklevel=100)
 
-        with open(path_to_csv, 'r') as trips_file:
+        with open(path_to_csv, 'r', encoding='utf-8') as trips_file:
             trip_reader = csv.DictReader(trips_file)
             for trip in trip_reader:
                 rotation_id = trip['rotation_id']

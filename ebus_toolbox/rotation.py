@@ -56,13 +56,15 @@ class Rotation:
                 self.arrival_name = new_trip.arrival_name
 
         # set charging type if given
-        if ('charging_type' in trip and trip['charging_type'] in ['depb', 'oppb']):
-            assert (self.charging_type is None or self.charging_type == trip['charging_type']),\
+        charging_type = trip.get('charging_type')
+        if charging_type in ['depb', 'oppb']:
+            assert self.charging_type is None or self.charging_type == charging_type,\
                 f"Two trips of rotation {self.id} have distinct charging types"
-            assert (f'{self.vehicle_type}_{trip["charging_type"]}' in self.schedule.vehicle_types),\
-                f"The required vehicle type {self.vehicle_type}({trip['charging_type']}) is not "
-            "given in the vehicle_types.json file."
-            self.set_charging_type(trip['charging_type'])
+            assert self.schedule.vehicle_types.get(
+                self.vehicle_type, {}).get(charging_type) is not None,\
+                (f"The required vehicle type {self.vehicle_type}({charging_type}) "
+                 "is not given in the vehicle_types.json file.")
+            self.set_charging_type(charging_type)
 
         self.trips.append(new_trip)
 
