@@ -79,7 +79,7 @@ def get_outer_point(table, dims_out_of_bound=1):
         offset = random.random()
         # out of bounds
         if dim < dims_out_of_bound:
-            point += ((low_bounds[dim] - offset) + (offset > 0.5) * \
+            point += ((low_bounds[dim] - offset) + (offset > 0.5) *
                       ((-low_bounds[dim] + offset) + (upper_bounds[dim] + offset)),)
         else:
             # inside bounds
