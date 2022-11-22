@@ -5,15 +5,15 @@
     },
     "Luebben Postbautenstr": {
         "type": "opps",
-        "n_charging_stations": 3
+        "n_charging_stations":"None"
     },
     "Krausnick Wendeplatz": {
         "type": "opps",
-        "n_charging_stations": 1
+        "n_charging_stations":"None"
     },
     "Neu Luebbenau Hauptstr": {
         "type": "opps",
-        "n_charging_stations": 2
+        "n_charging_stations":"None"
     },
     "Luebben Cottbuser Str": {
         "type": "deps",
@@ -21,23 +21,23 @@
     },
     "Groeditsch Schule": {
         "type": "opps",
-        "n_charging_stations": 5
+        "n_charging_stations":"None"
     },
     "Goyatz Schule": {
         "type": "opps",
-        "n_charging_stations": 4
+        "n_charging_stations":"None"
     },
     "Leibsch Leibscher Hauptstr": {
         "type": "opps",
-        "n_charging_stations": 4
+        "n_charging_stations":"None"
     },
     "Luebben Am Ostbahnhof": {
         "type": "opps",
-        "n_charging_stations": 3
+        "n_charging_stations":"None"
     },
     "Radensdorf Hauptstr": {
         "type": "opps",
-        "n_charging_stations": 5
+        "n_charging_stations":"None"
     },
     "Schoenwalde Bahnhof": {
         "type": "deps",
