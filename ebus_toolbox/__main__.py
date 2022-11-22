@@ -145,8 +145,8 @@ if __name__ == '__main__':
     copy_list = [args.config, args.electrified_stations, args.vehicle_types]
 
     # only copy cost params if they exist
-    if args.cost_params is not None:
-        copy_list.append(args.cost_params)
+    if args.cost_parameters_file is not None:
+        copy_list.append(args.cost_parameters_file)
     for c_file in copy_list:
         shutil.copy(str(c_file), str(args.output_directory / Path(c_file).name))
 

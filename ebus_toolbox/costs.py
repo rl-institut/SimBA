@@ -116,9 +116,11 @@ def calculate_costs(c_params, scenario, schedule, args):
 
         # Todo: Decide, if costs are saved to json here or later in report.py.
         #  If so, the following three lines can be removed
+        #  Problem: results .json in spice ev (calculate_costs.ps:796) not found -
+        #  path is tricky with chained mods!
         # add GC name to results file for cost calculation
-        file_name, ext = os.path.splitext(args.save_results)
-        save_results = f"{file_name}_{gcID}{ext}"
+        # file_name, ext = os.path.splitext(args.save_results)
+        # save_results = f"{file_name}_{gcID}{ext}"
 
         # Todo: Decide, if currently unnecessary params should be given to calc_costs_spice_ev
         # calculate costs for electricity
@@ -133,7 +135,7 @@ def calculate_costs(c_params, scenario, schedule, args):
             charging_signal_list=timeseries.get("window"),
             core_standing_time_dict=scenario.core_standing_time,
             price_sheet_json=args.cost_parameters_file,
-            results_json=save_results,
+            results_json=None,  # todo: none for now, new path for chained mods necessary
             power_pv_nominal=pv,
         )
         # ToDo: Decide if gc-specific costs should be added to scenario object to use in report.py
