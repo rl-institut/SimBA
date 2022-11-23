@@ -5,7 +5,26 @@ import datetime
 import warnings
 
 
+def generate_vehicle_socs(scenario, args):
+
+    sim_start_time = scenario.start_time
+    v_list = []
+    for v in scenario.vehicle_socs:
+        v_list.append(v)
+
+    with open(args.output_directory / "vehicle_socs.csv", "w+", newline='') as f:
+        csv_writer = csv.writer(f)
+        csv_writer.writerow(["timestep", "time",] + v_list)
+        for i, row in enumerate(zip(*scenario.vehicle_socs.values())):
+            t = sim_start_time + i * scenario.interval
+            csv_writer.writerow((i, t,) + row)
+
+
 def generate(schedule, scenario, args):
+
+    # create csv out of vehicle's socs
+    generate_vehicle_socs(scenario, args)
+
     rotation_infos = []
 
     negative_rotations = schedule.get_negative_rotations(scenario)
