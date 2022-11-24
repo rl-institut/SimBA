@@ -318,5 +318,9 @@
     "Zaue Stellplatz": {
        "type": "deps",
        "n_charging_stations": "None"
+    },
+    "Groeditsch Aussenstationierung": {
+        "type": "deps",
+        "n_charging_stations": "None"
     }
 }

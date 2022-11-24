@@ -51,7 +51,7 @@ class Consumption:
                 reader = csv.DictReader(f)
                 for row in reader:
                     consumption['temperature'].append(float(row['Temp.']))
-                    consumption['consumption'].append(float(row['Kat. B']))
+                    consumption['consumption'].append(float(row['Alle']))
             self.consumption_files.update({consumption_file: consumption})
 
         xp = self.consumption_files[consumption_file]['temperature']
