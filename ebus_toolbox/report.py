@@ -3,8 +3,9 @@
 import csv
 import datetime
 import warnings
+import json
 
-from src.report import aggregate_timeseries
+from src.report import aggregate_timeseries, aggregate_local_results
 
 
 def generate_vehicle_socs(scenario, args):
@@ -22,8 +23,8 @@ def generate_vehicle_socs(scenario, args):
             csv_writer.writerow((i, t,) + row)
 
 
-def generate_station_name(scenario, args):
-    for gc in scenario.gcPowerSchedule:
+def generate_station_name_csv(scenario, args):
+    for gc in scenario.constants.grid_connectors.keys():
         gc_info = aggregate_timeseries(scenario, gc)
         with open(args.output_directory / f"simulation_spiceEV_{gc}.csv", "w+", newline='') as f:
             csv_writer = csv.writer(f)
@@ -32,13 +33,21 @@ def generate_station_name(scenario, args):
                 csv_writer.writerow(elem)
 
 
+def generate_station_name_json(scenario, args):
+    for gc in scenario.constants.grid_connectors.keys():
+        gc_info = aggregate_local_results(scenario, gc)
+        with open(args.output_directory / f"simulation_spiceEV_{gc}.json", 'w') as f:
+            json.dump(gc_info, f, indent=2)
+
+
 def generate(schedule, scenario, args):
 
     # create csv out of vehicle's socs
     generate_vehicle_socs(scenario, args)
 
-    # create csv for all stations
-    generate_station_name(scenario, args)
+    # create csv and json for all stations
+    generate_station_name_csv(scenario, args)
+    generate_station_name_json(scenario,args)
 
     rotation_infos = []
 
