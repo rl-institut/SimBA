@@ -17,7 +17,7 @@ def generate_vehicle_socs(scenario, args):
 
     with open(args.output_directory / "vehicle_socs.csv", "w+", newline='') as f:
         csv_writer = csv.writer(f)
-        csv_writer.writerow(["timestep", "time",] + v_list)
+        csv_writer.writerow(["timestep", "time", ] + v_list)
         for i, row in enumerate(zip(*scenario.vehicle_socs.values())):
             t = sim_start_time + i * scenario.interval
             csv_writer.writerow((i, t,) + row)
@@ -40,14 +40,38 @@ def generate_station_name_json(scenario, args):
             json.dump(gc_info, f, indent=2)
 
 
+def generate_cs_power_overview(scenario, args):
+    sim_start_time = scenario.start_time
+    gc_list = []
+    for gc in scenario.constants.grid_connectors.keys():
+        gc_list.append(gc)
+
+    with open(args.output_directory / "cs_power_overview.csv", "w+", newline='') as f:
+        csv_writer = csv.writer(f)
+        csv_writer.writerow(["timestep", "time"] + gc_list)
+        for i in range(scenario.n_intervals):
+            t = sim_start_time + i * scenario.interval
+            row = []
+            for gc in gc_list:
+                gc_info = aggregate_timeseries(scenario, gc)
+                cs_power = gc_info['timeseries']
+                sum_cs_power = cs_power[i][9]
+                row.append(sum_cs_power)
+
+            csv_writer.writerow((i, t, ) + tuple(row))
+
+
 def generate(schedule, scenario, args):
 
-    # create csv out of vehicle's socs
+    # generate csv out of vehicle's socs
     generate_vehicle_socs(scenario, args)
 
-    # create csv and json for all stations
+    # generate csv and json for all stations
     generate_station_name_csv(scenario, args)
     generate_station_name_json(scenario,args)
+
+    # generate cs power overview
+    generate_cs_power_overview(scenario, args)
 
     rotation_infos = []
 
