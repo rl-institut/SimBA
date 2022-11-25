@@ -6,7 +6,8 @@
             "charging_curve": [[0, 150], [0.8, 150], [1, 150]],
             "min_charging_power": 0,
             "v2g": false,
-            "v2g_power_factor": 0.5
+            "mileage": "data/examples/energy_consumption_example.csv",
+            "hc": "winter"
         },
         "oppb": {
             "name": "articulated bus - opportunity charging",
@@ -14,7 +15,8 @@
             "charging_curve": [[0, 150], [0.8, 150], [1, 150]],
             "min_charging_power": 0,
             "v2g": false,
-            "v2g_power_factor": 0.5
+            "mileage": "data/examples/energy_consumption_example.csv",
+            "hc": "winter"
         }
     },
     "CKB": {

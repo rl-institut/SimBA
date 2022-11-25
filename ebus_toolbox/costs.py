@@ -1,4 +1,3 @@
-import os
 import warnings
 
 from calculate_costs import calculate_costs as calc_costs_spice_ev
@@ -48,6 +47,7 @@ def calculate_costs(c_params, scenario, schedule, args):
             costs["c_vehicles"] += c_vehicles_vt
             # calculate annual cost of vehicles of this type, depending on their lifetime
             costs["c_vehicles_annual"] += c_vehicles_vt / c_params["vehicles"][v_type]["lifetime"]
+
     # GRID CONNECTION POINTS
     gcs = schedule.scenario["constants"]["grid_connectors"]
     for gcID, gc_keys in gcs.items():
@@ -85,6 +85,7 @@ def calculate_costs(c_params, scenario, schedule, args):
     costs["c_garage_annual"] = (costs["c_garage_cs"] / c_params["cs"]["lifetime_cs"] +
                                 costs["c_garage_workstations"] /
                                 c_params["garage"]["lifetime_workstations"])
+
     # MAINTENANCE
     costs["c_maint_infrastructure_annual"] = (costs["c_cs"] * c_params["cs"]["c_maint_cs_per_year"]
                                               + c_transformer *
@@ -114,13 +115,6 @@ def calculate_costs(c_params, scenario, schedule, args):
                   if pv.parent == gcID])
         timeseries = vars(scenario).get(f"{gcID}_timeseries")
 
-        # Todo: Decide, if costs are saved to json here or later in report.py.
-        #  If so, the following three lines can be removed
-        # add GC name to results file for cost calculation
-        file_name, ext = os.path.splitext(args.save_results)
-        save_results = f"{file_name}_{gcID}{ext}"
-
-        # Todo: Decide, if currently unnecessary params should be given to calc_costs_spice_ev
         # calculate costs for electricity
         costs_electricity = calc_costs_spice_ev(
             strategy=args.strategy,
@@ -133,7 +127,6 @@ def calculate_costs(c_params, scenario, schedule, args):
             charging_signal_list=timeseries.get("window"),
             core_standing_time_dict=scenario.core_standing_time,
             price_sheet_json=args.cost_parameters_file,
-            results_json=save_results,
             power_pv_nominal=pv,
         )
         # ToDo: Decide if gc-specific costs should be added to scenario object to use in report.py
