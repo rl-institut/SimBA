@@ -4,8 +4,27 @@ import csv
 import datetime
 import warnings
 
+import src.report as spice_ev_report
+
 
 def generate(schedule, scenario, args, prefix=""):
+    """
+    Save report files in output directory
+
+    :param schedule: toolbox schedule
+    :type schedule: dict
+    :param scenario: SpiceEV scenario
+    :type scenario: Scenario
+    :param args: command line options
+    :type args: Namespace
+    :param prefix: results subdirectory name
+    :type prefix: string
+    """
+
+    # create subfolder for output
+    results_directory = args.output_directory.joinpath(prefix)
+    results_directory.mkdir(parents=True, exist_ok=True)
+
     rotation_infos = []
 
     negative_rotations = schedule.get_negative_rotations(scenario)
@@ -65,14 +84,21 @@ def generate(schedule, scenario, args, prefix=""):
                       "Omit parameter <days> to simulate entire schedule.",
                       stacklevel=100)
 
-    with open(args.output_directory / (prefix + "rotation_socs.csv"), "w+", newline='') as f:
+    with open(results_directory / "rotation_socs.csv", "w", newline='') as f:
         csv_writer = csv.writer(f)
         csv_writer.writerow(("time",) + tuple(rotation_socs.keys()))
         for i, row in enumerate(zip(*rotation_socs.values())):
             t = sim_start_time + i * scenario.interval
             csv_writer.writerow((t,) + row)
 
-    with open(args.output_directory / (prefix + "rotation_summary.csv"), "w+", newline='') as f:
+    with open(results_directory / "rotation_summary.csv", "w", newline='') as f:
         csv_writer = csv.DictWriter(f, list(rotation_infos[0].keys()))
         csv_writer.writeheader()
         csv_writer.writerows(rotation_infos)
+
+    # save SpiceEV results
+    spice_ev_report.generate_reports(scenario, {
+        "save_soc": results_directory / "simulation_spiceEV.csv",
+        "save_results": results_directory / "simulation_spiceEV.json",
+        "save_timeseries": results_directory / "simulation_soc_spiceEV.csv",
+    })

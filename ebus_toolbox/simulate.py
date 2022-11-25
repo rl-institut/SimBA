@@ -97,7 +97,7 @@ def simulate(args):
             # create report based on all previous modes
             assert scenario is not None, "Can't report without simulation"
             report_name = '__'.join([m for m in args.mode[:i] if m not in ["report", "cost"]])
-            report.generate(schedule, scenario, args, prefix=report_name + '_')
+            report.generate(schedule, scenario, args, prefix=report_name)
         elif mode == 'cost' and args.cost_params is not None:
             # calculate costs of iteration
             costs = calculate_costs(cost_params, schedule)
