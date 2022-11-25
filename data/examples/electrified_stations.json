@@ -2,7 +2,15 @@
     "Station-0": {
         "type": "deps",
         "n_charging_stations": null,
-        "distance_transformer": 150
+        "distance_transformer": 150,
+        "battery": {
+            "charging_curve": [[0,50], [1,50]], # piecewise linear function that maps SoC to power, from 0 to 1, required
+            "capacity": 300, # kWh, assumed to be infinite if not given
+            "min_charging_power": 0, # kW, optional
+            "soc": 0, # initial state of charge [0-1], optional
+            "efficiency": 0.95, # optional
+            "discharge_curve": null # optional, same as charging curve
+        }
     },
     "Station-3": {
         "type": "opps",
