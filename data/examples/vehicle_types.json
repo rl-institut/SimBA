@@ -57,9 +57,9 @@
             "hc": "winter"
         }
     },
-	    "BVG-GE": {
+	"BVG-GE": {
         "depb": {
-            "name": "articulated",
+            "name": "articulated bus",
             "capacity": 400,
             "charging_curve": [[0, 450], [0.8, 296], [0.9, 210], [1, 20]],
             "min_charging_power": 0,
@@ -68,7 +68,7 @@
             "hc": "winter"
         },
         "oppb": {
-            "name": "articulated",
+            "name": "articulated bus",
             "capacity": 400,
             "charging_curve": [[0, 450], [0.8, 296], [0.9, 210], [1, 20]],
             "min_charging_power": 0,

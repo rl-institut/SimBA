@@ -34,29 +34,30 @@ file_handler.setFormatter(formatter)
 
 stream_handler = logging.StreamHandler()
 stream_handler.setFormatter(formatter)
-stream_handler.setLevel(0)
+stream_handler.setLevel(logging.DEBUG)
 
 logger.addHandler(file_handler)
 logger.addHandler(stream_handler)
 
-with open("args_only_depot.pickle", "rb") as f: args = pickle.load(f)
+with open("args_bvg_full_no_ele.pickle", "rb") as f: args = pickle.load(f)
 
-with open("scen_minimal.pickle", "rb") as f: scen = pickle.load(f)
-with open("sched_minimal.pickle", "rb") as f: sched = pickle.load(f)
+with open("scen_bvg_test.pickle", "rb") as f: scen = pickle.load(f)
+with open("sched_bvg_test.pickle", "rb") as f: sched = pickle.load(f)
 
 # set battery and charging power
 BATTERY_CAPACITY = 400
 CHARGING_CURVE = [[0, 450], [0.8, 296], [0.9, 210], [1, 20]]
 # CHARGING_CURVE = [[0, 450], [0.99, 20],[1,20]]
-for type, vehicle in sched.vehicle_types.items():
-    vehicle["capacity"] = BATTERY_CAPACITY
-    vehicle["charging_curve"] = CHARGING_CURVE
+for name , type in sched.vehicle_types.items():
+    for charge_type, vehicle in type.items():
+        vehicle["capacity"] = BATTERY_CAPACITY
+        vehicle["charging_curve"] = CHARGING_CURVE
 
 CHARGING_POWER = 250
 timers = [0] * 10
 
 
-def run_optimization(schedule, scenario, args,
+def run_optimization(this_sched, this_scen, args,
                      type="greedy", exclusion_rots=set(), inclusion_stations=set(),
                      exclusion_stations=set(), remove_impossible_rots=False, rebase_scenario=False,
                      **kwargs):
@@ -74,12 +75,12 @@ def run_optimization(schedule, scenario, args,
     default=False
     :type rebase_scenario: bool
 
-    :param schedule: Simulation schedule containing buses, rotations etc.
-    :type schedule: ebus_toolbox.Schedule
+    :param this_sched: Simulation schedule containing buses, rotations etc.
+    :type this_sched: ebus_toolbox.Schedule
 
-    :param scenario: Simulation scenario containing simulation results
+    :param this_scen: Simulation scenario containing simulation results
                      including the SoC of all vehicles over time
-    :type scenario: spice_ev.Scenario
+    :type this_scen: spice_ev.Scenario
     :param args: Simulation arguments for manipulation or generated outputs
     :type args: object
     :param type: Type of the following optimizations ["greedy"]
@@ -102,12 +103,13 @@ def run_optimization(schedule, scenario, args,
 
     s = time.time()
     # Calculate base scenario
+    # this_sched.rotations = {id: rot for id, rot in this_sched.rotations.items() if id in rots}
     if rebase_scenario:
         logger.debug(f"Spice EV Rebasing Scenario")
         new_sched, new_scen, ele_station_set, ele_stations = preprocessing_scenario(
-            schedule, args,
+            this_sched, args,
             inclusion_stations,
-            exclusion_rots=exclusion_rots, run_only_neg=True)
+            exclusion_rots=exclusion_rots, run_only_neg=False)
 
         logger.debug(f"Rebasing took {time.time() - s} sec")
     else:
@@ -117,12 +119,9 @@ def run_optimization(schedule, scenario, args,
         # Electrify inclusion stations
         for stat in inclusion_stations:
             electrify_station(stat, ele_stations, ele_station_set)
-        new_scen = scenario
-        new_sched = schedule
+        new_scen = this_scen
+        new_sched = this_sched
 
-    # s = time.time()
-    # new_sched.generate_rotations_overview(new_scen, args)
-    # print(f"Base Calc took {time.time() - s} sec")
     s = time.time()
     i = 0
     while True and i < 2:
@@ -131,7 +130,7 @@ def run_optimization(schedule, scenario, args,
             ele_stations, ele_station_set, could_not_be_electrified, list_greedy_sets = \
                 greedy_optimization(ele_stations, ele_station_set, new_scen, new_sched,
                                     not_possible_stations, soc_upper_thresh=1, soc_lower_thresh=0,
-                                    solver=kwargs.get("solver", "spiceev"))
+                                    solver=kwargs.get("solver", "quick"))
         i += 1
         if not remove_impossible_rots or len(could_not_be_electrified) == 0:
             break
@@ -139,7 +138,7 @@ def run_optimization(schedule, scenario, args,
             logger.debug("Removing impossible rots, rebasing and restarting optimization")
             exclusion_rots.update(could_not_be_electrified)
             new_sched, new_scen, ele_station_set, ele_stations = preprocessing_scenario(
-                schedule, args,
+                this_sched, args,
                 inclusion_stations,
                 exclusion_rots=exclusion_rots, run_only_neg=False)
 
@@ -160,7 +159,7 @@ def run_optimization(schedule, scenario, args,
 
     logger.debug(f"Spice EV is calculating optimized case as a complete scenario")
     new_sched, new_scen, ele_station_set, ele_stations = preprocessing_scenario(
-        schedule, args, electrified_stations=ele_stations, run_only_neg=False,
+        this_sched, args, electrified_stations=ele_stations, run_only_neg=False,
         electrified_station_set=ele_station_set)
     print("Still negative rotations:", new_sched.get_negative_rotations(new_scen))
     print("Finished")
@@ -184,25 +183,8 @@ def main():
     exclusion_rots = set()
 
     # which stations have to be electrified?
-    inclusion_stations = set()
-    # Keine Muss-Stationen
-    # inclusion_stations = {"AHGR01B", "AHGR04B", "MICH07B", "MGGW01B",
-    #                       "MGGW02B", "SBU02B", "SMZ07B", "SOSB01B", "SSWS16BA", "SSWS17BA",
-    #                       "SSS02B", "SULB01B", "SULS01B", "SWEL01B", "SABS01B", "STBH01B",
-    #                       "TSTR01B", "UAMD02B", "UAMD05BN", "UBER01B", "UDD04B", "UEWP04B",
-    #                       "UEWP05B", "UEWP02B", "UKDN06B", "UKRL03B", "UMM01B", "URUD08B",
-    #                       "WMAH01B", "WSTR01B", "ZFHF01B"}
-
     inclusion_stations = set()  # {'SWEL01B'} #{'SMZ07B', 'SWEL01B', 'URUD08B'}
 
-    # Alter stand an raus stationen vor dem 6.10
-    # exclusion_stations = {'AMWT01B', 'AUBT04B', 'BFAE01B', 'BUKR03B', 'CMPB01B', 'ELTP01B', \
-    #                       'FOHA01B', 'HAWR01B', 'ZOOH01B', 'MAST04B', 'MAST06B', 'MEMH07B', \
-    #                       'MHDO01B', 'NOSS01B', 'PIET06BA', 'SAH06B', 'SAHF01B', 'SKD05B', \
-    #                       'SLIS02B', 'SPRA03B', 'SURZ23B', 'SUMM01B', 'UFI02B', 'UHPK01B', \
-    #                       'URUH07B', 'VOUL01B'}
-
-    # exclusion_stations = set(["CMPB01B"])
     exclusion_stations = set()
     t = time.time()
     run_optimization(sched, scen, args, type="greedy", exclusion_rots=exclusion_rots,
@@ -259,6 +241,7 @@ def greedy_optimization(electrified_stations, electrified_station_set, new_scen,
     # Base line is created simply by not having a decision tree and not a pre optimized_set yet
     for group_nr, group in enumerate(groups):
         events, stations = group
+
         linien = {lne for e in events for lne in e["rotation"].lines}
         electrified_stations = base_stations.copy()
         electrified_station_set = base_electrified_station_set.copy()
@@ -852,7 +835,7 @@ def timeseries_calc(station, rotations, soc_dict, eval_scen, ele_station_set):
             except IndexError:
                 standing_time = datetime.timedelta(minutes=0)
 
-            if args.min_charging_time < standing_time:
+            if args.min_charging_time > standing_time/datetime.timedelta(minutes=1):
                 standing_time_min = 0
             else:
                 # ToDO Discuss. Arrival time +1 is start for charge
@@ -908,7 +891,7 @@ def evaluate(events, eval_scen, soc_upper_thresh=1, soc_lower_thresh=0,
                 standing_time = e["trip"][i + 1].departure_time - trip.arrival_time
             except IndexError:
                 standing_time = datetime.timedelta(minutes=0)
-            if args.min_charging_time < standing_time:
+            if args.min_charging_time > standing_time/datetime.timedelta(minutes=1):
                 standing_time_min = 0
             else:
                 standing_time -= get_buffer_time(trip.arrival_time, args)
@@ -1175,25 +1158,29 @@ def get_below_zero_soc_events(this_scen: scenario.Scenario, rotations,
 
 
 def preprocess_schedule(this_sched, this_args, electrified_stations=None):
-    Trip.consumption = Consumption(this_sched.vehicle_types)
+    Trip.consumption = Consumption(this_sched.vehicle_types,
+                                   outside_temperatures=args.outside_temperature_over_day_path,
+                                   level_of_loading_over_day=args.level_of_loading_over_day_path)
+    this_sched.stations=electrified_stations
     # filter trips according to args
-    this_sched.filter_rotations()
     this_sched.calculate_consumption()
-    this_sched.set_charging_type(preferred_ct=this_args.preferred_charging_type, args=this_args)
-
-    # (re)calculate the change in SoC for every trip
-    # charging types may have changed which may impact battery capacity
-    # while mileage is assumed to stay constant
-    this_sched.delta_soc_all_trips()
+    # this_sched.set_charging_type(this_args.preferred_charging_type)
+    #
+    # # (re)calculate the change in SoC for every trip
+    # # charging types may have changed which may impact battery capacity
+    # # while mileage is assumed to stay constant
+    # this_sched.delta_soc_all_trips()
     # each rotation is assigned a vehicle ID
     this_sched.assign_vehicles()
-    return this_sched, this_sched.generate_scenario(this_args,
-                                                    electrified_stations=electrified_stations)
+    return this_sched, this_sched.generate_scenario(this_args)
 
 
 def run_schedule(this_sched, this_args, electrified_stations=None):
     this_sched2 = copy(this_sched)
     this_sched2.rotations = deepcopy(this_sched2.rotations)
+    this_sched2.stations=electrified_stations
+    this_sched2.assign_vehicles()
+
     this_sched2, new_scen = preprocess_schedule(this_sched2, this_args,
                                                 electrified_stations=electrified_stations)
 
