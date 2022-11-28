@@ -68,7 +68,7 @@ def generate(schedule, scenario, args):
 
     # generate csv and json for all stations
     generate_station_name_csv(scenario, args)
-    generate_station_name_json(scenario,args)
+    generate_station_name_json(scenario, args)
 
     # generate cs power overview
     generate_cs_power_overview(scenario, args)
