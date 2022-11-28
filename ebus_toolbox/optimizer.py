@@ -20,6 +20,8 @@ from multiprocessing import Pool, freeze_support
 from ebus_toolbox.consumption import Consumption
 from ebus_toolbox.trip import Trip
 
+# Todo this implementation in c ase of changes in ebustoolbox
+from ebus_toolbox.util import get_buffer_time as get_buffer_time_spice_ev
 matplotlib.use("TkAgg")
 import numpy as np
 
@@ -27,7 +29,6 @@ logger = logging.getLogger(__name__)
 logger.setLevel(logging.DEBUG)
 
 formatter = logging.Formatter('%(message)s')
-
 file_handler = logging.FileHandler('optimizer.log')
 file_handler.setLevel(logging.ERROR)
 file_handler.setFormatter(formatter)
@@ -43,7 +44,7 @@ with open("args_bvg_full_no_ele.pickle", "rb") as f: args = pickle.load(f)
 
 with open("scen_bvg_test.pickle", "rb") as f: scen = pickle.load(f)
 with open("sched_bvg_test.pickle", "rb") as f: sched = pickle.load(f)
-
+ROT = '6813275'
 # set battery and charging power
 BATTERY_CAPACITY = 400
 CHARGING_CURVE = [[0, 450], [0.8, 296], [0.9, 210], [1, 20]]
@@ -55,7 +56,10 @@ for name , type in sched.vehicle_types.items():
 
 CHARGING_POWER = 250
 timers = [0] * 10
-
+args.min_charging_time=0
+del args.save_soc
+del args.save_timeseries
+del args.save_results
 
 def run_optimization(this_sched, this_scen, args,
                      type="greedy", exclusion_rots=set(), inclusion_stations=set(),
@@ -124,6 +128,7 @@ def run_optimization(this_sched, this_scen, args,
 
     s = time.time()
     i = 0
+    global timer_for_calc
     while True and i < 2:
         if type == "greedy":
             logger.debug("Starting greedy optimization")
@@ -135,23 +140,34 @@ def run_optimization(this_sched, this_scen, args,
         if not remove_impossible_rots or len(could_not_be_electrified) == 0:
             break
         else:
-            logger.debug("Removing impossible rots, rebasing and restarting optimization")
+            logger.debug(f"Non Spice Ev methods took {time.time() - s - timer_for_calc} sec")
+            logger.debug(f"Spice ev took {timer_for_calc} s")
+            logger.debug(f"Electrified Stations: {len(ele_station_set)}")
+            logger.debug(ele_station_set)
+            logger.warning(f"These rotations could not be electrified"
+                           f"\n {could_not_be_electrified}")
+
+
+            logger.warning("Removing impossible rots, rebasing and restarting optimization")
             exclusion_rots.update(could_not_be_electrified)
             new_sched, new_scen, ele_station_set, ele_stations = preprocessing_scenario(
                 this_sched, args,
                 inclusion_stations,
                 exclusion_rots=exclusion_rots, run_only_neg=False)
 
-    global timer_for_calc
+
+
     logger.debug(f"Non Spice Ev methods took {time.time() - s - timer_for_calc} sec")
     logger.debug(f"Spice ev took {timer_for_calc} s")
     logger.debug(f"Electrified Stations: {len(ele_station_set)}")
     logger.debug(ele_station_set)
     logger.debug(could_not_be_electrified)
+    plot_(get_rotation_soc(ROT, new_sched, new_scen)[0])
     new_scen.vehicle_socs = timeseries_calc('best_station_ids[0]', new_sched.rotations.values(),
                                             new_scen.vehicle_socs,
                                             new_scen, ele_station_set)
-    plot_(get_rotation_soc('7025440', new_sched, new_scen)[0])
+    plot_(get_rotation_soc(ROT, new_sched, new_scen)[0])
+    q =get_rotation_soc(ROT, new_sched, new_scen)[0]
     global timers
     logger.debug(timers)
     with open(new_ele_stations_path, "w") as f:
@@ -161,6 +177,8 @@ def run_optimization(this_sched, this_scen, args,
     new_sched, new_scen, ele_station_set, ele_stations = preprocessing_scenario(
         this_sched, args, electrified_stations=ele_stations, run_only_neg=False,
         electrified_station_set=ele_station_set)
+    ax = plot_(get_rotation_soc(ROT, new_sched, new_scen)[0])
+    ax.plot(q)
     print("Still negative rotations:", new_sched.get_negative_rotations(new_scen))
     print("Finished")
     return new_sched, new_scen
@@ -181,15 +199,17 @@ def main():
 
     exclusion_rots.update(impossible_rots)
     exclusion_rots = set()
-
+    exclusion_rots={'6891228', '7194397', '6891226', '6891222', '7049423', '7049422', '6891224'}
     # which stations have to be electrified?
     inclusion_stations = set()  # {'SWEL01B'} #{'SMZ07B', 'SWEL01B', 'URUD08B'}
+
+    sched.rotations={ROT:sched.rotations[ROT]}
 
     exclusion_stations = set()
     t = time.time()
     run_optimization(sched, scen, args, type="greedy", exclusion_rots=exclusion_rots,
                      inclusion_stations=inclusion_stations, exclusion_stations=exclusion_stations,
-                     remove_impossible_rots=True, rebase_scenario=False, solver="quick")
+                     remove_impossible_rots=True, rebase_scenario=True, solver="quick")
     print(f"Opt took {time.time() - t}")
 
 
@@ -457,24 +477,6 @@ def group_optimization_quick(group, base_scen, base_sched,
                                             new_scen, electrified_station_set)
     lifted_socs = deepcopy(new_scen.vehicle_socs)
 
-    # new_sched_2, new_scen_2 = run_schedule(pre_opt_sched, args,
-    #                                      electrified_stations=electrified_stations)
-
-    # soc_sum = 0
-    # soc_sum_before =0
-    # # logger.debug(rotation_dict.keys())
-    # # for rot in rotation_dict:
-    # #     soc1, st, end = get_rotation_soc(rot, new_sched,new_scen)
-    # #     soc1 = np.array(soc1[st:end])#-np.array(soc[st:end])*0+(1-soc[st])
-    # #     soc_sum += sum(soc1)
-    # #
-    # #     soc, st, end = get_rotation_soc(rot, pre_opt_sched,pre_opt_scen)
-    # #     soc = np.array(soc[st:end])#-np.array(soc[st:end])*0+(1-soc[st])
-    # #     soc_sum_before += sum(soc)
-    # #
-    # # logger.debug(soc_sum_before)
-    # # logger.debug(soc_sum)
-
     global timer_for_calc
     global timers
     timer_for_calc += time.time() - s
@@ -550,7 +552,7 @@ def group_optimization(group, base_scen, base_sched,
 
     station_eval = evaluate(event_group, pre_opt_scen)
     for id in station_eval:
-        logger.debug(id[0], id[1]["pot_sum"])
+        logger.debug("%s, %s", id[0], id[1]["pot_sum"])
     logger.debug(missing_energy)
 
     #
@@ -563,7 +565,7 @@ def group_optimization(group, base_scen, base_sched,
                                           pre_optimzed_set, decision_tree,
                                           missing_energy=missing_energy)
 
-    logger.debug(best_station_ids, end=" ")
+    logger.debug(best_station_ids)
     if best_station_ids is None:
         print(
             f"All stations with estimated potential electrified but still missing energy in {len(list(rotation_dict.keys()))} rotations")
@@ -590,18 +592,6 @@ def group_optimization(group, base_scen, base_sched,
     new_sched, new_scen = run_schedule(pre_opt_sched, args,
                                        electrified_stations=electrified_stations)
 
-    # soc_sum = 0
-    # soc_sum_before =0
-    # print(rotation_dict.keys())
-    # for rot in rotation_dict:
-    #     soc1, st, end = get_rotation_soc(rot, new_sched,new_scen)
-    #     soc1 = np.array(soc1[st:end])#-np.array(soc[st:end])*0+(1-soc[st])
-    #     soc_sum += sum(soc1)
-    #     soc, st, end = get_rotation_soc(rot, pre_opt_sched,pre_opt_scen)
-    #     soc = np.array(soc[st:end])#-np.array(soc[st:end])*0+(1-soc[st])
-    #     soc_sum_before += sum(soc)
-    # print(soc_sum_before)
-    # print(soc_sum)
 
     global timer_for_calc
     timer_for_calc += time.time() - s
@@ -831,19 +821,13 @@ def timeseries_calc(station, rotations, soc_dict, eval_scen, ele_station_set):
                 continue
             idx = get_index_by_time(trip.arrival_time, eval_scen)
             try:
-                standing_time = (rot.trips[i + 1].departure_time - (trip.arrival_time))
+                standing_time_min=get_charging_time(trip,rot.trips[i + 1], args)
             except IndexError:
-                standing_time = datetime.timedelta(minutes=0)
-
-            if args.min_charging_time > standing_time/datetime.timedelta(minutes=1):
-                standing_time_min = 0
-            else:
-                # ToDO Discuss. Arrival time +1 is start for charge
-                standing_time -= get_buffer_time(trip.arrival_time, args)
-                standing_time_min = max(0, standing_time / datetime.timedelta(minutes=1) - 1)
+                standing_time_min =0
 
             d_soc = get_delta_soc(soc_over_time_curve, soc[idx], standing_time_min)
-            soc[idx + 1:] += d_soc
+            buffer_idx = int((get_buffer_time(trip,args))/datetime.timedelta(minutes=1))
+            soc[idx + 1+buffer_idx:] += d_soc
             soc_max = np.max(soc)
             timers[0] += time.time() - s
             s = time.time()
@@ -887,18 +871,17 @@ def evaluate(events, eval_scen, soc_upper_thresh=1, soc_lower_thresh=0,
                                 min_soc - e["min_soc"],
                                 soc - e["min_soc"],
                                 max_soc - min_soc)
+
+
+
             try:
-                standing_time = e["trip"][i + 1].departure_time - trip.arrival_time
+                standing_time_min=get_charging_time(trip,e["trip"][i + 1], args)
             except IndexError:
-                standing_time = datetime.timedelta(minutes=0)
-            if args.min_charging_time > standing_time/datetime.timedelta(minutes=1):
-                standing_time_min = 0
-            else:
-                standing_time -= get_buffer_time(trip.arrival_time, args)
-                standing_time_min = max(0, standing_time / datetime.timedelta(minutes=1) - 1)
+                standing_time_min =0
+
             # ToDo get Vehicle Battery Capacity and charging power
             capacity = BATTERY_CAPACITY
-            ch_power = CHARGING_POWER
+
             # energy_charging_potential = standing_time_min *60 * ch_power
             energy_charging_potential = get_delta_soc(soc_over_time_curve, soc, standing_time_min) \
                                         * capacity
@@ -907,7 +890,7 @@ def evaluate(events, eval_scen, soc_upper_thresh=1, soc_lower_thresh=0,
             # energy provided by charging for the full standing time
             delta_E_pot = min(delta_soc_pot * capacity, energy_charging_potential)
             d = dict(E_pot=delta_E_pot,
-                     standing_time=standing_time)
+                     standing_time=datetime.timedelta(minutes=standing_time_min))
             try:
                 station_eval[trip.arrival_name]["pot_list"].append(d)
             except:
@@ -936,6 +919,20 @@ def evaluate(events, eval_scen, soc_upper_thresh=1, soc_lower_thresh=0,
     station_eval.reverse()
     return station_eval
 
+
+def get_charging_time(trip1, trip2, args):
+    delay = 1
+    standing_time_min = (trip2.departure_time - trip1.arrival_time) \
+                        / datetime.timedelta(minutes=1)
+    if args.min_charging_time > standing_time_min:
+        return 0
+    # Todo trip1 or trip2
+    buffer_time=(get_buffer_time(trip1,args)/ datetime.timedelta(minutes=1))
+    if buffer_time >0:
+        standing_time_min -=  buffer_time
+    else:
+        standing_time_min -=delay
+    return max(0, standing_time_min)
 
 def join_subsets(subsets):
     subsets = [s.copy() for s in subsets]
@@ -1114,12 +1111,15 @@ def get_below_zero_soc_events(this_scen: scenario.Scenario, rotations,
                 possible_stations = {t.arrival_name for t in trips}
                 possible_stations_list = [t.arrival_name for t in trips]
             else:
-                for ii, t in enumerate(trips):
+                for ii, trip in enumerate(trips):
                     try:
-                        standing_time = trips[ii + 1].departure_time - t.arrival_time
-                        if standing_time > get_buffer_time(t.arrival_time, args):
-                            possible_stations.add(t.arrival_name)
-                            possible_stations_list.append(t.arrival_name)
+                        try:
+                            standing_time_min = get_charging_time(trip, trips[ii + 1], args)
+                        except IndexError:
+                            standing_time_min = 0
+                        if standing_time_min>0:
+                            possible_stations.add(trip.arrival_name)
+                            possible_stations_list.append(trip.arrival_name)
                     except IndexError:
                         pass
 
@@ -1177,7 +1177,6 @@ def preprocess_schedule(this_sched, this_args, electrified_stations=None):
 
 def run_schedule(this_sched, this_args, electrified_stations=None):
     this_sched2 = copy(this_sched)
-    this_sched2.rotations = deepcopy(this_sched2.rotations)
     this_sched2.stations=electrified_stations
     this_sched2.assign_vehicles()
 
@@ -1185,21 +1184,24 @@ def run_schedule(this_sched, this_args, electrified_stations=None):
                                                 electrified_stations=electrified_stations)
 
     # Dont print output from spice ev to reduce clutter
+    print(".", end="")
     sys.stdout = open(os.devnull, 'w')
 
     print("Running Spice EV...")
     with warnings.catch_warnings():
         warnings.simplefilter('ignore', UserWarning)
+
         new_scen.run('distributed', vars(this_args).copy())
+
     sys.stdout = sys.__stdout__
+    print(".")
     return this_sched2, new_scen
 
 
-def charging_curve_to_soc_over_time(charging_curve, capacity, max_charge_from_grid=float('inf')):
+def charging_curve_to_soc_over_time(charging_curve, capacity, max_charge_from_grid=float('inf'), timestep=0.1):
     # Charging curve as nested list of SOC, Power[kW] and capacity in [kWh]
     # Simple numeric creation of power over time --> to energy over time
     normalized_curve = np.array([[soc, power / capacity] for soc, power in charging_curve])
-    timestep = 0.1
     soc = 0
     time = 0
     socs = []
@@ -1207,9 +1209,12 @@ def charging_curve_to_soc_over_time(charging_curve, capacity, max_charge_from_gr
     while soc < 1:
         times.append(time)
         socs.append(soc)
-        power = min(np.interp(soc, normalized_curve[:, 0], normalized_curve[:, 1]),
+        power1 = min(np.interp(soc, normalized_curve[:, 0], normalized_curve[:, 1]),
                     max_charge_from_grid / capacity)
-        # print(time, power*capacity)
+        soc2 = soc +timestep / 60 * power1
+        power2 = min(np.interp(soc2, normalized_curve[:, 0], normalized_curve[:, 1]),
+                    max_charge_from_grid / capacity)
+        power = (power1+power2)/2
         soc += timestep / 60 * power
         time += timestep
     # Fill the soc completely in last timestep
@@ -1239,7 +1244,7 @@ def get_delta_soc(soc_over_time_curve, soc, time_delta):
     return min(1, end_soc - start_soc)
 
 
-def get_buffer_time(search_time, args):
+def get_buffer_time_old(search_time, args):
     for window, buffer_time in args.default_buffer_time_opps.items():
         try:
             start, end = window.split("-")
@@ -1254,6 +1259,9 @@ def electrify_station(stat, stations, electrified_set):
     stations[stat] = {'type': 'opps', 'n_charging_stations': 200}
     electrified_set.add(stat)
 
+def get_buffer_time(trip,args):
+    return get_buffer_time_old(trip.arrival_time, args)
+    # return datetime.timedelta(minutes=get_buffer_time_spice_ev(trip,))
 
 if __name__ == "__main__":
     freeze_support()
