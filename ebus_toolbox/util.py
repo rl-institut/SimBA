@@ -122,12 +122,12 @@ def uncomment_json_file(f, delim='//'):
     """
     uncommented_data = ""
     for line in f:
-            comment_idx = line.find(delim)
-            if comment_idx == -1:
-                # no comment in line
-                uncommented_data += line
-            else:
-                uncommented_data += line[:comment_idx] + "\n"
+        comment_idx = line.find(delim)
+        if comment_idx == -1:
+            # no comment in line
+            uncommented_data += line
+        else:
+            uncommented_data += line[:comment_idx] + "\n"
     return json.loads(uncommented_data)
 
 
