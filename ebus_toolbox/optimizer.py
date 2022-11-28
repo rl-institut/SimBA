@@ -1,7 +1,7 @@
 """ Optimizer that evaluates inputs and outputs of every iteration, adapting scenario setup
     to optimize for specified metrics.
 """
-import datetime
+from datetime import datetime,timedelta
 import json
 import os
 import sys
@@ -27,16 +27,13 @@ import numpy as np
 
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.DEBUG)
-
 formatter = logging.Formatter('%(message)s')
 file_handler = logging.FileHandler('optimizer.log')
-file_handler.setLevel(logging.ERROR)
+file_handler.setLevel(logging.DEBUG)
 file_handler.setFormatter(formatter)
-
 stream_handler = logging.StreamHandler()
 stream_handler.setFormatter(formatter)
 stream_handler.setLevel(logging.DEBUG)
-
 logger.addHandler(file_handler)
 logger.addHandler(stream_handler)
 
@@ -44,7 +41,7 @@ with open("args_bvg_full_no_ele.pickle", "rb") as f: args = pickle.load(f)
 
 with open("scen_bvg_test.pickle", "rb") as f: scen = pickle.load(f)
 with open("sched_bvg_test.pickle", "rb") as f: sched = pickle.load(f)
-ROT = '6813275'
+ROT = '6808730'
 # set battery and charging power
 BATTERY_CAPACITY = 400
 CHARGING_CURVE = [[0, 450], [0.8, 296], [0.9, 210], [1, 20]]
@@ -54,9 +51,14 @@ for name , type in sched.vehicle_types.items():
         vehicle["capacity"] = BATTERY_CAPACITY
         vehicle["charging_curve"] = CHARGING_CURVE
 
+CHARGE_EFF=0.95
 CHARGING_POWER = 250
+
+
 timers = [0] * 10
 args.min_charging_time=0
+args.default_buffer_time_opps = {"else":0}
+
 del args.save_soc
 del args.save_timeseries
 del args.save_results
@@ -99,7 +101,7 @@ def run_optimization(this_sched, this_scen, args,
     :return: (Schedule,Scenario) optimizied schedule and Scenario
     :rtype: tuple(ebus_toolbox.Schedule, spice_ev.Scenario)
     """
-    now = datetime.datetime.now()
+    now = datetime.now()
     new_ele_stations_path = "data/examples/optimized_stations_" + \
                             now.strftime("%Y_%m_%d_%H_%M") + ".json"
 
@@ -130,12 +132,19 @@ def run_optimization(this_sched, this_scen, args,
     i = 0
     global timer_for_calc
     while True and i < 2:
-        if type == "greedy":
+        if type == "greedy" or type=="deep":
             logger.debug("Starting greedy optimization")
             ele_stations, ele_station_set, could_not_be_electrified, list_greedy_sets = \
                 greedy_optimization(ele_stations, ele_station_set, new_scen, new_sched,
                                     not_possible_stations, soc_upper_thresh=1, soc_lower_thresh=0,
                                     solver=kwargs.get("solver", "quick"))
+        elif type=="deep":
+            ele_stations, ele_station_set, could_not_be_electrified, list_greedy_sets = \
+                greedy_optimization(ele_stations, ele_station_set, new_scen, new_sched,
+                                    not_possible_stations, soc_upper_thresh=1, soc_lower_thresh=0,
+                                    solver=kwargs.get("solver", "quick"), decision_tree=dict())
+            pass
+
         i += 1
         if not remove_impossible_rots or len(could_not_be_electrified) == 0:
             break
@@ -146,6 +155,7 @@ def run_optimization(this_sched, this_scen, args,
             logger.debug(ele_station_set)
             logger.warning(f"These rotations could not be electrified"
                            f"\n {could_not_be_electrified}")
+
 
 
             logger.warning("Removing impossible rots, rebasing and restarting optimization")
@@ -177,9 +187,10 @@ def run_optimization(this_sched, this_scen, args,
     new_sched, new_scen, ele_station_set, ele_stations = preprocessing_scenario(
         this_sched, args, electrified_stations=ele_stations, run_only_neg=False,
         electrified_station_set=ele_station_set)
+
     ax = plot_(get_rotation_soc(ROT, new_sched, new_scen)[0])
     ax.plot(q)
-    print("Still negative rotations:", new_sched.get_negative_rotations(new_scen))
+    logger.debug(f"Still negative rotations:{new_sched.get_negative_rotations(new_scen)}")
     print("Finished")
     return new_sched, new_scen
 
@@ -203,13 +214,13 @@ def main():
     # which stations have to be electrified?
     inclusion_stations = set()  # {'SWEL01B'} #{'SMZ07B', 'SWEL01B', 'URUD08B'}
 
-    sched.rotations={ROT:sched.rotations[ROT]}
+    # sched.rotations={ROT:sched.rotations[ROT]}
 
     exclusion_stations = set()
     t = time.time()
     run_optimization(sched, scen, args, type="greedy", exclusion_rots=exclusion_rots,
                      inclusion_stations=inclusion_stations, exclusion_stations=exclusion_stations,
-                     remove_impossible_rots=True, rebase_scenario=True, solver="quick")
+                     remove_impossible_rots=False, rebase_scenario=False, solver="quick")
     print(f"Opt took {time.time() - t}")
 
 
@@ -217,7 +228,8 @@ timer_for_calc = 0
 
 
 def greedy_optimization(electrified_stations, electrified_station_set, new_scen, new_sched,
-                        not_possible_stations, soc_upper_thresh=1, soc_lower_thresh=0, **kwargs):
+                        not_possible_stations, soc_upper_thresh=1, soc_lower_thresh=0,
+                        decision_tree = dict(),pre_optimzed_set=None, **kwargs):
     # Base stations for optimization, so inclusion of stations can be skipped
     base_stations = electrified_stations.copy()
     base_electrified_station_set = electrified_station_set.copy()
@@ -256,12 +268,12 @@ def greedy_optimization(electrified_stations, electrified_station_set, new_scen,
 
     # Baseline greedy Optimization
     list_greedy_sets = [set()] * len(groups)
-    decision_tree = dict()
+
 
     # Base line is created simply by not having a decision tree and not a pre optimized_set yet
     for group_nr, group in enumerate(groups):
         events, stations = group
-
+        group_rots={e["rotation"].id:e["rotation"] for e in events}
         linien = {lne for e in events for lne in e["rotation"].lines}
         electrified_stations = base_stations.copy()
         electrified_station_set = base_electrified_station_set.copy()
@@ -273,9 +285,10 @@ def greedy_optimization(electrified_stations, electrified_station_set, new_scen,
             group_optimization_quick(group, base_scen, base_sched,
                                      electrified_stations, electrified_station_set,
                                      could_not_be_electrified, not_possible_stations,
-                                     pre_optimzed_set=None,
+                                     pre_optimzed_set=pre_optimzed_set,
                                      decision_tree=decision_tree, brute=False, **kwargs)
         else:
+            # use spiceev
             group_optimization(group, base_scen, base_sched,
                                electrified_stations, electrified_station_set,
                                could_not_be_electrified, not_possible_stations,
@@ -769,50 +782,16 @@ def choose_station(station_eval, electrified_station_set,
     return None
 
 
-#
-# def timeseries_calc_folded_dep(station, events, soc_dict_folded, eval_scen):
-#     soc_dict_folded = copy(soc_dict_folded)
-#     charging_curve = [[0, 450], [0.8, 296], [0.9, 210], [1, 20]]
-#     soc_over_time_curve = charging_curve_to_soc_over_time(charging_curve, BATTERY_CAPACITY)
-#     for e in events:
-#         if station in e["stations"]:
-#             for i, trip in enumerate(e["trip"]):
-#                 if trip.arrival_name != station:
-#                     continue
-#                 try:
-#                     idx = np.argwhere(soc_dict_folded[e["vehicle_id"]][:,0]==trip.arrival_time)[0][0]
-#                 except:
-#                     continue
-#                 soc = soc_dict_folded[e["vehicle_id"]][:,2]
-#                 try:
-#                     standing_time = e["trip"][i + 1].departure_time - trip.arrival_time
-#                 except IndexError:
-#                     standing_time = datetime.timedelta(minutes=0)
-#                 standing_time -= get_buffer_time(trip.arrival_time, args)
-#                 standing_time = standing_time / datetime.timedelta(minutes=1)
-#                 d_soc = get_delta_soc(soc_over_time_curve, soc[idx], standing_time)
-#                 soc[idx:] += d_soc
-#                 soc_max = np.max(soc)
-#                 while soc_max > 1:
-#                     desc = np.arange(len(soc), 0, -1)
-#                     diff = np.hstack((np.diff(soc), -1))
-#                     # masking of socs >1 and negative gradient for local maximum
-#                     idc_loc_max = np.argmax(desc * (soc > 1) * (diff < 0))
-#                     # Reducing everything after local maximum
-#                     soc[idc_loc_max:] = soc[idc_loc_max:] - (soc_max - 1)
-#                     # Capping everything before local maximum
-#                     soc[:idc_loc_max][soc[:idc_loc_max]>1]=1
-#                     soc_max = np.max(soc)
-#     return soc_dict_folded
-
-
 def timeseries_calc(station, rotations, soc_dict, eval_scen, ele_station_set):
     global timers
     ele_stations = set([*ele_station_set, station])
     s2 = time.time()
     soc_dict = copy(soc_dict)
-    soc_over_time_curve = charging_curve_to_soc_over_time(CHARGING_CURVE, BATTERY_CAPACITY,
-                                                          CHARGING_POWER)
+    CHARGING_CURVE_EFF =[[soc,power] for soc, power in CHARGING_CURVE]
+
+    soc_over_time_curve = charging_curve_to_soc_over_time(CHARGING_CURVE_EFF, BATTERY_CAPACITY,
+                                                          CHARGING_POWER, efficiency=CHARGE_EFF,
+                                                          timestep=0.1)
     for rot in rotations:
         soc = soc_dict[rot.vehicle_id]
         for i, trip in enumerate(rot.trips):
@@ -826,8 +805,13 @@ def timeseries_calc(station, rotations, soc_dict, eval_scen, ele_station_set):
                 standing_time_min =0
 
             d_soc = get_delta_soc(soc_over_time_curve, soc[idx], standing_time_min)
-            buffer_idx = int((get_buffer_time(trip,args))/datetime.timedelta(minutes=1))
-            soc[idx + 1+buffer_idx:] += d_soc
+            buffer_idx = int((get_buffer_time(trip,args))/timedelta(minutes=1))
+            delta_idx=int(standing_time_min)+1
+            old_soc = soc[idx +buffer_idx:idx +buffer_idx+delta_idx].copy()
+            soc[idx +buffer_idx:] += d_soc
+            soc[idx  + buffer_idx:idx  + buffer_idx + delta_idx] = old_soc
+            soc[idx  + buffer_idx:idx  + buffer_idx + delta_idx] +=np.linspace(0, d_soc,delta_idx)
+
             soc_max = np.max(soc)
             timers[0] += time.time() - s
             s = time.time()
@@ -836,8 +820,11 @@ def timeseries_calc(station, rotations, soc_dict, eval_scen, ele_station_set):
                 diff = np.hstack((np.diff(soc), -1))
                 # masking of socs >1 and negative gradient for local maximum
                 idc_loc_max = np.argmax(desc * (soc > 1) * (diff < 0))
+
+                soc_max= soc[idc_loc_max]
                 # Reducing everything after local maximum
                 soc[idc_loc_max:] = soc[idc_loc_max:] - (soc_max - 1)
+
                 # Capping everything before local maximum
                 soc[:idc_loc_max][soc[:idc_loc_max] > 1] = 1
                 soc_max = np.max(soc)
@@ -890,7 +877,7 @@ def evaluate(events, eval_scen, soc_upper_thresh=1, soc_lower_thresh=0,
             # energy provided by charging for the full standing time
             delta_E_pot = min(delta_soc_pot * capacity, energy_charging_potential)
             d = dict(E_pot=delta_E_pot,
-                     standing_time=datetime.timedelta(minutes=standing_time_min))
+                     standing_time=timedelta(minutes=standing_time_min))
             try:
                 station_eval[trip.arrival_name]["pot_list"].append(d)
             except:
@@ -908,12 +895,12 @@ def evaluate(events, eval_scen, soc_upper_thresh=1, soc_lower_thresh=0,
                 continue
 
         sum = 0
-        standing_time = datetime.timedelta(minutes=0)
+        standing_time = timedelta(minutes=0)
         for pot in stat_dict["pot_list"]:
             sum += pot["E_pot"]
             standing_time += pot["standing_time"]
         stat_dict["pot_sum"] = sum
-        # time_list.append(standing_time / datetime.timedelta(minutes=1))
+        # time_list.append(standing_time / timedelta(minutes=1))
     # Sort by pot_sum
     station_eval = list(dict(sorted(station_eval.items(), key=lambda x: x[1]["pot_sum"])).items())
     station_eval.reverse()
@@ -921,17 +908,17 @@ def evaluate(events, eval_scen, soc_upper_thresh=1, soc_lower_thresh=0,
 
 
 def get_charging_time(trip1, trip2, args):
-    delay = 1
+    delay = 0
     standing_time_min = (trip2.departure_time - trip1.arrival_time) \
-                        / datetime.timedelta(minutes=1)
+                        / timedelta(minutes=1)
     if args.min_charging_time > standing_time_min:
         return 0
     # Todo trip1 or trip2
-    buffer_time=(get_buffer_time(trip1,args)/ datetime.timedelta(minutes=1))
+    buffer_time=(get_buffer_time(trip1,args)/ timedelta(minutes=1))
     if buffer_time >0:
         standing_time_min -=  buffer_time
     else:
-        standing_time_min -=delay
+        standing_time_min -= delay
     return max(0, standing_time_min)
 
 def join_subsets(subsets):
@@ -947,22 +934,16 @@ def join_subsets(subsets):
     return False, subsets
 
 
-# def get_subsets(sched: schedule.Schedule, rotations):
-#     subsets = [{t.arrival_name for t in rot.trips if t.arrival_name not in exclusions} for rot in
-#                rotations]
-#     return join_all_subsets(subsets)
-
-
 def get_index_by_time(search_time, this_scen: scenario.Scenario):
     start_time = this_scen.start_time
-    delta_time = datetime.timedelta(minutes=60 / this_scen.stepsPerHour)
+    delta_time = timedelta(minutes=60 / this_scen.stepsPerHour)
     idx = (search_time - start_time) // delta_time
     return idx
 
 
 def get_time_by_index(idx, this_scen: scenario.Scenario):
     start_time = this_scen.start_time
-    delta_time = datetime.timedelta(minutes=60 / this_scen.stepsPerHour)
+    delta_time = timedelta(minutes=60 / this_scen.stepsPerHour)
     searched_time = start_time + delta_time * idx
     return searched_time
 
@@ -993,70 +974,6 @@ def get_rotation_soc(rot_id, this_sched, this_scen):
     return this_scen.vehicle_socs[rot.vehicle_id], rot_start_idx, rot_end_idx
 
 
-#
-# def get_below_zero_soc_events_folded_(this_scen: scenario.Scenario, rotations,
-#                                       this_sched: schedule.Schedule,
-#                                       soc_upper_thresh=0.9, filter_standing_time=True,
-#                                       not_possible_stations=set(), soc_lower_thresh=0):
-#     # Create list of events which describe trips which end in a soc below zero
-#     # The event is bound by the lowest soc and an upper soc threshhold which is naturally 1
-#     # Properties before and after these points have no effect on the event itself, similar to
-#     # an event horizon
-#     events = []
-#     SOC_UPPER_THRESH = soc_upper_thresh
-#     count_electrified_rot = 0
-#     for rot_id in rotations:
-#         rot = this_sched.rotations[rot_id]
-#         data = this_scen.vehicle_socs_folded[rot.vehicle_id]
-#         soc = data[:, 2][(data[:, 0] >= rot.departure_time) * (data[:, 0] <= rot.arrival_time)]
-#
-#         # soc, rot_start_idx, rot_end_idx = get_rotation_soc(rot_id, this_sched, this_scen)
-#         # soc = [s if s is not None else 999 for s in soc]
-#         idx = range(0, len(soc))
-#
-#         comb = list(zip(soc, idx))
-#         min_soc, min_idx = min(comb, key=lambda x: x[0])
-#         reduced_list = comb.copy()
-#
-#         if min_soc >= soc_lower_thresh:
-#             count_electrified_rot += 1
-#
-#         while min_soc < soc_lower_thresh:
-#             i = min_idx
-#             idx = [x[1] for x in reduced_list]
-#             while soc[i] < SOC_UPPER_THRESH:
-#                 if i == 0: break
-#                 i -= 1
-#             start = idx.index(i)
-#
-#             i = min_idx
-#             while soc[i] < SOC_UPPER_THRESH:
-#                 if i >= len(soc) - 1: break
-#                 i += 1
-#             end = idx.index(i)
-#
-#             possible_stations = set(data[start:min_idx, 1])
-#
-#             trips = set(data[start:min_idx, 3])
-#
-#             possible_stations = possible_stations.difference(not_possible_stations)
-#             event = dict(start_idx=start, end_idx=min_idx,
-#                          min_soc=min_soc, stations=possible_stations,
-#                          vehicle_id=rot.vehicle_id, trip=trips,
-#                          rotation=rot)
-#
-#             copy_list = reduced_list.copy()
-#             reduced_list = reduced_list[:start]
-#             if end + 1 >= len(copy_list):
-#                 reduced_list.extend(copy_list[end + 1:])
-#             if len(reduced_list) > 0:
-#                 min_soc, min_idx = min(reduced_list, key=lambda x: x[0])
-#             else:
-#                 break
-#     print(f"Last electrification electrified {count_electrified_rot} rotations")
-#     return events
-
-
 def get_below_zero_soc_events(this_scen: scenario.Scenario, rotations,
                               this_sched: schedule.Schedule,
                               soc_upper_thresh=0.9, filter_standing_time=True,
@@ -1080,8 +997,11 @@ def get_below_zero_soc_events(this_scen: scenario.Scenario, rotations,
         comb = list(zip(soc, idx))[rot_start_idx:rot_end_idx]
         min_soc, min_idx = min(comb, key=lambda x: x[0])
         reduced_list = comb.copy()
-
-        if min_soc >= soc_lower_thresh:
+        start_soc = comb[0][0]
+        # if rotation gets a start soc below 1 this should change below 0 soc events since fixing
+        # the rotation before would lead to fixing this rotation
+        soc_lower_thresh_cur = min(start_soc,soc_upper_thresh)-(soc_upper_thresh-soc_lower_thresh)
+        if min_soc >= soc_lower_thresh_cur:
             count_electrified_rot += 1
         #
         # if min_soc<soc_lower_thresh:
@@ -1091,7 +1011,7 @@ def get_below_zero_soc_events(this_scen: scenario.Scenario, rotations,
         #     pos_rots[rot_id]=None
         #     pos_rots.loc[rot_start_idx:rot_end_idx-1, rot_id]=soc[rot_start_idx:rot_end_idx]
 
-        while min_soc < soc_lower_thresh:
+        while min_soc < soc_lower_thresh_cur:
             i = min_idx
             idx = [x[1] for x in reduced_list]
             while soc[i] < SOC_UPPER_THRESH:
@@ -1198,7 +1118,8 @@ def run_schedule(this_sched, this_args, electrified_stations=None):
     return this_sched2, new_scen
 
 
-def charging_curve_to_soc_over_time(charging_curve, capacity, max_charge_from_grid=float('inf'), timestep=0.1):
+def charging_curve_to_soc_over_time(charging_curve, capacity, max_charge_from_grid=float('inf'),
+                                    timestep=0.1, efficiency = 1):
     # Charging curve as nested list of SOC, Power[kW] and capacity in [kWh]
     # Simple numeric creation of power over time --> to energy over time
     normalized_curve = np.array([[soc, power / capacity] for soc, power in charging_curve])
@@ -1214,7 +1135,7 @@ def charging_curve_to_soc_over_time(charging_curve, capacity, max_charge_from_gr
         soc2 = soc +timestep / 60 * power1
         power2 = min(np.interp(soc2, normalized_curve[:, 0], normalized_curve[:, 1]),
                     max_charge_from_grid / capacity)
-        power = (power1+power2)/2
+        power = (power1+power2)/2*efficiency
         soc += timestep / 60 * power
         time += timestep
     # Fill the soc completely in last timestep
@@ -1250,9 +1171,9 @@ def get_buffer_time_old(search_time, args):
             start, end = window.split("-")
 
             if float(end) > search_time.hour >= float(start):
-                return datetime.timedelta(minutes=buffer_time)
+                return timedelta(minutes=buffer_time)
         except ValueError:
-            return datetime.timedelta(minutes=0)
+            return timedelta(minutes=0)
 
 
 def electrify_station(stat, stations, electrified_set):
@@ -1261,7 +1182,7 @@ def electrify_station(stat, stations, electrified_set):
 
 def get_buffer_time(trip,args):
     return get_buffer_time_old(trip.arrival_time, args)
-    # return datetime.timedelta(minutes=get_buffer_time_spice_ev(trip,))
+    # return timedelta(minutes=get_buffer_time_spice_ev(trip,))
 
 if __name__ == "__main__":
     freeze_support()
