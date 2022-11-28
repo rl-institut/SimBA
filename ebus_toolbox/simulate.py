@@ -52,6 +52,7 @@ def simulate(args):
             setattr(args, opt_key, opt_val)
 
     # setup consumption calculator that can be accessed by all trips
+    # todo: This should only be accessed if not all vehicles have constant consumption
     Trip.consumption = Consumption(vehicle_types,
                                    outside_temperatures=args.outside_temperature_over_day_path,
                                    level_of_loading_over_day=args.level_of_loading_over_day_path)
