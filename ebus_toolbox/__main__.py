@@ -9,7 +9,7 @@ if __name__ == '__main__':
         description='eBus-Toolbox - \
         simulation program for electric bus fleets.')
     parser.add_argument('--input-schedule', nargs='?',
-                        help='Path to CSV file containing all trips of schdedule to be analyzed.')
+                        help='Path to CSV file containing all trips of schedule to be analyzed.')
     parser.add_argument('--mode', default='sim', choices=['sim', 'service_optimization'],
                         help='Specify what you want to do. Choose one from {sim, \
                         service_optimization}. sim runs a single simulation with the given inputs. \
@@ -74,8 +74,11 @@ if __name__ == '__main__':
                              '2018-01-31')
     parser.add_argument('--electrified-stations', help='include electrified_stations json',
                         default='data/examples/electrified_stations.json')
-    parser.add_argument('--cost-params', help='include cost_params json',
-                        default=None)
+    parser.add_argument('--cost-calculation', '-cc', action='store_true',
+                        help='Calculate costs')
+    parser.add_argument('--cost-parameters-file', help='include cost parameters json', default=None)
+    parser.add_argument('--pv-power', type=int, default=0, help='set nominal power for local '
+                                                                'photovoltaic power plant in kWp')
     parser.add_argument('--min-charging-time', help='define minimum time of charging',
                         default=0)
     parser.add_argument('--default-buffer-time-opps', help='time to subtract off of standing time '
@@ -140,8 +143,8 @@ if __name__ == '__main__':
     copy_list = [args.config, args.electrified_stations, args.vehicle_types]
 
     # only copy cost params if they exist
-    if args.cost_params is not None:
-        copy_list.append(args.cost_params)
+    if args.cost_parameters_file is not None:
+        copy_list.append(args.cost_parameters_file)
     for c_file in copy_list:
         shutil.copy(str(c_file), str(args.output_directory / Path(c_file).name))
 
