@@ -9,9 +9,9 @@ def calculate_costs(c_params, scenario, schedule, args):
     :param c_params: Cost of various infrastructure components.
     :type c_params: dict
     :param scenario: Information about the simulated scenario and all used parameters.
-    :type scenario: object
+    :type scenario: Scenario
     :param schedule: Information about the whole bus schedule and all used parameters.
-    :type schedule: object
+    :type schedule: Schedule
     :param args: Configuration arguments specified in config files contained in configs directory.
     :type args: argparse.Namespace
     """
@@ -143,11 +143,11 @@ def calculate_costs(c_params, scenario, schedule, args):
     for key, v in costs.items():
         costs[key] = round(v, 2)
 
-    print(f"\n"
-          f"Total costs: \n"
-          f"Investment cost: {costs['c_invest']} €. "
-          f"Annual investment costs: {costs['c_invest_annual']} €/a. "
-          f"Annual maintenance costs: {costs['c_maint_annual']} €/a. "
-          f"Annual costs for electricity: {costs['c_el_annual']} €/a.")
+    print("\n"
+          "Total costs: \n"
+          f"Investment cost: {costs['c_invest']} €. \n"
+          f"Annual investment costs: {costs['c_invest_annual']} €/a. \n"
+          f"Annual maintenance costs: {costs['c_maint_annual']} €/a. \n"
+          f"Annual costs for electricity: {costs['c_el_annual']} €/a.\n")
 
     setattr(scenario, "costs", costs)
