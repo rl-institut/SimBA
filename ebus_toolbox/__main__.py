@@ -77,9 +77,9 @@ if __name__ == '__main__':
     parser.add_argument('--cost-params', help='include cost_params json',
                         default=None)
     parser.add_argument('--min-charging-time', help='define minimum time of charging',
-                        default=2)
+                        default=0)
     parser.add_argument('--default-buffer-time-opps', help='time to subtract off of standing time '
-                        'at opp station to simulate docking procedure.', default=1)
+                        'at opp station to simulate docking procedure.', default=0)
     parser.add_argument('--signal-time-dif', help='time difference between signal time and actual '
                                                   'start time of a vehicle event im min.',
                         default=10)

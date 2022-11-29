@@ -6,8 +6,7 @@
             "charging_curve": [[0, 150], [0.8, 150], [1, 150]],
             "min_charging_power": 0,
             "v2g": false,
-            "v2g_power_factor": 0.5,
-            "mileage": 1
+            "v2g_power_factor": 0.5
         },
         "oppb": {
             "name": "articulated bus - opportunity charging",
@@ -15,8 +14,7 @@
             "charging_curve": [[0, 150], [0.8, 150], [1, 150]],
             "min_charging_power": 0,
             "v2g": false,
-            "v2g_power_factor": 0.5,
-            "mileage": 1
+            "v2g_power_factor": 0.5
         }
     },
     "CKB": {
@@ -26,7 +24,8 @@
             "charging_curve": [[0, 250], [0.8, 250], [1, 250]],
             "min_charging_power": 0,
             "v2g": false,
-            "mileage": 1
+            "mileage": "data/examples/energy_consumption_example.csv",
+            "hc": "winter"
         },
         "oppb": {
             "name": "articulated bus",
@@ -34,7 +33,8 @@
             "charging_curve": [[0, 190], [0.8, 190], [1, 190]],
             "min_charging_power": 0,
             "v2g": false,
-            "mileage": 1
+            "mileage": "data/examples/energy_consumption_example.csv",
+            "hc": "winter"
         }
     },
     "VDL": {
@@ -44,7 +44,8 @@
             "charging_curve": [[0, 250], [0.8, 250], [1, 250]],
             "min_charging_power": 0,
             "v2g": false,
-            "mileage": 1
+            "mileage": "data/examples/energy_consumption_example.csv",
+            "hc": "winter"
         },
         "oppb": {
             "name": "solo bus",
@@ -52,7 +53,8 @@
             "charging_curve": [[0, 250], [0.8, 250], [1, 250]],
             "min_charging_power": 0,
             "v2g": false,
-            "mileage": 1
+            "mileage": "data/examples/energy_consumption_example.csv",
+            "hc": "winter"
         }
     }
 }
