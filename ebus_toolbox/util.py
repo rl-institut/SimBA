@@ -127,7 +127,8 @@ def uncomment_json_file(f, char='//'):
             # no comment in line
             uncommented_data += line
         else:
-            uncommented_data += line[:comment_idx] + "\n"
+            # remove comment from line
+            uncommented_data += line[:comment_idx]
     return json.loads(uncommented_data)
 
 

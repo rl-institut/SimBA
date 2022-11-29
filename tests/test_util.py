@@ -11,6 +11,13 @@ def test_uncomment_json_file(tmp_path):
         assert util.uncomment_json_file(f)["test1"] == 1
 
     with open(p, 'w+') as f:
+        # multiline, no comment
+        f.seek(0)
+        f.write('{\n"test1.1": 1.1,\n"test1.2": 1.2\n}')
+        f.seek(0)
+        assert sum(util.uncomment_json_file(f).values()) == 2.3
+
+    with open(p, 'w+') as f:
         # single char comment in single line
         f.write('# this is a comment\n{"test2": 2}\n#and another comment')
         f.seek(0)
