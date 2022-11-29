@@ -54,6 +54,9 @@ class Consumption:
         :type mean_speed: float
         :return: Consumed energy [kWh] and delta SOC as tuple
         :rtype: (float, float)
+
+        :raises IndexError: if there is missing data for temperature or lol data
+        :raises NameError: if there is no path to temperature or lol data provided
         """
 
         assert self.vehicle_types.get(vehicle_type, {}).get(charging_type),\
@@ -77,10 +80,10 @@ class Consumption:
                       "or a temperature over day file.\n"
                       f"2. A constant mileage for the vehicle "
                       f"{vehicle_info['mileage']} is provided.")
-                raise
+                raise AttributeError
             except IndexError:
                 print(f"No temperature data for the hour {time.hour} is provided")
-                raise
+                raise IndexError
 
         # if no specific LoL is given, lookup temperature
         if level_of_loading is None:
@@ -92,10 +95,10 @@ class Consumption:
                       "or a level of loading over day file.\n"
                       f"2. A constant mileage for the vehicle "
                       f"{vehicle_info['mileage']} is provided.")
-                raise
+                raise AttributeError
             except IndexError:
                 print(f"No level of loading data for the hour {time.hour} is provided")
-                raise
+                raise IndexError
 
         # load consumption csv
         consumption_path = vehicle_info["mileage"]
