@@ -32,12 +32,12 @@ def simulate(args):
                          "does not exist. Exiting...")
 
     # load cost parameters
-    if args.cost_params is not None:
+    if args.cost_parameters_file is not None:
         try:
-            with open(args.cost_params) as f:
-                cost_params = util.uncomment_json_file(f)
+            with open(args.cost_parameters_file) as f:
+                cost_parameters_file = util.uncomment_json_file(f)
         except FileNotFoundError:
-            raise SystemExit(f"Path to cost parameters ({args.cost_params}) "
+            raise SystemExit(f"Path to cost parameters ({args.cost_parameters_file}) "
                              "does not exist. Exiting...")
 
     # parse strategy options for Spice EV
@@ -52,12 +52,15 @@ def simulate(args):
             setattr(args, opt_key, opt_val)
 
     # setup consumption calculator that can be accessed by all trips
-    Trip.consumption = Consumption(vehicle_types)
+    Trip.consumption = Consumption(vehicle_types,
+                                   outside_temperatures=args.outside_temperature_over_day_path,
+                                   level_of_loading_over_day=args.level_of_loading_over_day_path)
 
     schedule = Schedule.from_csv(args.input_schedule,
                                  vehicle_types,
                                  stations,
                                  **vars(args))
+    schedule.calculate_consumption()
 
     # run the mode specified in config
     if args.mode == 'service_optimization':
@@ -80,13 +83,9 @@ def simulate(args):
             if neg_rot:
                 print(f"Rotations {', '.join(neg_rot)} remain negative.")
 
-    if args.cost_params is not None:
-        # Calculate Costs of Iteration
-        costs = calculate_costs(cost_params, schedule)
-        opex_energy_annual = 0  # ToDo: Import annual energy costs from SpiceEV
-        cost_invest = costs["c_invest"]
-        cost_annual = costs["c_invest_annual"] + costs["c_maintenance_annual"] + opex_energy_annual
-        print(f"Investment cost: {cost_invest} €. Total annual cost: {cost_annual} €.")
+    if args.cost_calculation:
+        # cost calculation following directly after simulation
+        calculate_costs(cost_parameters_file, scenario, schedule, args)
 
     # create report
     report.generate(schedule, scenario, args)

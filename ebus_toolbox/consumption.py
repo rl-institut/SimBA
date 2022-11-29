@@ -7,24 +7,25 @@ class Consumption:
     def __init__(self, vehicle_types, **kwargs) -> None:
         # load temperature of the day, now dummy winter day
         self.temperatures_by_hour = {}
-        temperature_file_path = kwargs.get("outside_temperatures",
-                                           "data/examples/default_temp_winter.csv")
-        # parsing the Temperature to a dict
-        with open(temperature_file_path) as f:
-            delim = util.get_csv_delim(temperature_file_path)
-            reader = csv.DictReader(f, delimiter=delim)
-            for row in reader:
-                self.temperatures_by_hour.update({int(row['hour']): float(row['temperature'])})
 
-        lol_file_path = kwargs.get("level_of_loading_over_day",
-                                   "data/examples/default_level_of_loading_over_day.csv")
+        temperature_file_path = kwargs.get("outside_temperatures", None)
+        # parsing the Temperature to a dict
+        if temperature_file_path is not None:
+            with open(temperature_file_path) as f:
+                delim = util.get_csv_delim(temperature_file_path)
+                reader = csv.DictReader(f, delimiter=delim)
+                for row in reader:
+                    self.temperatures_by_hour.update({int(row['hour']): float(row['temperature'])})
+
+        lol_file_path = kwargs.get("level_of_loading_over_day", None)
         # parsing the level of loading to a dict
-        with open(lol_file_path) as f:
-            delim = util.get_csv_delim(lol_file_path)
-            reader = csv.DictReader(f, delimiter=delim)
-            self.lol_by_hour = {}
-            for row in reader:
-                self.lol_by_hour.update({int(row['hour']): float(row['level_of_loading'])})
+        if lol_file_path is not None:
+            with open(lol_file_path) as f:
+                delim = util.get_csv_delim(lol_file_path)
+                reader = csv.DictReader(f, delimiter=delim)
+                self.lol_by_hour = {}
+                for row in reader:
+                    self.lol_by_hour.update({int(row['hour']): float(row['level_of_loading'])})
 
         self.consumption_files = {}
         self.vehicle_types = vehicle_types
@@ -53,6 +54,9 @@ class Consumption:
         :type mean_speed: float
         :return: Consumed energy [kWh] and delta SOC as tuple
         :rtype: (float, float)
+
+        :raises IndexError: if there is missing data for temperature or lol data
+        :raises AttributeError: if there is no path to temperature or lol data provided
         """
 
         assert self.vehicle_types.get(vehicle_type, {}).get(charging_type),\
@@ -68,11 +72,33 @@ class Consumption:
 
         # if no specific Temperature is given, lookup temperature
         if temp is None:
-            temp = self.temperatures_by_hour[time.hour]
+            try:
+                temp = self.temperatures_by_hour[time.hour]
+            except AttributeError:
+                print("Neither of these conditions is met:\n"
+                      "1. Temperature data is available for every trip through the trips file "
+                      "or a temperature over day file.\n"
+                      f"2. A constant mileage for the vehicle "
+                      f"{vehicle_info['mileage']} is provided.")
+                raise AttributeError
+            except IndexError:
+                print(f"No temperature data for the hour {time.hour} is provided")
+                raise IndexError
 
         # if no specific LoL is given, lookup temperature
         if level_of_loading is None:
-            level_of_loading = self.lol_by_hour[time.hour]
+            try:
+                level_of_loading = self.lol_by_hour[time.hour]
+            except AttributeError:
+                print("Neither of these conditions is met:\n"
+                      "1. Level of loading data is available for every trip through the trips file "
+                      "or a level of loading over day file.\n"
+                      f"2. A constant mileage for the vehicle "
+                      f"{vehicle_info['mileage']} is provided.")
+                raise AttributeError
+            except IndexError:
+                print(f"No level of loading data for the hour {time.hour} is provided")
+                raise IndexError
 
         # load consumption csv
         consumption_path = vehicle_info["mileage"]
@@ -80,8 +106,9 @@ class Consumption:
         # consumption_files holds interpol functions of csv files which are called directly
 
         # try to use the interpol function. If it does not exist yet its created in except case.
+        consumption_function = vehicle_type+"_from_"+consumption_path
         try:
-            mileage = self.consumption_files[consumption_path](this_vehicle_type=vehicle_type,
+            mileage = self.consumption_files[consumption_function](
                                                                this_incline=height_diff / distance,
                                                                this_temp=temp,
                                                                this_lol=level_of_loading,
@@ -92,21 +119,22 @@ class Consumption:
             df = pd.read_csv(consumption_path, sep=delim)
             # create lookup table and make sure its in the same order as the input point
             # which will be the input for the nd lookup
-            vt_col = df["vehicle_type"]
+            df = df[df["vehicle_type"] == vehicle_type]
+            assert len(df) > 0, f"Vehicle type {vehicle_type} not found in {consumption_path}"
             inc_col = df["incline"]
             tmp_col = df["t_amb"]
             lol_col = df["level_of_loading"]
             speed_col = df["mean_speed_kmh"]
             cons_col = df["consumption_kwh_per_km"]
-            data_table = list(zip(vt_col, inc_col, tmp_col, lol_col, speed_col, cons_col))
+            data_table = list(zip(inc_col, tmp_col, lol_col, speed_col, cons_col))
 
-            def interpol_function(this_vehicle_type, this_incline, this_temp, this_lol, this_speed):
-                input_point = (this_vehicle_type, this_incline, this_temp, this_lol, this_speed)
+            def interpol_function(this_incline, this_temp, this_lol, this_speed):
+                input_point = (this_incline, this_temp, this_lol, this_speed)
                 return util.nd_interp(input_point, data_table)
 
-            self.consumption_files.update({consumption_path: interpol_function})
+            self.consumption_files.update({consumption_function: interpol_function})
 
-            mileage = self.consumption_files[consumption_path](this_vehicle_type=vehicle_type,
+            mileage = self.consumption_files[consumption_function](
                                                                this_incline=height_diff / distance,
                                                                this_temp=temp,
                                                                this_lol=level_of_loading,

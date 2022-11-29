@@ -70,7 +70,7 @@ class Schedule:
 
         if station_path is not None:
             try:
-                with open(str(station_path), "r") as f:
+                with open(str(station_path), "r", encoding='utf-8') as f:
                     delim = util.get_csv_delim(station_path)
                     reader = csv.DictReader(f, delimiter=delim)
                     station_data = dict()
@@ -83,12 +83,12 @@ class Schedule:
                               format(station_path),
                               stacklevel=100)
             except ValueError:
-                warnings.warn("Warning: external csv file '{}' does not contain numeric"
-                              "values in the column 'elevation'. Station data is discarded".
+                warnings.warn("Warning: external csv file '{}' does not contain numeric "
+                              "values in the column 'elevation'. Station data is discarded.".
                               format(station_path),
                               stacklevel=100)
 
-        with open(path_to_csv, 'r') as trips_file:
+        with open(path_to_csv, 'r', encoding='utf-8') as trips_file:
             trip_reader = csv.DictReader(trips_file)
             for trip in trip_reader:
                 rotation_id = trip['rotation_id']
@@ -389,6 +389,7 @@ class Schedule:
 
         vehicles = {}
         batteries = {}
+        photovoltaics = {}
         charging_stations = {}
         grid_connectors = {}
         events = {
@@ -496,8 +497,27 @@ class Schedule:
                         grid_connectors[gc_name] = {
                             "max_power": gc_power,
                             "cost": {"type": "fixed", "value": 0.3},
-                            "number_cs": number_cs
+                            "number_cs": number_cs,
+                            "voltage_level": self.stations[gc_name]["voltage_level"]
                         }
+                        # check for stationary battery
+                        battery = station.get("battery")
+                        if battery is not None:
+                            # add stationary battery at this station/GC
+                            battery["parent"] = gc_name
+                            batteries[gc_name] = battery
+
+                        # add feed-in name and power at grid connector if exists
+                        if args.include_feed_in_csv:
+                            if gc_name == args.include_feed_in_csv[0][1]:
+                                # ToDo: Make universal! Adjust how to include feed-in timeseries?
+                                #  also in SpiceEV?
+                                photovoltaics[gc_name] = {
+                                    "parent": gc_name,
+                                    "nominal_power": vars(args).get("pv_power", 0)
+                                    # ToDo: Allow to set pv_power for specific GC
+                                    #  (include in include_feed_in_csv as third argument?)
+                                }
 
                 # initial condition of vehicle
                 if i == 0:
@@ -639,28 +659,6 @@ class Schedule:
                 if not price_csv_path.exists():
                     print("Warning: price csv file '{}' does not exist yet".format(price_csv_path))
 
-        if args.battery:
-            for idx, bat in enumerate(args.battery, 1):
-                capacity, c_rate, gc = bat[:3]
-                if gc not in grid_connectors:
-                    # no vehicle charges here
-                    continue
-                if capacity > 0:
-                    max_power = c_rate * capacity
-                else:
-                    # unlimited battery: set power directly
-                    max_power = c_rate
-                batteries[f"BAT{idx}"] = {
-                    "parent": gc,
-                    "capacity": capacity,
-                    "charging_curve": [[0, max_power], [1, max_power]],
-                }
-                if len(bat) == 4:
-                    # discharge curve can be passed as optional 4th param
-                    batteries[f"BAT{idx}"].update({
-                        "discharge_curve": bat[3]
-                    })
-
         # reformat vehicle types for spiceEV
         vehicle_types_spiceev = {f'{vehicle_type}_{charging_type}': body
                                  for vehicle_type, subtypes in self.vehicle_types.items()
@@ -678,7 +676,8 @@ class Schedule:
                 "vehicles": vehicles,
                 "grid_connectors": grid_connectors,
                 "charging_stations": charging_stations,
-                "batteries": batteries
+                "batteries": batteries,
+                "photovoltaics": photovoltaics,
             },
             "events": events
         }

@@ -1,5 +1,15 @@
 import json
 import warnings
+import subprocess
+
+
+def get_git_revision_hash() -> str:
+    return subprocess.check_output(['git', 'rev-parse', 'HEAD']).decode('ascii').strip()
+
+
+def save_version(file_path):
+    with open(file_path, "w") as f:
+        f.write("Git Hash eBus-Toolbox:" + get_git_revision_hash())
 
 
 def set_options_from_config(args, check=False, verbose=True):
@@ -97,7 +107,7 @@ def get_buffer_time(trip, default=0):
     return buffer_time
 
 
-def uncomment_json_file(f, char='#'):
+def uncomment_json_file(f, char='//'):
     """
     Remove comments from JSON file.
 
@@ -105,19 +115,20 @@ def uncomment_json_file(f, char='#'):
     Both full-line comments and trailing lines are supported.
     :param f: file to read
     :type f: JSON file handle
-    :param char: char used for commenting, defaults to #
-    :type char: char
+    :param char: char sequence used for commenting, defaults to '//'
+    :type char: string
     :return: JSON file content
     :rtype: dict
     """
     uncommented_data = ""
     for line in f:
-        try:
-            comment_idx = line.index(char)
-            uncommented_data += line[:comment_idx]
-        except ValueError:
+        comment_idx = line.find(char)
+        if comment_idx == -1:
             # no comment in line
             uncommented_data += line
+        else:
+            # remove comment from line
+            uncommented_data += line[:comment_idx]
     return json.loads(uncommented_data)
 
 
