@@ -56,7 +56,7 @@ class Consumption:
         :rtype: (float, float)
 
         :raises IndexError: if there is missing data for temperature or lol data
-        :raises NameError: if there is no path to temperature or lol data provided
+        :raises AttributeError: if there is no path to temperature or lol data provided
         """
 
         assert self.vehicle_types.get(vehicle_type, {}).get(charging_type),\
