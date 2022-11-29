@@ -389,6 +389,7 @@ class Schedule:
 
         vehicles = {}
         batteries = {}
+        photovoltaics = {}
         charging_stations = {}
         grid_connectors = {}
         events = {
@@ -496,7 +497,8 @@ class Schedule:
                         grid_connectors[gc_name] = {
                             "max_power": gc_power,
                             "cost": {"type": "fixed", "value": 0.3},
-                            "number_cs": number_cs
+                            "number_cs": number_cs,
+                            "voltage_level": self.stations[gc_name]["voltage_level"]
                         }
                         # check for stationary battery
                         battery = station.get("battery")
@@ -504,6 +506,18 @@ class Schedule:
                             # add stationary battery at this station/GC
                             battery["parent"] = gc_name
                             batteries[gc_name] = battery
+
+                        # add feed-in name and power at grid connector if exists
+                        if args.include_feed_in_csv:
+                            if gc_name == args.include_feed_in_csv[0][1]:
+                                # ToDo: Make universal! Adjust how to include feed-in timeseries?
+                                #  also in SpiceEV?
+                                photovoltaics[gc_name] = {
+                                    "parent": gc_name,
+                                    "nominal_power": vars(args).get("pv_power", 0)
+                                    # ToDo: Allow to set pv_power for specific GC
+                                    #  (include in include_feed_in_csv as third argument?)
+                                }
 
                 # initial condition of vehicle
                 if i == 0:
@@ -662,7 +676,8 @@ class Schedule:
                 "vehicles": vehicles,
                 "grid_connectors": grid_connectors,
                 "charging_stations": charging_stations,
-                "batteries": batteries
+                "batteries": batteries,
+                "photovoltaics": photovoltaics,
             },
             "events": events
         }
