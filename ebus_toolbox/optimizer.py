@@ -519,12 +519,8 @@ def group_optimization_quick(group, base_scen, base_sched,
                                            filter_standing_time=True,
                                            not_possible_stations=not_possible_stations,
                                            soc_lower_thresh=0)
-    missing_soc = 0
-    for e in new_events:
-        missing_soc += e["min_soc"]
-    delta_energy = missing_soc * BATTERY_CAPACITY
 
-    missing_base_soc = 0
+    delta_energy=get_missing_energy(new_events, BATTERY_CAPACITY)
 
     event_rotations = {event["rotation"].id for event in base_group}
     base_events = get_below_zero_soc_events(new_scen, event_rotations,
@@ -533,11 +529,8 @@ def group_optimization_quick(group, base_scen, base_sched,
                                             filter_standing_time=True,
                                             not_possible_stations=set(),
                                             soc_lower_thresh=0)
-    for e in base_events:
-        if e["min_soc"] > 0:
-            print("!")
-        missing_base_soc += e["min_soc"]
-    delta_base_energy = missing_base_soc * BATTERY_CAPACITY
+
+    delta_base_energy=get_missing_energy(base_events, BATTERY_CAPACITY)
 
     logger.debug(delta_energy)
     if decision_tree is not None:
@@ -572,6 +565,13 @@ def group_optimization_quick(group, base_scen, base_sched,
         electrified_stations.update(new_stations)
 
     return electrified_stations
+
+
+def get_missing_energy(events, cap):
+    missing_soc = 0
+    for e in events:
+        missing_soc += e["min_soc"]
+    return missing_soc * cap
 
 
 def group_optimization(group, base_scen, base_sched,
