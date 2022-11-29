@@ -107,7 +107,7 @@ def get_buffer_time(trip, default=0):
     return buffer_time
 
 
-def uncomment_json_file(f, char='#'):
+def uncomment_json_file(f, char='//'):
     """
     Remove comments from JSON file.
 
@@ -115,8 +115,8 @@ def uncomment_json_file(f, char='#'):
     Both full-line comments and trailing lines are supported.
     :param f: file to read
     :type f: JSON file handle
-    :param char: char used for commenting, defaults to #
-    :type char: char
+    :param char: char sequence used for commenting, defaults to '//'
+    :type char: string
     :return: JSON file content
     :rtype: dict
     """
