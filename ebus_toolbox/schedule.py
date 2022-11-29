@@ -500,6 +500,13 @@ class Schedule:
                             "number_cs": number_cs,
                             "voltage_level": self.stations[gc_name]["voltage_level"]
                         }
+                        # check for stationary battery
+                        battery = station.get("battery")
+                        if battery is not None:
+                            # add stationary battery at this station/GC
+                            battery["parent"] = gc_name
+                            batteries[gc_name] = battery
+
                         # add feed-in name and power at grid connector if exists
                         if args.include_feed_in_csv:
                             if gc_name == args.include_feed_in_csv[0][1]:
@@ -651,28 +658,6 @@ class Schedule:
                 price_csv_path = args.output_directory / filename
                 if not price_csv_path.exists():
                     print("Warning: price csv file '{}' does not exist yet".format(price_csv_path))
-
-        if args.battery:
-            for idx, bat in enumerate(args.battery, 1):
-                capacity, c_rate, gc = bat[:3]
-                if gc not in grid_connectors:
-                    # no vehicle charges here
-                    continue
-                if capacity > 0:
-                    max_power = c_rate * capacity
-                else:
-                    # unlimited battery: set power directly
-                    max_power = c_rate
-                batteries[f"BAT{idx}"] = {
-                    "parent": gc,
-                    "capacity": capacity,
-                    "charging_curve": [[0, max_power], [1, max_power]],
-                }
-                if len(bat) == 4:
-                    # discharge curve can be passed as optional 4th param
-                    batteries[f"BAT{idx}"].update({
-                        "discharge_curve": bat[3]
-                    })
 
         # reformat vehicle types for spiceEV
         vehicle_types_spiceev = {f'{vehicle_type}_{charging_type}': body
