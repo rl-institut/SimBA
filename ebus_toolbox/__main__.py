@@ -105,12 +105,14 @@ if __name__ == '__main__':
     parser.add_argument('--station_data_path', help='Use station data to back calculation       \
                                                     of consumption with height information of   \
                                                     stations')
-    parser.add_argument('--outside_temperature_over_day_path', help="Use csv. data with 'hour' and \
+    parser.add_argument('--outside_temperature_over_day_path', default=None,
+                                                            help="Use csv. data with 'hour' and \
                                                                'temperature' columns to set \
                                                                 temperatures in case they are not \
                                                                 in trips.csv")
 
-    parser.add_argument('--level_of_loading_over_day_path', help="Use csv. data with 'hour' and \
+    parser.add_argument('--level_of_loading_over_day_path', default=None,
+                                                            help="Use csv. data with 'hour' and \
                                                                'level_of_loading' columns to set \
                                                                 level of loading in case they are \
                                                                 not in trips.csv")

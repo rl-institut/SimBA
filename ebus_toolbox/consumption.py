@@ -8,22 +8,24 @@ class Consumption:
         # load temperature of the day, now dummy winter day
         self.temperatures_by_hour = {}
 
-        temperature_file_path = kwargs.get("outside_temperatures")
+        temperature_file_path = kwargs.get("outside_temperatures", None)
         # parsing the Temperature to a dict
-        with open(temperature_file_path) as f:
-            delim = util.get_csv_delim(temperature_file_path)
-            reader = csv.DictReader(f, delimiter=delim)
-            for row in reader:
-                self.temperatures_by_hour.update({int(row['hour']): float(row['temperature'])})
+        if temperature_file_path is not None:
+            with open(temperature_file_path) as f:
+                delim = util.get_csv_delim(temperature_file_path)
+                reader = csv.DictReader(f, delimiter=delim)
+                for row in reader:
+                    self.temperatures_by_hour.update({int(row['hour']): float(row['temperature'])})
 
-        lol_file_path = kwargs.get("level_of_loading_over_day")
+        lol_file_path = kwargs.get("level_of_loading_over_day", None)
         # parsing the level of loading to a dict
-        with open(lol_file_path) as f:
-            delim = util.get_csv_delim(lol_file_path)
-            reader = csv.DictReader(f, delimiter=delim)
-            self.lol_by_hour = {}
-            for row in reader:
-                self.lol_by_hour.update({int(row['hour']): float(row['level_of_loading'])})
+        if lol_file_path is not None:
+            with open(lol_file_path) as f:
+                delim = util.get_csv_delim(lol_file_path)
+                reader = csv.DictReader(f, delimiter=delim)
+                self.lol_by_hour = {}
+                for row in reader:
+                    self.lol_by_hour.update({int(row['hour']): float(row['level_of_loading'])})
 
         self.consumption_files = {}
         self.vehicle_types = vehicle_types
@@ -67,11 +69,33 @@ class Consumption:
 
         # if no specific Temperature is given, lookup temperature
         if temp is None:
-            temp = self.temperatures_by_hour[time.hour]
+            try:
+                temp = self.temperatures_by_hour[time.hour]
+            except AttributeError:
+                print("Neither of these conditions is met:\n"
+                      "1. Temperature data is available for every trip through the trips file "
+                      "or a temperature over day file.\n"
+                      f"2. A constant mileage for the vehicle "
+                      f"{vehicle_info['mileage']} is provided.")
+                raise
+            except IndexError:
+                print(f"No temperature data for the hour {time.hour} is provided")
+                raise
 
         # if no specific LoL is given, lookup temperature
         if level_of_loading is None:
-            level_of_loading = self.lol_by_hour[time.hour]
+            try:
+                level_of_loading = self.lol_by_hour[time.hour]
+            except AttributeError:
+                print("Neither of these conditions is met:\n"
+                      "1. Level of loading data is available for every trip through the trips file "
+                      "or a level of loading over day file.\n"
+                      f"2. A constant mileage for the vehicle "
+                      f"{vehicle_info['mileage']} is provided.")
+                raise
+            except IndexError:
+                print(f"No level of loading data for the hour {time.hour} is provided")
+                raise
 
         # load consumption csv
         consumption_path = vehicle_info["mileage"]
