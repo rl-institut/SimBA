@@ -1,7 +1,7 @@
 {
     "Luebben Betriebshof": {
         "type": "deps",
-        "n_charging_stations": 10
+        "n_charging_stations": "None"
     },
     "Luebben Postbautenstr": {
         "type": "opps",
@@ -224,8 +224,8 @@
        "n_charging_stations": "None"
     },
     "Dahme Stellplatz Stuetzpunk": {
-       "type": "deps",
-       "n_charging_stations": 10
+       "type": "opps",
+       "n_charging_stations": "None"
     },
     "Luckau Krankenhaus": {
        "type": "opps",
@@ -268,8 +268,8 @@
        "n_charging_stations": "None"
     },
     "Radensdorf AH Fa UELV": {
-       "type": "deps",
-       "n_charging_stations": 10
+       "type": "opps",
+       "n_charging_stations": "None"
     },
     "Straupitz Dorfplatz": {
        "type": "opps",
@@ -280,16 +280,16 @@
        "n_charging_stations": "None"
     },
     "Straupitz Stuetzpunkt": {
-       "type": "deps",
-       "n_charging_stations": 10
+       "type": "opps",
+       "n_charging_stations": "None"
     },
     "Lubolz Hauptstr": {
        "type": "opps",
        "n_charging_stations": "None"
     },
     "Lieberose AH Fa Halbasch": {
-       "type": "deps",
-       "n_charging_stations": 10
+       "type": "opps",
+       "n_charging_stations": "None"
     },
     "Blasdorf Dorfstr": {
        "type": "opps",
@@ -316,11 +316,11 @@
        "n_charging_stations": "None"
     },
     "Zaue Stellplatz": {
-       "type": "deps",
-       "n_charging_stations": 10
+       "type": "opps",
+       "n_charging_stations": "None"
     },
     "Groeditsch Aussenstationierung": {
-        "type": "deps",
-        "n_charging_stations": 10
+        "type": "opps",
+        "n_charging_stations": "None"
     }
 }
