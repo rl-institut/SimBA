@@ -32,11 +32,14 @@ global logger
 def setup_logger():
     logger = logging.getLogger(__name__)
     logger.setLevel(logging.DEBUG)
-    formatter = logging.Formatter('%(message)s')
-    file_handler = logging.FileHandler('optimizer.log')
 
-    file_handler.setLevel(logging.DEBUG)
+
+    file_handler = logging.FileHandler('optimizer.log')
+    file_handler.setLevel(0)
+    formatter = logging.Formatter('%(asctime)s:%(message)s')
     file_handler.setFormatter(formatter)
+
+    formatter = logging.Formatter('%(message)s')
     stream_handler = logging.StreamHandler()
     stream_handler.setFormatter(formatter)
     stream_handler.setLevel(config.debug_level)
@@ -49,19 +52,6 @@ with open("args_bvg_full_no_ele.pickle", "rb") as f: args = pickle.load(f)
 
 with open("scen_bvg_test.pickle", "rb") as f: scen = pickle.load(f)
 with open("sched_bvg_test.pickle", "rb") as f: sched = pickle.load(f)
-
-# # set battery and charging power
-# BATTERY_CAPACITY = 400
-# CHARGING_CURVE = [[0, 450], [0.8, 296], [0.9, 210], [1, 20]]
-
-# CHARGING_CURVE = [[0, 450], [0.99, 20],[1,20]]
-# for name, type in sched.vehicle_types.items():
-#     for charge_type, vehicle in type.items():
-#         vehicle["capacity"] = BATTERY_CAPACITY
-#         vehicle["charging_curve"] = CHARGING_CURVE
-
-# CHARGE_EFF = 0.95
-# CHARGING_POWER = 250
 
 config = None
 ROT = None
@@ -300,7 +290,7 @@ def optimization_loop(electrified_stations, electrified_station_set, new_scen, n
                 print("Greedy Result ++++++++")
                 print(electrified_station_set)
                 print(
-                    f"There are {len(list(combination_generator(stations, len(electrified_station_set))))} combination")
+                    f"There are {len(list(combination_generator(stations, len(electrified_station_set))))} combinations")
                 while i < config.max_brute_loop and cont_loop:
                     i += 1
                     if i % 10 == 0:
@@ -332,7 +322,7 @@ def optimization_loop(electrified_stations, electrified_station_set, new_scen, n
                     else:
                         print(f"{new_electrified_set} is not viable")
 
-
+                print(sols)
         else:
             # use spiceev
             group_optimization(group, base_scen, base_sched,
@@ -516,7 +506,10 @@ def group_optimization_quick(group, base_scen, base_sched,
                                                    soc_curve_dict,
                                                    pre_optimized_set, decision_tree,
                                                    lifted_socs=lifted_socs, base_group=base_group)
-        electrified_stations.update(new_stations)
+        if new_stations is not None:
+            electrified_stations.update(new_stations)
+        else:
+            return None, True
 
     return electrified_stations, True
 
@@ -722,8 +715,7 @@ def choose_station_brute(station_eval, electrified_station_set,
             if potential > -missing_energy * 0.8:
                 return comb, False
             else:
-                print(
-                    f"skipped {comb} since potential is too low {round(potential / -missing_energy * 100, 0)}%")
+                logger.debug("skipped %s since potential is too low %s %%", comb,round(potential /-missing_energy * 100, 0))
     else:
         print("calculated all viable possibilities")
         return None, False
@@ -771,8 +763,8 @@ def choose_station_step_by_step(station_eval, electrified_station_set,
             check_stations = electrified_station_set.union([station[0]])
             if decision_tree[stations_hash(check_stations)]["visit_counter"] == min_count_visited:
                 best_station_id = station[0]
-                return [best_station_id]
-    return None
+                return [best_station_id], True
+    return None, True
 
 
 def stations_hash(stations_set):
