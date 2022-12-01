@@ -72,8 +72,9 @@ def simulate(args):
     if args.mode == "neg_depb_to_oppb":
         # simple optimization: change charging type from depot to opportunity, simulate again
         neg_rot = schedule.get_negative_rotations(scenario)
-        # only depot rotations relevant
-        neg_rot = [r for r in neg_rot if schedule.rotations[r].charging_type == "depb"]
+        # only depot rotations relevant and check if oppb-version of vehicle_type exists
+        neg_rot = [r for r in neg_rot if schedule.rotations[r].charging_type == "depb"
+                   if "oppb" in vehicle_types[schedule.rotations[r].vehicle_type]]
         if neg_rot:
             print("Changing charging type from depb to oppb for rotations " + ', '.join(neg_rot))
             schedule.set_charging_type("oppb", neg_rot)
