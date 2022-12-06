@@ -1,6 +1,6 @@
 import warnings
 
-from calculate_costs import calculate_costs as calc_costs_spice_ev
+from spice_ev.calculate_costs import calculate_costs as calc_costs_spice_ev
 
 
 def calculate_costs(c_params, scenario, schedule, args):
