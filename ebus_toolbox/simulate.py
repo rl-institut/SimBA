@@ -91,5 +91,15 @@ def simulate(args):
         cost_annual = costs["c_invest_annual"] + costs["c_maintenance_annual"] + opex_energy_annual
         print(f"Investment cost: {cost_invest} €. Total annual cost: {cost_annual} €.")
 
+    import pickle
+    with open("schedule_rebased.pickle", "wb") as f:
+        pickle.dump(schedule, f)
+    with open("scenario_rebased.pickle", "wb") as f:
+        pickle.dump(scenario, f)
+    with open("args_rebased.pickle", "wb") as f:
+        pickle.dump(args, f)
+
+    print("pickled")
+
     # create report
     report.generate(schedule, scenario, args)
