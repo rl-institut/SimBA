@@ -50,22 +50,15 @@ def setup_logger():
     logger.addHandler(stream_handler)
     return logger
 
-
-with open("args_rebased.pickle", "rb") as f: args = pickle.load(f)
-
-with open("scenario_rebased.pickle", "rb") as f: scen = pickle.load(f)
-with open("schedule_rebased.pickle", "rb") as f: sched = pickle.load(f)
-args.desired_soc_opps = 1.0
+with open("args_buffered.pickle", "rb") as f: args = pickle.load(f)
+with open("scenario_buffered_electrified.pickle", "rb") as f: scen = pickle.load(f)
+with open("schedule_buffered_electrified.pickle", "rb") as f: sched = pickle.load(f)
 
 config = None
 ROT = None
 timers = [0] * 10
 
 
-# args.min_charging_time = 0
-# args.default_buffer_time_opps = 0
-
-# del args.save_soc
 del args.save_timeseries
 del args.save_results
 
@@ -119,8 +112,10 @@ def main():
 
     for name, type in sched.vehicle_types.items():
         for charge_type, vehicle in type.items():
-            vehicle["capacity"] = config.battery_capacity
-            vehicle["charging_curve"] = config.charging_curve
+            if config.battery_capacity is not None:
+                vehicle["capacity"] = config.battery_capacity
+            if config.charging_curve is not None:
+                vehicle["charging_curve"] = config.charging_curve
     decision_tree_path = config.decision_tree_path
     if decision_tree_path is not None:
         with open(decision_tree_path, "rb") as file:
@@ -157,12 +152,12 @@ def main():
             inclusion_stations,
             exclusion_rots=exclusion_rots, run_only_neg=config.run_only_neg)
         logger.debug(f"Rebasing took {time() - s} sec")
-        # with open("schedule_rebased.pickle", "wb") as file:
-        #     pickle.dump(new_sched, file)
-        # with open("scenario_rebased.pickle", "wb") as file:
-        #     pickle.dump(new_scen, file)
-        # with open("args_rebased.pickle", "wb") as file:
-        #     pickle.dump(args, file)
+        with open("schedule_rebased_buffered.pickle", "wb") as file:
+            pickle.dump(new_sched, file)
+        with open("scenario_rebased_buffered.pickle", "wb") as file:
+            pickle.dump(new_scen, file)
+        with open("args_rebased_buffered.pickle", "wb") as file:
+            pickle.dump(args, file)
     else:
         with open(args.electrified_stations, "r") as file:
             ele_stations = json.load(file)
@@ -194,7 +189,7 @@ def main():
             logger.debug("Starting greedy optimization")
             ele_stations, ele_station_set, could_not_be_electrified, list_greedy_sets = \
                 optimization_loop(ele_stations, ele_station_set, new_scen, new_sched,
-                                  not_possible_stations, soc_upper_thresh=1, soc_lower_thresh=config.min_soc,
+                                  not_possible_stations, soc_upper_thresh=config.desired_soc_opps, soc_lower_thresh=config.min_soc,
                                   solver=solver, opt_type=opt_type,
                                   node_choice=node_choice,
                                   soc_charge_curve_dict=soc_charge_curve_dict, decision_tree=decision_tree)
@@ -290,7 +285,7 @@ def optimization_loop(electrified_stations, electrified_station_set, new_scen, n
     events = get_below_zero_soc_events(this_scen=base_scen,
                                        rotations=list(new_sched.rotations.keys()),
                                        this_sched=base_sched,
-                                       soc_upper_thresh=0.95, filter_standing_time=True,
+                                       soc_upper_thresh=soc_upper_thresh, filter_standing_time=True,
                                        not_possible_stations=not_possible_stations,
                                        soc_lower_thresh=soc_lower_thresh, relative_soc=False)
 
@@ -353,7 +348,9 @@ def optimization_loop(electrified_stations, electrified_station_set, new_scen, n
                                      could_not_be_electrified, not_possible_stations,
                                      choose_station_step_by_step, soc_charge_curve_dict,
                                      pre_optimized_set=None,
-                                     decision_tree=decision_tree,soc_lower_thresh=soc_lower_thresh, events_remaining=[len(events)],
+                                     decision_tree=decision_tree,soc_lower_thresh=soc_lower_thresh,
+                                     soc_upper_thresh=soc_upper_thresh,
+                                     events_remaining=[len(events)],
                                      **kwargs)
 
             logger.warning("Greedy Result ++++++++ %s stations out of %s", len(electrified_station_set) , len(stations))
@@ -393,7 +390,8 @@ def optimization_loop(electrified_stations, electrified_station_set, new_scen, n
                                                  choice_func, soc_charge_curve_dict,
                                                  pre_optimized_set=pre_optimized_set,
                                                  decision_tree=decision_tree,
-                                                 events_remaining=[len(events)],soc_lower_thresh=soc_lower_thresh)
+                                                 events_remaining=[len(events)],
+                                                 soc_upper_thresh=soc_upper_thresh,soc_lower_thresh=soc_lower_thresh)
                     # if a new set was found, print it and save it in sols
 
                     if new_electrified_set != pre_optimized_set and new_stations is not None:
@@ -465,7 +463,9 @@ def group_optimization_quick(group, base_scen, base_sched,
                              electrified_stations, electrified_station_set,
                              could_not_be_electrified,
                              not_possible_stations, choose_station_function, soc_curve_dict,
-                             pre_optimized_set=None, decision_tree=None,soc_lower_thresh=0, tree_position=[],**kwargs):
+                             pre_optimized_set=None, decision_tree=None,
+                             soc_lower_thresh=0,soc_upper_thresh=1,
+                             tree_position=[],**kwargs):
 
     logger.debug("%s with length of %s", tree_position, len(tree_position))
     event_group, possible_stations = group
@@ -486,7 +486,8 @@ def group_optimization_quick(group, base_scen, base_sched,
         logger.debug("Already electrified: Returning set")
         return electrified_stations, True
 
-    station_eval = evaluate(event_group, new_scen, soc_curve_dict, soc_lower_thresh=soc_lower_thresh)
+    station_eval = evaluate(event_group, new_scen, soc_curve_dict,
+                            soc_upper_thresh=soc_upper_thresh, soc_lower_thresh=soc_lower_thresh)
 
     logger.debug("Missing energy: %s", missing_energy)
     if logger.getEffectiveLevel() > logging.DEBUG:
@@ -544,7 +545,7 @@ def group_optimization_quick(group, base_scen, base_sched,
     event_rotations_id = {event["rotation"].id for event in event_group}
     new_events = get_below_zero_soc_events(new_scen, event_rotations_id,
                                            new_sched,
-                                           soc_upper_thresh=1,
+                                           soc_upper_thresh=soc_upper_thresh,
                                            filter_standing_time=True,
                                            not_possible_stations=not_possible_stations,
                                            soc_lower_thresh=soc_lower_thresh, relative_soc=True)
@@ -592,7 +593,9 @@ def group_optimization_quick(group, base_scen, base_sched,
                                                    soc_curve_dict,
                                                    pre_optimized_set, decision_tree,
                                                    lifted_socs=lifted_socs,
-                                                   events_remaining=events_remaining,soc_lower_thresh=soc_lower_thresh,
+                                                   events_remaining=events_remaining,
+                                                   soc_lower_thresh=soc_lower_thresh,
+                                                   soc_upper_thresh=soc_upper_thresh,
                                                    tree_position=this_tree)
 
         if new_stations is not None:
@@ -610,14 +613,14 @@ def group_optimization_quick(group, base_scen, base_sched,
 
                 prune_events = get_below_zero_soc_events(new_scen, event_rotations_id,
                                                          new_sched,
-                                                         soc_upper_thresh=1,
+                                                         soc_upper_thresh=soc_upper_thresh,
                                                          filter_standing_time=True,
                                                          not_possible_stations=not_possible_stations,
                                                          soc_lower_thresh=soc_lower_thresh,
                                                          relative_soc=True)
 
                 station_eval = evaluate(prune_events, new_scen, soc_curve_dict,
-                                        soc_lower_thresh=soc_lower_thresh)
+                                        soc_upper_thresh=soc_upper_thresh,soc_lower_thresh=soc_lower_thresh)
                 prune_missing_energy = get_missing_energy(prune_events)
                 if not is_branch_promising(station_eval, electrified_station_set,
                                            pre_optimized_set, prune_missing_energy):
@@ -657,7 +660,7 @@ def group_optimization(group, base_scen, base_sched,
         logger.debug("Already electrified: Returning set")
         return electrified_stations
 
-    station_eval = evaluate(event_group, pre_opt_scen, soc_curve_dict, soc_lower_thresh=soc_lower_thresh)
+    station_eval = evaluate(event_group, pre_opt_scen, soc_curve_dict,soc_upper_thresh=soc_upper_thresh, soc_lower_thresh=soc_lower_thresh)
     for id in station_eval:
         logger.debug("%s, %s", id[0], id[1]["pot_sum"])
     logger.debug(missing_energy)
@@ -1225,7 +1228,7 @@ def charging_curve_to_soc_over_time(charging_curve, capacity, max_charge_from_gr
     time = 0
     socs = []
     times = []
-    while soc < 1:
+    while soc < config.desired_soc_opps:
         times.append(time)
         socs.append(soc)
         power1 = min(np.interp(soc, normalized_curve[:, 0], normalized_curve[:, 1]),
@@ -1238,7 +1241,7 @@ def charging_curve_to_soc_over_time(charging_curve, capacity, max_charge_from_gr
         time += timestep
     # Fill the soc completely in last timestep
     times.append(time)
-    socs.append(1)
+    socs.append(config.desired_soc_opps)
     return np.array((times, socs)).T
 
 
@@ -1248,19 +1251,19 @@ def get_delta_soc(soc_over_time_curve, soc, time_delta):
     # First element which is bigger than current soc
     if time_delta == 0:
         return 0
-    soc = max(soc, 0)
+    soc = max(min(config.desired_soc_opps,soc), 0)
     first_time, start_soc = soc_over_time_curve[soc_over_time_curve[:, 1] >= soc][0, :]
     second_time = first_time + time_delta
     # Catch out of bounds if time of charging end is bigger than table values
 
     if second_time >= soc_over_time_curve[-1, 0]:
-        end_soc = 1
+        end_soc = config.desired_soc_opps
     else:
         end_soc = soc_over_time_curve[soc_over_time_curve[:, 0] >= second_time][0, 1]
 
     # Make sure to limit delta soc to 1 if negative socs are given. They are possible during
     # the optimization process but will be continuously raised until they are >0.
-    return min(1, end_soc - start_soc)
+    return min(config.desired_soc_opps, end_soc - start_soc)
 
 
 def get_buffer_time_old(search_time, args):
@@ -1310,9 +1313,20 @@ def read_config(config_path):
     vehicle = config_parser["VEHICLE"]
     conf.charge_eff = float(vehicle.get("charge_eff", 0.95))
     conf.battery_capacity = float(vehicle.get("battery_capacity", 0))
-    conf.charging_curve = json.loads(vehicle.get("charging_curve", []))
-    conf.charging_power = float(vehicle.get("charging_power", 0.95))
+    if conf.battery_capacity==0:
+        conf.battery_capacity=None
+    conf.charging_curve = json.loads(vehicle.get("charging_curve", "[]"))
+    if conf.charging_curve==[]:
+        conf.charging_curve=None
+    conf.charging_power = float(vehicle.get("charging_power", 0))
+    if conf.charging_power==0:
+        conf.charging_power=None
     conf.min_soc = float(vehicle.get("min_soc", 0.0))
+    try:
+        conf.desired_soc_opps=args.desired_soc_opps
+    except:
+        conf.desired_soc_opps=1
+
 
     optimizer = config_parser["OPTIMIZER"]
     conf.solver = optimizer.get("solver", "spiceev")

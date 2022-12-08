@@ -92,11 +92,11 @@ def simulate(args):
         print(f"Investment cost: {cost_invest} €. Total annual cost: {cost_annual} €.")
 
     import pickle
-    with open("schedule_rebased.pickle", "wb") as f:
+    with open("schedule_buffered_depots.pickle", "wb") as f:
         pickle.dump(schedule, f)
-    with open("scenario_rebased.pickle", "wb") as f:
+    with open("scenario_buffered_depots.pickle", "wb") as f:
         pickle.dump(scenario, f)
-    with open("args_rebased.pickle", "wb") as f:
+    with open("args_buffered.pickle", "wb") as f:
         pickle.dump(args, f)
 
     print("pickled")
