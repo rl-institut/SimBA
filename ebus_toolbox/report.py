@@ -46,7 +46,8 @@ def generate_vehicle_socs(scenario, args):
 
 
 def generate_station_name_csv(scenario, args):
-    """Generates a csv file from the grid connectors and their header information in the specified simulation time.
+    """Generates a csv file from the grid connectors
+    and their header information in the specified simulation time.
 
     :param scenario: Scenario for with to generate timeseries.
     :type scenario: spice_ev.Scenario
@@ -65,7 +66,8 @@ def generate_station_name_csv(scenario, args):
 
 
 def generate_station_name_json(scenario, args):
-    """Generates a json file from the grid connectors and their header information in the specified simulation time.
+    """Generates a json file from the grid connectors
+    and their header information in the specified simulation time.
 
     :param scenario: Scenario for with to generate timeseries.
     :type scenario: spice_ev.Scenario
@@ -82,7 +84,8 @@ def generate_station_name_json(scenario, args):
 
 
 def generate_gc_power_overview(scenario, args):
-    """Generates a csv file from each grid connectors summed up charging station power in the specified simulation time.
+    """Generates a csv file from each grid connectors summed up
+    charging station power in the specified simulation time.
 
     :param scenario: Scenario for with to generate timeseries.
     :type scenario: spice_ev.Scenario
