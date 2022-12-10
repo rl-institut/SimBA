@@ -65,19 +65,23 @@ def simulate(args):
     # run the mode specified in config
     if args.mode == 'service_optimization':
         schedule, scenario = optimization.service_optimization(schedule, args)["optimized"]
-    elif args.mode in ["sim", "neg_depb_to_oppb"]:
+    elif args.mode in ["sim", "neg_depb_to_oppb", "neg_oppb_to_depb"]:
         # DEFAULT if mode argument is not specified by user
         # Scenario simulated once
         scenario = schedule.run(args)
-    if args.mode == "neg_depb_to_oppb":
-        # simple optimization: change charging type from depot to opportunity, simulate again
+    if args.mode in ["neg_depb_to_oppb", "neg_oppb_to_depb"]:
+        # simple optimization: change charging type, simulate again
+        change_from = args.mode[4:8]
+        change_to = args.mode[-4:]
+        # get negative rotations
         neg_rot = schedule.get_negative_rotations(scenario)
-        # only depot rotations relevant and check if oppb-version of vehicle_type exists
-        neg_rot = [r for r in neg_rot if schedule.rotations[r].charging_type == "depb"
-                   if "oppb" in vehicle_types[schedule.rotations[r].vehicle_type]]
+        # check which are rotations relevant and if new other vehicle type exists
+        neg_rot = [r for r in neg_rot if schedule.rotations[r].charging_type == change_from
+                   if change_to in vehicle_types[schedule.rotations[r].vehicle_type]]
         if neg_rot:
-            print("Changing charging type from depb to oppb for rotations " + ', '.join(neg_rot))
-            schedule.set_charging_type("oppb", neg_rot)
+            print(f"Changing charging type from {change_from} to {change_to} for rotations "
+                  f"" + ', '.join(neg_rot))
+            schedule.set_charging_type(change_to, neg_rot)
             # simulate again
             scenario = schedule.run(args)
             neg_rot = schedule.get_negative_rotations(scenario)
