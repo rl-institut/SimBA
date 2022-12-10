@@ -83,7 +83,7 @@ def generate_station_name_json(scenario, args):
             json.dump(gc_info, f, indent=2)
 
 
-def generate_gc_power_overview(scenario, args):
+def generate_gc_power_overview_timeseries(scenario, args):
     """Generates a csv file from each grid connectors summed up
     charging station power in the specified simulation time.
 
@@ -109,6 +109,36 @@ def generate_gc_power_overview(scenario, args):
         csv_writer.writerows(gc_power_overview)
 
 
+def generate_gc_overview(schedule, scenario, args):
+    """Generates a csv file where each line an electrified station's maximum power
+    and maximum number of charging stations is shown.
+
+    :param schedule: Driving schedule for the simulation.
+    :type schedule: eBus-Toolbox.Schedule
+    :param scenario: Scenario for with to generate timeseries.
+    :type scenario: spice_ev.Scenario
+    :param args: Configuration arguments specified in config files contained in configs directory.
+    :type args: argparse.Namespace
+    """
+
+    all_gc_list = list(schedule.stations.keys())
+    used_gc_list = list(scenario.constants.grid_connectors.keys())
+
+    with open(args.output_directory / "gc_overview.csv", "w", newline='') as f:
+        csv_writer = csv.writer(f)
+        csv_writer.writerow(["Maximum power", "Maximum Nr charging stations"])
+        for gc in all_gc_list:
+            if gc in used_gc_list:
+                station_name = f"{gc}_timeseries"
+                ts = getattr(scenario, station_name)
+                max_gc_power = -min(ts["grid power [kW]"])
+                max_nr_cs = max(ts["# occupied CS"])
+            else:
+                max_gc_power = 0
+                max_nr_cs = 0
+            csv_writer.writerow([max_gc_power, max_nr_cs])
+
+
 def generate(schedule, scenario, args):
     """Generates all output files/ plots and saves them in the output directory.
 
@@ -127,8 +157,11 @@ def generate(schedule, scenario, args):
     generate_station_name_csv(scenario, args)
     generate_station_name_json(scenario, args)
 
-    # generate cs power overview
-    generate_gc_power_overview(scenario, args)
+    # generate gc power overview
+    generate_gc_power_overview_timeseries(scenario, args)
+
+    # generate gc overview
+    generate_gc_overview(schedule, scenario, args)
 
     # save plots as png and pdf
     aggregate_global_results(scenario)
