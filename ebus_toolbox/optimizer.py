@@ -50,17 +50,14 @@ def setup_logger():
     logger.addHandler(stream_handler)
     return logger
 
-with open("args_buffered.pickle", "rb") as f: args = pickle.load(f)
-with open("scenario_buffered_electrified.pickle", "rb") as f: scen = pickle.load(f)
-with open("schedule_buffered_electrified.pickle", "rb") as f: sched = pickle.load(f)
 
+args = None
+scen = None
+sched = None
 config = None
 ROT = None
 timers = [0] * 10
 
-
-del args.save_timeseries
-del args.save_results
 
 
 def main():
@@ -85,6 +82,24 @@ def main():
     config_path=".\data\examples\optimizer.cfg"
     config = read_config(config_path)
     logger = setup_logger()
+
+    # Load pickle files
+
+    with open(config.args, "rb") as f:
+        global args
+        args = pickle.load(f)
+    with open(config.scenario, "rb") as f:
+        global scen
+        scen = pickle.load(f)
+    with open(config.schedule, "rb") as f:
+        global sched
+        sched = pickle.load(f)
+
+    # Dont create these results, since they are not used
+    del args.save_timeseries
+    del args.save_results
+
+    args.desired_soc_deps = 1
 
     # which rotations should be excluded?
     exclusion_rots = config.exclusion_rots
@@ -139,7 +154,6 @@ def main():
 
     if args.save_soc:
         args.save_soc = args.output_directory / "simulation_soc_spiceEV.csv"
-
     new_ele_stations_path = args.output_directory / Path("optimized_stations" + ".json")
 
     not_possible_stations = inclusion_stations.union(exclusion_stations)
@@ -148,18 +162,18 @@ def main():
     if rebase_scenario:
         logger.debug(f"Spice EV Rebasing Scenario")
         new_sched, new_scen, ele_station_set, ele_stations = preprocessing_scenario(
-            this_sched, args,
+            this_sched, this_scen, args,
             inclusion_stations,
             exclusion_rots=exclusion_rots, run_only_neg=config.run_only_neg)
         logger.debug(f"Rebasing took {time() - s} sec")
-        with open("schedule_rebased_buffered.pickle", "wb") as file:
-            pickle.dump(new_sched, file)
-        with open("scenario_rebased_buffered.pickle", "wb") as file:
-            pickle.dump(new_scen, file)
-        with open("args_rebased_buffered.pickle", "wb") as file:
-            pickle.dump(args, file)
+        # with open("schedule_rebased_buffered.pickle", "wb") as file:
+        #     pickle.dump(new_sched, file)
+        # with open("scenario_rebased_buffered.pickle", "wb") as file:
+        #     pickle.dump(new_scen, file)
+        # with open("args_rebased_buffered.pickle", "wb") as file:
+        #     pickle.dump(args, file)
     else:
-        with open(args.electrified_stations, "r") as file:
+        with open(args.electrified_stations, "r", encoding="utf-8",) as file:
             ele_stations = json.load(file)
         ele_station_set = set()
         # Electrify inclusion stations
@@ -189,7 +203,7 @@ def main():
             logger.debug("Starting greedy optimization")
             ele_stations, ele_station_set, could_not_be_electrified, list_greedy_sets = \
                 optimization_loop(ele_stations, ele_station_set, new_scen, new_sched,
-                                  not_possible_stations, soc_upper_thresh=config.desired_soc_opps, soc_lower_thresh=config.min_soc,
+                                  not_possible_stations, soc_upper_thresh=args.desired_soc_opps, soc_lower_thresh=config.min_soc,
                                   solver=solver, opt_type=opt_type,
                                   node_choice=node_choice,
                                   soc_charge_curve_dict=soc_charge_curve_dict, decision_tree=decision_tree)
@@ -208,7 +222,7 @@ def main():
             logger.warning("Removing impossible rots, rebasing and restarting optimization")
             exclusion_rots.update(could_not_be_electrified)
             new_sched, new_scen, ele_station_set, ele_stations = preprocessing_scenario(
-                this_sched, args,
+                this_sched, this_scen, args,
                 inclusion_stations,
                 exclusion_rots=exclusion_rots, run_only_neg=False)
 
@@ -221,7 +235,7 @@ def main():
     new_scen.vehicle_socs = timeseries_calc('best_station_ids[0]', new_sched.rotations.values(),
                                             new_scen.vehicle_socs,
                                             new_scen, ele_station_set,
-                                            soc_charge_curve_dict=soc_charge_curve_dict)
+                                            soc_charge_curve_dict=soc_charge_curve_dict, soc_upper_thresh=args.desired_soc_deps)
     new_events = get_below_zero_soc_events(new_scen, new_sched.rotations, new_sched, soc_lower_thresh=config.min_soc)
     # plot_(get_rotation_soc(ROT, new_sched, new_scen)[0])
     # q = get_rotation_soc(ROT, new_sched, new_scen)[0]
@@ -233,21 +247,21 @@ def main():
 
     global timers
     logger.debug(timers)
-    with open(new_ele_stations_path, "w") as file:
+    with open(new_ele_stations_path, "w", encoding="utf-8",) as file:
         json.dump(ele_stations, file, indent=2)
 
     logger.debug(f"Spice EV is calculating optimized case as a complete scenario")
-    new_sched, new_scen, ele_station_set, ele_stations = preprocessing_scenario(
-        this_sched, args, electrified_stations=ele_stations, run_only_neg=False,
+    final_sched, final_scen, ele_station_set, ele_stations = preprocessing_scenario(
+        this_sched, this_scen, args, electrified_stations=ele_stations, run_only_neg=False,
         electrified_station_set=ele_station_set)
 
     # ax = plot_(get_rotation_soc(ROT, new_sched, new_scen)[0])
     # ax.plot(q)
-    logger.warning(f"Still negative rotations:{new_sched.get_negative_rotations(new_scen)}")
+    logger.warning(f"Still negative rotations:{final_sched.get_negative_rotations(final_scen)}")
     print("Finished")
     print(f"Opt took {time() - t}")
 
-    return new_sched, new_scen
+    return final_sched, final_scen
 
 
 timer_for_calc = 0
@@ -268,21 +282,12 @@ def optimization_loop(electrified_stations, electrified_station_set, new_scen, n
     base_sched = copy(new_sched)
 
     ###########
-    # Make sure no None values exists in SOCs. Fill later values with last value
-    # which was not None
-    for id, soc in base_scen.vehicle_socs.items():
-        soc = np.array(soc)
-        if None in soc:
-            for ii in range(len(soc) - 1, -1, -1):
-                if soc[ii] is not None:
-                    last_not_none = soc[ii]
-                    break
-            soc[soc == np.array(None)] = last_not_none
-        base_scen.vehicle_socs[id] = soc
+    # Remove none Values from socs in the vehicle_socs an
+    remove_none_socs(base_scen)
 
     # Get events where soc fell below 0. The events contain info about the problematic
     # timespan, which includes stations which could provide a soc lift
-    events = get_below_zero_soc_events(this_scen=base_scen,
+    base_events = get_below_zero_soc_events(this_scen=base_scen,
                                        rotations=list(new_sched.rotations.keys()),
                                        this_sched=base_sched,
                                        soc_upper_thresh=soc_upper_thresh, filter_standing_time=True,
@@ -291,16 +296,18 @@ def optimization_loop(electrified_stations, electrified_station_set, new_scen, n
 
     # Check if the events can be divided into subgroups which are independent
     # this makes optimization in smaller groups possible
-    groups = get_groups_from_events(events, not_possible_stations)
+    groups = get_groups_from_events(base_events, not_possible_stations)
 
     # Baseline greedy Optimization
     list_greedy_sets = [set()] * len(groups)
-
     new_scen.vehicle_socs = timeseries_calc('best_station_ids[0]', new_sched.rotations.values(),
                                             new_scen.vehicle_socs,
                                             new_scen, electrified_station_set,
-                                            soc_charge_curve_dict=soc_charge_curve_dict)
-    new_events = get_below_zero_soc_events(new_scen, new_sched.rotations, new_sched,soc_lower_thresh=soc_lower_thresh)
+                                            soc_charge_curve_dict=soc_charge_curve_dict, soc_upper_thresh=args.desired_soc_deps)
+
+
+    new_events = get_below_zero_soc_events(new_scen, new_sched.rotations,
+                                           new_sched,soc_lower_thresh=soc_lower_thresh)
 
     ###############
     # rot='1000097'
@@ -534,7 +541,7 @@ def group_optimization_quick(group, base_scen, base_sched,
     new_scen.vehicle_socs = deepcopy(base_scen.vehicle_socs)
     new_scen.vehicle_socs = timeseries_calc(best_station_ids[0], event_rotations,
                                             new_scen.vehicle_socs,
-                                            new_scen, electrified_station_set, soc_curve_dict)
+                                            new_scen, electrified_station_set, soc_curve_dict, soc_upper_thresh=args.desired_soc_deps)
     lifted_socs = deepcopy(new_scen.vehicle_socs)
 
     global timer_for_calc
@@ -609,7 +616,7 @@ def group_optimization_quick(group, base_scen, base_sched,
                 new_scen.vehicle_socs = timeseries_calc(best_station_ids[0], event_rotations,
                                                         new_scen.vehicle_socs,
                                                         new_scen, electrified_station_set,
-                                                        soc_curve_dict)
+                                                        soc_curve_dict, soc_upper_thresh=args.desired_soc_deps)
 
                 prune_events = get_below_zero_soc_events(new_scen, event_rotations_id,
                                                          new_sched,
@@ -750,14 +757,14 @@ def group_optimization(group, base_scen, base_sched,
     return electrified_stations
 
 
-def preprocessing_scenario(this_sched, this_args,
+def preprocessing_scenario(this_sched, this_scen, this_args,
                            inclusion_stations=set(),
                            electrified_stations=None,
                            electrified_station_set=set(),
                            exclusion_rots=set(),
                            run_only_neg=False):
     if electrified_stations is None:
-        with open(this_args.electrified_stations, "r") as f:
+        with open(this_args.electrified_stations, "r", encoding="utf-8",) as f:
             electrified_stations = json.load(f)
 
     # Electrify inclusion stations
@@ -766,7 +773,7 @@ def preprocessing_scenario(this_sched, this_args,
 
     # Calc new but only prev. negative rotations
     if run_only_neg:
-        rots = this_sched.get_negative_rotations(scen)
+        rots = this_sched.get_negative_rotations(this_scen)
         rots = {r: this_sched.rotations[r] for r in rots if r not in exclusion_rots}
         this_sched.rotations = rots
     else:
@@ -810,6 +817,21 @@ def plot_(data):
     fig, ax = plt.subplots()
     ax.plot(data, linewidth=2.0)
     return ax
+
+def plot_rot(id,this_sched,this_scen, ax=None, rot_only=True):
+    """ Simple plot of data without having to create subplots"""
+    a,b,c=get_rotation_soc(id,this_sched,this_scen)
+    if not rot_only:
+        b=0
+        c=-1
+    if ax==None:
+        fig, ax = plt.subplots()
+        ax.plot(a[b:c], linewidth=2.0)
+        return ax
+    else:
+        ax.plot(a[b:c], linewidth=2.0)
+        return ax
+
 
 
 def join_all_subsets(subsets):
@@ -901,9 +923,8 @@ def choose_station_step_by_step(station_eval, electrified_station_set,
 def stations_hash(stations_set):
     return str(sorted(list(stations_set)))
 
-
 def timeseries_calc(station, rotations, soc_dict, eval_scen, ele_station_set,
-                    soc_charge_curve_dict):
+                    soc_charge_curve_dict, soc_upper_thresh=1):
     global timers
     ele_stations = set([*ele_station_set, station])
     s2 = time()
@@ -933,10 +954,13 @@ def timeseries_calc(station, rotations, soc_dict, eval_scen, ele_station_set,
             soc[idx + buffer_idx:idx + buffer_idx + delta_idx] = old_soc
             soc[idx + buffer_idx:idx + buffer_idx + delta_idx] += np.linspace(0, d_soc, delta_idx)
 
+
+            soc_pre=soc[:idx]
+            soc=soc[idx:]
             soc_max = np.max(soc)
             timers[0] += time() - s
             s = time()
-            while soc_max > 1:
+            while soc_max > soc_upper_thresh:
                 desc = np.arange(len(soc), 0, -1)
                 diff = np.hstack((np.diff(soc), -1))
                 # masking of socs >1 and negative gradient for local maximum
@@ -949,6 +973,7 @@ def timeseries_calc(station, rotations, soc_dict, eval_scen, ele_station_set,
                 # Capping everything before local maximum
                 soc[:idc_loc_max][soc[:idc_loc_max] > 1] = 1
                 soc_max = np.max(soc)
+            soc = np.hstack((soc_pre, soc))
             timers[1] += time() - s
         soc_dict[rot.vehicle_id] = soc
     timers[3] += (time() - s2) * 100
@@ -1228,7 +1253,7 @@ def charging_curve_to_soc_over_time(charging_curve, capacity, max_charge_from_gr
     time = 0
     socs = []
     times = []
-    while soc < config.desired_soc_opps:
+    while soc < args.desired_soc_opps:
         times.append(time)
         socs.append(soc)
         power1 = min(np.interp(soc, normalized_curve[:, 0], normalized_curve[:, 1]),
@@ -1241,7 +1266,7 @@ def charging_curve_to_soc_over_time(charging_curve, capacity, max_charge_from_gr
         time += timestep
     # Fill the soc completely in last timestep
     times.append(time)
-    socs.append(config.desired_soc_opps)
+    socs.append(args.desired_soc_opps)
     return np.array((times, socs)).T
 
 
@@ -1251,19 +1276,19 @@ def get_delta_soc(soc_over_time_curve, soc, time_delta):
     # First element which is bigger than current soc
     if time_delta == 0:
         return 0
-    soc = max(min(config.desired_soc_opps,soc), 0)
+    soc = max(min(args.desired_soc_opps,soc), 0)
     first_time, start_soc = soc_over_time_curve[soc_over_time_curve[:, 1] >= soc][0, :]
     second_time = first_time + time_delta
     # Catch out of bounds if time of charging end is bigger than table values
 
     if second_time >= soc_over_time_curve[-1, 0]:
-        end_soc = config.desired_soc_opps
+        end_soc = args.desired_soc_opps
     else:
         end_soc = soc_over_time_curve[soc_over_time_curve[:, 0] >= second_time][0, 1]
 
     # Make sure to limit delta soc to 1 if negative socs are given. They are possible during
     # the optimization process but will be continuously raised until they are >0.
-    return min(config.desired_soc_opps, end_soc - start_soc)
+    return min(args.desired_soc_opps, end_soc - start_soc)
 
 
 def get_buffer_time_old(search_time, args):
@@ -1280,7 +1305,7 @@ def get_buffer_time_old(search_time, args):
 
 
 def electrify_station(stat, stations, electrified_set):
-    stations[stat] = {'type': 'opps', 'n_charging_stations': 200}
+    stations[stat] = config.standard_opp_station
     electrified_set.add(stat)
 
 
@@ -1305,10 +1330,17 @@ def read_config(config_path):
     conf = Config()
     default = config_parser["DEFAULT"]
     conf.debug_level = int(default.get("debug_level", 0))
-    scenario = config_parser["SCENARIO"]
-    conf.exclusion_rots = set(json.loads(scenario.get("exclusion_rots", "[]")))
-    conf.exclusion_stations = set(json.loads(scenario.get("exclusion_stations", "[]")))
-    conf.inclusion_stations = set(json.loads(scenario.get("inclusion_stations", "[]")))
+    sce = config_parser["SCENARIO"]
+    conf.exclusion_rots = set(json.loads(sce.get("exclusion_rots", "[]")))
+    conf.exclusion_stations = set(json.loads(sce.get("exclusion_stations", "[]")))
+    conf.inclusion_stations = set(json.loads(sce.get("inclusion_stations", "[]")))
+    conf.standard_opp_station = dict(json.loads(sce.get("standard_opp_station", "{}")))
+
+    pi = config_parser["PICKLE"]
+
+    conf.schedule = pi.get("schedule", "")
+    conf.scenario = pi.get("scenario", "")
+    conf.args = pi.get("args", "")
 
     vehicle = config_parser["VEHICLE"]
     conf.charge_eff = float(vehicle.get("charge_eff", 0.95))
@@ -1322,10 +1354,7 @@ def read_config(config_path):
     if conf.charging_power==0:
         conf.charging_power=None
     conf.min_soc = float(vehicle.get("min_soc", 0.0))
-    try:
-        conf.desired_soc_opps=args.desired_soc_opps
-    except:
-        conf.desired_soc_opps=1
+
 
 
     optimizer = config_parser["OPTIMIZER"]
@@ -1362,6 +1391,25 @@ def outer_group_optimzation(pack, not_possible_stations):
                                  could_not_be_electrified,
                                  not_possible_stations, pre_optimized_set=pre_optimized_set)
     return electrified_station_set.copy()
+
+def remove_none_socs(base_scen):
+    # Make sure no None values exists in SOCs. Fill later values with last value
+    # which was not None
+    for id, soc in base_scen.vehicle_socs.items():
+        soc = np.array(soc)
+        if None in soc:
+            for ii in range(len(soc) - 1, -1, -1):
+                if soc[ii] is not None:
+                    last_not_none = soc[ii]
+                    break
+            soc[soc == np.array(None)] = last_not_none
+        base_scen.vehicle_socs[id] = soc
+
+def get_vehicle(id, sched):
+    return sched.rotations[id].vehicle_id
+
+def get_vehicle_rots(id, sched):
+    return [rot for rot in sched.rotations if id == get_vehicle(rot, sched)]
 
 
 if __name__ == "__main__":

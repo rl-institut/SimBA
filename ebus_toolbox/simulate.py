@@ -25,7 +25,7 @@ def simulate(args):
 
     # load stations file
     try:
-        with open(args.electrified_stations) as f:
+        with open(args.electrified_stations, encoding='UTF-8') as f:
             stations = util.uncomment_json_file(f)
     except FileNotFoundError:
         raise SystemExit(f"Path to electrified stations ({args.electrified_stations}) "
@@ -92,11 +92,11 @@ def simulate(args):
         print(f"Investment cost: {cost_invest} €. Total annual cost: {cost_annual} €.")
 
     import pickle
-    with open("schedule_buffered_depots.pickle", "wb") as f:
+    with open("schedule_buffered_depots_short_utf.pickle", "wb") as f:
         pickle.dump(schedule, f)
-    with open("scenario_buffered_depots.pickle", "wb") as f:
+    with open("scenario_buffered_depots_short_utf.pickle", "wb") as f:
         pickle.dump(scenario, f)
-    with open("args_buffered.pickle", "wb") as f:
+    with open("args_buffered_short_utf.pickle", "wb") as f:
         pickle.dump(args, f)
 
     print("pickled")
