@@ -11,7 +11,7 @@ class Consumption:
         temperature_file_path = kwargs.get("outside_temperatures", None)
         # parsing the Temperature to a dict
         if temperature_file_path is not None:
-            with open(temperature_file_path) as f:
+            with open(temperature_file_path, encoding='utf-8') as f:
                 delim = util.get_csv_delim(temperature_file_path)
                 reader = csv.DictReader(f, delimiter=delim)
                 for row in reader:
@@ -20,7 +20,7 @@ class Consumption:
         lol_file_path = kwargs.get("level_of_loading_over_day", None)
         # parsing the level of loading to a dict
         if lol_file_path is not None:
-            with open(lol_file_path) as f:
+            with open(lol_file_path, encoding='utf-8') as f:
                 delim = util.get_csv_delim(lol_file_path)
                 reader = csv.DictReader(f, delimiter=delim)
                 self.lol_by_hour = {}

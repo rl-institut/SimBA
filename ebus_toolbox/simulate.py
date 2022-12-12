@@ -16,7 +16,7 @@ def simulate(args):
     """
     # load vehicle types
     try:
-        with open(args.vehicle_types) as f:
+        with open(args.vehicle_types, encoding='utf-8') as f:
             vehicle_types = util.uncomment_json_file(f)
             del args.vehicle_types
     except FileNotFoundError:
@@ -25,7 +25,7 @@ def simulate(args):
 
     # load stations file
     try:
-        with open(args.electrified_stations) as f:
+        with open(args.electrified_stations, encoding='utf-8') as f:
             stations = util.uncomment_json_file(f)
     except FileNotFoundError:
         raise SystemExit(f"Path to electrified stations ({args.electrified_stations}) "
@@ -34,7 +34,7 @@ def simulate(args):
     # load cost parameters
     if args.cost_parameters_file is not None:
         try:
-            with open(args.cost_parameters_file) as f:
+            with open(args.cost_parameters_file, encoding='utf-8') as f:
                 cost_parameters_file = util.uncomment_json_file(f)
         except FileNotFoundError:
             raise SystemExit(f"Path to cost parameters ({args.cost_parameters_file}) "
