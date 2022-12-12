@@ -3,6 +3,16 @@ import warnings
 import subprocess
 
 
+def file_wrapper_to_dict(f):
+    line = f.readline()
+    header = line.split(",")
+    return_dict = {}
+    line = f.readline().split(",")
+    for key, value in zip(header, line):
+        return_dict[key] = value
+    return [return_dict]
+
+
 def get_git_revision_hash() -> str:
     return subprocess.check_output(['git', 'rev-parse', 'HEAD']).decode('ascii').strip()
 
