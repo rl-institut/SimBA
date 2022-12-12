@@ -62,7 +62,6 @@ def simulate(args):
                                  **vars(args))
     schedule.calculate_consumption()
 
-
     # read filter rotation file
     if args.rotation_filter_variable:
         try:
@@ -75,23 +74,19 @@ def simulate(args):
 
         # TODO: filter rotations
         if args.rotation_filter_variable == "exclude_rotation":
-            excluding_rotations = rotation_filter
             for rotation in rotation_filter:
                 if rotation in rotation_filter:
                     try:
                         schedule.rotations.pop(rotation['rotation_id'])
                     except KeyError:
-                        print(f"Key of rotation {rotation['rotation_id']} does not exist in schedule.")
+                        print(f"Key of rotation {rotation['rotation_id']} "
+                              f"does not exist in schedule.")
         elif args.rotation_filter_variable == "include_rotation":
-            included_rotations = rotation_filter
             staying_rotations = dict()
             for rot_filter in rotation_filter:
                 for rot_schedule in schedule.rotations:
                     if rot_filter == rot_schedule:
                         staying_rotations.update(rot_schedule)
-
-
-
 
     # run the mode specified in config
     if args.mode == 'service_optimization':
