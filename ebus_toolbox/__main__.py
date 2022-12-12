@@ -116,6 +116,9 @@ if __name__ == '__main__':
     args.ALLOW_NEGATIVE_SOC = True
     args.attach_vehicle_soc = True
 
+    args.rotation_filter_variable = ""
+    args.rotation_filter = ""
+
     util.set_options_from_config(args, check=True, verbose=False)
 
     args.output_directory = Path(args.output_directory) / (
