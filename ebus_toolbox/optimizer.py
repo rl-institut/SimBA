@@ -808,10 +808,6 @@ def combination_generator(iterable, amount: int):
                 yield [item] + gen
 
 
-def no_optimization():
-    return "converged"
-
-
 def plot_(data):
     """ Simple plot of data without having to create subplots"""
     fig, ax = plt.subplots()
