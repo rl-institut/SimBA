@@ -8,7 +8,7 @@ def get_git_revision_hash() -> str:
 
 
 def save_version(file_path):
-    with open(file_path, "w") as f:
+    with open(file_path, "w", encoding='utf-8') as f:
         f.write("Git Hash eBus-Toolbox:" + get_git_revision_hash())
 
 
@@ -28,7 +28,7 @@ def set_options_from_config(args, check=False, verbose=True):
 
     if "config" in args and args.config is not None:
         # read options from config file
-        with open(args.config, 'r') as f:
+        with open(args.config, 'r', encoding='utf-8') as f:
             for line in f:
                 line = line.strip()
                 if line.startswith('#'):
@@ -107,7 +107,7 @@ def get_buffer_time(trip, default=0):
     return buffer_time
 
 
-def uncomment_json_file(f, char='#'):
+def uncomment_json_file(f, char='//'):
     """
     Remove comments from JSON file.
 
@@ -115,19 +115,20 @@ def uncomment_json_file(f, char='#'):
     Both full-line comments and trailing lines are supported.
     :param f: file to read
     :type f: JSON file handle
-    :param char: char used for commenting, defaults to #
-    :type char: char
+    :param char: char sequence used for commenting, defaults to '//'
+    :type char: string
     :return: JSON file content
     :rtype: dict
     """
     uncommented_data = ""
     for line in f:
-        try:
-            comment_idx = line.index(char)
-            uncommented_data += line[:comment_idx]
-        except ValueError:
+        comment_idx = line.find(char)
+        if comment_idx == -1:
             # no comment in line
             uncommented_data += line
+        else:
+            # remove comment from line
+            uncommented_data += line[:comment_idx]
     return json.loads(uncommented_data)
 
 
@@ -149,7 +150,7 @@ def get_csv_delim(path, other_delims=set()):
     possible_delims = {",", ";", "\t"}.union(other_delims)
     # create a dict which counts the occurrences of the delimiter per row
 
-    with open(path, "r") as f:
+    with open(path, "r", encoding='utf-8') as f:
         # count delimiters in first line
         line = f.readline()
         counters = {d: line.count(d) for d in possible_delims if line.count(d) > 0}

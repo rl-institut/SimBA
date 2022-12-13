@@ -11,7 +11,7 @@ docs/source/temp
 
 data/private_examples
 data/sim_outputs
-data/preprocessing_scripts
+data/private_examples
 data/gogs_buffered
 
 src/

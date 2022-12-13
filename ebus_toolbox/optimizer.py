@@ -23,7 +23,7 @@ from multiprocessing import Pool, freeze_support
 from ebus_toolbox.consumption import Consumption
 from ebus_toolbox.trip import Trip
 
-# Todo this implementation in c ase of changes in ebustoolbox
+# Todo this implementation in case of changes in ebustoolbox
 from ebus_toolbox.util import get_buffer_time as get_buffer_time_spice_ev
 
 matplotlib.use("TkAgg")
@@ -255,7 +255,6 @@ def main():
 
     return final_sched, final_scen
 
-
 timer_for_calc = 0
 
 
@@ -300,27 +299,6 @@ def optimization_loop(electrified_stations, electrified_station_set, new_scen, n
 
     new_events = get_below_zero_soc_events(new_scen, new_sched.rotations,
                                            new_sched,soc_lower_thresh=soc_lower_thresh)
-
-    ###############
-    # rot='1000097'
-    #
-    #
-    # rots = ['1000097','6899905', '7074180', '1000372', '6782063', '1000394', '6943812', '7049423', '6943605', '6662367', '7143882', '1000371', '1000288', '6943610', '6680572', '1000287', '1000000', '6680062', '1000186', '1000049', '1000415', '6943824', '6943595', '1000145', '6794347', '6794309', '6794346', '6662417', '7049424', '6680053', '1000381', '7077964', '1000404', '6970253', '1000144', '6703041', '1000202', '6899902', '6719042', '1000098', '6794345', '6652322', '6794349', '1000392', '1000382', '1000201', '6975640', '1000161', '6662973', '6794338', '1000204', '7131593', '6975649', '6681020', '6943593', '6943803', '7049425', '6943609', '1000121', '1000378', '6891229', '6975647', '7042548', '6943604', '1000003', '6984405', '6703043', '6966238', '1000019', '6899866', '7025511', '6975642', '6899871', '6899903', '6652345', '1000380', '6899898', '1000416', '1000119', '6808656', '6931154', '1000578', '7106528', '6899900', '6984397', '6975643', '6634342', '1000006', '6794341', '1000137', '6782064', '6681761', '6782062', '6680585', '1000276', '1000373', '6975645', '6899896', '7195344', '1000185', '1000005', '7077969', '1000020', '6680057', '6662998', '6975641', '1000081', '1000135', '1000171', '1000270', '6943826', '1000022', '1000203', '7049421', '1000278', '6634302', '6782065', '6984399', '6984403', '1000051', '7143880', '1000148', '1000212', '1000001', '6985441', '6899904', '6975638', '6975644', '6984401']
-    # rots = ['1000047']
-    # stats= {stat  for group in groups for stat in group[1]}
-    # ev_sched=deepcopy(new_sched)
-    # electrified_station_set=stats.copy()
-    # # ev_sched.rotations={rot:new_sched.rotations[rot] for rot in rots}
-    # ev_sched, ev_scen, ele_station_set, ele_stations = preprocessing_scenario(
-    #     ev_sched, args,
-    #     inclusion_stations=electrified_station_set, run_only_neg=False)
-    #
-    # q,a,b = get_rotation_soc(rots[1], ev_sched, ev_scen)
-    # ax = plot_(q[a:b])
-    # t,c,d = get_rotation_soc(rots[1], new_sched, new_scen)
-    # ax.plot(t[c:d])
-
-    ############
 
     # Base line is created simply by not having a decision tree and not a pre optimized_set yet
     for group_nr, group in enumerate(groups[:]):
