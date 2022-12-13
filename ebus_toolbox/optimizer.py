@@ -85,20 +85,16 @@ def main():
 
     # Load pickle files
 
-    with open(config.args, "rb") as f:
-        global args
-        args = pickle.load(f)
-    with open(config.scenario, "rb") as f:
-        global scen
-        scen = pickle.load(f)
-    with open(config.schedule, "rb") as f:
-        global sched
-        sched = pickle.load(f)
+    global args
+    global scen
+    global sched
 
+    sched, scen, args = toolbox_from_pickle(config.schedule, config.scenario,config.args )
     # Dont create these results, since they are not used
     del args.save_timeseries
     del args.save_results
 
+    # TodO implement in fast calc
     args.desired_soc_deps = 1
 
     # which rotations should be excluded?
@@ -166,12 +162,8 @@ def main():
             inclusion_stations,
             exclusion_rots=exclusion_rots, run_only_neg=config.run_only_neg)
         logger.debug(f"Rebasing took {time() - s} sec")
-        # with open("schedule_rebased_buffered.pickle", "wb") as file:
-        #     pickle.dump(new_sched, file)
-        # with open("scenario_rebased_buffered.pickle", "wb") as file:
-        #     pickle.dump(new_scen, file)
-        # with open("args_rebased_buffered.pickle", "wb") as file:
-        #     pickle.dump(args, file)
+        if config.pickle_rebased:
+            toolbox_to_pickle(config.pickle_reabses_name, new_sched,new_scen, args)
     else:
         with open(args.electrified_stations, "r", encoding="utf-8",) as file:
             ele_stations = json.load(file)
@@ -338,9 +330,9 @@ def optimization_loop(electrified_stations, electrified_station_set, new_scen, n
         linien = {lne for e in events for lne in e["rotation"].lines}
         electrified_stations = base_stations.copy()
         electrified_station_set = base_electrified_station_set.copy()
-        print(f"Optimizing {group_nr + 1} out of {len(groups)}. This includes these Lines")
+        logger.warning(f"Optimizing {group_nr + 1} out of {len(groups)}. This includes these Lines")
         logger.warning(linien)
-        print(len(events), "events")
+        logger.warning("%s events", (len(events)))
         solver = kwargs.get("solver", "spiceev")
         node_choice = kwargs.get("stationsnode_choice", "step-by-step")
         if node_choice == "brute":
@@ -350,7 +342,7 @@ def optimization_loop(electrified_stations, electrified_station_set, new_scen, n
 
         if solver == "quick":
             # first run is always step by step
-            group_optimization_quick(group, base_scen, base_sched,
+            group_optimization(group, base_scen, base_sched,
                                      electrified_stations, electrified_station_set,
                                      could_not_be_electrified, not_possible_stations,
                                      choose_station_step_by_step, soc_charge_curve_dict,
@@ -414,12 +406,12 @@ def optimization_loop(electrified_stations, electrified_station_set, new_scen, n
                 logger.debug(sols)
         else:
             # use spiceev
-            group_optimization(group, base_scen, base_sched,
-                               electrified_stations, electrified_station_set,
-                               could_not_be_electrified, not_possible_stations,
-                               soc_charge_curve_dict,
-                               pre_optimized_set=None,
-                               decision_tree=decision_tree, brute=False, **kwargs)
+            group_optimization_ev(group, base_scen, base_sched,
+                                  electrified_stations, electrified_station_set,
+                                  could_not_be_electrified, not_possible_stations,
+                                  soc_charge_curve_dict,
+                                  pre_optimized_set=None,
+                                  decision_tree=decision_tree, brute=False, **kwargs)
 
         list_greedy_sets[group_nr] = electrified_station_set.copy()
         logger.debug("Optimized with {} stations out of {}".format(len(electrified_station_set),
@@ -465,6 +457,182 @@ def get_groups_from_events(events, not_possible_stations=set(), could_not_be_ele
     groups = list(zip(event_groups, station_subsets))
     return sorted(groups, key=lambda x: len(x[1]))
 
+def group_optimization(group, base_scen, base_sched,
+                             electrified_stations, electrified_station_set,
+                             could_not_be_electrified,
+                             not_possible_stations, choose_station_function, soc_curve_dict,
+                             pre_optimized_set=None, decision_tree=None,
+                             soc_lower_thresh=0,soc_upper_thresh=1,
+                             tree_position=[],type="spiceev", **kwargs):
+    # Give treeposition
+    logger.debug("%s with length of %s", tree_position, len(tree_position))
+
+    # Unpack events and possible stations
+    event_group, possible_stations = group
+
+    # Get the events which are still negative
+    events_remaining = kwargs.get("events_remaining", [99999])
+
+    # Copy Scen and sched and deepcopy vehicle socs so upper levels are not changed by the following
+    # optimization
+    new_scen = copy(base_scen)
+    new_sched = copy(base_sched)
+    # Copy stuff so base sched rotations are not touched
+    new_scen.vehicle_socs = deepcopy(base_scen.vehicle_socs)
+
+    # If the upper level lifted socs put them in the new scen.
+    lifted_socs = kwargs.get("lifted_socs", None)
+    if lifted_socs is not None:
+        new_scen.vehicle_socs = lifted_socs
+
+    # Get rotations from event dict and calculate the missing energy
+    rotation_dict = {e["rotation"].id: e["rotation"] for e in event_group}
+    missing_energy = get_missing_energy(event_group)
+
+    if missing_energy >= 0:
+        logger.debug("Already electrified: Returning set")
+        return electrified_stations, True
+
+    station_eval = evaluate(event_group, new_scen, soc_curve_dict,
+                            soc_upper_thresh=soc_upper_thresh, soc_lower_thresh=soc_lower_thresh)
+
+    # Debug.Log the missing energy and station evaluation
+    station_eval_to_logger(missing_energy, station_eval)
+
+    # Get the best stations, brute or step_by_step
+    best_station_ids, recursive = choose_station_function(station_eval, electrified_station_set,
+                                                          pre_optimized_set, decision_tree,
+                                                          missing_energy=missing_energy)
+    stat_eval_dict = {stat_id[0]: stat_id[1]["pot_sum"] for stat_id in station_eval}
+    if best_station_ids is None:
+        logger.warning(
+            f"No useful station found with "
+            f"{events_remaining} rotations not electrified yet. "
+            f" Stopped after electrifying {len(electrified_station_set)}")
+
+        if pre_optimized_set is not None:
+            # Remove electrified stations in this run
+            c = electrified_station_set.copy()
+            for stat in c:
+                electrified_stations.pop(stat)
+                electrified_station_set.remove(stat)
+            # Overwrite with preoptimized set
+            for stat in pre_optimized_set:
+                electrify_station(stat, electrified_stations, electrified_station_set)
+        else:
+            could_not_be_electrified.update(list(rotation_dict.keys()))
+        return None, False
+    logger.debug("%s, with first pot of %s", best_station_ids, stat_eval_dict[best_station_ids[0]])
+
+    # Electrify station(s)
+    for stat_id in best_station_ids:
+        electrify_station(stat_id, electrified_stations, electrified_station_set)
+
+    s = time()
+
+    event_rotations = {x["rotation"] for x in event_group}
+    new_scen.vehicle_socs = deepcopy(base_scen.vehicle_socs)
+    if type=="quick":
+        new_scen.vehicle_socs = timeseries_calc(best_station_ids[0], event_rotations,
+                                                new_scen.vehicle_socs,
+                                                new_scen, electrified_station_set, soc_curve_dict,
+                                                soc_upper_thresh=args.desired_soc_deps)
+        lifted_socs = deepcopy(new_scen.vehicle_socs)
+    else:
+        new_sched.rotations = rotation_dict
+        new_sched, new_scen = run_schedule(new_sched, args,
+                                           electrified_stations=electrified_stations)
+        lifted_socs=None
+
+
+
+    global timer_for_calc
+    global timers
+    timer_for_calc += time() - s
+    timers[2] += time() - s
+    not_possible_stations = set(electrified_stations.keys()).union(not_possible_stations)
+    event_rotations_id = {event["rotation"].id for event in event_group}
+    new_events = get_below_zero_soc_events(new_scen, event_rotations_id,
+                                           new_sched,
+                                           soc_upper_thresh=soc_upper_thresh,
+                                           filter_standing_time=True,
+                                           not_possible_stations=not_possible_stations,
+                                           soc_lower_thresh=soc_lower_thresh, relative_soc=True)
+
+    delta_energy = get_missing_energy(new_events)
+
+    events_remaining[0] -= len(event_group) - len(new_events)
+    logger.debug("Last electrification electrified %s/%s."
+                 " %s remaining events in the base group.",
+                 len(event_group) - len(new_events), len(event_group), events_remaining[0])
+    # todo
+    delta_base_energy = delta_energy  # get_missing_energy(base_events)
+
+    # Put this node intro the decision tree including the missing energy
+    if decision_tree is not None:
+        decision_tree = node_to_tree(decision_tree,electrified_station_set, delta_base_energy)
+
+    # Everything electrified
+    if delta_energy >= 0:
+        return electrified_stations, True
+    # Some choice functions might not need a recursive call, they return here. recursive is set
+    # by the choose_station_function
+    elif not recursive:
+        return None, True
+
+    # Check if the events can be divided into subgroups which are independent
+    groups = get_groups_from_events(new_events, not_possible_stations, could_not_be_electrified)
+
+    for k, group in enumerate(groups):
+        this_tree = tree_position.copy()
+        this_tree.append(k)
+        new_stations, _ = group_optimization(group, base_scen, base_sched,
+                                                   electrified_stations,
+                                                   electrified_station_set,
+                                                   could_not_be_electrified,
+                                                   not_possible_stations, choose_station_function,
+                                                   soc_curve_dict,
+                                                   pre_optimized_set, decision_tree,
+                                                   lifted_socs=lifted_socs,
+                                                   events_remaining=events_remaining,
+                                                   soc_lower_thresh=soc_lower_thresh,
+                                                   soc_upper_thresh=soc_upper_thresh,
+                                                   tree_position=this_tree, type=type)
+
+        if new_stations is not None:
+            electrified_stations.update(new_stations)
+        else:
+            return None, True
+
+        # Evaluate if following this branch makes sense
+        if pre_optimized_set is not None:
+            if len(pre_optimized_set) - len(electrified_station_set) < 10:
+                new_scen.vehicle_socs = timeseries_calc(best_station_ids[0], event_rotations,
+                                                        new_scen.vehicle_socs,
+                                                        new_scen, electrified_station_set,
+                                                        soc_curve_dict,
+                                                        soc_upper_thresh=args.desired_soc_deps)
+
+                prune_events = get_below_zero_soc_events(new_scen, event_rotations_id,
+                                                         new_sched,
+                                                         soc_upper_thresh=soc_upper_thresh,
+                                                         filter_standing_time=True,
+                                                         not_possible_stations=not_possible_stations,
+                                                         soc_lower_thresh=soc_lower_thresh,
+                                                         relative_soc=True)
+
+                station_eval = evaluate(prune_events, new_scen, soc_curve_dict,
+                                        soc_upper_thresh=soc_upper_thresh,
+                                        soc_lower_thresh=soc_lower_thresh)
+                prune_missing_energy = get_missing_energy(prune_events)
+                if not is_branch_promising(station_eval, electrified_station_set,
+                                           pre_optimized_set, prune_missing_energy):
+                    print("Branch pruned early")
+                    is_branch_promising(station_eval, electrified_station_set,
+                                        pre_optimized_set, missing_energy)
+                    return None, True
+
+    return electrified_stations, True
 
 def group_optimization_quick(group, base_scen, base_sched,
                              electrified_stations, electrified_station_set,
@@ -646,11 +814,25 @@ def get_missing_energy(events):
     return missing_energy
 
 
-def group_optimization(group, base_scen, base_sched,
-                       electrified_stations, electrified_station_set, could_not_be_electrified,
-                       not_possible_stations, soc_curve_dict, pre_optimized_set=None,
-                       decision_tree=None,
-                       brute=False, **kwargs):
+def node_to_tree(decision_tree,electrified_station_set, delta_base_energy):
+    node_name = stations_hash(electrified_station_set)
+    try:
+        decision_tree[node_name]["missing_energy"] = delta_base_energy
+        decision_tree[node_name]["visit_counter"] += 1
+        # todo add is_viable
+        logger.debug("already visited")
+    except KeyError:
+        decision_tree[node_name] = dict()
+        decision_tree[node_name]["missing_energy"] = delta_base_energy
+        decision_tree[node_name]["visit_counter"] = 1
+
+    return decision_tree
+
+def group_optimization_ev(group, base_scen, base_sched,
+                          electrified_stations, electrified_station_set, could_not_be_electrified,
+                          not_possible_stations, soc_curve_dict, pre_optimized_set=None,
+                          decision_tree=None,
+                          brute=False, **kwargs):
     event_group, _ = group
 
     # Loading from pickle faster than deepcopy. Copy enough?
@@ -746,12 +928,12 @@ def group_optimization(group, base_scen, base_sched,
     groups = get_groups_from_events(new_events, not_possible_stations, could_not_be_electrified)
 
     for group in groups:
-        new_stations = group_optimization(group, new_scen, new_sched,
-                                          electrified_stations,
-                                          electrified_station_set,
-                                          could_not_be_electrified,
-                                          not_possible_stations, soc_curve_dict,
-                                          pre_optimized_set, decision_tree)
+        new_stations = group_optimization_ev(group, new_scen, new_sched,
+                                             electrified_stations,
+                                             electrified_station_set,
+                                             could_not_be_electrified,
+                                             not_possible_stations, soc_curve_dict,
+                                             pre_optimized_set, decision_tree)
         electrified_stations.update(new_stations)
 
     return electrified_stations
@@ -1227,6 +1409,9 @@ def run_schedule(this_sched, this_args, electrified_stations=None):
 
     # Dont print output from spice ev to reduce clutter
     print(".", end="")
+    print("Running Spice EV... with %s rotations and %s vehicles", this_sched2.rotations,
+          len(new_scen.vehicle_socs))
+
     sys.stdout = open(os.devnull, 'w')
 
     print("Running Spice EV...")
@@ -1356,6 +1541,9 @@ def read_config(config_path):
     optimizer = config_parser["OPTIMIZER"]
     conf.solver = optimizer.get("solver", "spiceev")
     conf.rebase_scenario = optimizer.getboolean("rebase_scenario", True)
+    conf.pickle_rebased = optimizer.getboolean("pickle_rebased", False)
+    conf.pickle_rebased_name = optimizer.get("pickle_rebased_name",
+            "rebased_" +str(datetime.now().strftime("%Y-%m-%d-%H-%M-%S")))
     conf.opt_type = optimizer.get("opt_type", "greedy")
     conf.remove_impossible_rots = optimizer.getboolean("remove_impossible_rots", False)
     conf.node_choice = optimizer.get("node_choice", "step")
@@ -1382,10 +1570,10 @@ def outer_group_optimzation(pack, not_possible_stations):
     old_electrified_station_set, could_not_be_electrified, pre_optimized_set = pack
     electrified_stations = old_stations.copy()
     electrified_station_set = old_electrified_station_set.copy()
-    ele_set = group_optimization(group, base_scen, base_sched,
-                                 electrified_stations, electrified_station_set,
-                                 could_not_be_electrified,
-                                 not_possible_stations, pre_optimized_set=pre_optimized_set)
+    ele_set = group_optimization_ev(group, base_scen, base_sched,
+                                    electrified_stations, electrified_station_set,
+                                    could_not_be_electrified,
+                                    not_possible_stations, pre_optimized_set=pre_optimized_set)
     return electrified_station_set.copy()
 
 def remove_none_socs(base_scen):
@@ -1406,6 +1594,34 @@ def get_vehicle(id, sched):
 
 def get_vehicle_rots(id, sched):
     return [rot for rot in sched.rotations if id == get_vehicle(rot, sched)]
+
+def station_eval_to_logger(missing_energy, station_eval):
+    logger.debug("Missing energy: %s", missing_energy)
+    if logger.getEffectiveLevel() > logging.DEBUG:
+        for stat_id in station_eval:
+            logger.debug("%s , %s", stat_id[0], stat_id[1]["pot_sum"])
+
+def toolbox_from_pickle(sched_name, scen_name, args_name):
+    with open(args_name, "rb") as f:
+        args = pickle.load(f)
+    with open(scen_name, "rb") as f:
+        scen = pickle.load(f)
+    with open(sched_name, "rb") as f:
+        sched = pickle.load(f)
+    return sched, scen, args
+
+def toolbox_to_pickle(name, sched, scen, args):
+    args_name="args_"+name+".pickle"
+    with open(args_name, "wb") as f:
+        pickle.dump(args,f)
+    scen_name="scenario_"+name+".pickle"
+    with open(scen_name, "wb") as f:
+        pickle.dump(scen,f)
+    sched_name="schedule_"+name+".pickle"
+    with open(sched_name, "wb") as f:
+        pickle.dump(sched,f)
+    return sched_name, scen_name, args_name
+
 
 
 if __name__ == "__main__":
