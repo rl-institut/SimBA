@@ -11,7 +11,13 @@
             "nominal_power": 10,
             "factor": 1
         },
-        "external_load": null,  // optional
+        "external_load": {
+            "csv_file": "data/examples/example_external_load.csv",
+            "start_time": "2022-03-07T20:25:00",
+            "step_duration_s": 900,
+            "column": "External Load (kW)",
+            "factor": 2
+        },
         "voltage_level" : "MV",
         "battery": {
             "charging_curve": [[0,50], [1,50]], // piecewise linear function that maps SoC to power, from 0 to 1, required
