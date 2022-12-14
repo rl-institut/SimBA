@@ -1,8 +1,39 @@
 from datetime import datetime
 
+
 class OptimizerConfig():
     def __init__(self):
+        self.debug_level = None
+        self.exclusion_rots = None
+        self.exclusion_stations = None
+        self.inclusion_stations = None
+        self.standard_opp_station = None
+        self.schedule = None
+        self.scenario = None
+        self.args = None
+        self.charge_eff = None
+        self.battery_capacity = None
+        self.charging_curve = None
+        self.charging_power = None
+        self.min_soc = None
+        self.solver = None
+        self.rebase_scenario = None
+        self.pickle_rebased = None
+        self.pickle_rebased_name = None
+        self.opt_type = None
+        self.remove_impossible_rots = None
+        self.node_choice = None
+        self.max_brute_loop = None
+        self.run_only_neg = None
+        self.estimation_threshold = None
+        self.output_path = None
+        self.check_for_must_stations = None
+        self.decision_tree_path = None
+        self.save_decision_tree = None
+        self.reduce_rots = None
+        self.rots = None
         pass
+
 
 def read_config(config_path):
     import configparser
@@ -30,37 +61,36 @@ def read_config(config_path):
     vehicle = config_parser["VEHICLE"]
     conf.charge_eff = float(vehicle.get("charge_eff", 0.95))
     conf.battery_capacity = float(vehicle.get("battery_capacity", 0))
-    if conf.battery_capacity==0:
-        conf.battery_capacity=None
+    if conf.battery_capacity == 0:
+        conf.battery_capacity = None
     conf.charging_curve = json.loads(vehicle.get("charging_curve", "[]"))
-    if conf.charging_curve==[]:
-        conf.charging_curve=None
+    if conf.charging_curve == []:
+        conf.charging_curve = None
     conf.charging_power = float(vehicle.get("charging_power", 0))
-    if conf.charging_power==0:
-        conf.charging_power=None
+    if conf.charging_power == 0:
+        conf.charging_power = None
     conf.min_soc = float(vehicle.get("min_soc", 0.0))
-
-
 
     optimizer = config_parser["OPTIMIZER"]
     conf.solver = optimizer.get("solver", "spiceev")
     conf.rebase_scenario = optimizer.getboolean("rebase_scenario", True)
     conf.pickle_rebased = optimizer.getboolean("pickle_rebased", False)
     conf.pickle_rebased_name = optimizer.get("pickle_rebased_name",
-            "rebased_" +str(datetime.now().strftime("%Y-%m-%d-%H-%M-%S")))
+                                             "rebased_" + str(
+                                                 datetime.now().strftime("%Y-%m-%d-%H-%M-%S")))
     conf.opt_type = optimizer.get("opt_type", "greedy")
     conf.remove_impossible_rots = optimizer.getboolean("remove_impossible_rots", False)
     conf.node_choice = optimizer.get("node_choice", "step-by-step")
     conf.max_brute_loop = int(optimizer.get("max_brute_loop", 200))
     conf.run_only_neg = optimizer.getboolean("run_only_neg", False)
     conf.estimation_threshold = float(optimizer.get("estimation_threshold", 0.8))
-    conf.output_path= optimizer.get("output_path")
+    conf.output_path = optimizer.get("output_path")
     conf.check_for_must_stations = optimizer.getboolean("check_for_must_stations", True)
 
     special = config_parser["SPECIAL"]
     conf.decision_tree_path = special.get("decision_tree_path", None)
-    if conf.decision_tree_path in ["", '""', "''"] :
-        conf.decision_tree_path=None
+    if conf.decision_tree_path in ["", '""', "''"]:
+        conf.decision_tree_path = None
     conf.save_decision_tree = special.getboolean("save_decision_tree", False)
     conf.reduce_rots = special.getboolean("reduce_rots", False)
     conf.rots = json.loads(special.get("rots", []))
