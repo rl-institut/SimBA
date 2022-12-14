@@ -5,25 +5,8 @@ import datetime
 import warnings
 import json
 import matplotlib.pyplot as plt
-
+from ebus_toolbox.util import sanitize
 from src.report import aggregate_timeseries, aggregate_local_results, aggregate_global_results, plot
-
-
-def sanitize(s, chars=''):
-    """
-    Removes special characters from string.
-
-    Used to make strings safe for file paths.
-    :param s: input to be sanitized
-    :type s: string
-    :param chars: characters to replace
-    :type chars: string
-    :return: input without special characters in chars
-    :rtype: string
-    """
-    if not chars:
-        chars = '</|\\>:"?*'
-    return s.translate({ord(c): "" for c in chars})
 
 
 def generate_vehicle_socs(scenario, args):
@@ -123,20 +106,49 @@ def generate_gc_overview(schedule, scenario, args):
 
     all_gc_list = list(schedule.stations.keys())
     used_gc_list = list(scenario.constants.grid_connectors.keys())
+    stations = getattr(schedule, "stations")
 
     with open(args.output_directory / "gc_overview.csv", "w", newline='') as f:
         csv_writer = csv.writer(f)
-        csv_writer.writerow(["Maximum power", "Maximum Nr charging stations"])
+        csv_writer.writerow(["station_name",
+                             "station_type",
+                             "maximum_power",
+                             "maximum Nr charging stations",
+                             "sum of CS energy",
+                             "use factor least CS",
+                             "use factor 2nd least CS",
+                             "use factor 3rd least CS"])
         for gc in all_gc_list:
             if gc in used_gc_list:
-                station_name = f"{gc}_timeseries"
-                ts = getattr(scenario, station_name)
+                ts = getattr(scenario, f"{gc}_timeseries")
                 max_gc_power = -min(ts["grid power [kW]"])
                 max_nr_cs = max(ts["# occupied CS"])
+                sum_of_cs_energy = sum(ts["sum CS power"]) * args.interval/60
+
+                # find the smallest use factors
+                use_factor_list = [0] * (max(ts["# occupied CS"]) + 1)
+                for v in ts["# occupied CS"]:
+                    use_factor_list[v] += 1
+                use_factors = []
+                for _ in range(3):
+                    minimum = min(use_factor_list)
+                    for i, v in enumerate(use_factor_list):
+                        if minimum == v:
+                            use_factors.append(i)
+                            use_factor_list[i] = float('inf')
+                            break
             else:
                 max_gc_power = 0
                 max_nr_cs = 0
-            csv_writer.writerow([max_gc_power, max_nr_cs])
+                sum_of_cs_energy = 0
+                use_factors = [0, 0, 0]
+            station_type = stations[gc]["type"]
+            csv_writer.writerow([gc,
+                                 station_type,
+                                 max_gc_power,
+                                 max_nr_cs,
+                                 sum_of_cs_energy,
+                                 *use_factors])
 
 
 def generate(schedule, scenario, args):
