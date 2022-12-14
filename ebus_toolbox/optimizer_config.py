@@ -1,4 +1,4 @@
-import datetime
+from datetime import datetime
 
 class OptimizerConfig():
     def __init__(self):
@@ -55,6 +55,7 @@ def read_config(config_path):
     conf.run_only_neg = optimizer.getboolean("run_only_neg", False)
     conf.estimation_threshold = float(optimizer.get("estimation_threshold", 0.8))
     conf.output_path= optimizer.get("output_path")
+    conf.check_for_must_stations = optimizer.getboolean("check_for_must_stations", True)
 
     special = config_parser["SPECIAL"]
     conf.decision_tree_path = special.get("decision_tree_path", None)

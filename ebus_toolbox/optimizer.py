@@ -31,6 +31,11 @@ import numpy as np
 matplotlib.use("TkAgg")
 
 global logger
+global args
+config = OptimizerConfig()
+ROT = None
+# Global list to be able to keep track of runtimes for optimizing components which are slow
+timers = [0] * 10
 
 
 def setup_logger():
@@ -42,7 +47,7 @@ def setup_logger():
     file_handler_all_opts.setLevel(config.debug_level)
 
     # And logging to a file which is put in the folder with the other optimizer results
-    file_handler_this_opt = logging.FileHandler(Path(config.output_path) / Path('optimizer.log'))
+    file_handler_this_opt = logging.FileHandler(Path(args.output_directory) / Path('optimizer.log'))
     file_handler_this_opt.setLevel(config.debug_level)
 
     formatter = logging.Formatter('%(asctime)s:%(message)s',
@@ -59,15 +64,6 @@ def setup_logger():
     this_logger.addHandler(file_handler_all_opts)
     this_logger.addHandler(stream_handler)
     return this_logger
-
-
-args = None
-scen = None
-sched = None
-config = OptimizerConfig()
-ROT = None
-# Global list to be able to keep track of runtimes for optimizing components which are slow
-timers = [0] * 10
 
 
 def main():
@@ -92,6 +88,10 @@ def main():
     config_path = ".\data\examples\optimizer.cfg"
     config = read_config(config_path)
 
+    # Load pickle files
+    global args
+    sched, scen, args = toolbox_from_pickle(config.schedule, config.scenario, config.args)
+
     # Prepare Filesystem with folders and paths
     args.output_directory = Path(config.output_path) / \
                             str(datetime.now().strftime("%Y-%m-%d-%H-%M-%S") + "_optimizer")
@@ -110,14 +110,6 @@ def main():
 
     new_ele_stations_path = args.output_directory / Path("optimized_stations" + ".json")
     logger = setup_logger()
-
-    # Load pickle files
-
-    global args
-    global scen
-    global sched
-
-    sched, scen, args = toolbox_from_pickle(config.schedule, config.scenario, config.args)
 
     # Remove those args, since they lead to file creation, which is not
     # needed.
@@ -164,7 +156,6 @@ def main():
     else:
         decision_tree = dict()
 
-
     not_possible_stations = inclusion_stations.union(exclusion_stations)
     s = time()
 
@@ -183,17 +174,19 @@ def main():
             ele_stations = json.load(file)
         ele_station_set = set()
         # Electrify inclusion stations
+
         for stat in inclusion_stations:
             electrify_station(stat, ele_stations, ele_station_set)
         new_scen = this_scen
         new_sched = this_sched
         rots = {r: new_sched.rotations[r] for r in new_sched.rotations if r not in exclusion_rots}
-        this_sched.rotations = rots
+        new_sched.rotations = rots
 
     s = time()
     i = 0
     global timer_for_calc
 
+    # Create Charging dicts
     soc_charge_curve_dict = dict()
     for v_type_name in sched.vehicle_types:
         soc_charge_curve_dict[v_type_name] = dict()
@@ -204,36 +197,41 @@ def main():
                 sched.cs_power_opps, efficiency=config.charge_eff,
                 timestep=0.1)
 
-    while True and i < 2:
-        if opt_type == "greedy" or opt_type == "deep":
-            logger.debug("Starting greedy optimization")
-            ele_stations, ele_station_set, could_not_be_electrified, list_greedy_sets = \
-                optimization_loop(ele_stations, ele_station_set, new_scen, new_sched,
-                                  not_possible_stations, soc_upper_thresh=args.desired_soc_opps,
-                                  soc_lower_thresh=config.min_soc,
-                                  solver=solver, opt_type=opt_type,
-                                  node_choice=node_choice,
-                                  soc_charge_curve_dict=soc_charge_curve_dict,
-                                  decision_tree=decision_tree)
+    ###########
+    # Remove none Values from socs in the vehicle_socs an
+    remove_none_socs(new_scen)
 
-        i += 1
-        if not remove_impossible_rots or len(could_not_be_electrified) == 0:
-            break
-        else:
-            logger.debug(f"Non Spice Ev methods took {time() - s - timer_for_calc} sec")
-            logger.debug(f"Solver: {solver} took {timer_for_calc} s")
-            logger.debug(f"Electrified Stations: {len(ele_station_set)}")
-            logger.debug(ele_station_set)
-            logger.warning(f"These rotations could not be electrified"
-                           f"\n {could_not_be_electrified}")
+    if config.check_for_must_stations:
+        must_stations = get_must_stations(new_scen, new_sched, args.desired_soc_opps,
+                                          soc_charge_curve_dict,
+                                          not_possible_stations=not_possible_stations,
+                                          soc_lower_thresh=config.min_soc, relative_soc=False)
+        logger.warning("%s must stations %s", len(must_stations), must_stations)
+        not_possible_stations = not_possible_stations.union(must_stations)
+        must_include_set=set()
+        for stat in must_stations:
+            # dont put must stations in electrified set --> therefore create trash set
+            electrify_station(stat, ele_stations, must_include_set)
+        new_scen.vehicle_socs = timeseries_calc('best_station_ids[0]', new_sched.rotations.values(),
+                                       new_scen.vehicle_socs,
+                                       new_scen, must_stations,
+                                       soc_charge_curve_dict=soc_charge_curve_dict,
+                                       soc_upper_thresh=args.desired_soc_deps)
 
-            logger.warning("Removing impossible rots, rebasing and restarting optimization")
-            exclusion_rots.update(could_not_be_electrified)
-            new_sched, new_scen, ele_station_set, ele_stations = preprocessing_scenario(
-                this_sched, this_scen, args,
-                inclusion_stations,
-                exclusion_rots=exclusion_rots, run_only_neg=False)
 
+
+    logger.debug("Starting greedy optimization")
+    ele_stations, ele_station_set, could_not_be_electrified, list_greedy_sets = \
+        optimization_loop(ele_stations, ele_station_set, new_scen, new_sched,
+                          not_possible_stations, soc_upper_thresh=args.desired_soc_opps,
+                          soc_lower_thresh=config.min_soc,
+                          solver=solver, opt_type=opt_type,
+                          node_choice=node_choice,
+                          soc_charge_curve_dict=soc_charge_curve_dict,
+                          decision_tree=decision_tree)
+
+
+    ele_station_set=ele_station_set.union(must_include_set)
     logger.debug(f"Non Spice Ev methods took {time() - s - timer_for_calc} sec")
     logger.debug(f"Solver: {solver} took {timer_for_calc} s")
     logger.debug(f"Electrified Stations: {len(ele_station_set)}")
@@ -289,10 +287,6 @@ def optimization_loop(electrified_stations, electrified_station_set, new_scen, n
     base_scen = copy(new_scen)
     base_sched = copy(new_sched)
 
-    ###########
-    # Remove none Values from socs in the vehicle_socs an
-    remove_none_socs(base_scen)
-
     # Get events where soc fell below 0. The events contain info about the problematic
     # timespan, which includes stations which could provide a soc lift
     base_events = get_below_zero_soc_events(this_scen=base_scen,
@@ -314,15 +308,11 @@ def optimization_loop(electrified_stations, electrified_station_set, new_scen, n
     #                                        not_possible_stations=not_possible_stations,
     #                                        soc_lower_thresh=soc_lower_thresh, relative_soc=False)
 
-
     new_scen.vehicle_socs = timeseries_calc('best_station_ids[0]', new_sched.rotations.values(),
                                             new_scen.vehicle_socs,
                                             new_scen, electrified_station_set,
                                             soc_charge_curve_dict=soc_charge_curve_dict,
                                             soc_upper_thresh=args.desired_soc_deps)
-
-    # new_events = get_below_zero_soc_events(new_scen, new_sched.rotations,
-    #                                        new_sched, soc_lower_thresh=soc_lower_thresh)
 
     # Base line is created simply by not having a decision tree and not a pre optimized_set yet
     for group_nr, group in enumerate(groups[:]):
@@ -364,7 +354,6 @@ def optimization_loop(electrified_stations, electrified_station_set, new_scen, n
                                                            len(electrified_station_set))
 
             print(f"There are {combinations} combinations")
-
             while i < config.max_brute_loop and cont_loop:
                 i += 1
                 if i % 10 == 0:
@@ -991,11 +980,11 @@ def get_trips(rot: rotation.Rotation, start_idx: int, end_idx: int, scen: scenar
     return trips
 
 
-def get_rotation_soc(rot_id, this_sched, this_scen, soc_data:dict=dict()):
+def get_rotation_soc(rot_id, this_sched, this_scen, soc_data: dict = dict()):
     rot = this_sched.rotations[rot_id]
     rot_start_idx = get_index_by_time(rot.departure_time, this_scen)
     rot_end_idx = get_index_by_time(rot.arrival_time, this_scen)
-    if len(soc_data) !=0:
+    if len(soc_data) != 0:
         return soc_data[rot.vehicle_id], rot_start_idx, rot_end_idx
     return this_scen.vehicle_socs[rot.vehicle_id], rot_start_idx, rot_end_idx
 
@@ -1074,7 +1063,7 @@ def get_below_zero_soc_events(this_scen: scenario.Scenario, rotations,
                          min_soc=min_soc, stations=possible_stations,
                          vehicle_id=rot.vehicle_id, trip=trips,
                          rotation=rot, stations_list=possible_stations_list,
-                         capacity=sched.vehicle_types[type][ch_type]['capacity'],
+                         capacity=this_sched.vehicle_types[type][ch_type]['capacity'],
                          v_type=type, ch_type=ch_type)
 
             events.append(event)
@@ -1277,7 +1266,8 @@ def toolbox_to_pickle(name, sched, scen, args):
     return sched_name, scen_name, args_name
 
 
-def get_negative_rotations_all_electrified(this_scen, this_sched, soc_upper_thresh, soc_charge_curve_dict,
+def get_negative_rotations_all_electrified(this_scen, this_sched, soc_upper_thresh,
+                                           soc_charge_curve_dict,
                                            not_possible_stations=set(),
                                            soc_lower_thresh=0, relative_soc=False):
     events = get_below_zero_soc_events(this_scen=this_scen,
@@ -1291,13 +1281,48 @@ def get_negative_rotations_all_electrified(this_scen, this_sched, soc_upper_thre
     stats = {s for e in events for s in e["stations_list"] if s not in not_possible_stations}
     electrified_station_set = set(stats)
     vehicle_socs = timeseries_calc('best_station_ids[0]', this_sched.rotations.values(),
-                                            this_scen.vehicle_socs,
-                                            this_scen, electrified_station_set,
-                                            soc_charge_curve_dict=soc_charge_curve_dict,
-                                            soc_upper_thresh=args.desired_soc_deps)
+                                   this_scen.vehicle_socs,
+                                   this_scen, electrified_station_set,
+                                   soc_charge_curve_dict=soc_charge_curve_dict,
+                                   soc_upper_thresh=args.desired_soc_deps)
     new_events = get_below_zero_soc_events(this_scen, this_sched.rotations,
-                                           this_sched, soc_lower_thresh=soc_lower_thresh, soc_data=vehicle_socs)
+                                           this_sched, soc_lower_thresh=soc_lower_thresh,
+                                           soc_data=vehicle_socs)
     return [e["roation"].id for e in new_events]
+
+
+# Electrify everything minus 1 station. If without the stations there are below zero events
+# it is a must have station
+def get_must_stations(this_scen, this_sched, soc_upper_thresh, soc_charge_curve_dict,
+                      not_possible_stations=set(),
+                      soc_lower_thresh=0, relative_soc=False):
+    events = get_below_zero_soc_events(this_scen=this_scen,
+                                       rotations=this_sched.rotations.keys(),
+                                       this_sched=this_sched,
+                                       soc_upper_thresh=soc_upper_thresh,
+                                       filter_standing_time=True,
+                                       not_possible_stations=not_possible_stations,
+                                       soc_lower_thresh=soc_lower_thresh, relative_soc=relative_soc)
+    stats = {s for e in events for s in e["stations_list"] if s not in not_possible_stations}
+    electrified_station_set_all = set(stats)
+
+    must_stations = set()
+    # for s in electrified_station_set_all:
+    #     print(".", end="")
+    #     electrified_station_set = electrified_station_set_all.difference([s])
+    #     vehicle_socs = timeseries_calc('best_station_ids[0]', this_sched.rotations.values(),
+    #                                    this_scen.vehicle_socs,
+    #                                    this_scen, electrified_station_set,
+    #                                    soc_charge_curve_dict=soc_charge_curve_dict,
+    #                                    soc_upper_thresh=args.desired_soc_deps)
+    #
+    #     new_events = get_below_zero_soc_events(this_scen, this_sched.rotations,
+    #                                            this_sched, soc_lower_thresh=soc_lower_thresh,
+    #                                            soc_data=vehicle_socs)
+    #     if len(new_events) > 0:
+    #         must_stations.add(s)
+    return {'Zotzenbach Schule', 'Heppenheim Vogelsbergstraße', 'Heppenheim Starkenburg-Gymnasium', 'Rimbach Kirche', 'Erbach Post', 'Viernheim Bahnhof', 'Heppenheim Graben', 'Hirschhorn Grundschule', 'Weinheim Hauptbahnhof', 'Lindenfels Poststraße', 'Wahlen Grundschule', 'Wald-Michelbach Alter Bahnhof', 'Wald-Michelbach ZOB', 'Bensheim Bahnhof/ ZOB', 'Bensheim Geschw.-Scholl-Schule', 'Bürstadt Lampertheimer Straße', 'Heppenheim Bahnhof', 'Heppenheim Kreiskrankenhaus', 'Heppenheim Gießener Straße', 'Erbach Gesundheiszentrum'}
+    return must_stations
 
 
 if __name__ == "__main__":
