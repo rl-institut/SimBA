@@ -50,7 +50,7 @@ def read_config(config_path):
             "rebased_" +str(datetime.now().strftime("%Y-%m-%d-%H-%M-%S")))
     conf.opt_type = optimizer.get("opt_type", "greedy")
     conf.remove_impossible_rots = optimizer.getboolean("remove_impossible_rots", False)
-    conf.node_choice = optimizer.get("node_choice", "step")
+    conf.node_choice = optimizer.get("node_choice", "step-by-step")
     conf.max_brute_loop = int(optimizer.get("max_brute_loop", 200))
     conf.run_only_neg = optimizer.getboolean("run_only_neg", False)
     conf.estimation_threshold = float(optimizer.get("estimation_threshold", 0.8))

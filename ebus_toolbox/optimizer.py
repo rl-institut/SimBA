@@ -33,8 +33,7 @@ matplotlib.use("TkAgg")
 global logger
 global args
 config = OptimizerConfig()
-ROT = None
-# Global list to be able to keep track of runtimes for optimizing components which are slow
+# global list to be able to keep track of runtimes for optimizing components which are slow
 timers = [0] * 10
 
 
@@ -42,11 +41,11 @@ def setup_logger():
     this_logger = logging.getLogger(__name__)
     this_logger.setLevel(logging.DEBUG)
 
-    # Logging to one file which keeps track of optimization over many runs
+    # logging to one file which keeps track of optimization over many runs
     file_handler_all_opts = logging.FileHandler('optimizer.log')
     file_handler_all_opts.setLevel(config.debug_level)
 
-    # And logging to a file which is put in the folder with the other optimizer results
+    # and logging to a file which is put in the folder with the other optimizer results
     file_handler_this_opt = logging.FileHandler(Path(args.output_directory) / Path('optimizer.log'))
     file_handler_this_opt.setLevel(config.debug_level)
 
@@ -67,32 +66,41 @@ def setup_logger():
 
 
 def main():
-    # run_optimization(sched, scen, args, config_path)
+    config_path = ".\data\examples\optimizer.cfg"
+    run_optimization(config_path)
+    pass
+
+
+def run_optimization(config_path, sched=None, scen=None, this_args=None):
     """    Optimizes scenario by adding electrified stations sparingly
     until scenario has no below 0 soc events.
 
-    :param this_sched: Simulation schedule containing buses, rotations etc.
-    :type this_sched: ebus_toolbox.Schedule
+    :param sched: Simulation schedule containing buses, rotations etc.
+    :type sched: ebus_toolbox.Schedule
 
-    :param this_scen: Simulation scenario containing simulation results
+    :param scen: Simulation scenario containing simulation results
                      including the SoC of all vehicles over time
-    :type this_scen: spice_ev.Scenario
+    :type scen: spice_ev.Scenario
     :param args: Simulation arguments for manipulation or generated outputs
     :type args: object
 
     :return: (Schedule,Scenario) optimizied schedule and Scenario
     :rtype: tuple(ebus_toolbox.Schedule, spice_ev.Scenario)
     """
-    global logger
     global config
-    config_path = ".\data\examples\optimizer.cfg"
+    global logger
     config = read_config(config_path)
 
-    # Load pickle files
-    global args
-    sched, scen, args = toolbox_from_pickle(config.schedule, config.scenario, config.args)
+    # load pickle files
+    if sched is None or scen is None or this_args is None:
+        # if no schedule was given as argument, make sure no scenario and args input was given as well.
+        assert sched == scen == this_args is None
+        sched, scen, args = toolbox_from_pickle(config.schedule, config.scenario, config.args)
 
-    # Prepare Filesystem with folders and paths
+    global args
+    args = this_args
+
+    # prepare Filesystem with folders and paths
     args.output_directory = Path(config.output_path) / \
                             str(datetime.now().strftime("%Y-%m-%d-%H-%M-%S") + "_optimizer")
     # create subfolder for specific sim results with timestamp.
@@ -101,17 +109,17 @@ def main():
     # args.output_directory can be overwritten by config
     args.output_directory.mkdir(parents=True, exist_ok=True)
 
+    # copy paste the config file
     c = Path(config_path)
     o = args.output_directory / Path("optimizer_config.cfg")
     shutil.copy(c, o)
 
     if args.save_soc:
         args.save_soc = args.output_directory / "simulation_soc_spiceEV.csv"
-
     new_ele_stations_path = args.output_directory / Path("optimized_stations" + ".json")
     logger = setup_logger()
 
-    # Remove those args, since they lead to file creation, which is not
+    # remove those args, since they lead to file creation, which is not
     # needed.
     del args.save_timeseries
     del args.save_results
@@ -126,9 +134,7 @@ def main():
 
     # which station can not be electrified
     exclusion_stations = config.exclusion_stations
-    global ROT
 
-    ROT = config.rots[0]
     if config.reduce_rots:
         sched.rotations = {rot: sched.rotations[rot] for rot in config.rots}
 
@@ -139,53 +145,55 @@ def main():
     node_choice = config.node_choice
 
     t = time()
-    this_sched = sched
-    this_scen = scen
-
+    # set battery and charging curves through config file if wished for
     for name, type in sched.vehicle_types.items():
         for charge_type, vehicle in type.items():
             if config.battery_capacity is not None:
                 vehicle["capacity"] = config.battery_capacity
             if config.charging_curve is not None:
                 vehicle["charging_curve"] = config.charging_curve
-    decision_tree_path = config.decision_tree_path
 
+    # create a decision tree or load one from a previous run
+    decision_tree_path = config.decision_tree_path
     if decision_tree_path is not None:
         with open(decision_tree_path, "rb") as file:
             decision_tree = pickle.load(file)
     else:
         decision_tree = dict()
 
+    # stations which are included can not be included again. Therefore they get into
+    # the set of not possible stations
     not_possible_stations = inclusion_stations.union(exclusion_stations)
     s = time()
 
+    # if stations have to be included they are stored in this set
+    must_include_set = set()
+
+    # rebasing the scenario meaning simulating it again with the given conditions of
+    # included and excluded stations and rotations
     if rebase_scenario:
         logger.debug(f"Spice EV Rebasing Scenario")
-        new_sched, new_scen, ele_station_set, ele_stations = preprocessing_scenario(
-            this_sched, this_scen, args,
+        sched, scen, must_include_set, ele_stations = preprocessing_scenario(
+            sched, scen, args,
             inclusion_stations,
             exclusion_rots=exclusion_rots, run_only_neg=config.run_only_neg)
         logger.debug(f"Rebasing took {time() - s} sec")
         if config.pickle_rebased:
-            toolbox_to_pickle(config.pickle_rebased_name, new_sched, new_scen, args)
+            toolbox_to_pickle(config.pickle_rebased_name, sched, scen, args)
             logger.debug(f"Rebased scenario pickled  as {config.pickle_rebased_name}")
     else:
         with open(args.electrified_stations, "r", encoding="utf-8", ) as file:
             ele_stations = json.load(file)
         ele_station_set = set()
         # Electrify inclusion stations
-
         for stat in inclusion_stations:
-            electrify_station(stat, ele_stations, ele_station_set)
-        new_scen = this_scen
-        new_sched = this_sched
-        rots = {r: new_sched.rotations[r] for r in new_sched.rotations if r not in exclusion_rots}
-        new_sched.rotations = rots
+            electrify_station(stat, ele_stations, must_include_set)
+        rots = {r: sched.rotations[r] for r in sched.rotations if r not in exclusion_rots}
+        sched.rotations = rots
 
     s = time()
-    i = 0
-    global timer_for_calc
 
+    global timer_for_calc
     # Create Charging dicts
     soc_charge_curve_dict = dict()
     for v_type_name in sched.vehicle_types:
@@ -199,30 +207,27 @@ def main():
 
     ###########
     # Remove none Values from socs in the vehicle_socs an
-    remove_none_socs(new_scen)
+    remove_none_socs(scen)
 
     if config.check_for_must_stations:
-        must_stations = get_must_stations(new_scen, new_sched, args.desired_soc_opps,
+        must_stations = get_must_stations(scen, sched, args.desired_soc_opps,
                                           soc_charge_curve_dict,
                                           not_possible_stations=not_possible_stations,
                                           soc_lower_thresh=config.min_soc, relative_soc=False)
         logger.warning("%s must stations %s", len(must_stations), must_stations)
         not_possible_stations = not_possible_stations.union(must_stations)
-        must_include_set=set()
         for stat in must_stations:
             # dont put must stations in electrified set --> therefore create trash set
             electrify_station(stat, ele_stations, must_include_set)
-        new_scen.vehicle_socs = timeseries_calc('best_station_ids[0]', new_sched.rotations.values(),
-                                       new_scen.vehicle_socs,
-                                       new_scen, must_stations,
-                                       soc_charge_curve_dict=soc_charge_curve_dict,
-                                       soc_upper_thresh=args.desired_soc_deps)
-
-
+        scen.vehicle_socs = timeseries_calc('best_station_ids[0]', sched.rotations.values(),
+                                            scen.vehicle_socs,
+                                            scen, must_stations,
+                                            soc_charge_curve_dict=soc_charge_curve_dict,
+                                            soc_upper_thresh=args.desired_soc_deps)
 
     logger.debug("Starting greedy optimization")
     ele_stations, ele_station_set, could_not_be_electrified, list_greedy_sets = \
-        optimization_loop(ele_stations, ele_station_set, new_scen, new_sched,
+        optimization_loop(ele_stations, ele_station_set, scen, sched,
                           not_possible_stations, soc_upper_thresh=args.desired_soc_opps,
                           soc_lower_thresh=config.min_soc,
                           solver=solver, opt_type=opt_type,
@@ -230,20 +235,18 @@ def main():
                           soc_charge_curve_dict=soc_charge_curve_dict,
                           decision_tree=decision_tree)
 
-
-    ele_station_set=ele_station_set.union(must_include_set)
+    ele_station_set = ele_station_set.union(must_include_set)
     logger.debug(f"Non Spice Ev methods took {time() - s - timer_for_calc} sec")
     logger.debug(f"Solver: {solver} took {timer_for_calc} s")
     logger.debug(f"Electrified Stations: {len(ele_station_set)}")
     logger.debug(ele_station_set)
     logger.debug(could_not_be_electrified)
-    # plot_(get_rotation_soc(ROT, new_sched, new_scen)[0])
-    new_scen.vehicle_socs = timeseries_calc('best_station_ids[0]', new_sched.rotations.values(),
-                                            new_scen.vehicle_socs,
-                                            new_scen, ele_station_set,
-                                            soc_charge_curve_dict=soc_charge_curve_dict,
-                                            soc_upper_thresh=args.desired_soc_deps)
-    new_events = get_below_zero_soc_events(new_scen, new_sched.rotations, new_sched,
+    scen.vehicle_socs = timeseries_calc('best_station_ids[0]', sched.rotations.values(),
+                                        scen.vehicle_socs,
+                                        scen, ele_station_set,
+                                        soc_charge_curve_dict=soc_charge_curve_dict,
+                                        soc_upper_thresh=args.desired_soc_deps)
+    new_events = get_below_zero_soc_events(scen, sched.rotations, sched,
                                            soc_lower_thresh=config.min_soc)
 
     logger.debug("Still not electrified with fast calc")
@@ -258,11 +261,9 @@ def main():
 
     logger.debug(f"Spice EV is calculating optimized case as a complete scenario")
     final_sched, final_scen, ele_station_set, ele_stations = preprocessing_scenario(
-        this_sched, this_scen, args, electrified_stations=ele_stations, run_only_neg=False,
+        sched, scen, args, electrified_stations=ele_stations, run_only_neg=False,
         electrified_station_set=ele_station_set, cost_calc=True)
 
-    # ax = plot_(get_rotation_soc(ROT, new_sched, new_scen)[0])
-    # ax.plot(q)
     logger.warning(f"Still negative rotations:{final_sched.get_negative_rotations(final_scen)}")
     print("Finished")
     print(f"Opt took {time() - t}")
@@ -276,7 +277,9 @@ timer_for_calc = 0
 def optimization_loop(electrified_stations, electrified_station_set, new_scen, new_sched,
                       not_possible_stations, soc_charge_curve_dict, soc_upper_thresh=1,
                       soc_lower_thresh=0,
-                      decision_tree=dict(), pre_optimized_set=None, opt_type="greedy", **kwargs):
+                      decision_tree=dict(), pre_optimized_set=None, opt_type="greedy",
+                      node_choice="step-by-step",
+                      **kwargs):
     # Base stations for optimization, so inclusion of stations can be skipped
     base_stations = electrified_stations.copy()
     base_electrified_station_set = electrified_station_set.copy()
@@ -324,7 +327,6 @@ def optimization_loop(electrified_stations, electrified_station_set, new_scen, n
         logger.warning(linien)
         logger.warning("%s events", (len(events)))
         solver = kwargs.get("solver", "spiceev")
-        node_choice = kwargs.get("stationsnode_choice", "step-by-step")
         if node_choice == "brute":
             choice_func = choose_station_brute
         else:
@@ -353,7 +355,7 @@ def optimization_loop(electrified_stations, electrified_station_set, new_scen, n
             combinations = combs_unordered_no_putting_back(len(stations),
                                                            len(electrified_station_set))
 
-            print(f"There are {combinations} combinations")
+            logger.debug(f"There are {combinations} combinations")
             while i < config.max_brute_loop and cont_loop:
                 i += 1
                 if i % 10 == 0:
@@ -721,7 +723,7 @@ def join_all_subsets(subsets):
 def choose_station_brute(station_eval, electrified_station_set,
                          pre_optimized_set=None, decision_tree=None, missing_energy=0):
     station_ids = [x[0] for x in station_eval]
-    a = combination_generator(station_ids, len(pre_optimized_set))
+    a = combination_generator(station_ids, len(pre_optimized_set) - 1)
     station_eval_dict = {stat[0]: stat[1] for stat in station_eval}
     for comb in a:
         node_name = stations_hash(comb)
@@ -736,7 +738,7 @@ def choose_station_brute(station_eval, electrified_station_set,
                 logger.debug("skipped %s since potential is too low %s %%", comb,
                              round(potential / -missing_energy * 100, 0))
     else:
-        print("calculated all viable possibilities")
+        logger.debug("calculated all viable possibilities")
         return None, False
 
 
@@ -1321,7 +1323,13 @@ def get_must_stations(this_scen, this_sched, soc_upper_thresh, soc_charge_curve_
     #                                            soc_data=vehicle_socs)
     #     if len(new_events) > 0:
     #         must_stations.add(s)
-    return {'Zotzenbach Schule', 'Heppenheim Vogelsbergstraße', 'Heppenheim Starkenburg-Gymnasium', 'Rimbach Kirche', 'Erbach Post', 'Viernheim Bahnhof', 'Heppenheim Graben', 'Hirschhorn Grundschule', 'Weinheim Hauptbahnhof', 'Lindenfels Poststraße', 'Wahlen Grundschule', 'Wald-Michelbach Alter Bahnhof', 'Wald-Michelbach ZOB', 'Bensheim Bahnhof/ ZOB', 'Bensheim Geschw.-Scholl-Schule', 'Bürstadt Lampertheimer Straße', 'Heppenheim Bahnhof', 'Heppenheim Kreiskrankenhaus', 'Heppenheim Gießener Straße', 'Erbach Gesundheiszentrum'}
+    return {'Zotzenbach Schule', 'Heppenheim Vogelsbergstraße', 'Heppenheim Starkenburg-Gymnasium',
+            'Rimbach Kirche', 'Erbach Post', 'Viernheim Bahnhof', 'Heppenheim Graben',
+            'Hirschhorn Grundschule', 'Weinheim Hauptbahnhof', 'Lindenfels Poststraße',
+            'Wahlen Grundschule', 'Wald-Michelbach Alter Bahnhof', 'Wald-Michelbach ZOB',
+            'Bensheim Bahnhof/ ZOB', 'Bensheim Geschw.-Scholl-Schule',
+            'Bürstadt Lampertheimer Straße', 'Heppenheim Bahnhof', 'Heppenheim Kreiskrankenhaus',
+            'Heppenheim Gießener Straße', 'Erbach Gesundheiszentrum'}
     return must_stations
 
 
