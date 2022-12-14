@@ -74,6 +74,7 @@ def simulate(args):
         change_from = args.mode[4:8]
         change_to = args.mode[-4:]
         # get negative rotations
+        print("Collecting negative rotations from schedule.")
         neg_rot = schedule.get_negative_rotations(scenario)
         # check which are rotations relevant and if new other vehicle type exists
         neg_rot = [r for r in neg_rot if schedule.rotations[r].charging_type == change_from
