@@ -32,18 +32,21 @@ class OptimizerConfig():
         self.save_decision_tree = None
         self.reduce_rots = None
         self.rots = None
+        self.path = None
         pass
 
 
 def read_config(config_path):
     import configparser
     import json
-    config_path = config_path
+
     config_parser = configparser.ConfigParser()
     config_parser.sections()
     config_parser.read(config_path)
 
     conf = OptimizerConfig()
+    conf.path = config_path
+
     default = config_parser["DEFAULT"]
     conf.debug_level = int(default.get("debug_level", 0))
     sce = config_parser["SCENARIO"]
