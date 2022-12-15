@@ -11,10 +11,10 @@ from pathlib import Path
 from time import time
 import logging
 import math
-import util
 import shutil
 import report
-import src.scenario as scenario
+# spice_ev scenario
+from src import scenario
 import schedule
 import rotation
 import pickle
@@ -23,14 +23,13 @@ import matplotlib.pyplot as plt
 from ebus_toolbox.consumption import Consumption
 from ebus_toolbox.trip import Trip
 from ebus_toolbox.costs import calculate_costs
-# Todo this implementation in case of changes in ebustoolbox
-from ebus_toolbox.util import get_buffer_time as get_buffer_time_spice_ev
+from ebus_toolbox.util import uncomment_json_file, get_buffer_time as get_buffer_time_spice_ev
 from optimizer_config import read_config, OptimizerConfig
 import numpy as np
 
 matplotlib.use("TkAgg")
 
-global logger
+global LOGGER
 global args
 config = OptimizerConfig()
 # global list to be able to keep track of runtimes for optimizing components which are slow
@@ -66,7 +65,7 @@ def setup_logger():
 
 
 def main():
-    config_path = ".\data\examples\optimizer.cfg"
+    config_path = "./data/examples/optimizer.cfg"
     run_optimization(config_path)
     pass
 
@@ -91,12 +90,13 @@ def run_optimization(config_path, sched=None, scen=None, this_args=None):
     :rtype: tuple(ebus_toolbox.Schedule, spice_ev.Scenario)
     """
     global config
-    global logger
+    global LOGGER
     config = read_config(config_path)
 
     # load pickle files
     if sched is None or scen is None or this_args is None:
-        # if no schedule was given as argument, make sure no scenario and args input was given as well.
+        # if no schedule was given as argument, make sure no scenario
+        # and args input was given as well.
         assert sched == scen == this_args is None
         sched, scen, args = toolbox_from_pickle(config.schedule, config.scenario, config.args)
 
@@ -104,8 +104,8 @@ def run_optimization(config_path, sched=None, scen=None, this_args=None):
     args = this_args
 
     # prepare Filesystem with folders and paths
-    args.output_directory = Path(config.output_path) / \
-                            str(datetime.now().strftime("%Y-%m-%d-%H-%M-%S") + "_optimizer")
+    now = datetime.now().strftime("%Y-%m-%d-%H-%M-%S")
+    args.output_directory = Path(config.output_path) / str(now + "_optimizer")
     # create subfolder for specific sim results with timestamp.
     # if folder doesnt exists, create folder.
     # needs to happen after set_options_from_config since
@@ -120,14 +120,14 @@ def run_optimization(config_path, sched=None, scen=None, this_args=None):
     if args.save_soc:
         args.save_soc = args.output_directory / "simulation_soc_spiceEV.csv"
     new_ele_stations_path = args.output_directory / Path("optimized_stations" + ".json")
-    logger = setup_logger()
+    LOGGER = setup_logger()
 
     # remove those args, since they lead to file creation, which is not
     # needed.
     del args.save_timeseries
     del args.save_results
-    # TodO implement in fast calc
-    args.desired_soc_deps = 1
+    if args.desired_soc_deps != 1:
+        LOGGER.error("Fast calc is not yet optimized for desired socs unequal to 1")
 
     # which rotations should be excluded?
     exclusion_rots = config.exclusion_rots
@@ -149,8 +149,8 @@ def run_optimization(config_path, sched=None, scen=None, this_args=None):
 
     t = time()
     # set battery and charging curves through config file if wished for
-    for name, type in sched.vehicle_types.items():
-        for charge_type, vehicle in type.items():
+    for name, v_type in sched.vehicle_types.items():
+        for charge_type, vehicle in v_type.items():
             if config.battery_capacity is not None:
                 vehicle["capacity"] = config.battery_capacity
             if config.charging_curve is not None:
@@ -175,15 +175,15 @@ def run_optimization(config_path, sched=None, scen=None, this_args=None):
     # rebasing the scenario meaning simulating it again with the given conditions of
     # included and excluded stations and rotations
     if rebase_scenario:
-        logger.debug(f"Spice EV Rebasing Scenario")
+        LOGGER.debug("Spice EV Rebasing Scenario")
         sched, scen, must_include_set, ele_stations = preprocessing_scenario(
             sched, scen, args,
             inclusion_stations,
             exclusion_rots=exclusion_rots, run_only_neg=config.run_only_neg)
-        logger.debug(f"Rebasing took {time() - s} sec")
+        LOGGER.debug(f"Rebasing took {time() - s} sec")
         if config.pickle_rebased:
             toolbox_to_pickle(config.pickle_rebased_name, sched, scen, args)
-            logger.debug(f"Rebased scenario pickled  as {config.pickle_rebased_name}")
+            LOGGER.debug(f"Rebased scenario pickled  as {config.pickle_rebased_name}")
     else:
         with open(args.electrified_stations, "r", encoding="utf-8", ) as file:
             ele_stations = json.load(file)
@@ -216,7 +216,7 @@ def run_optimization(config_path, sched=None, scen=None, this_args=None):
                                           soc_charge_curve_dict,
                                           not_possible_stations=not_possible_stations,
                                           soc_lower_thresh=config.min_soc, relative_soc=False)
-        logger.warning("%s must stations %s", len(must_stations), must_stations)
+        LOGGER.warning("%s must stations %s", len(must_stations), must_stations)
         not_possible_stations = not_possible_stations.union(must_stations)
         for stat in must_stations:
             # dont put must stations in electrified set --> therefore create trash set
@@ -227,7 +227,7 @@ def run_optimization(config_path, sched=None, scen=None, this_args=None):
                                             soc_charge_curve_dict=soc_charge_curve_dict,
                                             soc_upper_thresh=args.desired_soc_deps)
 
-    logger.debug("Starting greedy optimization")
+    LOGGER.debug("Starting greedy optimization")
     ele_station_set = set()
     ele_stations, ele_station_set, could_not_be_electrified, list_greedy_sets = \
         optimization_loop(ele_stations, ele_station_set, scen, sched,
@@ -239,11 +239,11 @@ def run_optimization(config_path, sched=None, scen=None, this_args=None):
                           decision_tree=decision_tree)
 
     ele_station_set = ele_station_set.union(must_include_set)
-    logger.debug(f"Non Spice Ev methods took {time() - s - timer_for_calc} sec")
-    logger.debug(f"Solver: {solver} took {timer_for_calc} s")
-    logger.debug(f"Electrified Stations: {len(ele_station_set)}")
-    logger.debug(ele_station_set)
-    logger.debug(could_not_be_electrified)
+    LOGGER.debug(f"Non Spice Ev methods took {time() - s - timer_for_calc} sec")
+    LOGGER.debug(f"Solver: {solver} took {timer_for_calc} s")
+    LOGGER.debug(f"Electrified Stations: {len(ele_station_set)}")
+    LOGGER.debug(ele_station_set)
+    LOGGER.debug(could_not_be_electrified)
     scen.vehicle_socs = timeseries_calc('best_station_ids[0]', sched.rotations.values(),
                                         scen.vehicle_socs,
                                         scen, ele_station_set,
@@ -252,22 +252,22 @@ def run_optimization(config_path, sched=None, scen=None, this_args=None):
     new_events = get_below_zero_soc_events(scen, sched.rotations, sched,
                                            soc_lower_thresh=config.min_soc)
 
-    logger.debug("Still not electrified with fast calc")
+    LOGGER.debug("Still not electrified with fast calc")
     for event in new_events:
-        logger.debug(event["rotation"].id)
-    logger.debug("###")
+        LOGGER.debug(event["rotation"].id)
+    LOGGER.debug("###")
 
     global timers
-    logger.debug(timers)
+    LOGGER.debug(timers)
     with open(new_ele_stations_path, "w", encoding="utf-8", ) as file:
         json.dump(ele_stations, file, indent=2)
 
-    logger.debug(f"Spice EV is calculating optimized case as a complete scenario")
+    LOGGER.debug("Spice EV is calculating optimized case as a complete scenario")
     final_sched, final_scen, ele_station_set, ele_stations = preprocessing_scenario(
         sched, scen, args, electrified_stations=ele_stations, run_only_neg=False,
         electrified_station_set=ele_station_set, cost_calc=True)
 
-    logger.warning(f"Still negative rotations:{final_sched.get_negative_rotations(final_scen)}")
+    LOGGER.warning(f"Still negative rotations:{final_sched.get_negative_rotations(final_scen)}")
     print("Finished")
     print(f"Opt took {time() - t}")
 
@@ -326,9 +326,9 @@ def optimization_loop(electrified_stations, electrified_station_set, new_scen, n
         linien = {lne for e in events for lne in e["rotation"].lines}
         electrified_stations = base_stations.copy()
         electrified_station_set = base_electrified_station_set.copy()
-        logger.warning(f"Optimizing {group_nr + 1} out of {len(groups)}. This includes these Lines")
-        logger.warning(linien)
-        logger.warning("%s events", (len(events)))
+        LOGGER.warning(f"Optimizing {group_nr + 1} out of {len(groups)}. This includes these Lines")
+        LOGGER.warning(linien)
+        LOGGER.warning("%s events", (len(events)))
         solver = kwargs.get("solver", "spiceev")
         if node_choice == "brute":
             choice_func = choose_station_brute
@@ -346,9 +346,9 @@ def optimization_loop(electrified_stations, electrified_station_set, new_scen, n
                            events_remaining=[len(events)], type=solver,
                            **kwargs)
 
-        logger.warning("Greedy Result ++++++++ %s stations out of %s", len(electrified_station_set),
+        LOGGER.warning("Greedy Result ++++++++ %s stations out of %s", len(electrified_station_set),
                        len(stations))
-        logger.warning(electrified_station_set)
+        LOGGER.warning(electrified_station_set)
 
         if opt_type == "deep":
             sols = []
@@ -358,7 +358,7 @@ def optimization_loop(electrified_stations, electrified_station_set, new_scen, n
             combinations = combs_unordered_no_putting_back(len(stations),
                                                            len(electrified_station_set))
 
-            logger.debug(f"There are {combinations} combinations")
+            LOGGER.debug(f"There are {combinations} combinations")
             while i < config.max_brute_loop and cont_loop:
                 i += 1
                 if i % 10 == 0:
@@ -375,8 +375,8 @@ def optimization_loop(electrified_stations, electrified_station_set, new_scen, n
                 new_stations, cont_loop = \
                     group_optimization(group, base_scen, base_sched,
                                        electrified_stations, new_electrified_set,
-                                       could_not_be_electrified_copy
-                                       , not_possible_stations,
+                                       could_not_be_electrified_copy,
+                                       not_possible_stations,
                                        choice_func, soc_charge_curve_dict,
                                        pre_optimized_set=pre_optimized_set,
                                        decision_tree=decision_tree,
@@ -386,16 +386,16 @@ def optimization_loop(electrified_stations, electrified_station_set, new_scen, n
                 # if a new set was found, print it and save it in sols
 
                 if new_electrified_set != pre_optimized_set and new_stations is not None:
-                    logger.warning(
+                    LOGGER.warning(
                         f"Optimized with {len(new_electrified_set)}  stations {str('#' * 20)} \
                     {stations_hash(new_electrified_set)}")
                     sols.append(new_electrified_set)
                     if len(new_electrified_set) < len(pre_optimized_set):
                         electrified_station_set = new_electrified_set
 
-            logger.debug(sols)
+            LOGGER.debug(sols)
         list_greedy_sets[group_nr] = electrified_station_set.copy()
-        logger.debug("Optimized with {} stations out of {}".format(len(electrified_station_set),
+        LOGGER.debug("Optimized with {} stations out of {}".format(len(electrified_station_set),
                                                                    len(stations)))
     if config.save_decision_tree:
         with open(args.output_directory / Path("decision_tree.pickle"), "wb") as file:
@@ -437,7 +437,7 @@ def get_groups_from_events(events, not_possible_stations=None, could_not_be_elec
                     event_groups[i].append(e)
                     break
         else:
-            logger.warning(f'Didnt find rotation {e["rotation"].id} in any subset'
+            LOGGER.warning(f'Didnt find rotation {e["rotation"].id} in any subset'
                            f'of possible electrifiable stations')
             # this event will no show up in an event_group.
             # therefore it needs to be put into this set
@@ -465,7 +465,7 @@ def group_optimization(group, base_scen, base_sched,
         base_socs = {id: soc for id, soc in base_scen.vehicle_socs.items()}
 
     # give tree position
-    logger.debug("%s with length of %s", tree_position, len(tree_position))
+    LOGGER.debug("%s with length of %s", tree_position, len(tree_position))
 
     # Unpack events and possible stations
     event_group, possible_stations = group
@@ -483,7 +483,7 @@ def group_optimization(group, base_scen, base_sched,
     missing_energy = get_missing_energy(event_group)
 
     if missing_energy >= 0:
-        logger.debug("Already electrified: Returning set")
+        LOGGER.debug("Already electrified: Returning set")
         return electrified_stations, True
 
     station_eval = evaluate(event_group, new_scen, soc_curve_dict,
@@ -498,7 +498,7 @@ def group_optimization(group, base_scen, base_sched,
                                                           missing_energy=missing_energy)
     stat_eval_dict = {stat_id[0]: stat_id[1]["pot_sum"] for stat_id in station_eval}
     if best_station_ids is None:
-        logger.warning(
+        LOGGER.warning(
             f"No useful station found with "
             f"{events_remaining} rotations not electrified yet. "
             f" Stopped after electrifying {len(electrified_station_set)}")
@@ -515,7 +515,7 @@ def group_optimization(group, base_scen, base_sched,
         else:
             could_not_be_electrified.update(list(rotation_dict.keys()))
         return None, False
-    logger.debug("%s, with first pot of %s", best_station_ids, stat_eval_dict[best_station_ids[0]])
+    LOGGER.debug("%s, with first pot of %s", best_station_ids, stat_eval_dict[best_station_ids[0]])
 
     # Electrify station(s)
     for stat_id in best_station_ids:
@@ -525,7 +525,8 @@ def group_optimization(group, base_scen, base_sched,
 
     event_rotations = {x["rotation"] for x in event_group}
     if type == "quick":
-        # Quick calculation has to electrify everything in one step, or the lifting of socs is not correct
+        # Quick calculation has to electrify everything in one step,
+        # or the lifting of socs is not correct
         new_scen.vehicle_socs = deepcopy(base_socs)
         new_scen.vehicle_socs = timeseries_calc(best_station_ids[0], event_rotations,
                                                 new_scen.vehicle_socs,
@@ -554,10 +555,9 @@ def group_optimization(group, base_scen, base_sched,
     delta_energy = get_missing_energy(new_events)
 
     events_remaining[0] -= len(event_group) - len(new_events)
-    logger.debug("Last electrification electrified %s/%s."
+    LOGGER.debug("Last electrification electrified %s/%s."
                  " %s remaining events in the base group.",
                  len(event_group) - len(new_events), len(event_group), events_remaining[0])
-    # todo
     delta_base_energy = delta_energy  # get_missing_energy(base_events)
 
     # Put this node intro the decision tree including the missing energy
@@ -598,35 +598,37 @@ def group_optimization(group, base_scen, base_sched,
         else:
             return None, True
 
-        # Evaluate if following this branch makes sense
-        if pre_optimized_set is not None:
-            if len(pre_optimized_set) - len(electrified_station_set) < 10:
-                new_scen.vehicle_socs = timeseries_calc(best_station_ids[0], event_rotations,
-                                                        new_scen.vehicle_socs,
-                                                        new_scen, electrified_station_set,
-                                                        soc_curve_dict,
-                                                        soc_upper_thresh=args.desired_soc_deps)
+        # If there is no pre optimized set function can return
+        if pre_optimized_set is None:
+            return electrified_stations, True
 
-                prune_events = get_below_zero_soc_events(new_scen, event_rotations_id,
-                                                         new_sched,
-                                                         soc_upper_thresh=soc_upper_thresh,
-                                                         filter_standing_time=True,
-                                                         not_possible_stations=not_possible_stations,
-                                                         soc_lower_thresh=soc_lower_thresh,
-                                                         relative_soc=True)
+        # If there is a preoptimized set check if the preoptimized set leads to pruning
+        # i.e. if if following  branch makes sense
+        if len(pre_optimized_set) - len(electrified_station_set) < 10:
+            new_scen.vehicle_socs = timeseries_calc(best_station_ids[0], event_rotations,
+                                                    new_scen.vehicle_socs,
+                                                    new_scen, electrified_station_set,
+                                                    soc_curve_dict,
+                                                    soc_upper_thresh=args.desired_soc_deps)
 
-                station_eval = evaluate(prune_events, new_scen, soc_curve_dict,
-                                        soc_upper_thresh=soc_upper_thresh,
-                                        soc_lower_thresh=soc_lower_thresh)
-                prune_missing_energy = get_missing_energy(prune_events)
-                if not is_branch_promising(station_eval, electrified_station_set,
-                                           pre_optimized_set, prune_missing_energy):
-                    print("Branch pruned early")
-                    is_branch_promising(station_eval, electrified_station_set,
-                                        pre_optimized_set, missing_energy)
-                    return None, True
+            prune_events = get_below_zero_soc_events(new_scen, event_rotations_id,
+                                                     new_sched,
+                                                     soc_upper_thresh=soc_upper_thresh,
+                                                     filter_standing_time=True,
+                                                     not_possible_stations=not_possible_stations,
+                                                     soc_lower_thresh=soc_lower_thresh,
+                                                     relative_soc=True)
 
-    return electrified_stations, True
+            station_eval = evaluate(prune_events, new_scen, soc_curve_dict,
+                                    soc_upper_thresh=soc_upper_thresh,
+                                    soc_lower_thresh=soc_lower_thresh)
+            prune_missing_energy = get_missing_energy(prune_events)
+            if not is_branch_promising(station_eval, electrified_station_set,
+                                       pre_optimized_set, prune_missing_energy):
+                print("Branch pruned early")
+                is_branch_promising(station_eval, electrified_station_set,
+                                    pre_optimized_set, missing_energy)
+                return None, True
 
 
 def get_missing_energy(events):
@@ -642,7 +644,7 @@ def node_to_tree(decision_tree, electrified_station_set, delta_base_energy):
         decision_tree[node_name]["missing_energy"] = delta_base_energy
         decision_tree[node_name]["visit_counter"] += 1
         # todo add is_viable
-        logger.debug("already visited")
+        LOGGER.debug("already visited")
     except KeyError:
         decision_tree[node_name] = dict()
         decision_tree[node_name]["missing_energy"] = delta_base_energy
@@ -726,7 +728,7 @@ def plot_rot(id, this_sched, this_scen, ax=None, rot_only=True):
     if not rot_only:
         b = 0
         c = -1
-    if ax == None:
+    if ax is None:
         fig, ax = plt.subplots()
         ax.plot(a[b:c], linewidth=2.0)
         return ax
@@ -742,7 +744,6 @@ def join_all_subsets(subsets):
     return subsets
 
 
-#  ToDo Further implement
 def choose_station_brute(station_eval, electrified_station_set,
                          pre_optimized_set=None, decision_tree=None, missing_energy=0):
     station_ids = [x[0] for x in station_eval]
@@ -758,10 +759,10 @@ def choose_station_brute(station_eval, electrified_station_set,
             if potential > -missing_energy * config.estimation_threshold:
                 return comb, False
             else:
-                logger.debug("skipped %s since potential is too low %s %%", comb,
+                LOGGER.debug("skipped %s since potential is too low %s %%", comb,
                              round(potential / -missing_energy * 100, 0))
     else:
-        logger.debug("calculated all viable possibilities")
+        LOGGER.debug("calculated all viable possibilities")
         return None, False
 
 
@@ -813,7 +814,8 @@ def choose_station_step_by_step(station_eval, electrified_station_set,
         # to do what now?
         # Simply visit the least visited node
         for station in station_eval:
-            # Create a station combination from already electrified stations and possible new station
+            # Create a station combination from already electrified stations
+            # and possible new station
             check_stations = electrified_station_set.union([station[0]])
             if decision_tree[stations_hash(check_stations)]["visit_counter"] == min_count_visited:
                 best_station_id = station[0]
@@ -891,7 +893,7 @@ def evaluate(events, eval_scen, soc_curve_dict, soc_upper_thresh=1, soc_lower_th
 
     station_eval = dict()
     for e in events:
-        soc_over_time_curve = soc_curve_dict[e["v_type"]][e["ch_type"]]
+        soc_over_time = soc_curve_dict[e["v_type"]][e["ch_type"]]
         for i, trip in enumerate(e["trip"]):
             # Station is only evaluated if station name is part of event stations
             # Only these stations showed potential in electrification, e.g enough standing time
@@ -899,7 +901,7 @@ def evaluate(events, eval_scen, soc_curve_dict, soc_upper_thresh=1, soc_lower_th
                 continue
             idx = get_index_by_time(trip.arrival_time, eval_scen)
             soc = eval_scen.vehicle_socs[e["vehicle_id"]][idx]
-            # ToDo define elsewhere
+
             max_soc = soc_upper_thresh
             min_soc = soc_lower_thresh
             # Potential is the minimal amount of
@@ -914,17 +916,16 @@ def evaluate(events, eval_scen, soc_curve_dict, soc_upper_thresh=1, soc_lower_th
                 standing_time_min = 0
 
             # energy_charging_potential = standing_time_min *60 * ch_power
-            energy_charging_potential = get_delta_soc(soc_over_time_curve, soc, standing_time_min) \
-                                        * e["capacity"]
+            e_charging_pot = get_delta_soc(soc_over_time, soc, standing_time_min) * e["capacity"]
 
             # Potential is at max the minimum between the useful delta soc * capacity or the
             # energy provided by charging for the full standing time
-            delta_E_pot = min(delta_soc_pot * e["capacity"], energy_charging_potential)
+            delta_E_pot = min(delta_soc_pot * e["capacity"], e_charging_pot)
             d = dict(E_pot=delta_E_pot,
                      standing_time=timedelta(minutes=standing_time_min))
             try:
                 station_eval[trip.arrival_name]["pot_list"].append(d)
-            except:
+            except KeyError:
                 station_eval[trip.arrival_name] = dict(pot_list=[], pot_sum=0)
                 station_eval[trip.arrival_name]["pot_list"].append(d)
 
@@ -966,7 +967,8 @@ def join_subsets(subsets):
     subsets = [s.copy() for s in subsets]
     for i in range(len(subsets)):
         for ii in range(len(subsets)):
-            if i == ii: continue
+            if i == ii:
+                continue
             intersec = subsets[i].intersection(subsets[ii])
             if len(intersec) > 0:
                 subsets[i] = subsets[i].union(subsets[ii])
@@ -1022,9 +1024,8 @@ def get_below_zero_soc_events(this_scen: scenario.Scenario, rotations,
                               soc_upper_thresh=0.9, filter_standing_time=True,
                               not_possible_stations=None, soc_lower_thresh=0, relative_soc=False,
                               soc_data=None):
-
     if not not_possible_stations:
-        not_possible_stations=set()
+        not_possible_stations = set()
     # Create list of events which describe trips which end in a soc below zero
     # The event is bound by the lowest soc and an upper soc threshhold which is naturally 1
     # Properties before and after these points have no effect on the event itself, similar to
@@ -1046,7 +1047,7 @@ def get_below_zero_soc_events(this_scen: scenario.Scenario, rotations,
         # if rotation gets a start soc below 1 this should change below 0 soc events since fixing
         # the rotation before would lead to fixing this rotation
 
-        # ToDo if using relative SOC, SOC lookup has to be adjusted
+        # if using relative SOC, SOC lookup has to be adjusted
         if relative_soc:
             start_soc = comb[0][0]
             soc_lower_thresh_cur = min(start_soc, soc_upper_thresh) - (
@@ -1058,13 +1059,15 @@ def get_below_zero_soc_events(this_scen: scenario.Scenario, rotations,
             i = min_idx
             idx = [x[1] for x in reduced_list]
             while soc[i] < SOC_UPPER_THRESH:
-                if i == rot_start_idx: break
+                if i == rot_start_idx:
+                    break
                 i -= 1
             start_comb = idx.index(i)
             start = i
             i = min_idx
             while soc[i] < SOC_UPPER_THRESH:
-                if i >= rot_end_idx - 1: break
+                if i >= rot_end_idx - 1:
+                    break
                 i += 1
             end_comb = idx.index(i)
             trips = get_trips(rot=rot, start_idx=start, end_idx=min_idx, scen=this_scen)
@@ -1160,7 +1163,7 @@ def run_schedule(this_sched, this_args, electrified_stations=None, cost_calc=Fal
         # cost calculation following directly after simulation
         try:
             with open(args.cost_parameters_file, encoding='utf-8') as f:
-                cost_parameters_file = util.uncomment_json_file(f)
+                cost_parameters_file = uncomment_json_file(f)
         except FileNotFoundError:
             raise SystemExit(f"Path to cost parameters ({args.cost_parameters_file}) "
                              "does not exist. Exiting...")
@@ -1241,37 +1244,42 @@ def get_buffer_time(trip, args):
     return b
 
 
-def combs_unordered_no_putting_back(n, k):
-    return math.factorial(n) / ((math.factorial(n - k)) * math.factorial(k))
+def combs_unordered_no_putting_back(n: int, k: int):
+    try:
+        return math.factorial(n) / ((math.factorial(n - k)) * math.factorial(k))
+    except ValueError:
+        LOGGER.warning("Value Error")
+        return 0
 
 
-def remove_none_socs(base_scen):
+def remove_none_socs(this_scen):
     # Make sure no None values exists in SOCs. Fill later values with last value
-    # which was not None
-    for id, soc in base_scen.vehicle_socs.items():
+    # which was not None, eg, [1,5,4,None,None] becomes [1,5,4,4,4]
+    for id, soc in this_scen.vehicle_socs.items():
         soc = np.array(soc)
+        last_not_none = "not found"
         if None in soc:
             for ii in range(len(soc) - 1, -1, -1):
                 if soc[ii] is not None:
                     last_not_none = soc[ii]
                     break
             soc[soc == np.array(None)] = last_not_none
-        base_scen.vehicle_socs[id] = soc
+        this_scen.vehicle_socs[id] = soc
 
 
-def get_vehicle(id, sched):
-    return sched.rotations[id].vehicle_id
+def get_vehicle(rot_id, this_sched):
+    return this_sched.rotations[rot_id].vehicle_id
 
 
-def get_vehicle_rots(id, sched):
-    return [rot for rot in sched.rotations if id == get_vehicle(rot, sched)]
+def get_vehicle_rots(rot_id, this_sched):
+    return [rot for rot in this_sched.rotations if rot_id == get_vehicle(rot, this_sched)]
 
 
 def station_eval_to_logger(missing_energy, station_eval):
-    logger.debug("Missing energy: %s", missing_energy)
-    if logger.getEffectiveLevel() > logging.DEBUG:
+    LOGGER.debug("Missing energy: %s", missing_energy)
+    if LOGGER.getEffectiveLevel() > logging.DEBUG:
         for stat_id in station_eval:
-            logger.debug("%s , %s", stat_id[0], stat_id[1]["pot_sum"])
+            LOGGER.debug("%s , %s", stat_id[0], stat_id[1]["pot_sum"])
 
 
 def toolbox_from_pickle(sched_name, scen_name, args_name):
@@ -1302,7 +1310,7 @@ def get_negative_rotations_all_electrified(this_scen, this_sched, soc_upper_thre
                                            not_possible_stations=None,
                                            soc_lower_thresh=0, relative_soc=False):
     if not not_possible_stations:
-        not_possible_stations=set()
+        not_possible_stations = set()
 
     events = get_below_zero_soc_events(this_scen=this_scen,
                                        rotations=this_sched.rotations.keys(),
@@ -1328,7 +1336,7 @@ def get_negative_rotations_all_electrified(this_scen, this_sched, soc_upper_thre
 # Electrify everything minus 1 station. If without the stations there are below zero events
 # it is a must have station
 def get_must_stations(this_scen, this_sched, soc_upper_thresh, soc_charge_curve_dict,
-                      not_possible_stations=set(),
+                      not_possible_stations=None,
                       soc_lower_thresh=0, relative_soc=False):
     events = get_below_zero_soc_events(this_scen=this_scen,
                                        rotations=this_sched.rotations.keys(),
@@ -1337,6 +1345,8 @@ def get_must_stations(this_scen, this_sched, soc_upper_thresh, soc_charge_curve_
                                        filter_standing_time=True,
                                        not_possible_stations=not_possible_stations,
                                        soc_lower_thresh=soc_lower_thresh, relative_soc=relative_soc)
+    if not not_possible_stations:
+        not_possible_stations = set()
     stats = {s for e in events for s in e["stations_list"] if s not in not_possible_stations}
     electrified_station_set_all = set(stats)
 
