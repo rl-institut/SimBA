@@ -201,7 +201,7 @@ def generate(schedule, scenario, args):
         # get soc timeseries for current rotation
         vehicle_soc = scenario.vehicle_socs[vehicle_id]
         start_idx = (rotation.departure_time - sim_start_time) // interval
-        end_idx = start_idx + ((rotation.arrival_time-rotation.departure_time) // interval)
+        end_idx = start_idx + ((rotation.arrival_time - rotation.departure_time) // interval)
         if end_idx > scenario.n_intervals:
             # SpiceEV stopped before rotation was fully simulated
             incomplete_rotations.append(id)
@@ -214,7 +214,7 @@ def generate(schedule, scenario, args):
             if soc is not None:
                 break
         last_known_idx = len(rotation_soc_ts) - 1 - i
-        rotation_soc_ts[last_known_idx+1:] = i * [rotation_soc_ts[last_known_idx]]
+        rotation_soc_ts[last_known_idx + 1:] = i * [rotation_soc_ts[last_known_idx]]
 
         rotation_info = {
             "rotation_id": id,
@@ -234,7 +234,7 @@ def generate(schedule, scenario, args):
         rotation_infos.append(rotation_info)
 
         # save SOCs for each rotation
-        rotation_socs[id] = [None]*scenario.n_intervals
+        rotation_socs[id] = [None] * scenario.n_intervals
         rotation_socs[id][start_idx:end_idx] = rotation_soc_ts
 
     if incomplete_rotations:
@@ -254,3 +254,17 @@ def generate(schedule, scenario, args):
         csv_writer = csv.DictWriter(f, list(rotation_infos[0].keys()))
         csv_writer.writeheader()
         csv_writer.writerows(rotation_infos)
+
+    # summary of used vehicle types and all costs
+    if args.cost_calculation:
+        with open(args.output_directory / "summary_vehicles_costs.csv", "w", newline='') as f:
+            csv_writer = csv.writer(f)
+            csv_writer.writerow(["parameter", "value", "unit"])
+            for key, value in schedule.vehicle_type_counts.items():
+                if value > 0:
+                    csv_writer.writerow([key, value, "vehicles"])
+            for key, value in scenario.costs.items():
+                if "annual" in key:
+                    csv_writer.writerow([key, round(value, 2), "€/year"])
+                else:
+                    csv_writer.writerow([key, round(value, 2), "€"])

@@ -9,7 +9,7 @@ if __name__ == '__main__':
         description='eBus-Toolbox - \
         simulation program for electric bus fleets.')
     parser.add_argument('--input-schedule', nargs='?',
-                        help='Path to CSV file containing all trips of schdedule to be analyzed.')
+                        help='Path to CSV file containing all trips of schedule to be analyzed.')
     parser.add_argument('--mode', default='sim', choices=['sim', 'service_optimization'],
                         help='Specify what you want to do. Choose one from {sim, \
                         service_optimization}. sim runs a single simulation with the given inputs. \
@@ -52,17 +52,6 @@ if __name__ == '__main__':
                             (-1 for variable capacity, second argument is fixed power))')
     parser.add_argument('--seed', default=None, type=int, help='set random seed')
     parser.add_argument('--iterations', default=1, type=int, help='iterations for optimization')
-    parser.add_argument('--include-ext-load-csv',
-                        help='include CSV for external load. \
-                            You may define custom options with --include-ext-csv-option')
-    parser.add_argument('--include-ext-csv-option', '-eo', metavar=('KEY', 'VALUE'),
-                        nargs=2, action='append',
-                        help='append additional argument to external load')
-    parser.add_argument('--include-feed-in-csv',
-                        help='include CSV for energy feed-in, e.g., local PV. \
-                            You may define custom options with --include-feed-in-csv-option')
-    parser.add_argument('--include-feed-in-csv-option', '-fo', metavar=('KEY', 'VALUE'),
-                        nargs=2, action='append', help='append additional argument to feed-in load')
     parser.add_argument('--include-price-csv',
                         help='include CSV for energy price. \
                             You may define custom options with --include-price-csv-option')
@@ -74,12 +63,13 @@ if __name__ == '__main__':
                              '2018-01-31')
     parser.add_argument('--electrified-stations', help='include electrified_stations json',
                         default='data/examples/electrified_stations.json')
-    parser.add_argument('--cost-params', help='include cost_params json',
-                        default=None)
+    parser.add_argument('--cost-calculation', '-cc', action='store_true',
+                        help='Calculate costs')
+    parser.add_argument('--cost-parameters-file', help='include cost parameters json', default=None)
     parser.add_argument('--min-charging-time', help='define minimum time of charging',
-                        default=2)
+                        default=0)
     parser.add_argument('--default-buffer-time-opps', help='time to subtract off of standing time '
-                        'at opp station to simulate docking procedure.', default=1)
+                        'at opp station to simulate docking procedure.', default=0)
     parser.add_argument('--signal-time-dif', help='time difference between signal time and actual '
                                                   'start time of a vehicle event im min.',
                         default=10)
@@ -105,15 +95,13 @@ if __name__ == '__main__':
     parser.add_argument('--station_data_path', help='Use station data to back calculation       \
                                                     of consumption with height information of   \
                                                     stations')
-    parser.add_argument('--outside_temperature_over_day_path', help="Use csv. data with 'hour' and \
-                                                               'temperature' columns to set \
-                                                                temperatures in case they are not \
-                                                                in trips.csv")
+    parser.add_argument('--outside_temperature_over_day_path', default=None,
+                        help="Use csv. data with 'hour' and temperature' columns to set \
+                        temperatures in case they are not in trips.csv")
 
-    parser.add_argument('--level_of_loading_over_day_path', help="Use csv. data with 'hour' and \
-                                                               'level_of_loading' columns to set \
-                                                                level of loading in case they are \
-                                                                not in trips.csv")
+    parser.add_argument('--level_of_loading_over_day_path', default=None,
+                        help="Use csv. data with 'hour' and level_of_loading' columns to set \
+                        level of loading in case they are not in trips.csv")
 
     args = parser.parse_args()
     # arguments relevant to SpiceEV, setting automatically to reduce clutter in config
@@ -142,8 +130,8 @@ if __name__ == '__main__':
     copy_list = [args.config, args.electrified_stations, args.vehicle_types]
 
     # only copy cost params if they exist
-    if args.cost_params is not None:
-        copy_list.append(args.cost_params)
+    if args.cost_parameters_file is not None:
+        copy_list.append(args.cost_parameters_file)
     for c_file in copy_list:
         shutil.copy(str(c_file), str(args.output_directory / Path(c_file).name))
 

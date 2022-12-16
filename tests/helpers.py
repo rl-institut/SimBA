@@ -9,7 +9,7 @@ def generate_basic_schedule():
     station_path = 'tests/test_input_files/electrified_stations.json'
     temperature_path = 'tests/test_input_files/default_temp_winter.csv'
     lol_path = 'tests/test_input_files/default_level_of_loading_over_day.csv'
-    with open("tests/test_input_files/vehicle_types.json", 'r') as f:
+    with open("tests/test_input_files/vehicle_types.json", 'r', encoding='utf-8') as f:
         vehicle_types = json.load(f)
     trip.Trip.consumption = consumption.Consumption(vehicle_types,
                                                     outside_temperatures=temperature_path,

@@ -389,6 +389,7 @@ class Schedule:
 
         vehicles = {}
         batteries = {}
+        photovoltaics = {}
         charging_stations = {}
         grid_connectors = {}
         events = {
@@ -474,8 +475,7 @@ class Schedule:
                     # vehicle connects to charging station
                     connected_charging_station = f"{cs_name}_{station_type}"
                     # create charging station and grid connector if necessary
-                    if cs_name not in charging_stations or gc_name not in grid_connectors:
-                        number_cs = station["n_charging_stations"]
+                    if cs_name not in charging_stations:
                         if station_type == "deps":
                             cs_power = args.cs_power_deps_oppb \
                                 if trip.rotation.charging_type == 'oppb' \
@@ -492,12 +492,47 @@ class Schedule:
                             "min_power": 0.1 * cs_power,
                             "parent": gc_name
                         }
+                    if gc_name not in grid_connectors:
                         # add one grid connector for each bus station
                         grid_connectors[gc_name] = {
                             "max_power": gc_power,
                             "cost": {"type": "fixed", "value": 0.3},
-                            "number_cs": number_cs
+                            "number_cs": station["n_charging_stations"],
+                            "voltage_level": station.get("voltage_level")
                         }
+                        # check for stationary battery
+                        battery = station.get("battery")
+                        if battery is not None:
+                            # add stationary battery at this station/GC
+                            battery["parent"] = gc_name
+                            batteries[gc_name] = battery
+
+                        # add feed-in name and power at grid connector if exists
+                        feed_in = station.get("energy_feed_in")
+                        if feed_in:
+                            feed_in_path = Path(feed_in["csv_file"])
+                            if not feed_in_path.exists():
+                                warnings.warn("feed-in csv file '{}' does not exist".format(
+                                    feed_in_path))
+                            feed_in["grid_connector_id"] = gc_name
+                            feed_in["csv_file"] = feed_in_path
+                            events["energy_feed_in"][gc_name + " feed-in"] = feed_in
+                            # add PV component
+                            photovoltaics[gc_name] = {
+                                "parent": gc_name,
+                                "nominal_power": feed_in.get("pv_power", 0)
+                            }
+
+                        # add external load if exists
+                        ext_load = station.get("external_load")
+                        if ext_load:
+                            ext_load_path = Path(ext_load["csv_file"])
+                            if not ext_load_path.exists():
+                                warnings.warn("external load csv file '{}' does not exist".format(
+                                    ext_load_path))
+                            ext_load["grid_connector_id"] = gc_name
+                            ext_load["csv_file"] = ext_load_path
+                            events["external_load"][gc_name + " ext. load"] = ext_load
 
                 # initial condition of vehicle
                 if i == 0:
@@ -581,46 +616,6 @@ class Schedule:
 
         # add timeseries from csv
         # save path and options for CSV timeseries
-
-        if args.include_ext_load_csv:
-            for filename, gc_name in args.include_ext_load_csv:
-                options = {
-                    "csv_file": filename,
-                    "start_time": start_simulation.isoformat(),
-                    "step_duration_s": 900,  # 15 minutes
-                    "grid_connector_id": gc_name,
-                    "column": "energy"
-                }
-                if args.include_ext_csv_option:
-                    for key, value in args.include_ext_csv_option:
-                        if key == "step_duration_s":
-                            value = int(value)
-                        options[key] = value
-                events['external_load'][Path(filename).stem] = options
-                # check if CSV file exists
-                ext_csv_path = args.output_directory / filename
-                if not ext_csv_path.exists():
-                    print("Warning: external csv file '{}' does not exist yet".format(ext_csv_path))
-
-        if args.include_feed_in_csv:
-            for filename, gc_name in args.include_feed_in_csv:
-                options = {
-                    "csv_file": filename,
-                    "start_time": start_simulation.isoformat(),
-                    "step_duration_s": 3600,  # 60 minutes
-                    "grid_connector_id": gc_name,
-                    "column": "energy"
-                }
-                if args.include_feed_in_csv_option:
-                    for key, value in args.include_feed_in_csv_option:
-                        if key == "step_duration_s":
-                            value = int(value)
-                        options[key] = value
-                events['energy_feed_in'][Path(filename).stem] = options
-                feed_in_path = args.output_directory / filename
-                if not feed_in_path.exists():
-                    print("Warning: feed-in csv file '{}' does not exist yet".format(feed_in_path))
-
         if args.include_price_csv:
             for filename, gc_name in args.include_price_csv:
                 options = {
@@ -639,32 +634,12 @@ class Schedule:
                 if not price_csv_path.exists():
                     print("Warning: price csv file '{}' does not exist yet".format(price_csv_path))
 
-        if args.battery:
-            for idx, bat in enumerate(args.battery, 1):
-                capacity, c_rate, gc = bat[:3]
-                if gc not in grid_connectors:
-                    # no vehicle charges here
-                    continue
-                if capacity > 0:
-                    max_power = c_rate * capacity
-                else:
-                    # unlimited battery: set power directly
-                    max_power = c_rate
-                batteries[f"BAT{idx}"] = {
-                    "parent": gc,
-                    "capacity": capacity,
-                    "charging_curve": [[0, max_power], [1, max_power]],
-                }
-                if len(bat) == 4:
-                    # discharge curve can be passed as optional 4th param
-                    batteries[f"BAT{idx}"].update({
-                        "discharge_curve": bat[3]
-                    })
-
         # reformat vehicle types for spiceEV
-        vehicle_types_spiceev = {f'{vehicle_type}_{charging_type}': body
-                                 for vehicle_type, subtypes in self.vehicle_types.items()
-                                 for charging_type, body in subtypes.items()}
+        vehicle_types_spiceev = {
+            f'{vehicle_type}_{charging_type}': body
+            for vehicle_type, subtypes in self.vehicle_types.items()
+            for charging_type, body in subtypes.items()
+        }
 
         # create final dict
         self.scenario = {
@@ -678,9 +653,10 @@ class Schedule:
                 "vehicles": vehicles,
                 "grid_connectors": grid_connectors,
                 "charging_stations": charging_stations,
-                "batteries": batteries
+                "batteries": batteries,
+                "photovoltaics": photovoltaics,
             },
             "events": events
         }
 
-        return Scenario(self.scenario, args.output_directory)
+        return Scenario(self.scenario, Path())

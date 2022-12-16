@@ -16,7 +16,7 @@ def simulate(args):
     """
     # load vehicle types
     try:
-        with open(args.vehicle_types) as f:
+        with open(args.vehicle_types, encoding='utf-8') as f:
             vehicle_types = util.uncomment_json_file(f)
             del args.vehicle_types
     except FileNotFoundError:
@@ -25,19 +25,19 @@ def simulate(args):
 
     # load stations file
     try:
-        with open(args.electrified_stations) as f:
+        with open(args.electrified_stations, encoding='utf-8') as f:
             stations = util.uncomment_json_file(f)
     except FileNotFoundError:
         raise SystemExit(f"Path to electrified stations ({args.electrified_stations}) "
                          "does not exist. Exiting...")
 
     # load cost parameters
-    if args.cost_params is not None:
+    if args.cost_parameters_file is not None:
         try:
-            with open(args.cost_params) as f:
-                cost_params = util.uncomment_json_file(f)
+            with open(args.cost_parameters_file, encoding='utf-8') as f:
+                cost_parameters_file = util.uncomment_json_file(f)
         except FileNotFoundError:
-            raise SystemExit(f"Path to cost parameters ({args.cost_params}) "
+            raise SystemExit(f"Path to cost parameters ({args.cost_parameters_file}) "
                              "does not exist. Exiting...")
 
     # parse strategy options for Spice EV
@@ -72,8 +72,9 @@ def simulate(args):
     if args.mode == "neg_depb_to_oppb":
         # simple optimization: change charging type from depot to opportunity, simulate again
         neg_rot = schedule.get_negative_rotations(scenario)
-        # only depot rotations relevant
-        neg_rot = [r for r in neg_rot if schedule.rotations[r].charging_type == "depb"]
+        # only depot rotations relevant and check if oppb-version of vehicle_type exists
+        neg_rot = [r for r in neg_rot if schedule.rotations[r].charging_type == "depb"
+                   if "oppb" in vehicle_types[schedule.rotations[r].vehicle_type]]
         if neg_rot:
             print("Changing charging type from depb to oppb for rotations " + ', '.join(neg_rot))
             schedule.set_charging_type("oppb", neg_rot)
@@ -83,13 +84,9 @@ def simulate(args):
             if neg_rot:
                 print(f"Rotations {', '.join(neg_rot)} remain negative.")
 
-    if args.cost_params is not None:
-        # Calculate Costs of Iteration
-        costs = calculate_costs(cost_params, schedule)
-        opex_energy_annual = 0  # ToDo: Import annual energy costs from SpiceEV
-        cost_invest = costs["c_invest"]
-        cost_annual = costs["c_invest_annual"] + costs["c_maintenance_annual"] + opex_energy_annual
-        print(f"Investment cost: {cost_invest} €. Total annual cost: {cost_annual} €.")
+    if args.cost_calculation:
+        # cost calculation following directly after simulation
+        calculate_costs(cost_parameters_file, scenario, schedule, args)
 
     # create report
     report.generate(schedule, scenario, args)
