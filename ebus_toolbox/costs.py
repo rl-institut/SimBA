@@ -43,23 +43,27 @@ def calculate_costs(c_params, scenario, schedule, args):
             c_vehicles_vt = (schedule.vehicle_type_counts[v_type] *
                              (costs_vehicle + (c_params["vehicles"][v_type]["lifetime"] //
                                                c_params["batteries"]["lifetime_battery"]) *
-                             v_keys["capacity"] * c_params["batteries"]["cost_per_kWh"]))
+                              v_keys["capacity"] * c_params["batteries"]["cost_per_kWh"]))
             costs["c_vehicles"] += c_vehicles_vt
             # calculate annual cost of vehicles of this type, depending on their lifetime
             costs["c_vehicles_annual"] += c_vehicles_vt / c_params["vehicles"][v_type]["lifetime"]
 
     # GRID CONNECTION POINTS
     gcs = schedule.scenario["constants"]["grid_connectors"]
-    for gcID, gc_keys in gcs.items():
+    for gcID in gcs.keys():
+        # get max. power of grid connector
+        gc = getattr(scenario, f"{gcID}_timeseries")
+        gc_max_power = -min(gc["grid power [kW]"])
+        # get distance of transformer to gc
         try:
             distance_transformer = schedule.stations[gcID]["distance_transformer"]
         except KeyError:
             distance_transformer = c_params["gc"]["default_distance"]
-        c_gc = (c_params["gc"]["building_cost_subsidy_per_kW"] * gc_keys["max_power"] +
+        c_gc = (c_params["gc"]["building_cost_subsidy_per_kW"] * gc_max_power +
                 c_params["gc"]["capex_gc_fix"] +
                 c_params["gc"]["capex_gc_per_meter"] * distance_transformer)
         c_transformer = (c_params["gc"]["capex_transformer_fix"] +
-                         c_params["gc"]["capex_transformer_per_kW"] * gc_keys["max_power"])
+                         c_params["gc"]["capex_transformer_per_kW"] * gc_max_power)
         costs["c_gcs"] += c_gc + c_transformer
         # calculate annual costs of grid connectors, depending the lifetime of gc and transformer
         costs["c_gcs_annual"] += (c_gc / c_params["gc"]["lifetime_gc"] +
@@ -67,11 +71,17 @@ def calculate_costs(c_params, scenario, schedule, args):
 
     # CHARGING INFRASTRUCTURE
     cs = schedule.scenario["constants"]["charging_stations"]
+    # depot charging stations - each charging bus generates one CS
     for csID in cs.values():
         if csID["type"] == "deps":
             costs["c_cs"] += c_params["cs"]["capex_deps_per_kW"] * csID["max_power"]
-        elif csID["type"] == "opps":
-            costs["c_cs"] += c_params["cs"]["capex_opps_per_kW"] * csID["max_power"]
+    # opportunity charging stations - nr of CS depend on max nr of simultaneously occupied CS
+    for gcID, gc_keys in gcs.items():
+        if schedule.stations[gcID]["type"] == "opps":
+            # get max. nr of occupied CS per grid connector
+            gc = getattr(scenario, f"{gcID}_timeseries")
+            costs["c_cs"] += (c_params["cs"]["capex_opps_per_kW"] * vars(args)["cs_power_opps"] *
+                              max(gc["# occupied CS"]))
     # calculate annual cost of charging stations, depending on their lifetime
     costs["c_cs_annual"] = costs["c_cs"] / c_params["cs"]["lifetime_cs"]
 
