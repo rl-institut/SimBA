@@ -3,10 +3,9 @@
 import csv
 import datetime
 import warnings
-import json
 import matplotlib.pyplot as plt
-from ebus_toolbox.util import sanitize
 from src.report import aggregate_global_results, plot, generate_reports
+
 
 def generate_gc_power_overview_timeseries(scenario, args):
     """Generates a csv file from each grid connectors summed up
