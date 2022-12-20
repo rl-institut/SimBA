@@ -89,4 +89,13 @@ def simulate(args):
         calculate_costs(cost_parameters_file, scenario, schedule, args)
 
     # create report
-    report.generate(schedule, scenario, args)
+    if args.generate_report:
+        args.save_timeseries = args.output_directory / "simulation_timeseries.csv"
+        args.save_results = args.output_directory / "simulation.json"
+        args.save_soc = args.output_directory / "vehicle_socs.csv"
+
+        report.generate(schedule, scenario, args)
+
+        args.save_timeseries = False
+        args.save_results = False
+        args.save_soc = False

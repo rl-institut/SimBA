@@ -73,13 +73,16 @@ if __name__ == '__main__':
     parser.add_argument('--signal-time-dif', help='time difference between signal time and actual '
                                                   'start time of a vehicle event im min.',
                         default=10)
-    parser.add_argument('--visual', '-v', action='store_true', help='Show plots of the results')
+    parser.add_argument('--visual', '-v', action='store_true',
+                        help='Show plots of the results- not apllicable', default=False)
+    parser.add_argument('--generate-report', '-r', help='generates and stores plots and results',
+                        default=False)
     parser.add_argument('--eta', action='store_true',
                         help='Show estimated time to finish simulation after each step, \
                         instead of progress bar. Not recommended for fast computations.')
-    parser.add_argument('--save-timeseries', help='Write timesteps to file')
-    parser.add_argument('--save-results', help='Write general info to file')
-    parser.add_argument('--save-soc', help='Write SOC info to file')
+    parser.add_argument('--save-timeseries', help='Write timesteps to file - not apllicable', default=False)
+    parser.add_argument('--save-results', help='Write general info to file - not apllicable', default=False)
+    parser.add_argument('--save-soc', help='Write SOC info to file - not apllicable', default=False)
     parser.add_argument('--strategy', '-s', default='greedy',
                         help='Specify the charging strategy. One of {}. You may define \
                         custom options with --strategy-option.'.format('greedy, balanced'))
@@ -118,13 +121,6 @@ if __name__ == '__main__':
     # needs to happen after set_options_from_config since
     # args.output_directory can be overwritten by config
     args.output_directory.mkdir(parents=True, exist_ok=True)
-
-    if not args.save_timeseries:
-        args.save_timeseries = args.output_directory / "simulation_spiceEV.csv"
-    if not args.save_results:
-        args.save_results = args.output_directory / "simulation_spiceEV.json"
-    if not args.save_soc:
-        args.save_soc = args.output_directory / "simulation_soc_spiceEV.csv"
 
     # copy input files to output to ensure reproducibility
     copy_list = [args.config, args.electrified_stations, args.vehicle_types]

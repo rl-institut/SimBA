@@ -6,7 +6,7 @@ import warnings
 import json
 import matplotlib.pyplot as plt
 from ebus_toolbox.util import sanitize
-from src.report import aggregate_timeseries, aggregate_local_results, aggregate_global_results, plot
+from src.report import aggregate_timeseries, aggregate_local_results, aggregate_global_results, plot, generate_reports
 
 
 def generate_vehicle_socs(scenario, args):
@@ -162,12 +162,15 @@ def generate(schedule, scenario, args):
     :type args: argparse.Namespace
     """
 
-    # generate csv out of vehicle's socs
-    generate_vehicle_socs(scenario, args)
-
-    # generate csv and json for all stations
-    generate_station_name_csv(scenario, args)
-    generate_station_name_json(scenario, args)
+    # # generate csv out of vehicle's socs
+    # generate_vehicle_socs(scenario, args)
+    #
+    # # generate csv and json for all stations
+    # generate_station_name_csv(scenario, args)
+    # generate_station_name_json(scenario, args)
+    with warnings.catch_warnings():
+        warnings.simplefilter('ignore', UserWarning)
+        generate_reports(scenario, vars(args).copy())
 
     # generate gc power overview
     generate_gc_power_overview_timeseries(scenario, args)
@@ -182,8 +185,8 @@ def generate(schedule, scenario, args):
         plt.gcf().set_size_inches(10, 10)
         plt.savefig(args.output_directory / "run_overview.png")
         plt.savefig(args.output_directory / "run_overview.pdf")
-        plt.close()
 
+    # calculate SOCs for each rotation
     rotation_infos = []
 
     negative_rotations = schedule.get_negative_rotations(scenario)
@@ -268,3 +271,5 @@ def generate(schedule, scenario, args):
                     csv_writer.writerow([key, round(value, 2), "€/year"])
                 else:
                     csv_writer.writerow([key, round(value, 2), "€"])
+
+    print("Plots and output files saved in " + str(args.output_directory))
