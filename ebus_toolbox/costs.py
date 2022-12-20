@@ -43,7 +43,7 @@ def calculate_costs(c_params, scenario, schedule, args):
             c_vehicles_vt = (schedule.vehicle_type_counts[v_type] *
                              (costs_vehicle + (c_params["vehicles"][v_type]["lifetime"] //
                                                c_params["batteries"]["lifetime_battery"]) *
-                             v_keys["capacity"] * c_params["batteries"]["cost_per_kWh"]))
+                              v_keys["capacity"] * c_params["batteries"]["cost_per_kWh"]))
             costs["c_vehicles"] += c_vehicles_vt
             # calculate annual cost of vehicles of this type, depending on their lifetime
             costs["c_vehicles_annual"] += c_vehicles_vt / c_params["vehicles"][v_type]["lifetime"]
@@ -71,17 +71,17 @@ def calculate_costs(c_params, scenario, schedule, args):
 
     # CHARGING INFRASTRUCTURE
     cs = schedule.scenario["constants"]["charging_stations"]
-    # depot charging stations
+    # depot charging stations - each charging bus generates one CS
     for csID in cs.values():
         if csID["type"] == "deps":
             costs["c_cs"] += c_params["cs"]["capex_deps_per_kW"] * csID["max_power"]
-    # opportunity charging stations
+    # opportunity charging stations - nr of CS depend on max nr of simultaneously occupied CS
     for gcID, gc_keys in gcs.items():
-        # get max. power of opps grid connector
-        gc = getattr(scenario, f"{gcID}_timeseries")
         if schedule.stations[gcID]["type"] == "opps":
-            costs["c_cs"] += c_params["cs"]["capex_opps_per_kW"] * vars(args)["cs_power_opps"] \
-                             * max(gc["# occupied CS"])
+            # get max. nr of occupied CS per grid connector
+            gc = getattr(scenario, f"{gcID}_timeseries")
+            costs["c_cs"] += (c_params["cs"]["capex_opps_per_kW"] * vars(args)["cs_power_opps"] *
+                              max(gc["# occupied CS"]))
     # calculate annual cost of charging stations, depending on their lifetime
     costs["c_cs_annual"] = costs["c_cs"] / c_params["cs"]["lifetime_cs"]
 
