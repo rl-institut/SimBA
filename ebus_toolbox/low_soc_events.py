@@ -3,13 +3,11 @@ from datetime import timedelta
 
 from ebus_toolbox.util import uncomment_json_file, get_buffer_time as get_buffer_time_spice_ev
 
-from ebus_toolbox.schedule_optimizer import ScheduleOptimizer
-
-
 class LowSocEvent:
+    event_counter=0
     def __init__(self, start_idx, end_idx, min_soc, stations, vehicle_id, trip, rotation,
                  stations_list,
-                 capacity, v_type, ch_type):
+                 capacity, v_type, ch_type,soc_curve):
         self.start_idx = start_idx
         self.end_idx = end_idx
         self.min_soc = min_soc
@@ -21,16 +19,18 @@ class LowSocEvent:
         self.capacity = capacity
         self.v_type = v_type
         self.ch_type = ch_type
+        self.event_counter=LowSocEvent.event_counter
+        LowSocEvent.event_counter += 1
+        self.soc_curve=soc_curve
 
 
-def get_low_soc_events(optimizer: ScheduleOptimizer, rotations=None, filter_standing_time=True,
+def get_low_soc_events(optimizer, rotations=None, filter_standing_time=True,
                        rel_soc=False, soc_data=None, **kwargs):
     if not rotations:
         rotations = optimizer.schedule.rotations
 
     soc_lower_thresh = kwargs.get("soc_lower_thresh", optimizer.config.min_soc)
     soc_upper_thresh = kwargs.get("soc_upper_thresh", optimizer.args.desired_soc_deps)
-
     # Create list of events which describe trips which end in a soc below zero
     # The event is bound by the lowest soc and an upper soc threshhold which is naturally 1
     # Properties before and after these points have no effect on the event itself, similar to
@@ -58,6 +58,8 @@ def get_low_soc_events(optimizer: ScheduleOptimizer, rotations=None, filter_stan
         if min_soc >= soc_lower_thresh_cur:
             count_electrified_rot += 1
         while min_soc < soc_lower_thresh_cur:
+            if LowSocEvent.event_counter==235:
+                print(optimizer.scenario)
             i = min_idx
             idx = [x[1] for x in reduced_list]
             while soc[i] < soc_upper_thresh:
@@ -98,7 +100,7 @@ def get_low_soc_events(optimizer: ScheduleOptimizer, rotations=None, filter_stan
                                 rotation=rot, stations_list=possible_stations_list,
                                 capacity=optimizer.schedule.vehicle_types[v_type][ch_type][
                                     'capacity'],
-                                v_type=v_type, ch_type=ch_type)
+                                v_type=v_type, ch_type=ch_type, soc_curve=soc[start:min_idx].copy())
 
             events.append(event)
             copy_list = reduced_list.copy()
@@ -135,7 +137,7 @@ def get_index_by_time(scenario, search_time):
     return idx
 
 
-def get_delta_soc(soc_over_time_curve, soc, time_delta, optimizer:ScheduleOptimizer):
+def get_delta_soc(soc_over_time_curve, soc, time_delta, optimizer):
     """ get expected soc lift for a given start_soc and time_delta."""
     # units for time_delta and time_curve are assumed to be the same, e.g. minutes
     # first element which is bigger than current soc
@@ -156,13 +158,14 @@ def get_delta_soc(soc_over_time_curve, soc, time_delta, optimizer:ScheduleOptimi
     return min(optimizer.args.desired_soc_opps, end_soc - start_soc)
 
 
-def evaluate(events: typing.Iterable[LowSocEvent], optimizer: ScheduleOptimizer, **kwargs):
+def evaluate(events: typing.Iterable[LowSocEvent], optimizer, **kwargs):
     """Analyse stations for "helpful" energy supply. Energy supply is helpful the minimal soc of an
      event is raised up to a minimal soc (probably zero). The supplied energy is approximated by
      loading power, standing time at a station, soc at station, minimal soc of the event"""
 
     soc_lower_thresh = kwargs.get("soc_lower_thresh", optimizer.config.min_soc)
     soc_upper_thresh = kwargs.get("soc_upper_thresh", optimizer.args.desired_soc_deps)
+    soc_data = kwargs.get("soc_data", optimizer.scenario.vehicle_socs)
 
     # electrified_station_set = kwargs.get("electrified_station_set", set())
 
@@ -172,10 +175,10 @@ def evaluate(events: typing.Iterable[LowSocEvent], optimizer: ScheduleOptimizer,
         for i, trip in enumerate(event.trip):
             # Station is only evaluated if station name is part of event stations
             # Only these stations showed potential in electrification, e.g enough standing time
-            if trip.arrival_name not in event["stations"]:
+            if trip.arrival_name not in event.stations:
                 continue
             idx = get_index_by_time(optimizer.scenario, trip.arrival_time, )
-            soc = optimizer.scenario.vehicle_socs[event.vehicle_id][idx]
+            soc = soc_data[event.vehicle_id][idx]
 
             # Potential is the minimal amount of
             delta_soc_pot = min(soc_upper_thresh - soc,
@@ -189,7 +192,7 @@ def evaluate(events: typing.Iterable[LowSocEvent], optimizer: ScheduleOptimizer,
                 standing_time_min = 0
 
             # energy_charging_potential = standing_time_min *60 * ch_power
-            e_charging_pot = get_delta_soc(soc_over_time, soc, standing_time_min, optimizer)\
+            e_charging_pot = get_delta_soc(soc_over_time, soc, standing_time_min, optimizer) \
                              * event.capacity
 
             # Potential is at max the minimum between the useful delta soc * capacity or the
@@ -198,8 +201,8 @@ def evaluate(events: typing.Iterable[LowSocEvent], optimizer: ScheduleOptimizer,
             try:
                 station_eval[trip.arrival_name] += delta_e_pot
             except KeyError:
-                station_eval[trip.arrival_name]
                 station_eval[trip.arrival_name] = delta_e_pot
+
 
     # ToDo can get true potential from decision tree but is it necessary?
     # # time_list = []
@@ -212,8 +215,72 @@ def evaluate(events: typing.Iterable[LowSocEvent], optimizer: ScheduleOptimizer,
     #             # decision_tree[str(electrified_station_set)]["children"].append(check_stations)
     #             continue
 
-        # time_list.append(standing_time / timedelta(minutes=1))
+    # time_list.append(standing_time / timedelta(minutes=1))
     # Sort by pot_sum
     station_eval = list(dict(sorted(station_eval.items(), key=lambda x: x[1])).items())
     station_eval.reverse()
     return station_eval
+
+
+def get_groups_from_events(events, not_possible_stations=None, could_not_be_electrified=None,
+                           optimizer=None):
+    """ First create simple list of station sets for single events.
+    #Electrified and other not possible to electrify stations should not connect groups"""
+
+    # Making sure default arguments are none and not mutable
+    if not not_possible_stations:
+        not_possible_stations = set()
+
+    if not could_not_be_electrified:
+        could_not_be_electrified = set()
+
+    possible_stations = [
+        {station for station in event.stations if station not in not_possible_stations}
+        for event
+        in events]
+    # If stations overlap join them
+    station_subsets = join_all_subsets(possible_stations)
+    event_groups = [[] for __ in range(len(station_subsets))]
+
+    # Group the events in the same manner as stations, so that the same amount of event groups are
+    # created as station subsets
+    for event in events:
+        for i, subset in enumerate(station_subsets):
+            # Every station from an event must share the same station sub_set. Therefore its enough
+            # to check only the first element
+            if len(event.stations) > 0:
+                if next(iter(event.stations)) in subset:
+                    event_groups[i].append(event)
+                    break
+        else:
+            if optimizer:
+                optimizer.logger.warning('Did not find rotation %s in any subset'
+                               'of possible electrifiable stations', event.rotation.id)
+                # this event will no show up in an event_group.
+                # therefore it needs to be put into this set
+            could_not_be_electrified.update([event.rotation.id])
+
+    groups = list(zip(event_groups, station_subsets))
+    return sorted(groups, key=lambda x: len(x[1]))
+
+
+def join_all_subsets(subsets):
+    """ join sets for as long as needed until no elements share any intersections"""
+    joined_subset = True
+    while joined_subset:
+        joined_subset, subsets = join_subsets(subsets)
+    return subsets
+
+
+def join_subsets(subsets: typing.Iterable[set]):
+    subsets = [s.copy() for s in subsets]
+    for i in range(len(subsets)):
+        for ii in range(len(subsets)):
+            if i == ii:
+                continue
+            intersec = subsets[i].intersection(subsets[ii])
+            if len(intersec) > 0:
+                subsets[i] = subsets[i].union(subsets[ii])
+                subsets.remove(subsets[ii])
+                return True, subsets
+    return False, subsets
