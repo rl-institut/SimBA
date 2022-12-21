@@ -19,8 +19,7 @@ import matplotlib.pyplot as plt
 
 
 import ebus_toolbox.station_optimizer
-from ebus_toolbox.low_soc_events import get_low_soc_events, get_delta_soc
-from src import scenario
+from ebus_toolbox.low_soc_events import get_low_soc_events, get_rotation_soc
 
 from ebus_toolbox.consumption import Consumption
 from ebus_toolbox.trip import Trip
@@ -57,6 +56,7 @@ def time_it(function, timers={}):
                 timers[key] = dict(time=0, calls=1)
                 timers[key]["time"] += delta_time
             return return_value
+
 
         return decorated_function
     sorted_timer = dict(sorted(timers.items(), key=lambda x: x[1]["time"] / x[1]["calls"]))
@@ -168,7 +168,7 @@ def run_optimization(config_path, sched=None, scen=None, this_args=None):
         LOGGER.error("Fast calc is not yet optimized for desired socs unequal to 1")
 
     optimizer = ebus_toolbox.station_optimizer.StationOptimizer(sched, scen, ARGS, CONFIG, LOGGER)
-    remove_impossible_rots = CONFIG.remove_impossible_rots
+
 
     # set battery and charging curves through config file if wished for
     optimizer.set_battery_and_charging_curves()
@@ -188,20 +188,30 @@ def run_optimization(config_path, sched=None, scen=None, this_args=None):
 
     # Remove none Values from socs in the vehicle_socs an
     optimizer.remove_none_socs()
+    if CONFIG.remove_impossible_rots:
+        neg_rots = optimizer.get_negative_rotations_all_electrified()
+        optimizer.config.exclusion_rots.update(neg_rots)
+        optimizer.schedule.rotations = {r: optimizer.schedule.rotations[r]
+                                        for r in optimizer.schedule.rotations if
+                                        r not in optimizer.config.exclusion_rots}
+        LOGGER.warning("%s negative rotations %s", len(neg_rots), neg_rots)
+
+
+
 
     if CONFIG.check_for_must_stations:
         must_stations = optimizer.get_must_stations_and_rebase(relative_soc=False)
         LOGGER.warning("%s must stations %s", len(must_stations), must_stations)
 
     LOGGER.debug("Starting greedy optimization")
-    ele_station_set = set()
     print_time()
     ele_stations, ele_station_set = optimizer.loop()
 
     print_time()
     ele_station_set = ele_station_set.union(must_include_set)
     LOGGER.debug("Functions took these times in seconds")
-    LOGGER.debug("%s Stations : %s", len(ele_station_set), ele_station_set)
+    LOGGER.debug("%s electrified stations : %s", len(ele_station_set), ele_station_set)
+    LOGGER.debug("%s total stations", len(ele_stations))
     LOGGER.debug(optimizer.could_not_be_electrified)
 
     scen.vehicle_socs = optimizer.timeseries_calc()
@@ -218,12 +228,13 @@ def run_optimization(config_path, sched=None, scen=None, this_args=None):
         json.dump(ele_stations, file, indent=2)
 
     LOGGER.debug("Spice EV is calculating optimized case as a complete scenario")
-    final_sched, final_scen, ele_station_set, ele_stations = optimizer.preprocessing_scenario(
+    _, __ = optimizer.preprocessing_scenario(
         electrified_stations=ele_stations, run_only_neg=False, cost_calc=True)
 
-    LOGGER.warning("Still negative rotations: %s", final_sched.get_negative_rotations(final_scen))
+    LOGGER.warning("Still negative rotations: %s", optimizer.schedule.
+                   get_negative_rotations(optimizer.scenario))
     print("Finished")
-    return final_sched, final_scen
+    return optimizer.schedule, optimizer.scenario
 
 
 @time_it
@@ -256,34 +267,6 @@ def plot_rot(rot_id, this_sched, this_scen, ax=None, rot_only=True):
     ax.plot(soc[start:end], linewidth=2.0)
     return ax
 
-@time_it
-def get_charging_time(trip1, trip2, args):
-    standing_time_min = (trip2.departure_time - trip1.arrival_time) \
-                        / timedelta(minutes=1)
-    buffer_time = (get_buffer_time(trip1) / timedelta(minutes=1))
-    standing_time_min -= buffer_time
-
-    if args.min_charging_time > standing_time_min:
-        return 0
-    return max(0, standing_time_min)
-
-
-@time_it
-def get_index_by_time(search_time, this_scen: scenario.Scenario):
-    start_time = this_scen.start_time
-    delta_time = timedelta(minutes=60 / this_scen.stepsPerHour)
-    idx = (search_time - start_time) // delta_time
-    return idx
-
-
-@time_it
-def get_rotation_soc(rot_id, this_sched, this_scen, soc_data: dict = None):
-    rot = this_sched.rotations[rot_id]
-    rot_start_idx = get_index_by_time(rot.departure_time, this_scen)
-    rot_end_idx = get_index_by_time(rot.arrival_time, this_scen)
-    if soc_data:
-        return soc_data[rot.vehicle_id], rot_start_idx, rot_end_idx
-    return this_scen.vehicle_socs[rot.vehicle_id], rot_start_idx, rot_end_idx
 
 
 @time_it
@@ -326,39 +309,6 @@ def run_schedule(this_sched, this_args, electrified_stations=None, cost_calc=Fal
 
 
 @time_it
-def charging_curve_to_soc_over_time(charging_curve, capacity, max_charge_from_grid=float('inf'),
-                                    time_step=0.1, efficiency=1):
-    """create charging curve as nested list of SOC, Power[kW] and capacity in [kWh]"""
-    # simple numeric creation of power over time --> to energy over time
-    normalized_curve = np.array([[soc, power / capacity] for soc, power in charging_curve])
-    soc = 0
-    time = 0
-    socs = []
-    times = []
-    while soc < ARGS.desired_soc_opps:
-        times.append(time)
-        socs.append(soc)
-        power1 = min(np.interp(soc, normalized_curve[:, 0], normalized_curve[:, 1]),
-                     max_charge_from_grid / capacity)
-        soc2 = soc + time_step / 60 * power1
-        power2 = min(np.interp(soc2, normalized_curve[:, 0], normalized_curve[:, 1]),
-                     max_charge_from_grid / capacity)
-        power = (power1 + power2) / 2 * efficiency
-        soc += time_step / 60 * power
-        time += time_step
-    # Fill the soc completely in last timestep
-    times.append(time)
-    socs.append(ARGS.desired_soc_opps)
-    return np.array((times, socs)).T
-
-
-@time_it
-def get_buffer_time(trip):
-    """  Return the buffer time as timedelta object"""
-    return timedelta(minutes=get_buffer_time_spice_ev(trip, ARGS.default_buffer_time_opps))
-
-
-@time_it
 def combs_unordered_no_putting_back(n: int, k: int):
     """ Returns amount of combinations for pulling k elements out of n, without putting elements
     back or looking at the order. this is equal to n over k
@@ -376,13 +326,8 @@ def combs_unordered_no_putting_back(n: int, k: int):
         return 0
 
 
-@time_it
-def get_vehicle(rot_id, this_sched):
-    return this_sched.rotations[rot_id].vehicle_id
 
 
-def get_vehicle_rots(rot_id, this_sched):
-    return [rot for rot in this_sched.rotations if rot_id == get_vehicle(rot, this_sched)]
 
 def toolbox_from_pickle(sched_name, scen_name, args_name):
     """ Load the 3 files from pickle"""

@@ -11,7 +11,7 @@ class LowSocEvent:
     event_counter = 0
 
     def __init__(self, start_idx, end_idx, min_soc, stations, vehicle_id, trip, rotation,
-                 stations_list, capacity, v_type, ch_type, soc_curve):
+                 stations_list, capacity, v_type, ch_type):
         self.start_idx = start_idx
         self.end_idx = end_idx
         self.min_soc = min_soc
@@ -77,8 +77,6 @@ def get_low_soc_events(optimizer, rotations=None, filter_standing_time=True,
         if min_soc >= soc_lower_thresh_cur:
             count_electrified_rot += 1
         while min_soc < soc_lower_thresh_cur:
-            if LowSocEvent.event_counter == 235:
-                print(optimizer.scenario)
             i = min_idx
             idx = [x[1] for x in reduced_list]
             while soc[i] < soc_upper_thresh:
@@ -171,6 +169,16 @@ def get_index_by_time(scenario, search_time):
     return idx
 
 
+def get_rotation_soc(rot_id, this_sched, this_scen, soc_data: dict = None):
+
+    rot = this_sched.rotations[rot_id]
+    rot_start_idx = get_index_by_time(rot.departure_time, this_scen)
+    rot_end_idx = get_index_by_time(rot.arrival_time, this_scen)
+    if soc_data:
+        return soc_data[rot.vehicle_id], rot_start_idx, rot_end_idx
+    return this_scen.vehicle_socs[rot.vehicle_id], rot_start_idx, rot_end_idx
+
+
 def get_delta_soc(soc_over_time_curve, soc, time_delta, optimizer):
     """get expected soc lift for a given start_soc and time_delta.
 
@@ -196,7 +204,8 @@ def get_delta_soc(soc_over_time_curve, soc, time_delta, optimizer):
 
     # make sure to limit delta soc to 1 if negative socs are given. They are possible during
     # the optimization process but will be continuously raised until they are >0.
-    return min(optimizer.args.desired_soc_opps, end_soc - start_soc)
+    return min(optimizer.args.desired_soc_opps, optimizer.args.desired_soc_opps-start_soc,
+               end_soc - start_soc)
 
 
 def evaluate(events: typing.Iterable[LowSocEvent], optimizer, **kwargs):
