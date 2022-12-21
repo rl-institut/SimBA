@@ -17,7 +17,7 @@ import logging
 import station_optimization
 
 
-class ScheduleOptimizer:
+class StationOptimizer:
     """ Class for schedule and station optimization"""
 
     def __init__(self, sched: schedule.Schedule, scen: scenario.Scenario, args,

@@ -18,7 +18,7 @@ import matplotlib
 import matplotlib.pyplot as plt
 
 
-import ebus_toolbox.schedule_optimizer
+import ebus_toolbox.station_optimizer
 from ebus_toolbox.low_soc_events import get_low_soc_events, get_delta_soc
 from src import scenario
 
@@ -167,7 +167,7 @@ def run_optimization(config_path, sched=None, scen=None, this_args=None):
     if ARGS.desired_soc_deps != 1 and CONFIG.opt_type == "quick":
         LOGGER.error("Fast calc is not yet optimized for desired socs unequal to 1")
 
-    optimizer = ebus_toolbox.schedule_optimizer.ScheduleOptimizer(sched, scen, ARGS, CONFIG, LOGGER)
+    optimizer = ebus_toolbox.station_optimizer.StationOptimizer(sched, scen, ARGS, CONFIG, LOGGER)
     remove_impossible_rots = CONFIG.remove_impossible_rots
 
     # set battery and charging curves through config file if wished for
