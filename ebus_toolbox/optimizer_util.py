@@ -8,13 +8,14 @@ import typing
 import warnings
 import configparser
 import json
-
 from copy import copy
 from datetime import timedelta, datetime
 from time import time
-import station_optimizer as stat_op
 import numpy as np
 from matplotlib import pyplot as plt
+
+if typing.TYPE_CHECKING:
+    from ebus_toolbox.station_optimizer import StationOptimizer
 
 from ebus_toolbox.consumption import Consumption
 from ebus_toolbox.costs import calculate_costs
@@ -22,8 +23,30 @@ from ebus_toolbox.trip import Trip
 from ebus_toolbox.util import get_buffer_time as get_buffer_time_spice_ev, uncomment_json_file
 
 
+class LowSocEvent:
+    """Class to gather information about a low soc event"""
+    event_counter = 0
+
+    def __init__(self, start_idx, end_idx, min_soc, stations, vehicle_id, trip, rot,
+                 stations_list, capacity, v_type, ch_type):
+        self.start_idx = start_idx
+        self.end_idx = end_idx
+        self.min_soc = min_soc
+        self.stations = stations
+        self.vehicle_id = vehicle_id
+        self.trip = trip
+        self.rotation = rot
+        self.stations_list = stations_list
+        self.capacity = capacity
+        self.v_type = v_type
+        self.ch_type = ch_type
+        self.event_counter = LowSocEvent.event_counter
+        LowSocEvent.event_counter += 1
+
+
 class OptimizerConfig:
     """Class for the configuration file"""
+
     def __init__(self):
         self.debug_level = None
         self.exclusion_rots = None
@@ -55,6 +78,37 @@ class OptimizerConfig:
         self.reduce_rots = None
         self.rots = None
         self.path = None
+
+
+def time_it(function, timers={}):
+    """decorator function to time the duration function calls
+    take and count how often they happen
+    :param function: function do be decorated
+    :type function: function
+    :param timers: storage for cumulated time and call number
+    :type timers: dict
+    :return: decorated function or timer if given function is None
+    :rtype function or dict
+
+    """
+    if function:
+        def decorated_function(*this_args, **kwargs):
+            key = function.__name__
+            start_time = time()
+            return_value = function(*this_args, **kwargs)
+            delta_time = time() - start_time
+            try:
+                timers[key]["time"] += delta_time
+                timers[key]["calls"] += 1
+            except KeyError:
+                timers[key] = dict(time=0, calls=1)
+                timers[key]["time"] += delta_time
+            return return_value
+
+        return decorated_function
+
+    sorted_timer = dict(sorted(timers.items(), key=lambda x: x[1]["time"] / x[1]["calls"]))
+    return sorted_timer
 
 
 def read_config(config_path):
@@ -176,7 +230,7 @@ def get_rotation_soc_util(rot_id, this_sched, this_scen, soc_data: dict = None):
     return this_scen.vehicle_socs[rot.vehicle_id], rot_start_idx, rot_end_idx
 
 
-def get_delta_soc(soc_over_time_curve, soc, time_delta, optimizer: stat_op.StationOptimizer):
+def get_delta_soc(soc_over_time_curve, soc, time_delta, optimizer: 'StationOptimizer'):
     """get expected soc lift for a given start_soc and time_delta.
 
     :param soc_over_time_curve: array with socs over time
@@ -205,8 +259,8 @@ def get_delta_soc(soc_over_time_curve, soc, time_delta, optimizer: stat_op.Stati
                end_soc - start_soc)
 
 
-def evaluate(events: typing.Iterable[stat_op.LowSocEvent],
-             optimizer: stat_op.StationOptimizer, **kwargs):
+def evaluate(events: typing.Iterable[LowSocEvent],
+             optimizer: 'StationOptimizer', **kwargs):
     """Analyse stations for "helpful" energy supply. Energy supply is helpful if the minimal soc of
     an event is raised (up to a minimal soc (probably zero)). The supplied energy is approximated
     by  loading power, standing time at a station, soc at station and minimal soc of the event
@@ -217,7 +271,6 @@ def evaluate(events: typing.Iterable[stat_op.LowSocEvent],
     :return: sorted list with the best station and its potential on index 0
     :rtype: list(str(station_id), float(potential))
     """
-
     soc_lower_thresh = kwargs.get("soc_lower_thresh", optimizer.config.min_soc)
     soc_upper_thresh = kwargs.get("soc_upper_thresh", optimizer.args.desired_soc_deps)
     soc_data = kwargs.get("soc_data", optimizer.scenario.vehicle_socs)
@@ -526,7 +579,7 @@ def preprocess_schedule(this_sched, this_args, electrified_stations=None):
     :param electrified_stations: dict of stations to be electrified
     :return: schedule and scenario to be simulated
     """
-    Trip.consumption =\
+    Trip.consumption = \
         Consumption(this_sched.vehicle_types,
                     outside_temperatures=this_args.outside_temperature_over_day_path,
                     level_of_loading_over_day=this_args.level_of_loading_over_day_path)
@@ -545,7 +598,9 @@ def print_time(start=[]):
     """
     if not start:
         start.append(time())
-    print(round(time() - start[0], 2), " seconds till start")
+    delta = round(time() - start[0], 2)
+    if delta > 0:
+        print(delta, " seconds till start")
 
 
 def plot_(data):

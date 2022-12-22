@@ -4,7 +4,6 @@
 from datetime import datetime
 import json
 from pathlib import Path
-from time import time
 import logging
 import shutil
 import matplotlib
@@ -14,36 +13,6 @@ import ebus_toolbox.optimizer_util as opt_util
 
 config = opt_util.OptimizerConfig()
 matplotlib.use("TkAgg")
-
-
-def time_it(function, timers={}):
-    """decorator function to time the duration function calls
-    take and count how often they happen
-    :param function: function do be decorated
-    :type function: function
-    :param timers: storage for cumulated time and call number
-    :type timers: dict
-    :return: decorated function or timer if given function is None
-    :rtype function or dict
-
-    """
-    if function:
-        def decorated_function(*this_args, **kwargs):
-            key = function.__name__
-            start_time = time()
-            return_value = function(*this_args, **kwargs)
-            delta_time = time() - start_time
-            try:
-                timers[key]["time"] += delta_time
-                timers[key]["calls"] += 1
-            except KeyError:
-                timers[key] = dict(time=0, calls=1)
-                timers[key]["time"] += delta_time
-            return return_value
-        return decorated_function
-
-    sorted_timer = dict(sorted(timers.items(), key=lambda x: x[1]["time"] / x[1]["calls"]))
-    return sorted_timer
 
 
 def setup_logger(this_args, conf):
@@ -83,8 +52,10 @@ def setup_logger(this_args, conf):
 
 def main():
     """ main call"""
+    opt_util.print_time()
     config_path = "./data/examples/optimizer.cfg"
     run_optimization(config_path)
+    opt_util.print_time()
 
 
 def prepare_filesystem(this_args, conf):
@@ -201,7 +172,7 @@ def run_optimization(config_path, sched=None, scen=None, this_args=None):
             logger.debug(event.rotation.id)
     with open(new_ele_stations_path, "w", encoding="utf-8", ) as file:
         json.dump(ele_stations, file, indent=2)
-
+    opt_util.print_time()
     logger.debug("Spice EV is calculating optimized case as a complete scenario")
     _, __ = optimizer.preprocessing_scenario(
         electrified_stations=ele_stations, run_only_neg=False, cost_calc=True)
@@ -209,8 +180,6 @@ def run_optimization(config_path, sched=None, scen=None, this_args=None):
     logger.warning("Still negative rotations: %s", optimizer.schedule.
                    get_negative_rotations(optimizer.scenario))
     print("Finished")
-    logger.debug(time_it(None))
-
     return optimizer.schedule, optimizer.scenario
 
 

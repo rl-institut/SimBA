@@ -170,6 +170,7 @@ class StationOptimizer:
             for stat in single_set:
                 self.electrify_station(stat, self.electrified_station_set)
 
+        self.logger.debug(util.time_it(None))
         return self.electrified_stations, self.electrified_station_set
 
     def get_negative_rotations_all_electrified(self, rel_soc=False):
@@ -707,6 +708,7 @@ class StationOptimizer:
                     time_step=0.1)
         self.soc_charge_curve_dict = soc_charge_curve_dict
 
+    @util.time_it
     def get_must_stations_and_rebase(self, relative_soc=False):
         """ Get the stations that must be electrified and put them into the electrified stations
         and an extra set of must stations
@@ -780,6 +782,7 @@ class StationOptimizer:
         idx = (search_time - start_time) // delta_time
         return idx
 
+    @util.time_it
     def get_trips(self, rot: rotation.Rotation, start_idx: int, end_idx: int):
         """ Get trips in a rotation from a start to an end index, if the arrival time is in between
          the start and end idx
@@ -800,6 +803,7 @@ class StationOptimizer:
 
         return trips
 
+    @util.time_it
     def get_time_by_index(self, idx):
         """Get the time for a given index.
 
@@ -812,6 +816,7 @@ class StationOptimizer:
         searched_time = start_time + delta_time * idx
         return searched_time
 
+    @util.time_it
     def get_low_soc_events(self, rotations=None, filter_standing_time=True,
                            rel_soc=False, soc_data=None, **kwargs):
         """ Gather low soc events below the config threshold.
@@ -898,13 +903,13 @@ class StationOptimizer:
                 cht = rot.vehicle_id.find("depb")
                 ch_type = (cht > 0) * "depb" + (cht <= 0) * "oppb"
                 v_type = rot.vehicle_id.split("_" + ch_type)[0]
-                event = LowSocEvent(start_idx=start, end_idx=min_idx,
-                                    min_soc=min_soc, stations=possible_stations,
-                                    vehicle_id=rot.vehicle_id, trip=trips,
-                                    rot=rot, stations_list=possible_stations_list,
-                                    capacity=self.schedule.vehicle_types[v_type][ch_type][
-                                        'capacity'],
-                                    v_type=v_type, ch_type=ch_type)
+                event = util.LowSocEvent(start_idx=start, end_idx=min_idx,
+                                         min_soc=min_soc, stations=possible_stations,
+                                         vehicle_id=rot.vehicle_id, trip=trips,
+                                         rot=rot, stations_list=possible_stations_list,
+                                         capacity=self.schedule.vehicle_types[v_type][ch_type][
+                                            'capacity'],
+                                         v_type=v_type, ch_type=ch_type)
 
                 events.append(event)
                 copy_list = reduced_list.copy()
@@ -916,24 +921,3 @@ class StationOptimizer:
                 else:
                     break
         return events
-
-
-class LowSocEvent:
-    """Class to gather information about a low soc event"""
-    event_counter = 0
-
-    def __init__(self, start_idx, end_idx, min_soc, stations, vehicle_id, trip, rot,
-                 stations_list, capacity, v_type, ch_type):
-        self.start_idx = start_idx
-        self.end_idx = end_idx
-        self.min_soc = min_soc
-        self.stations = stations
-        self.vehicle_id = vehicle_id
-        self.trip = trip
-        self.rotation = rot
-        self.stations_list = stations_list
-        self.capacity = capacity
-        self.v_type = v_type
-        self.ch_type = ch_type
-        self.event_counter = LowSocEvent.event_counter
-        LowSocEvent.event_counter += 1
