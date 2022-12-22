@@ -142,7 +142,7 @@ def get_charging_time(trip1, trip2, args):
 def get_buffer_time(trip, default_buffer_time_opps):
     """  Return the buffer time as timedelta object
     :param trip: trip object
-    :param default_buffer_time_opps:
+    :param default_buffer_time_opps: the default buffer time at opps charging stations
     :return: timedelta object for the buffer time
     """
     return timedelta(minutes=get_buffer_time_spice_ev(trip, default_buffer_time_opps))
@@ -179,11 +179,11 @@ def get_rotation_soc_util(rot_id, this_sched, this_scen, soc_data: dict = None):
 def get_delta_soc(soc_over_time_curve, soc, time_delta, optimizer: stat_op.StationOptimizer):
     """get expected soc lift for a given start_soc and time_delta.
 
-    :param soc_over_time_curve:
-    :param soc:
-    :param time_delta:
-    :param optimizer:
-    :return:
+    :param soc_over_time_curve: array with socs over time
+    :param soc: start socs
+    :param time_delta: time of charging
+    :param optimizer: optimizer object
+    :return: (float) the lift of the soc
     """
     # units for time_delta and time_curve are assumed to be the same, e.g. minutes
     # first element which is bigger than current soc
@@ -275,7 +275,7 @@ def get_groups_from_events(events, not_possible_stations=None, could_not_be_elec
     :param could_not_be_electrified: rotations to be discarded
     :param optimizer: StationOptimizer object
     :return: list((events, stations)) which give you events to optimize together with the stations
-    which might help them
+        which might help them
     """
 
     # making sure default arguments are none and not mutable
@@ -334,7 +334,7 @@ def join_subsets(subsets: typing.Iterable[set]):
 
     :param subsets: iterable of sets
     :return: boolean if joining subsets is finished (i.e. False if all subsets are connected
-     and thus far connected subsets
+        and thus far connected subsets
     """
     subsets = [s.copy() for s in subsets]
     for i in range(len(subsets)):
@@ -350,7 +350,14 @@ def join_subsets(subsets: typing.Iterable[set]):
 
 
 def toolbox_to_pickle(name, sched, scen, this_args):
-    """ Dump the 3 files to pickle files"""
+    """ Dump the 3 files to pickle files
+
+    :param name: base name of the files
+    :param sched: schedule object
+    :param scen: scenario object
+    :param this_args: args Namespace object
+    :return: Names of the created files
+    """
     args_name = "args_" + name + ".pickle"
     with open(args_name, "wb") as file:
         pickle.dump(this_args, file)
@@ -366,7 +373,16 @@ def toolbox_to_pickle(name, sched, scen, this_args):
 def charging_curve_to_soc_over_time(charging_curve, capacity, args,
                                     max_charge_from_grid=float('inf'),
                                     time_step=0.1, efficiency=1):
-    """create charging curve as nested list of SOC, Power[kW] and capacity in [kWh]"""
+    """ create charging curve as nested list of SOC, Power[kW] and capacity in [kWh]
+
+    :param charging_curve: the charging curve with power over soc
+    :param capacity: capacity of the vehicle
+    :param args: args namespace object for simulation arguments
+    :param max_charge_from_grid: maximum amount of charge from grid / connector
+    :param time_step: time step for simulation
+    :param efficiency: efficiency of charging
+    :return: np.array with soc over time
+    """
     # simple numeric creation of power over time --> to energy over time
     normalized_curve = np.array([[soc, power / capacity] for soc, power in charging_curve])
     soc = 0
@@ -391,7 +407,11 @@ def charging_curve_to_soc_over_time(charging_curve, capacity, args,
 
 
 def get_missing_energy(events):
-    """ Sum up all the missing energies of the given events"""
+    """ Sum up all the missing energies of the given events
+
+    :param events: events to be checked
+    :return: (float) missing energy
+    """
     missing_energy = 0
     for event in events:
         missing_energy += event.min_soc * event.capacity
@@ -399,7 +419,11 @@ def get_missing_energy(events):
 
 
 def stations_hash(stations_set):
-    """ Create a simple str as hash for a set of stations"""
+    """ Create a simple str as hash for a set of stations
+
+    :param stations_set: set of stations to be hashed
+    :return: hash string
+    """
     return str(sorted(list(stations_set)))
 
 
@@ -410,6 +434,7 @@ def combination_generator(iterable: typing.Iterable, amount: int):
     :param iterable: Any collection which can be cast to a list
     :param amount: Number of elements which should be drawn from iterable
     :type amount: int
+    :yields: list of items
     """
     iterable = list(iterable)
 
@@ -426,7 +451,13 @@ def combination_generator(iterable: typing.Iterable, amount: int):
 
 
 def toolbox_from_pickle(sched_name, scen_name, args_name):
-    """ Load the 3 files from pickle"""
+    """ Load the 3 files from pickle
+
+    :param sched_name: name of schedule file
+    :param scen_name: name of scenario file
+    :param args_name: name of args file
+    :return: schedule, scenario and args object
+    """
     with open(args_name, "rb") as file:
         this_args = pickle.load(file)
     with open(scen_name, "rb") as file:
@@ -454,7 +485,15 @@ def combs_unordered_no_putting_back(n: int, k: int):
 
 
 def run_schedule(this_sched, this_args, electrified_stations=None, cost_calc=False):
-    """Run a given schedule and electrify stations if need be"""
+    """Run a given schedule and electrify stations if need be
+    :param this_sched: schedule object
+    :param this_args: args namespace object
+    :param electrified_stations: dict of electrified stations. Default value None means no further
+        stations are electrified
+    :param cost_calc: should the cost be calculated
+    :raises SystemExit: in case of wrong cost calculation file
+    :return: schedule and scenario objects after spiceev simulation
+    """
     this_sched2 = copy(this_sched)
     this_sched2.stations = electrified_stations
     this_sched2, new_scen = preprocess_schedule(this_sched2, this_args,
@@ -500,22 +539,33 @@ def preprocess_schedule(this_sched, this_args, electrified_stations=None):
 
 
 def print_time(start=[]):
-    """ Print the time and automatically set start time to the first time the function getting
-    called"""
+    """Print the time and automatically set start time to the first time the function getting
+    called
+    :param start: list for storing times
+    """
     if not start:
         start.append(time())
     print(round(time() - start[0], 2), " seconds till start")
 
 
 def plot_(data):
-    """ Simple plot of data without having to create subplots"""
+    """ Simple plot of data without having to create subplots
+    :param data: data to be plotted
+    :return: axis of the plot """
     fig, axis = plt.subplots()
     axis.plot(data, linewidth=2.0)
     return axis
 
 
 def plot_rot(rot_id, this_sched, this_scen, axis=None, rot_only=True):
-    """ Simple plot of data without having to create subplots"""
+    """Simple plot of data without having to create subplots
+    :param rot_id: id of the rotation
+    :param this_sched: schedule object
+    :param this_scen: scenario object
+    :param axis: axis to be plotted on
+    :param rot_only: show only the rot or the whole vehicle socs
+    :return: axis of the plot
+    """
     soc, start, end = get_rotation_soc_util(rot_id, this_sched, this_scen)
     if not rot_only:
         start = 0

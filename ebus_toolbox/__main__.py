@@ -124,7 +124,7 @@ if __name__ == '__main__':
     util.set_options_from_config(args, check=True, verbose=False)
 
     args.output_directory = Path(args.output_directory) / \
-                            str(datetime.now().strftime("%Y-%m-%d-%H-%M-%S") + "_eBus_results")
+        str(datetime.now().strftime("%Y-%m-%d-%H-%M-%S") + "_eBus_results")
 
     # create subfolder for specific sim results with timestamp.
     # if folder doesnt exists, create folder.

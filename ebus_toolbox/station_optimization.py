@@ -23,9 +23,8 @@ def time_it(function, timers={}):
     :type function: function
     :param timers: storage for cumulated time and call number
     :type timers: dict
-    :return decorated function or timer if given function is None
+    :return: decorated function or timer if given function is None
     :rtype function or dict
-
 
     """
     if function:

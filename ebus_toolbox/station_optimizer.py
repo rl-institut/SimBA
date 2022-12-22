@@ -48,10 +48,9 @@ class StationOptimizer:
         """ Loops over every base group with the core of group optimization and handles deep or
         greedy arguments
 
-        :param opt_type: type of optimization. Default from optimizer object
         :param kwargs: arguments handled by the function and config.
         :return: tuple of the dict electrified_stations and the set electrified_station_set
-        in the optimal found case
+            in the optimal found case
         """
 
         node_choice = kwargs.get("node_choice", self.config.node_choice)
@@ -191,16 +190,16 @@ class StationOptimizer:
 
     def group_optimization(self, group, choose_station_function, track_not_possible_rots=True,
                            pre_optimized_set=None, **kwargs):
-        """Optimize a single group events
+        """Optimize a single group events and returns the electrified stations and a flag
 
         :param group: tuple of events and station_ids to be optimized together
         :param choose_station_function: function to be used for choosing the next function
         :param track_not_possible_rots: not possible tracks need to be tracked in the first run
         :param pre_optimized_set: set which was optimized before hand used as upper threshold for
-        optimization
+            optimization
         :param kwargs: internally used functionality
-        :return (electrified_stations if optimization continues, None if no further recursive calls
-        should happen, bool if further deep analysis should take place)
+        :return: Returns (electrified_stations if optimization continues, None if no further
+            recursive calls should happen, bool if further deep analysis should take place)
         :rtype (dict() or None, bool)
         """
         could_not_be_electrified = self.could_not_be_electrified
@@ -397,10 +396,10 @@ class StationOptimizer:
         :param rotations: Optional if not optimizer.schedule.rotations should be used
         :param soc_dict: Optional if not optimizer.scenario.vehicle_socs should be used
         :param ele_station_set: set to be electrified. Default None leads to using the
-        so far optimized optimizer.electrified_station_set
+            so far optimized optimizer.electrified_station_set
         :param soc_upper_thresh: optional if not optimizer.config.desired_soc_deps is used
         :param electrify_stations: dict of stations to be electrified
-        :return soc dict with lifted socs
+        :return: Returns soc dict with lifted socs
         :rtype dict()
         """
         if rotations is None:
@@ -476,8 +475,8 @@ class StationOptimizer:
         :param station_eval: list of  sorted station evaluation with list(station_id, pot)
         :param electrified_station_set: set of electrified stations
         :param pre_optimized_set: set of already optimized stations
-        :param missing_energy:
-        :return is the branch promising
+        :param missing_energy: the amount of energy missing in this branch
+        :return: is the branch promising
         :rtype bool
         """
 
@@ -519,7 +518,7 @@ class StationOptimizer:
         :param missing_energy: missing energy in this branch before electrification
         :param gens: dict of generators for brute force generation
         :return: combination of stations or None if no viable stations exists and
-        false since this function does not support recursive calling
+            false since this function does not support recursive calling
         """
 
         station_ids = [x[0] for x in station_eval]
@@ -552,9 +551,9 @@ class StationOptimizer:
 
         :param station_eval: list of  sorted station evaluation with list(station_id, pot)
         :param pre_optimized_set: set of optimized stations thus far
-        :param  missing energy in this branch before electrification
+        :param missing_energy: missing energy in this branch before electrification
         :return:a station to electrify or None if no viable stations exists and
-        false since this function does not support recursive calling
+            false since this function does not support recursive calling
         """
 
         # filter functions to stop simulating cases which have no hope of being optimal.
@@ -620,6 +619,7 @@ class StationOptimizer:
     def rebase_spice_ev(self):
         """ Rebase the scenario meaning configuring various variables according to the input data
         and running a spice ev simulation
+        :return: must_include_set and dict of electrified_stations
         """
         self.logger.debug("Spice EV Rebasing Scenario")
         must_include_set, ele_stations = self.preprocessing_scenario(
@@ -636,6 +636,7 @@ class StationOptimizer:
 
     def rebase_simple(self):
         """ Rebase the scenario meaning configuring various variables according to the input data
+        return: must_include_set and dict of electrified_stations
         """
         must_include_set = set()
         # electrify inclusion stations
@@ -651,10 +652,10 @@ class StationOptimizer:
                                cost_calc=False):
         """Prepare scenario and run schedule
         :param electrified_stations: optional dict of electrified stations to use in simulation.
-        Default None leads to using optimizer.electrified_stations
+            Default None leads to using optimizer.electrified_stations
         :param run_only_neg: should only negative rotations be simulated
         :param cost_calc: should costs be calculated
-        :return schedule, scenario, electrified_station_set, electrified_stations
+        :return: schedule, scenario, electrified_station_set, electrified_stations
         :rtype (schedule.Schedule, scenario.Scenario, set(), dict())
         """
         if electrified_stations is None:
@@ -816,18 +817,18 @@ class StationOptimizer:
         """ Gather low soc events below the config threshold.
 
         :param rotations: rotations to be searched for low soc events. Default None means whole
-        schedule is searched
+            schedule is searched
         :param filter_standing_time: Should the stations be filtered by standing time. True leads to
-        an output only stations with charging potential
+            an output only stations with charging potential
         :param rel_soc: Defines if the start soc should be seen as full even when not.
-        i.e. a drop from a rotation start soc from 0.1 to -0.3 is not critical since the start
-        soc from the rotation will be raised
-        If the rel_soc
-        is false, it means coupled rotations might be prone to errors due to impossible lifts.
+            i.e. a drop from a rotation start soc from 0.1 to -0.3 is not critical since the start
+            soc from the rotation will be raised
+            If the rel_soc
+            is false, it means coupled rotations might be prone to errors due to impossible lifts.
         :param soc_data: soc data to be used. Default None means the soc data from the optimizer
-        scenario is used
+            scenario is used
         :param kwargs: optional soc_lower_tresh or soc_upper_thresh if from optimizer differing
-        values should be used
+            values should be used
         :return: list(LowSocEvents)
         """
         if not rotations:

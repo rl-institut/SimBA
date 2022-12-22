@@ -50,7 +50,7 @@ def calculate_costs(c_params, scenario, schedule, args):
 
     # GRID CONNECTION POINTS
     gcs = schedule.scenario["constants"]["grid_connectors"]
-    c_transformer=0
+    c_transformer = 0
     for gcID, gc_keys in gcs.items():
         try:
             distance_transformer = schedule.stations[gcID]["distance_transformer"]
