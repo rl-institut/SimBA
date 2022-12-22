@@ -116,44 +116,44 @@ if __name__ == '__main__':
                         help="Use csv. data with 'hour' and level_of_loading' columns to set \
                         level of loading in case they are not in trips.csv")
 
-    ARGS = parser.parse_args()
+    args = parser.parse_args()
     # arguments relevant to SpiceEV, setting automatically to reduce clutter in config
-    ARGS.ALLOW_NEGATIVE_SOC = True
-    ARGS.attach_vehicle_soc = True
+    args.ALLOW_NEGATIVE_SOC = True
+    args.attach_vehicle_soc = True
 
-    util.set_options_from_config(ARGS, check=True, verbose=False)
+    util.set_options_from_config(args, check=True, verbose=False)
 
-    ARGS.output_directory = Path(ARGS.output_directory) / \
+    args.output_directory = Path(args.output_directory) / \
                             str(datetime.now().strftime("%Y-%m-%d-%H-%M-%S") + "_eBus_results")
 
     # create subfolder for specific sim results with timestamp.
     # if folder doesnt exists, create folder.
     # needs to happen after set_options_from_config since
     # args.output_directory can be overwritten by config
-    ARGS.output_directory.mkdir(parents=True, exist_ok=True)
+    args.output_directory.mkdir(parents=True, exist_ok=True)
 
-    if not ARGS.save_timeseries:
-        ARGS.save_timeseries = ARGS.output_directory / "simulation_spiceEV.csv"
-    if not ARGS.save_results:
-        ARGS.save_results = ARGS.output_directory / "simulation_spiceEV.json"
-    if not ARGS.save_soc:
-        ARGS.save_soc = ARGS.output_directory / "simulation_soc_spiceEV.csv"
+    if not args.save_timeseries:
+        args.save_timeseries = args.output_directory / "simulation_spiceEV.csv"
+    if not args.save_results:
+        args.save_results = args.output_directory / "simulation_spiceEV.json"
+    if not args.save_soc:
+        args.save_soc = args.output_directory / "simulation_soc_spiceEV.csv"
 
     # copy input files to output to ensure reproducibility
-    copy_list = [ARGS.config, ARGS.electrified_stations, ARGS.vehicle_types]
+    copy_list = [args.config, args.electrified_stations, args.vehicle_types]
 
     # only copy cost params if they exist
-    if ARGS.cost_parameters_file is not None:
-        copy_list.append(ARGS.cost_parameters_file)
+    if args.cost_parameters_file is not None:
+        copy_list.append(args.cost_parameters_file)
     for c_file in copy_list:
-        shutil.copy(str(c_file), str(ARGS.output_directory / Path(c_file).name))
+        shutil.copy(str(c_file), str(args.output_directory / Path(c_file).name))
 
-    util.save_version(Path(ARGS.output_directory / "program_version.txt"))
+    util.save_version(Path(args.output_directory / "program_version.txt"))
 
     # rename special options
-    ARGS.timing = ARGS.eta
+    args.timing = args.eta
 
-    if ARGS.input_schedule is None:
+    if args.input_schedule is None:
         raise SystemExit("The following argument is required: input_schedule")
 
-    simulate.simulate(ARGS)
+    simulate.simulate(args)
