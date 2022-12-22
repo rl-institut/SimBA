@@ -35,7 +35,7 @@ class StationOptimizer:
         with open(self.args.electrified_stations, "r", encoding="utf-8", ) as file:
             self.electrified_stations = json.load(file)
         self.base_stations = self.electrified_stations.copy()
-        self.base_electrified_station_set = self.electrified_station_set.copy()
+        self.base_electrified_station_set = set()
 
         # stations which are included can not be included again. Therefore they get into
         # the set of not possible stations together with excluded stations
@@ -59,7 +59,6 @@ class StationOptimizer:
         self.base_schedule = copy(self.schedule)
 
         self.base_stations = self.electrified_stations.copy()
-        self.base_electrified_station_set = self.electrified_station_set.copy()
         self.base_not_possible_stations = self.not_possible_stations.copy()
 
         # get events where soc fell below 0. The events contain info about the problematic
@@ -85,7 +84,7 @@ class StationOptimizer:
             self.logger.warning("Optimizing %s out of %s. This includes these Lines", group_nr + 1,
                                 len(groups))
             self.logger.warning(linien)
-            self.logger.warning("%s events", (len(events)))
+            self.logger.warning("%s events with %s stations", (len(events)), len(stations))
 
             # first run is always step by step
             self.group_optimization(group, self.choose_station_step_by_step,
@@ -119,7 +118,8 @@ class StationOptimizer:
             combinations = util.combs_unordered_no_putting_back(len(stations),
                                                                 len(list_greedy_sets[group_nr]) - 1)
             self.logger.debug("There are %s combinations with 1 station less than "
-                              "the current solution", combinations)
+                              "the current solution with %s stations out of %s", combinations,
+                              len(list_greedy_sets[group_nr]), len(stations))
 
             pre_optimized_set = list_greedy_sets[group_nr]
 
@@ -138,11 +138,19 @@ class StationOptimizer:
                 self.not_possible_stations = self.base_not_possible_stations.copy()
 
                 # create a new electrified set
-                new_stats, cont_loop = self.group_optimization(group, choice_func,
-                                                               track_not_possible_rots=False,
-                                                               pre_optimized_set=pre_optimized_set,
-                                                               events_remaining=[len(events)],
-                                                               **kwargs)
+                try:
+                    new_stats, cont_loop =\
+                        self.group_optimization(group, choice_func,
+                                                track_not_possible_rots=False,
+                                                pre_optimized_set=pre_optimized_set,
+                                                events_remaining=[len(events)],
+                                                **kwargs)
+                except util.SuboptimalSimulationException:
+                    print("suboptimal")
+                    continue
+                except util.AllCombinationsCheckedException:
+                    print("all checked")
+                    break
 
                 new_electrified_set = self.electrified_station_set
                 # if a new set was found, print it and save it in sols
@@ -202,6 +210,8 @@ class StationOptimizer:
         :return: Returns (electrified_stations if optimization continues, None if no further
             recursive calls should happen, bool if further deep analysis should take place)
         :rtype (dict() or None, bool)
+        :raise util.AllCombinationsCheckedException: If all combinations have been checked
+        :raise util.SuboptimalSimulationException: if a suboptimal Simulation has been identified
         """
         could_not_be_electrified = self.could_not_be_electrified
 
@@ -234,12 +244,28 @@ class StationOptimizer:
         # when the recursive call goes on a higher level eg. level 0 - level 1 - level 2 - level 1
         station_eval = util.evaluate(event_group, self, soc_data=kwargs["lifted_socs"])
 
-        # get rotations from event dict and calculate the missing energy
-        rotation_dict = {e.rotation.id: e.rotation for e in event_group}
         missing_energy = util.get_missing_energy(event_group)
         if missing_energy >= 0:
             self.logger.debug("Already electrified: Returning")
             return self.electrified_stations, True
+
+        # get rotations from event dict and calculate the missing energy
+        rotation_dict = {e.rotation.id: e.rotation for e in event_group}
+
+        self.expand_tree(station_eval)
+
+        # Check if the children are viable or not. If no children are viable this node is not
+        # viable itself for further inspection
+        # if the node is the root of the tree, i.e. no electrified stations yet, than all
+        # combinations have been checked
+        if not self.is_node_viable():
+            if len(self.electrified_station_set) == 0:
+                raise util.AllCombinationsCheckedException
+            node_name = util.stations_hash(self.electrified_station_set)
+            self.decision_tree[node_name]["viable"] = False
+            print("suboptimal after children node check")
+            raise util.SuboptimalSimulationException
+
 
         # get the best stations, brute or step_by_step
         best_station_ids, recursive = choose_station_function(station_eval,
@@ -247,6 +273,7 @@ class StationOptimizer:
                                                               missing_energy=missing_energy)
 
         stat_eval_dict = {stat_id[0]: stat_id[1] for stat_id in station_eval}
+
         if best_station_ids is None:
             self.logger.warning("No useful station found with %s rotations not electrified yet. "
                                 "Stopped after electrifying %s", events_remaining,
@@ -254,7 +281,8 @@ class StationOptimizer:
 
             if pre_optimized_set is None:
                 could_not_be_electrified.update(list(rotation_dict.keys()))
-                return None, False
+                print("1")
+                raise util.SuboptimalSimulationException
 
             # remove electrified stations in this run
             copied_set = self.electrified_station_set.copy()
@@ -264,7 +292,8 @@ class StationOptimizer:
             # overwrite with pre optimized set
             for stat in pre_optimized_set:
                 self.electrify_station(stat, self.electrified_station_set)
-            return None, False
+            print("2")
+            raise util.SuboptimalSimulationException
 
         self.logger.debug("%s, with first pot of %s", best_station_ids,
                           round(stat_eval_dict[best_station_ids[0]], 1))
@@ -315,7 +344,8 @@ class StationOptimizer:
         # some choice functions might not need a recursive call, they return here. recursive is set
         # by the choose_station_function
         if not recursive:
-            return None, True
+            print("not recursive")
+            raise util.SuboptimalSimulationException
 
         # check if the events can be divided into subgroups which are independent
         groups = util.get_groups_from_events(new_events, self.not_possible_stations,
@@ -334,8 +364,6 @@ class StationOptimizer:
 
             if new_stations is not None:
                 self.electrified_stations.update(new_stations)
-            else:
-                return None, True
 
             # if there is no pre optimized set function can return
             if pre_optimized_set is None:
@@ -352,7 +380,9 @@ class StationOptimizer:
                 if not self.is_branch_promising(station_eval, self.electrified_station_set,
                                                 pre_optimized_set, prune_missing_energy):
                     self.logger.debug("Branch pruned early")
-                    return None, True
+                    node_name=util.stations_hash(self.electrified_station_set)
+                    self.decision_tree[node_name]["viable"]=False
+                    raise util.SuboptimalSimulationException
 
         return self.electrified_stations, True
 
@@ -470,6 +500,31 @@ class StationOptimizer:
             soc_dict[rot.vehicle_id] = soc
         return soc_dict
 
+    def expand_tree(self, station_eval):
+        try:
+            parent_name=util.stations_hash(self.electrified_station_set)
+            self.decision_tree[parent_name]
+        except KeyError:
+            self.decision_tree[parent_name] = get_init_node()
+        for stat, ev_score in station_eval:
+            try:
+                node_name=util.stations_hash(self.electrified_station_set.union([stat]))
+                self.decision_tree[node_name]
+            except KeyError:
+                self.decision_tree[parent_name]["children"].append(node_name)
+                self.decision_tree[node_name] = {}
+                self.decision_tree[node_name]["viable"]=True
+                self.decision_tree[node_name]["missing_energy"] = None
+                self.decision_tree[node_name]["visit_counter"] = 0
+                self.decision_tree[node_name]["children"] = []
+
+    def is_node_viable(self):
+        parent_name = util.stations_hash(self.electrified_station_set)
+        for child in self.decision_tree[parent_name]["children"]:
+            if not self.decision_tree[child]["viable"]:
+                return False
+        return True
+
     def is_branch_promising(self, station_eval, electrified_station_set,
                             pre_optimized_set, missing_energy):
         """Quickly evaluates if following a branch is promising by summing up estimated potentials
@@ -498,15 +553,10 @@ class StationOptimizer:
         :rtype dict()
         """
         node_name = util.stations_hash(self.electrified_station_set)
-        try:
-            self.decision_tree[node_name]["missing_energy"] = delta_base_energy
-            self.decision_tree[node_name]["visit_counter"] += 1
-            # todo add is_viable
-            self.logger.debug("already visited")
-        except KeyError:
-            self.decision_tree[node_name] = {}
-            self.decision_tree[node_name]["missing_energy"] = delta_base_energy
-            self.decision_tree[node_name]["visit_counter"] = 1
+        self.decision_tree[node_name]["missing_energy"] = delta_base_energy
+        self.decision_tree[node_name]["visit_counter"] += 1
+        if self.decision_tree[node_name]["visit_counter"]>1:
+            self.logger.debug("already visited this node")
 
     def choose_station_brute(self, station_eval,
                              pre_optimized_set=None, missing_energy=0,
@@ -537,12 +587,18 @@ class StationOptimizer:
                 # potential>missing energy * 80%
                 potential = sum([station_eval_dict[stat] for stat in comb])
                 if potential > -missing_energy * self.config.estimation_threshold:
+                    self.decision_tree[node_name] = get_init_node()
                     return comb, False
                 else:
                     self.logger.debug("skipped %s since potential is too low %s %%", comb,
                                       round(potential / -missing_energy * 100, 0))
+                    try:
+                        self.decision_tree[node_name]["viable"] = False
+                    except KeyError:
+                        self.decision_tree[node_name]=get_init_node()
+                        self.decision_tree[node_name]["viable"] = False
         self.logger.debug("calculated all viable possibilities")
-        return None, False
+        raise util.AllCombinationsCheckedException
 
     def choose_station_step_by_step(self, station_eval,
                                     pre_optimized_set=None, missing_energy=0):
@@ -568,7 +624,9 @@ class StationOptimizer:
             if not self.is_branch_promising(station_eval, self.electrified_station_set,
                                             pre_optimized_set, missing_energy):
                 # best station id is none and do not go deeper in recursion
-                return None, False
+                node_name = util.stations_hash(self.electrified_station_set)
+                self.decision_tree[node_name]["viable"] = False
+                raise util.SuboptimalSimulationException
 
         min_nr_visited = float('inf')
         for stat_tuple in station_eval:
@@ -579,10 +637,12 @@ class StationOptimizer:
 
             if self.decision_tree is not None:
                 node_name = util.stations_hash(stats)
-                if node_name in self.decision_tree.keys():
+                if node_name in self.decision_tree.keys()\
+                        and self.decision_tree[node_name]["viable"]:
                     min_nr_visited = min(min_nr_visited,
                                          self.decision_tree[node_name]["visit_counter"])
-                    # if already checked skip to next one
+                    # if already checked skip to next one. I.e. do not give a station which it is
+                    # in the decision tree already
                     continue
             if station not in self.electrified_station_set:
                 best_station_id = station
@@ -598,7 +658,10 @@ class StationOptimizer:
             if self.decision_tree[util.stations_hash(stats)]["visit_counter"] == min_nr_visited:
                 best_station_id = station
                 return [best_station_id], True
-        return None, True
+
+        node_name = util.stations_hash(self.electrified_station_set)
+        self.decision_tree[node_name]["viable"] = False
+        raise util.SuboptimalSimulationException
 
     def set_battery_and_charging_curves(self):
         """ Create battery and charging curves for fast lookup
@@ -921,3 +984,12 @@ class StationOptimizer:
                 else:
                     break
         return events
+
+
+def get_init_node():
+    d = {}
+    d["viable"] = True
+    d["missing_energy"] = None
+    d["visit_counter"] = 0
+    d["children"] = []
+    return d

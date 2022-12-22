@@ -259,6 +259,13 @@ def get_delta_soc(soc_over_time_curve, soc, time_delta, optimizer: 'StationOptim
                end_soc - start_soc)
 
 
+class SuboptimalSimulationException(Exception):
+    pass
+
+class AllCombinationsCheckedException(Exception):
+    pass
+
+
 def evaluate(events: typing.Iterable[LowSocEvent],
              optimizer: 'StationOptimizer', **kwargs):
     """Analyse stations for "helpful" energy supply. Energy supply is helpful if the minimal soc of
