@@ -133,7 +133,8 @@ def run_optimization(config_path, sched=None, scen=None, this_args=None):
         # if no schedule was given as argument, make sure no scenario
         # and args input was given as well.
         assert sched == scen == this_args is None
-        sched, scen, this_args = opt_util.toolbox_from_pickle(conf.schedule, conf.scenario, conf.args)
+        sched, scen, this_args = opt_util.toolbox_from_pickle(conf.schedule,
+                                                              conf.scenario, conf.args)
     args = this_args
 
     # prepare Filesystem with folders and paths and copy config

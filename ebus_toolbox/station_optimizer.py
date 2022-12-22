@@ -920,6 +920,7 @@ class StationOptimizer:
 class LowSocEvent:
     """Class to gather information about a low soc event"""
     event_counter = 0
+
     def __init__(self, start_idx, end_idx, min_soc, stations, vehicle_id, trip, rot,
                  stations_list, capacity, v_type, ch_type):
         self.start_idx = start_idx
