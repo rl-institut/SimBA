@@ -125,18 +125,13 @@ def generate_gc_overview(schedule, scenario, args):
                 max_nr_cs = max(ts["# occupied CS"])
                 sum_of_cs_energy = sum(ts["sum CS power"]) * args.interval/60
 
-                # find the smallest use factors
-                use_factor_list = [0] * (max(ts["# occupied CS"]) + 1)
-                for v in ts["# occupied CS"]:
-                    use_factor_list[v] += 1
-                use_factors = []
-                for _ in range(3):
-                    minimum = min(use_factor_list)
-                    for i, v in enumerate(use_factor_list):
-                        if minimum == v:
-                            use_factors.append(i)
-                            use_factor_list[i] = float('inf')
-                            break
+                # use factors: to which percentage of time are the three least used stations in use
+                least_used_cs = [max_nr_cs, max_nr_cs-1, max_nr_cs-2]
+                use_factors = [ts["# occupied CS"].count(least_used_cs[i])/
+                                   len(ts["# occupied CS"]) for i in range(3)]
+                for i in range(3):
+                    if least_used_cs[i] < 1:
+                        use_factors[i] = None
             else:
                 max_gc_power = 0
                 max_nr_cs = 0
