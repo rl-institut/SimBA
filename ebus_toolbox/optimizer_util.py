@@ -6,6 +6,9 @@ import pickle
 import sys
 import typing
 import warnings
+import configparser
+import json
+
 from copy import copy
 from datetime import timedelta, datetime
 from time import time
@@ -20,6 +23,7 @@ from ebus_toolbox.util import get_buffer_time as get_buffer_time_spice_ev, uncom
 
 
 class OptimizerConfig:
+    """Class for the configuration file"""
     def __init__(self):
         self.debug_level = None
         self.exclusion_rots = None
@@ -51,13 +55,13 @@ class OptimizerConfig:
         self.reduce_rots = None
         self.rots = None
         self.path = None
-        pass
 
 
 def read_config(config_path):
-    import configparser
-    import json
-
+    """ Read the config path to a config object
+    :param config_path: path to file
+    :return: config object
+    """
     config_parser = configparser.ConfigParser()
     config_parser.sections()
     config_parser.read(config_path)
@@ -66,31 +70,30 @@ def read_config(config_path):
     conf.path = config_path
 
     default = config_parser["DEFAULT"]
-    conf.debug_level = int(default.get("debug_level", 0))
+    conf.debug_level = int(default.get("debug_level", "0"))
     sce = config_parser["SCENARIO"]
     conf.exclusion_rots = set(json.loads(sce.get("exclusion_rots", "[]")))
     conf.exclusion_stations = set(json.loads(sce.get("exclusion_stations", "[]")))
     conf.inclusion_stations = set(json.loads(sce.get("inclusion_stations", "[]")))
     conf.standard_opp_station = dict(json.loads(sce.get("standard_opp_station", "{}")))
 
-    pi = config_parser["PICKLE"]
-
-    conf.schedule = pi.get("schedule", "")
-    conf.scenario = pi.get("scenario", "")
-    conf.args = pi.get("args", "")
+    pick = config_parser["PICKLE"]
+    conf.schedule = pick.get("schedule", "")
+    conf.scenario = pick.get("scenario", "")
+    conf.args = pick.get("args", "")
 
     vehicle = config_parser["VEHICLE"]
-    conf.charge_eff = float(vehicle.get("charge_eff", 0.95))
-    conf.battery_capacity = float(vehicle.get("battery_capacity", 0))
+    conf.charge_eff = float(vehicle.get("charge_eff", "0.95"))
+    conf.battery_capacity = float(vehicle.get("battery_capacity", "0"))
     if conf.battery_capacity == 0:
         conf.battery_capacity = None
     conf.charging_curve = json.loads(vehicle.get("charging_curve", "[]"))
     if not conf.charging_curve:
         conf.charging_curve = None
-    conf.charging_power = float(vehicle.get("charging_power", 0))
+    conf.charging_power = float(vehicle.get("charging_power", "0"))
     if conf.charging_power == 0:
         conf.charging_power = None
-    conf.min_soc = float(vehicle.get("min_soc", 0.0))
+    conf.min_soc = float(vehicle.get("min_soc", "0.0"))
 
     optimizer = config_parser["OPTIMIZER"]
     conf.solver = optimizer.get("solver", "spiceev")
@@ -102,9 +105,9 @@ def read_config(config_path):
     conf.opt_type = optimizer.get("opt_type", "greedy")
     conf.remove_impossible_rots = optimizer.getboolean("remove_impossible_rots", False)
     conf.node_choice = optimizer.get("node_choice", "step-by-step")
-    conf.max_brute_loop = int(optimizer.get("max_brute_loop", 200))
+    conf.max_brute_loop = int(optimizer.get("max_brute_loop", "20"))
     conf.run_only_neg = optimizer.getboolean("run_only_neg", False)
-    conf.estimation_threshold = float(optimizer.get("estimation_threshold", 0.8))
+    conf.estimation_threshold = float(optimizer.get("estimation_threshold", "0.8"))
     conf.output_path = optimizer.get("output_path")
     conf.check_for_must_stations = optimizer.getboolean("check_for_must_stations", True)
 
@@ -158,6 +161,13 @@ def get_index_by_time(scenario, search_time):
 
 
 def get_rotation_soc_util(rot_id, this_sched, this_scen, soc_data: dict = None):
+    """Gets you the soc object with start and end index for a given rotation id
+    :param rot_id: rotation_id
+    :param this_sched: schedule object contain rotation information
+    :param this_scen: scenario object containing the soc data
+    :param soc_data: optional soc_data if not the scenario data should be used
+    :return: tuple with soc array, start index and end index
+    """
     rot = this_sched.rotations[rot_id]
     rot_start_idx = get_index_by_time(this_scen, rot.departure_time)
     rot_end_idx = get_index_by_time(this_scen, rot.arrival_time)
@@ -201,7 +211,7 @@ def evaluate(events: typing.Iterable[stat_op.LowSocEvent],
     an event is raised (up to a minimal soc (probably zero)). The supplied energy is approximated
     by  loading power, standing time at a station, soc at station and minimal soc of the event
 
-    :param events: events to be evaulated
+    :param events: events to be evaluated
     :param optimizer: StationOptimizer object with scenario and schedule data
     :param kwargs: optional overwriting of soc_lower_thresh, soc_upper_thresh or soc_data
     :return: sorted list with the best station and its potential on index 0
@@ -269,10 +279,10 @@ def get_groups_from_events(events, not_possible_stations=None, could_not_be_elec
     """
 
     # making sure default arguments are none and not mutable
-    if not not_possible_stations:
+    if not_possible_stations is None:
         not_possible_stations = set()
 
-    if not could_not_be_electrified:
+    if could_not_be_electrified is None:
         could_not_be_electrified = set()
 
     possible_stations = [
@@ -342,14 +352,14 @@ def join_subsets(subsets: typing.Iterable[set]):
 def toolbox_to_pickle(name, sched, scen, this_args):
     """ Dump the 3 files to pickle files"""
     args_name = "args_" + name + ".pickle"
-    with open(args_name, "wb") as f:
-        pickle.dump(this_args, f)
+    with open(args_name, "wb") as file:
+        pickle.dump(this_args, file)
     scen_name = "scenario_" + name + ".pickle"
-    with open(scen_name, "wb") as f:
-        pickle.dump(scen, f)
+    with open(scen_name, "wb") as file:
+        pickle.dump(scen, file)
     sched_name = "schedule_" + name + ".pickle"
-    with open(sched_name, "wb") as f:
-        pickle.dump(sched, f)
+    with open(sched_name, "wb") as file:
+        pickle.dump(sched, file)
     return sched_name, scen_name, args_name
 
 
@@ -360,11 +370,11 @@ def charging_curve_to_soc_over_time(charging_curve, capacity, args,
     # simple numeric creation of power over time --> to energy over time
     normalized_curve = np.array([[soc, power / capacity] for soc, power in charging_curve])
     soc = 0
-    time = 0
+    charge_time = 0
     socs = []
     times = []
     while soc < args.desired_soc_opps:
-        times.append(time)
+        times.append(charge_time)
         socs.append(soc)
         power1 = min(np.interp(soc, normalized_curve[:, 0], normalized_curve[:, 1]),
                      max_charge_from_grid / capacity)
@@ -373,9 +383,9 @@ def charging_curve_to_soc_over_time(charging_curve, capacity, args,
                      max_charge_from_grid / capacity)
         power = (power1 + power2) / 2 * efficiency
         soc += time_step / 60 * power
-        time += time_step
+        charge_time += time_step
     # fill the soc completely in last time step
-    times.append(time)
+    times.append(charge_time)
     socs.append(args.desired_soc_opps)
     return np.array((times, socs)).T
 
@@ -417,12 +427,12 @@ def combination_generator(iterable: typing.Iterable, amount: int):
 
 def toolbox_from_pickle(sched_name, scen_name, args_name):
     """ Load the 3 files from pickle"""
-    with open(args_name, "rb") as f:
-        this_args = pickle.load(f)
-    with open(scen_name, "rb") as f:
-        scen = pickle.load(f)
-    with open(sched_name, "rb") as f:
-        sched = pickle.load(f)
+    with open(args_name, "rb") as file:
+        this_args = pickle.load(file)
+    with open(scen_name, "rb") as file:
+        scen = pickle.load(file)
+    with open(sched_name, "rb") as file:
+        sched = pickle.load(file)
     return sched, scen, this_args
 
 
@@ -449,7 +459,7 @@ def run_schedule(this_sched, this_args, electrified_stations=None, cost_calc=Fal
     this_sched2.stations = electrified_stations
     this_sched2, new_scen = preprocess_schedule(this_sched2, this_args,
                                                 electrified_stations=electrified_stations)
-    # Dont print output from spice ev to reduce clutter
+    # do not print output from spice ev to reduce clutter
     sys.stdout = open(os.devnull, 'w')
 
     with warnings.catch_warnings():
@@ -459,8 +469,8 @@ def run_schedule(this_sched, this_args, electrified_stations=None, cost_calc=Fal
     if this_args.cost_calculation and cost_calc:
         # cost calculation following directly after simulation
         try:
-            with open(this_args.cost_parameters_file, encoding='utf-8') as f:
-                cost_parameters_file = uncomment_json_file(f)
+            with open(this_args.cost_parameters_file, encoding='utf-8') as file:
+                cost_parameters_file = uncomment_json_file(file)
         except FileNotFoundError:
             raise SystemExit(f"Path to cost parameters ({this_args.cost_parameters_file}) "
                              "does not exist. Exiting...")
@@ -469,9 +479,18 @@ def run_schedule(this_sched, this_args, electrified_stations=None, cost_calc=Fal
 
 
 def preprocess_schedule(this_sched, this_args, electrified_stations=None):
-    Trip.consumption = Consumption(this_sched.vehicle_types,
-                                   outside_temperatures=this_args.outside_temperature_over_day_path,
-                                   level_of_loading_over_day=this_args.level_of_loading_over_day_path)
+    """ Prepare the schedule by calculating consumption, setting elctrified stations and assigning
+    vehicles
+
+    :param this_sched: schedule containing the rotations
+    :param this_args: arguments for simulation
+    :param electrified_stations: dict of stations to be electrified
+    :return: schedule and scenario to be simulated
+    """
+    Trip.consumption =\
+        Consumption(this_sched.vehicle_types,
+                    outside_temperatures=this_args.outside_temperature_over_day_path,
+                    level_of_loading_over_day=this_args.level_of_loading_over_day_path)
 
     this_sched.stations = electrified_stations
     this_sched.calculate_consumption()
@@ -490,20 +509,20 @@ def print_time(start=[]):
 
 def plot_(data):
     """ Simple plot of data without having to create subplots"""
-    fig, ax = plt.subplots()
-    ax.plot(data, linewidth=2.0)
-    return ax
+    fig, axis = plt.subplots()
+    axis.plot(data, linewidth=2.0)
+    return axis
 
 
-def plot_rot(rot_id, this_sched, this_scen, ax=None, rot_only=True):
+def plot_rot(rot_id, this_sched, this_scen, axis=None, rot_only=True):
     """ Simple plot of data without having to create subplots"""
     soc, start, end = get_rotation_soc_util(rot_id, this_sched, this_scen)
     if not rot_only:
         start = 0
         end = -1
-    if ax is None:
-        fig, ax = plt.subplots()
-        ax.plot(soc[start:end], linewidth=2.0)
-        return ax
-    ax.plot(soc[start:end], linewidth=2.0)
-    return ax
+    if axis is None:
+        fig, axis = plt.subplots()
+        axis.plot(soc[start:end], linewidth=2.0)
+        return axis
+    axis.plot(soc[start:end], linewidth=2.0)
+    return axis
