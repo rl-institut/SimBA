@@ -448,7 +448,7 @@ class StationOptimizer:
         if electrify_stations is None:
             electrify_stations = set()
         ele_stations = {*ele_station_set, *electrify_stations}
-        soc_dict = copy(soc_dict)
+        soc_dict = deepcopy(soc_dict)
 
         for rot in rotations:
             ch_type = (rot.vehicle_id.find("oppb") > 0) * "oppb" + (
@@ -789,8 +789,9 @@ class StationOptimizer:
         electrified_station_set_all = set(stats)
         must_stations = set()
         print(f"Electrifying {len(electrified_station_set_all)} stations minus one", )
-        for station in electrified_station_set_all:
+        for station in sorted(electrified_station_set_all):
             electrified_station_set = electrified_station_set_all.difference([station])
+
             vehicle_socs = self.timeseries_calc(electrify_stations=electrified_station_set)
             soc_min = 1
             for rot in self.schedule.rotations:
