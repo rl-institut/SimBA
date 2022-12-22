@@ -68,8 +68,8 @@ def generate_gc_overview(schedule, scenario, args):
 
                 # use factors: to which percentage of time are the three least used stations in use
                 least_used_cs = [max_nr_cs, max_nr_cs-1, max_nr_cs-2]
-                use_factors = [ts["# occupied CS"].count(least_used_cs[i])/
-                                   len(ts["# occupied CS"]) for i in range(3)]
+                use_factors = [ts["# occupied CS"].count(least_used_cs[i]) /
+                               len(ts["# occupied CS"]) for i in range(3)]
                 for i in range(3):
                     if least_used_cs[i] < 1:
                         use_factors[i] = None
