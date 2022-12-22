@@ -636,7 +636,7 @@ class StationOptimizer:
 
     def rebase_simple(self):
         """ Rebase the scenario meaning configuring various variables according to the input data
-        return: must_include_set and dict of electrified_stations
+        :return: must_include_set and dict of electrified_stations
         """
         must_include_set = set()
         # electrify inclusion stations
