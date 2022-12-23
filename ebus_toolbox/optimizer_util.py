@@ -118,7 +118,7 @@ def read_config(config_path):
     """
     config_parser = configparser.ConfigParser()
     config_parser.sections()
-    config_parser.read(config_path)
+    config_parser.read(config_path, encoding="utf-8")
 
     conf = OptimizerConfig()
     conf.path = config_path
@@ -265,7 +265,7 @@ class SuboptimalSimulationException(Exception):
 class AllCombinationsCheckedException(Exception):
     pass
 
-
+@time_it
 def evaluate(events: typing.Iterable[LowSocEvent],
              optimizer: 'StationOptimizer', **kwargs):
     """Analyse stations for "helpful" energy supply. Energy supply is helpful if the minimal soc of

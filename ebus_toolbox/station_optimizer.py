@@ -4,6 +4,7 @@ import logging
 import pickle
 from copy import deepcopy, copy
 from datetime import datetime, timedelta
+from time import time
 from pathlib import Path
 
 import numpy as np
@@ -56,6 +57,8 @@ class StationOptimizer:
 
         node_choice = kwargs.get("node_choice", self.config.node_choice)
         opt_type = kwargs.get("opt_type", self.config.opt_type)
+
+        self.scenario.vehicle_socs = self.timeseries_calc(electrify_stations=self.must_include_set)
         self.base_scenario = copy(self.scenario)
         self.base_schedule = copy(self.schedule)
 
@@ -69,7 +72,7 @@ class StationOptimizer:
 
         # check if the events can be divided into subgroups which are independent
         # this makes optimization in smaller groups possible
-        groups =\
+        groups = \
             util.get_groups_from_events(base_events, self.not_possible_stations,
                                         could_not_be_electrified=self.could_not_be_electrified,
                                         optimizer=self)
@@ -82,6 +85,7 @@ class StationOptimizer:
 
         # baseline greedy optimization
         # base line is created simply by not having a decision tree and not a pre optimized_set yet
+        util.print_time()
         for group_nr, group in enumerate(groups[:]):
             events, stations = group
             self.current_tree = self.decision_trees[group_nr]
@@ -109,13 +113,11 @@ class StationOptimizer:
                     self.electrify_station(stat, self.electrified_station_set)
             return self.electrified_stations, self.electrified_station_set
         self.logger.warning("Starting deep analysis with mode: %s", self.config.node_choice)
-
+        util.print_time()
         # from here on only for deep analysis
         for group_nr, group in enumerate(groups[:]):
             events, stations = group
             sols = []
-            i = 0
-            cont_loop = True
             self.current_tree = self.decision_trees[group_nr]
             if node_choice == "brute":
                 choice_func = self.choose_station_brute
@@ -129,34 +131,37 @@ class StationOptimizer:
                               len(list_greedy_sets[group_nr]), len(stations))
 
             pre_optimized_set = list_greedy_sets[group_nr]
-            while i < self.config.max_brute_loop and cont_loop:
+            for i in range(self.config.max_brute_loop):
                 i += 1
                 if i % 10 == 0:
                     print(len(self.current_tree), " nodes checked")
                     print(f"Optimal solution has length {len(pre_optimized_set)}")
+
                 self.electrified_stations = self.base_stations.copy()
                 self.electrified_station_set = self.base_electrified_station_set.copy()
                 self.scenario = copy(self.base_scenario)
                 self.schedule = copy(self.base_schedule)
 
                 self.scenario.vehicle_socs = deepcopy(self.base_scenario.vehicle_socs)
-                self.schedule.rotations = deepcopy(self.base_schedule.rotations)
+                if self.config.solver == "spiceev":
+                    self.schedule.rotations = deepcopy(self.base_schedule.rotations)
                 self.not_possible_stations = self.base_not_possible_stations.copy()
 
                 # create a new electrified set
                 try:
-                    new_stats, cont_loop =\
+
+                    new_stats = \
                         self.group_optimization(group, choice_func,
                                                 track_not_possible_rots=False,
                                                 pre_optimized_set=pre_optimized_set,
                                                 events_remaining=[len(events)],
                                                 **kwargs)
+
                     # The terminal node is checked therefore not viable anymore
                     node_name = util.stations_hash(self.electrified_station_set)
                     self.current_tree[node_name]["viable"] = False
-
+                    self.current_tree[node_name]["completed"] = True
                 except util.SuboptimalSimulationException:
-                    print("suboptimal")
                     continue
                 except util.AllCombinationsCheckedException:
                     print("all checked")
@@ -172,11 +177,14 @@ class StationOptimizer:
                     if len(new_electrified_set) < len(pre_optimized_set):
                         list_greedy_sets[group_nr] = new_electrified_set.copy()
                         pre_optimized_set = new_electrified_set.copy()
+            else:
+                print(f"Ran all {self.config.max_brute_loop} loops")
 
             self.logger.debug("All solutions for this group: %s", sols)
             self.logger.debug("Optimized with %s stations out of %s", len(pre_optimized_set),
                               len(stations))
 
+        util.print_time()
         # saving decision tree only in case of deep analysis
         if self.config.save_decision_tree:
             with open(self.args.output_directory / Path("decision_tree.pickle"), "wb") as file:
@@ -188,7 +196,7 @@ class StationOptimizer:
             for stat in single_set:
                 self.electrify_station(stat, self.electrified_station_set)
 
-        self.logger.debug(util.time_it(None))
+        print(util.time_it(None))
         return self.electrified_stations, self.electrified_station_set
 
     def get_negative_rotations_all_electrified(self, rel_soc=False):
@@ -207,6 +215,7 @@ class StationOptimizer:
         new_events = self.get_low_soc_events(soc_data=vehicle_socs)
         return {event.rotation.id for event in new_events}
 
+    @util.time_it
     def group_optimization(self, group, choose_station_function, track_not_possible_rots=True,
                            pre_optimized_set=None, **kwargs):
         """Optimize a single group events and returns the electrified stations and a flag
@@ -257,7 +266,7 @@ class StationOptimizer:
         missing_energy = util.get_missing_energy(event_group)
         if missing_energy >= 0:
             self.logger.debug("Already electrified: Returning")
-            return self.electrified_stations, True
+            return self.electrified_stations
 
         # get rotations from event dict and calculate the missing energy
         rotation_dict = {e.rotation.id: e.rotation for e in event_group}
@@ -272,11 +281,9 @@ class StationOptimizer:
             node_name = util.stations_hash(self.electrified_station_set)
             self.current_tree[node_name]["viable"] = False
             if len(self.electrified_station_set) == 0:
-                a=1
+                a = 1
                 raise util.AllCombinationsCheckedException
-            print("suboptimal after children node check")
             raise util.SuboptimalSimulationException
-
 
         # get the best stations, brute or step_by_step
         best_station_ids, recursive = choose_station_function(station_eval,
@@ -287,6 +294,7 @@ class StationOptimizer:
 
         if best_station_ids is None:
             print("depreceated part not happening anymore")
+            raise Exception
             # self.logger.warning("No useful station found with %s rotations not electrified yet. "
             #                     "Stopped after electrifying %s", events_remaining,
             #                     len(self.electrified_station_set))
@@ -317,13 +325,12 @@ class StationOptimizer:
         event_rotations = {event.rotation for event in event_group}
 
         # copy scen and sched
-        self.scenario = copy(self.base_scenario)
-        self.schedule = copy(self.base_schedule)
+        self.copy_scen_sched()
 
         if solver == "quick":
             # quick calculation has to electrify everything in one step,
             # or the lifting of socs is not correct
-            self.scenario.vehicle_socs = deepcopy(self.base_scenario.vehicle_socs)
+            self.deepcopy_socs()
             self.scenario.vehicle_socs = self.timeseries_calc(event_rotations,
                                                               electrify_stations=best_station_ids)
         else:
@@ -352,11 +359,10 @@ class StationOptimizer:
 
         # everything electrified
         if delta_energy >= 0:
-            return self.electrified_stations, True
+            return self.electrified_stations
         # some choice functions might not need a recursive call, they return here. recursive is set
         # by the choose_station_function
         if not recursive:
-            print("not recu")
             raise util.SuboptimalSimulationException
 
         # check if the events can be divided into subgroups which are independent
@@ -368,7 +374,7 @@ class StationOptimizer:
             this_tree = tree_position.copy()
             this_tree.append(k + 1)
             kwargs["tree_position"] = this_tree
-            new_stations, _ = \
+            new_stations = \
                 self.group_optimization(this_group, choose_station_function,
                                         track_not_possible_rots=track_not_possible_rots,
                                         pre_optimized_set=pre_optimized_set,
@@ -392,11 +398,20 @@ class StationOptimizer:
                 if not self.is_branch_promising(station_eval, self.electrified_station_set,
                                                 pre_optimized_set, prune_missing_energy):
                     self.logger.debug("Branch pruned early")
-                    node_name=util.stations_hash(self.electrified_station_set)
-                    self.current_tree[node_name]["viable"]=False
+                    node_name = util.stations_hash(self.electrified_station_set)
+                    self.current_tree[node_name]["viable"] = False
                     raise util.SuboptimalSimulationException
 
-        return self.electrified_stations, True
+        return self.electrified_stations
+
+    @util.time_it
+    def deepcopy_socs(self):
+        self.scenario.vehicle_socs = deepcopy(self.base_scenario.vehicle_socs)
+
+    @util.time_it
+    def copy_scen_sched(self):
+        self.scenario = copy(self.base_scenario)
+        self.schedule = copy(self.base_schedule)
 
     # ToDo implement a fast calculation of timeseries_calc but with a limited amount of charging
     #  points. Implementation could look like this
@@ -430,6 +445,7 @@ class StationOptimizer:
     # go through events and lift the socs according to timeseries_calc
     # check if socs are clipped. if so mutate the event time and repeat step2 and 3.
     # go further
+
     @util.time_it
     def timeseries_calc(self, rotations=None, soc_dict=None, ele_station_set=None,
                         soc_upper_thresh=None, electrify_stations=None) -> object:
@@ -512,25 +528,27 @@ class StationOptimizer:
             soc_dict[rot.vehicle_id] = soc
         return soc_dict
 
+    @util.time_it
     def expand_tree(self, station_eval):
         try:
-            parent_name=util.stations_hash(self.electrified_station_set)
+            parent_name = util.stations_hash(self.electrified_station_set)
             self.current_tree[parent_name]
         except KeyError:
             self.current_tree[parent_name] = get_init_node()
         for stat, ev_score in station_eval:
             try:
-                node_name=util.stations_hash(self.electrified_station_set.union([stat]))
+                node_name = util.stations_hash(self.electrified_station_set.union([stat]))
                 self.current_tree[node_name]
             except KeyError:
                 self.current_tree[parent_name]["children"].append(node_name)
-                self.current_tree[node_name] = {}
-                self.current_tree[node_name]["viable"]=True
-                self.current_tree[node_name]["missing_energy"] = None
-                self.current_tree[node_name]["visit_counter"] = 0
-                self.current_tree[node_name]["children"] = []
+                self.current_tree[node_name] = get_init_node()
 
+    @util.time_it
     def is_node_viable(self):
+        """Check if anode has viable children. Viable children are not terminal and did not show
+        lack of potential yet
+        :return: True if the node still has potential
+        """
         parent_name = util.stations_hash(self.electrified_station_set)
         for child in self.current_tree[parent_name]["children"]:
             if not self.current_tree[child]["viable"]:
@@ -540,7 +558,7 @@ class StationOptimizer:
         # not a single viable node was found, return False
         return False
 
-
+    @util.time_it
     def is_branch_promising(self, station_eval, electrified_station_set,
                             pre_optimized_set, missing_energy):
         """Quickly evaluates if following a branch is promising by summing up estimated potentials
@@ -557,8 +575,9 @@ class StationOptimizer:
         for i in range(0, min(delta, len(station_eval))):
             pot += station_eval[i][1]
         if pot < -missing_energy * self.config.estimation_threshold:
-            print(f"Not enough potential {round(pot, 0)} / {round(-missing_energy, 0)} after ",
-                  util.stations_hash(electrified_station_set))
+            self.logger.debug("Not enough potential: %s  after: %s ",
+                              round(pot / -missing_energy, 0),
+                              util.stations_hash(electrified_station_set))
             return False
         return True
 
@@ -571,9 +590,10 @@ class StationOptimizer:
         node_name = util.stations_hash(self.electrified_station_set)
         self.current_tree[node_name]["missing_energy"] = delta_base_energy
         self.current_tree[node_name]["visit_counter"] += 1
-        if self.current_tree[node_name]["visit_counter"]>1:
+        if self.current_tree[node_name]["visit_counter"] > 1:
             self.logger.debug("already visited this node")
 
+    @util.time_it
     def choose_station_brute(self, station_eval,
                              pre_optimized_set=None, missing_energy=0,
                              gens=dict()):
@@ -611,11 +631,12 @@ class StationOptimizer:
                     try:
                         self.current_tree[node_name]["viable"] = False
                     except KeyError:
-                        self.current_tree[node_name]=get_init_node()
+                        self.current_tree[node_name] = get_init_node()
                         self.current_tree[node_name]["viable"] = False
         self.logger.debug("calculated all viable possibilities")
         raise util.AllCombinationsCheckedException
 
+    @util.time_it
     def choose_station_step_by_step(self, station_eval,
                                     pre_optimized_set=None, missing_energy=0):
         """ Gives back a station of possible stations to electrify which shows the biggest potential
@@ -645,32 +666,28 @@ class StationOptimizer:
                 raise util.SuboptimalSimulationException
 
         min_nr_visited = float('inf')
+        # find the lowes amount of visits in the possible stations /  children
+        # not viable stations are skipped
         for stat_tuple in station_eval:
             station, _ = stat_tuple
             # create a station combination from already electrified
             # stations and possible new stations
             stats = self.electrified_station_set.union([station])
-
-            if self.current_tree is not None:
-                node_name = util.stations_hash(stats)
-                if node_name in self.current_tree.keys()\
-                        and self.current_tree[node_name]["viable"]:
-                    min_nr_visited = min(min_nr_visited,
-                                         self.current_tree[node_name]["visit_counter"])
-                    # if already checked skip to next one. I.e. do not give a station which it is
-                    # in the decision tree already
-                    continue
-            if station not in self.electrified_station_set:
-                best_station_id = station
-                return [best_station_id], True
-        # every possible node from here was evaluated already
-        # to do what now?
-        # simply visit the least visited node
+            node_name = util.stations_hash(stats)
+            if not self.current_tree[node_name]["viable"]:
+                continue
+            min_nr_visited = min(min_nr_visited, self.current_tree[node_name]["visit_counter"])
+        # simply visit the least visited node, starting from the one with the highest potential
+        # not viable stations are skipped
         for stat_eval in station_eval:
             station, _ = stat_eval
             # create a station combination from already electrified stations
             # and possible new station
             stats = self.electrified_station_set.union([station])
+            node_name = util.stations_hash(stats)
+            if not self.current_tree[node_name]["viable"]:
+                continue
+
             if self.current_tree[util.stations_hash(stats)]["visit_counter"] == min_nr_visited:
                 best_station_id = station
                 return [best_station_id], True
@@ -801,13 +818,20 @@ class StationOptimizer:
         """
 
         ###############
-        must_stations = {'Heppenheim Graben', 'Wahlen Grundschule', 'Erbach Gesundheiszentrum', 'Heppenheim Vogelsbergstraße', 'Rimbach Kirche', 'Hirschhorn Grundschule', 'Bensheim Geschw.-Scholl-Schule', 'Lindenfels Poststraße', 'Heppenheim Bahnhof', 'Zotzenbach Schule', 'Heppenheim Kreiskrankenhaus', 'Weinheim Hauptbahnhof', 'Worms Hauptbahnhof', 'Bürstadt Lampertheimer Straße', 'Wald-Michelbach Alter Bahnhof', 'Heppenheim Gießener Straße', 'Heppenheim Starkenburg-Gymnasium', 'Erbach Post', 'Wald-Michelbach ZOB', 'Viernheim Bahnhof', 'Bensheim Bahnhof/ ZOB'}
+        must_stations = {'Heppenheim Graben', 'Wahlen Grundschule', 'Erbach Gesundheiszentrum',
+                         'Heppenheim Vogelsbergstraße', 'Rimbach Kirche', 'Hirschhorn Grundschule',
+                         'Bensheim Geschw.-Scholl-Schule', 'Lindenfels Poststraße',
+                         'Heppenheim Bahnhof', 'Zotzenbach Schule', 'Heppenheim Kreiskrankenhaus',
+                         'Weinheim Hauptbahnhof', 'Worms Hauptbahnhof',
+                         'Bürstadt Lampertheimer Straße', 'Wald-Michelbach Alter Bahnhof',
+                         'Heppenheim Gießener Straße', 'Heppenheim Starkenburg-Gymnasium',
+                         'Erbach Post', 'Wald-Michelbach ZOB', 'Viernheim Bahnhof',
+                         'Bensheim Bahnhof/ ZOB'}
         self.not_possible_stations = self.not_possible_stations.union(must_stations)
         for stat in must_stations:
             # do not put must stations in electrified set, but in extra set must_include_set
             self.electrify_station(stat, self.must_include_set)
 
-        self.scenario.vehicle_socs = self.timeseries_calc(ele_station_set=must_stations)
         return must_stations
         #################
 
@@ -838,8 +862,6 @@ class StationOptimizer:
         for stat in must_stations:
             # do not put must stations in electrified set, but in extra set must_include_set
             self.electrify_station(stat, self.must_include_set)
-
-        self.scenario.vehicle_socs = self.timeseries_calc(ele_station_set=must_stations)
         return must_stations
 
     def remove_none_socs(self):
@@ -1002,7 +1024,7 @@ class StationOptimizer:
                                          vehicle_id=rot.vehicle_id, trip=trips,
                                          rot=rot, stations_list=possible_stations_list,
                                          capacity=self.schedule.vehicle_types[v_type][ch_type][
-                                            'capacity'],
+                                             'capacity'],
                                          v_type=v_type, ch_type=ch_type)
 
                 events.append(event)
@@ -1016,5 +1038,7 @@ class StationOptimizer:
                     break
         return events
 
+
 def get_init_node():
-    return {"viable": True, "missing_energy": None, "visit_counter": 0, "children": []}
+    return {"completed":False, "viable": True,
+            "missing_energy": None, "visit_counter": 0, "children": []}
