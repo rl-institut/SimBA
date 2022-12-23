@@ -128,9 +128,6 @@ def run_optimization(config_path, sched=None, scen=None, this_args=None):
     # set battery and charging curves through config file if wished for
     optimizer.set_battery_and_charging_curves()
 
-    # create a decision tree or load one from a previous run
-    optimizer.set_up_decision_tree()
-
     # rebasing the scenario meaning simulating it again with the given conditions of
     # included and excluded stations and rotations
     if conf.rebase_scenario:
