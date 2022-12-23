@@ -292,29 +292,6 @@ class StationOptimizer:
 
         stat_eval_dict = {stat_id[0]: stat_id[1] for stat_id in station_eval}
 
-        if best_station_ids is None:
-            print("depreceated part not happening anymore")
-            raise Exception
-            # self.logger.warning("No useful station found with %s rotations not electrified yet. "
-            #                     "Stopped after electrifying %s", events_remaining,
-            #                     len(self.electrified_station_set))
-            #
-            # if pre_optimized_set is None:
-            #     could_not_be_electrified.update(list(rotation_dict.keys()))
-            #     print("1..1")
-            #     raise util.SuboptimalSimulationException
-            #
-            # # remove electrified stations in this run
-            # copied_set = self.electrified_station_set.copy()
-            # for stat in copied_set:
-            #     self.electrified_stations.pop(stat)
-            #     self.electrified_station_set.remove(stat)
-            # # overwrite with pre optimized set
-            # for stat in pre_optimized_set:
-            #     self.electrify_station(stat, self.electrified_station_set)
-            # print("2..2")
-            # raise util.SuboptimalSimulationException
-
         self.logger.debug("%s, with first pot of %s", best_station_ids,
                           round(stat_eval_dict[best_station_ids[0]], 1))
 
