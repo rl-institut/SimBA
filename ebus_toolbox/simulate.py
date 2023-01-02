@@ -78,14 +78,17 @@ def simulate(args):
                     try:
                         schedule.rotations.pop(rotation)
                     except KeyError:
-                        print(f"Key of rotation {rotation['id']} "
-                              f"does not exist in schedule.")
+                        print(f"Rotation {rotation['id']} does not exist in schedule.")
         elif args.rotation_filter_variable == "include":
-            staying_rotations = dict()
-            for rot_filter in rotation_filter:
-                for rot_schedule in schedule.rotations:
-                    if rot_filter == rot_schedule:
-                        staying_rotations.update(rot_schedule)
+            remove_rotations = list()
+            for rotation in schedule.rotations:
+                if rotation not in rotation_filter:
+                    remove_rotations.append(rotation)
+            for rotation in remove_rotations:
+                try:
+                    schedule.rotations.pop(rotation)
+                except KeyError:
+                    print(f"Rotation {rotation['id']} does not exist in schedule.")
 
     # run the mode specified in config
     if args.mode == 'service_optimization':
