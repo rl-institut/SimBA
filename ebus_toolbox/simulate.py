@@ -66,22 +66,21 @@ def simulate(args):
     if args.rotation_filter_variable:
         try:
             with open(args.rotation_filter, encoding='utf-8') as f:
-                # TODO: file zu dict umwandeln
+                # convert rotation file to dict
                 rotation_filter = util.file_wrapper_to_dict(f)
-                print(rotation_filter)
         except FileNotFoundError:
             print(f"Path to rotation filter ({args.rotation_filter}) does not exist.")
 
-        # TODO: filter rotations
-        if args.rotation_filter_variable == "exclude_rotation":
+        # filter out rotations in schedule
+        if args.rotation_filter_variable == "exclude":
             for rotation in rotation_filter:
-                if rotation in rotation_filter:
+                if rotation in schedule.rotations:
                     try:
-                        schedule.rotations.pop(rotation['rotation_id'])
+                        schedule.rotations.pop(rotation)
                     except KeyError:
-                        print(f"Key of rotation {rotation['rotation_id']} "
+                        print(f"Key of rotation {rotation['id']} "
                               f"does not exist in schedule.")
-        elif args.rotation_filter_variable == "include_rotation":
+        elif args.rotation_filter_variable == "include":
             staying_rotations = dict()
             for rot_filter in rotation_filter:
                 for rot_schedule in schedule.rotations:
