@@ -9,9 +9,9 @@ import shutil
 import matplotlib
 
 import ebus_toolbox.station_optimizer
-import ebus_toolbox.optimizer_util as opt_util
+from ebus_toolbox.station_optimizer import util
 
-config = opt_util.OptimizerConfig()
+config = util.OptimizerConfig()
 matplotlib.use("TkAgg")
 
 
@@ -52,10 +52,10 @@ def setup_logger(this_args, conf):
 
 def main():
     """ main call"""
-    opt_util.print_time()
+    util.print_time()
     config_path = "./data/examples/optimizer.cfg"
     run_optimization(config_path)
-    opt_util.print_time()
+    util.print_time()
 
 
 def prepare_filesystem(this_args, conf):
@@ -96,15 +96,15 @@ def run_optimization(config_path, sched=None, scen=None, this_args=None):
     :return: (Schedule,Scenario) optimized schedule and Scenario
     :rtype: tuple(ebus_toolbox.Schedule, spice_ev.Scenario)
     """
-    conf = opt_util.read_config(config_path)
+    conf = util.read_config(config_path)
 
     # load pickle files
     if sched is None or scen is None or this_args is None:
         # if no schedule was given as argument, make sure no scenario
         # and args input was given as well.
         assert sched == scen == this_args is None
-        sched, scen, this_args = opt_util.toolbox_from_pickle(conf.schedule,
-                                                              conf.scenario, conf.args)
+        sched, scen, this_args = util.toolbox_from_pickle(conf.schedule,
+                                                          conf.scenario, conf.args)
     args = this_args
 
     # prepare Filesystem with folders and paths and copy config
@@ -169,7 +169,7 @@ def run_optimization(config_path, sched=None, scen=None, this_args=None):
             logger.debug(event.rotation.id)
     with open(new_ele_stations_path, "w", encoding="utf-8", ) as file:
         json.dump(ele_stations, file, indent=2)
-    opt_util.print_time()
+    util.print_time()
     logger.debug("Spice EV is calculating optimized case as a complete scenario")
     _, __ = optimizer.preprocessing_scenario(
         electrified_stations=ele_stations, run_only_neg=False, cost_calc=True)

@@ -376,7 +376,7 @@ class StationOptimizer:
             # over many station electrification pruning is very unlikely early on. The pruning
             # threshold should be set not to high, since checking for pruning is likely to be
             # unnecessary calculation
-            thresh  =self.config.pruning_threshold
+            thresh = self.config.pruning_threshold
             if len(pre_optimized_set) - len(self.electrified_station_set) < thresh:
                 self.scenario.vehicle_socs = \
                     self.timeseries_calc(event_rotations, electrify_stations=best_station_ids)
@@ -534,7 +534,7 @@ class StationOptimizer:
 
     @util.time_it
     def is_node_viable(self):
-        """Check if anode has viable children. Viable children are not terminal and did not show
+        """Check if a node has viable children. Viable children are not terminal and did not show
         lack of potential yet
         :return: True if the node still has potential
         """
@@ -561,6 +561,8 @@ class StationOptimizer:
 
         delta = len(pre_optimized_set) - len(electrified_station_set)
         pot = 0
+        # sum up highest potentials until you would reach the number of electrified stations
+        # in the pre optimized case
         for i in range(0, min(delta, len(station_eval))):
             pot += station_eval[i][1]
         if pot < -missing_energy * self.config.estimation_threshold:
@@ -688,7 +690,7 @@ class StationOptimizer:
         raise util.SuboptimalSimulationException
 
     def set_battery_and_charging_curves(self):
-        """ Create battery and charging curves for fast lookup
+        """ Set battery and charging curves from config
         """
         for v_type in self.schedule.vehicle_types.values():
             for vehicle in v_type.values():
@@ -703,7 +705,7 @@ class StationOptimizer:
         """
         if self.config.decision_tree_path is not None:
             with open(self.config.decision_tree_path, "rb") as file:
-                self.decision_trees = self.config.load(file)
+                self.decision_trees = pickle.load(file)
         else:
             self.decision_trees = [{} for _ in range(group_amount)]
 
@@ -777,7 +779,7 @@ class StationOptimizer:
         return must_include_set, electrified_stations
 
     def electrify_station(self, stat, electrified_set):
-        """electrify a station and keep track of it in the electrified set file
+        """Electrify a station and keep track of it in the electrified set file
         :param stat: station id to be electrified
         :param electrified_set:the set that is mutated along the electrification
         """
@@ -809,23 +811,23 @@ class StationOptimizer:
         :return: Set(Station_ids)
         """
 
-        ###############
-        must_stations = {'Heppenheim Graben', 'Wahlen Grundschule', 'Erbach Gesundheiszentrum',
-                         'Heppenheim Vogelsbergstraße', 'Rimbach Kirche', 'Hirschhorn Grundschule',
-                         'Bensheim Geschw.-Scholl-Schule', 'Lindenfels Poststraße',
-                         'Heppenheim Bahnhof', 'Zotzenbach Schule', 'Heppenheim Kreiskrankenhaus',
-                         'Weinheim Hauptbahnhof', 'Worms Hauptbahnhof',
-                         'Bürstadt Lampertheimer Straße', 'Wald-Michelbach Alter Bahnhof',
-                         'Heppenheim Gießener Straße', 'Heppenheim Starkenburg-Gymnasium',
-                         'Erbach Post', 'Wald-Michelbach ZOB', 'Viernheim Bahnhof',
-                         'Bensheim Bahnhof/ ZOB'}
-        self.not_possible_stations = self.not_possible_stations.union(must_stations)
-        for stat in must_stations:
-            # do not put must stations in electrified set, but in extra set must_include_set
-            self.electrify_station(stat, self.must_include_set)
-
-        return must_stations
-        #################
+        # ###############
+        # must_stations = {'Heppenheim Graben', 'Wahlen Grundschule', 'Erbach Gesundheiszentrum',
+        #           'Heppenheim Vogelsbergstraße', 'Rimbach Kirche', 'Hirschhorn Grundschule',
+        #                  'Bensheim Geschw.-Scholl-Schule', 'Lindenfels Poststraße',
+        #                  'Heppenheim Bahnhof', 'Zotzenbach Schule', 'Heppenheim Kreiskrankenhaus',
+        #                  'Weinheim Hauptbahnhof', 'Worms Hauptbahnhof',
+        #                  'Bürstadt Lampertheimer Straße', 'Wald-Michelbach Alter Bahnhof',
+        #                  'Heppenheim Gießener Straße', 'Heppenheim Starkenburg-Gymnasium',
+        #                  'Erbach Post', 'Wald-Michelbach ZOB', 'Viernheim Bahnhof',
+        #                  'Bensheim Bahnhof/ ZOB'}
+        # self.not_possible_stations = self.not_possible_stations.union(must_stations)
+        # for stat in must_stations:
+        #     # do not put must stations in electrified set, but in extra set must_include_set
+        #     self.electrify_station(stat, self.must_include_set)
+        #
+        # return must_stations
+        # #################
 
         events = self.get_low_soc_events(rel_soc=relative_soc)
 
