@@ -6,11 +6,18 @@ import subprocess
 def file_wrapper_to_dict(f):
     line = f.readline()
     header = line.split(",")
-    return_dict = {}
-    line = f.readline().split(",")
-    for key, value in zip(header, line):
-        return_dict[key] = value
-    return [return_dict]
+    return_dict = dict()
+
+    while line != "":
+        tmp_rotation = dict()
+        line = f.readline().split(",")
+        if line == [""]:
+            break
+        for key, value in zip(header, line):
+            tmp_rotation[key] = value
+        return_dict[tmp_rotation['id']] = tmp_rotation
+
+    return return_dict
 
 
 def get_git_revision_hash() -> str:
