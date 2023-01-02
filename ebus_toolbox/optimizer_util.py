@@ -78,6 +78,7 @@ class OptimizerConfig:
         self.reduce_rots = None
         self.rots = None
         self.path = None
+        self.pruning_threshold = None
 
 
 def time_it(function, timers={}):
@@ -164,6 +165,7 @@ def read_config(config_path):
     conf.estimation_threshold = float(optimizer.get("estimation_threshold", "0.8"))
     conf.output_path = optimizer.get("output_path")
     conf.check_for_must_stations = optimizer.getboolean("check_for_must_stations", True)
+    conf.pruning_threshold = int(optimizer.get("pruning_threshold", "3"))
 
     special = config_parser["SPECIAL"]
     conf.decision_tree_path = special.get("decision_tree_path", None)
@@ -262,8 +264,10 @@ def get_delta_soc(soc_over_time_curve, soc, time_delta, optimizer: 'StationOptim
 class SuboptimalSimulationException(Exception):
     pass
 
+
 class AllCombinationsCheckedException(Exception):
     pass
+
 
 @time_it
 def evaluate(events: typing.Iterable[LowSocEvent],
