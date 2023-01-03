@@ -23,6 +23,23 @@ from ebus_toolbox.trip import Trip
 from ebus_toolbox.util import get_buffer_time as get_buffer_time_spice_ev, uncomment_json_file
 
 
+class ChargingEvent:
+    """ Class to gather information about a charging event"""
+    def __init__(self, start_idx, end_idx,arrival_time, start_time, end_time, buffer_time,
+                 vehicle_id, capacity,
+                 station_name, rotation):
+        self.start_idx = start_idx
+        self.end_idx = end_idx
+        self.arrival_time = arrival_time
+        self.start_time = start_time
+        self.end_time = end_time
+        self.buffer_time = buffer_time
+        self.vehicle_id = vehicle_id
+        self.capacity = capacity
+        self.station_name = station_name
+        self.rotation = rotation
+
+
 class LowSocEvent:
     """Class to gather information about a low soc event"""
     event_counter = 0
@@ -79,6 +96,7 @@ class OptimizerConfig:
         self.rots = None
         self.path = None
         self.pruning_threshold = None
+        self.save_all_results = None
 
 
 def time_it(function, timers={}):
@@ -166,6 +184,7 @@ def read_config(config_path):
     conf.output_path = optimizer.get("output_path")
     conf.check_for_must_stations = optimizer.getboolean("check_for_must_stations", True)
     conf.pruning_threshold = int(optimizer.get("pruning_threshold", "3"))
+    conf.save_all_results = optimizer.getboolean("save_all_results", False)
 
     special = config_parser["SPECIAL"]
     conf.decision_tree_path = special.get("decision_tree_path", None)
@@ -194,6 +213,15 @@ def get_charging_time(trip1, trip2, args):
         return 0
     return max(0, standing_time_min)
 
+def get_charging_start(trip1, args):
+    """ Returns the possible start of charging consindering buffer times
+
+    :param trip1: First trip
+    :param args:  arguments Namespace with default buffer time
+    :return: First possible charging time as datetime object
+    """
+    buffer_time = get_buffer_time(trip1, args.default_buffer_time_opps)
+    return trip1.arrival_time+buffer_time
 
 def get_buffer_time(trip, default_buffer_time_opps):
     """  Return the buffer time as timedelta object

@@ -2,6 +2,7 @@
 import json
 import logging
 import pickle
+import warnings
 from copy import deepcopy, copy
 from datetime import datetime, timedelta
 from pathlib import Path
@@ -16,6 +17,7 @@ from ebus_toolbox import report, rotation
 
 class StationOptimizer:
     """ Class for station optimization"""
+
     def __init__(self, sched: schedule.Schedule, scen: scenario.Scenario, args,
                  config: 'util.OptimizerConfig', logger: logging.Logger):
         self.base_not_possible_stations = set()
@@ -357,7 +359,7 @@ class StationOptimizer:
                                              optimizer=self)
 
         for k, this_group in enumerate(groups):
-            this_tree = tree_position+[k + 1]
+            this_tree = tree_position + [k + 1]
             kwargs["tree_position"] = this_tree
             new_stations = \
                 self.group_optimization(this_group, choose_station_function,
@@ -404,6 +406,77 @@ class StationOptimizer:
 
     # ToDo implement a fast calculation of timeseries_calc but with a limited amount of charging
     #  points. Implementation could look like this
+
+    def get_charge_events_per_station(self, station_name, rotations=None):
+        """ Gather low soc events below the config threshold.
+
+        :param rotations: rotations to be searched for low soc events. Default None means whole
+            schedule is searched
+        :param station_name: name of the station to be checked
+        :return: list(ChargingEvents)
+        """
+        if not rotations:
+            rotations = self.schedule.rotations
+
+        # Find relevant charging events for this station
+        charging_events = []
+
+        for rot_id in rotations:
+            rot = self.schedule.rotations[rot_id]
+            for i, trip in enumerate(rot.trips):
+                # if the trip station name is not the searched station continue.
+                if trip.arrival_name != station_name:
+                    continue
+                try:
+                    charging_event_start_time = util.get_charging_start(trip, self.args)
+                    end_time = rot.trips[i + 1].departure_time
+
+
+                    # Do not add the event if there is charging time of at least the defined
+                    # min charging time
+                    if charging_event_start_time + self.args.min_charging_time >= end_time:
+                        continue
+                except IndexError:
+                    warnings.warn("Station to be checked has no following trip. Final destinations"
+                                  "can not offer lift to the soc and are therefore discarded")
+                    continue
+                arrival_time= trip.arrival_time
+                start_idx = self.get_index_by_time(charging_event_start_time)
+                end_time = rot.trips[i+1].departure_time
+                buffer_time = util.get_buffer_time(trip, self.args.default_buffer_time_opps)
+                end_idx = self.get_index_by_time(end_time)
+                cht = rot.vehicle_id.find("depb")
+                ch_type = (cht > 0) * "depb" + (cht <= 0) * "oppb"
+                v_type = rot.vehicle_id.split("_" + ch_type)[0]
+                event = util.ChargingEvent(start_idx=start_idx,end_idx=end_idx,
+                                           arrival_time=arrival_time,
+                                           start_time=charging_event_start_time, end_time=end_time,
+                                           buffer_time=buffer_time, vehicle_id=rot.vehicle_id,
+                                           capacity=self.schedule.vehicle_types[v_type][ch_type][
+                                             'capacity'],
+                                           station_name=station_name, rotation=rot)
+                charging_events.append(event)
+        return charging_events
+
+
+    def sort_station_events(self, charge_events_single_station):
+        return sorted(charge_events_single_station, key=lambda x: x.arrival_time)
+
+    def mutate_events_for_n_charging_points(self, charge_events_single_station, nr_charge_points):
+        pass
+
+    # mutate_events_for_n_charging_points()
+    #
+    # sort_all_station_events()
+    #
+    # calculate_events()
+    #
+    # get_below_0_soc_events()
+    #
+    # get_missing_energy()
+    #
+    # evaluate_soc_lift_vs_objective_function()
+
     # For each possible station find the charging times of each vehicle, e.g
     # PotsdamerPlatz: Vehicle1: 12:30-12:40, 13:20-14:00
     #                 Vehicle5: 9:30-9:40, 13:10-13:25
@@ -811,23 +884,23 @@ class StationOptimizer:
         :return: Set(Station_ids)
         """
 
-        # ###############
-        # must_stations = {'Heppenheim Graben', 'Wahlen Grundschule', 'Erbach Gesundheiszentrum',
-        #           'Heppenheim Vogelsbergstraße', 'Rimbach Kirche', 'Hirschhorn Grundschule',
-        #                  'Bensheim Geschw.-Scholl-Schule', 'Lindenfels Poststraße',
-        #                  'Heppenheim Bahnhof', 'Zotzenbach Schule', 'Heppenheim Kreiskrankenhaus',
-        #                  'Weinheim Hauptbahnhof', 'Worms Hauptbahnhof',
-        #                  'Bürstadt Lampertheimer Straße', 'Wald-Michelbach Alter Bahnhof',
-        #                  'Heppenheim Gießener Straße', 'Heppenheim Starkenburg-Gymnasium',
-        #                  'Erbach Post', 'Wald-Michelbach ZOB', 'Viernheim Bahnhof',
-        #                  'Bensheim Bahnhof/ ZOB'}
-        # self.not_possible_stations = self.not_possible_stations.union(must_stations)
-        # for stat in must_stations:
-        #     # do not put must stations in electrified set, but in extra set must_include_set
-        #     self.electrify_station(stat, self.must_include_set)
-        #
-        # return must_stations
-        # #################
+        ###############
+        must_stations = {'Heppenheim Graben', 'Wahlen Grundschule', 'Erbach Gesundheiszentrum',
+                  'Heppenheim Vogelsbergstraße', 'Rimbach Kirche', 'Hirschhorn Grundschule',
+                         'Bensheim Geschw.-Scholl-Schule', 'Lindenfels Poststraße',
+                         'Heppenheim Bahnhof', 'Zotzenbach Schule', 'Heppenheim Kreiskrankenhaus',
+                         'Weinheim Hauptbahnhof', 'Worms Hauptbahnhof',
+                         'Bürstadt Lampertheimer Straße', 'Wald-Michelbach Alter Bahnhof',
+                         'Heppenheim Gießener Straße', 'Heppenheim Starkenburg-Gymnasium',
+                         'Erbach Post', 'Wald-Michelbach ZOB', 'Viernheim Bahnhof',
+                         'Bensheim Bahnhof/ ZOB'}
+        self.not_possible_stations = self.not_possible_stations.union(must_stations)
+        for stat in must_stations:
+            # do not put must stations in electrified set, but in extra set must_include_set
+            self.electrify_station(stat, self.must_include_set)
+
+        return must_stations
+        #################
 
         events = self.get_low_soc_events(rel_soc=relative_soc)
 
