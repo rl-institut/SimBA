@@ -525,11 +525,11 @@ class StationOptimizer:
         except KeyError:
             self.current_tree[parent_name] = get_init_node()
         for stat, ev_score in station_eval:
+            node_name = util.stations_hash(self.electrified_station_set.union([stat]))
+            self.current_tree[parent_name]["children"].add(node_name)
             try:
-                node_name = util.stations_hash(self.electrified_station_set.union([stat]))
                 self.current_tree[node_name]
             except KeyError:
-                self.current_tree[parent_name]["children"].append(node_name)
                 self.current_tree[node_name] = get_init_node()
 
     @util.time_it
@@ -1039,4 +1039,4 @@ def get_init_node():
     :rtype: dict
     """
     return {"completed": False, "viable": True,
-            "missing_energy": None, "visit_counter": 0, "children": []}
+            "missing_energy": None, "visit_counter": 0, "children": set()}
