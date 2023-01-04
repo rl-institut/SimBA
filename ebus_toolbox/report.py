@@ -66,18 +66,18 @@ def generate_gc_overview(schedule, scenario, args):
                 max_nr_cs = max(ts["# occupied CS"])
                 sum_of_cs_energy = sum(ts["sum CS power"]) * args.interval/60
 
-                # use factors: to which percentage of time are the three least used stations in use
+                # use factors: to which percentage of time are the three least used CS in use
                 least_used_cs = [max_nr_cs, max_nr_cs-1, max_nr_cs-2]
-                use_factors = [ts["# occupied CS"].count(least_used_cs[i]) /
-                               len(ts["# occupied CS"]) for i in range(3)]
+                use_factors = [None, None, None]
                 for i in range(3):
-                    if least_used_cs[i] < 1:
-                        use_factors[i] = None
+                    if least_used_cs[i] >= 1:
+                        use_factors[i] = sum([ts["# occupied CS"].count(least_used_cs[j]) /
+                                              len(ts["# occupied CS"]) for j in range(i+1)])
             else:
                 max_gc_power = 0
                 max_nr_cs = 0
                 sum_of_cs_energy = 0
-                use_factors = [0, 0, 0]
+                use_factors = [None, None, None]
             station_type = stations[gc]["type"]
             csv_writer.writerow([gc,
                                  station_type,
@@ -116,6 +116,8 @@ def generate(schedule, scenario, args):
         plt.gcf().set_size_inches(10, 10)
         plt.savefig(args.output_directory / "run_overview.png")
         plt.savefig(args.output_directory / "run_overview.pdf")
+        if not args.show_plots:
+            plt.close()
 
     # calculate SOCs for each rotation
     rotation_infos = []

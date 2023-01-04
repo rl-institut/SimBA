@@ -96,6 +96,6 @@ def simulate(args):
 
         report.generate(schedule, scenario, args)
 
-        args.save_timeseries = False
-        args.save_results = False
-        args.save_soc = False
+        args.save_timeseries = None
+        args.save_results = None
+        args.save_soc = None
