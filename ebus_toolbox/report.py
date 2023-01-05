@@ -69,9 +69,9 @@ def generate_gc_overview(schedule, scenario, args):
 
                 # use factors: to which percentage of time are the three least used CS in use
                 num_ts = len(ts["# occupied CS"])  # number of timesteps
-                max_nr_cs = max(ts["# occupied CS"]) # maximum number of occupied CS
+                max_nr_cs = max(ts["# occupied CS"])  # maximum number of occupied CS
                 least_used_num = min(3, max_nr_cs
-                                     ) # three least used CS. Less if number of CS is lower.
+                                     )  # three least used CS. Less if number of CS is lower.
                 # count number of timesteps with this exact number of occupied CS
                 count_nr_cs = [ts["# occupied CS"].count(max_nr_cs - i) for i in range(
                     least_used_num)]
