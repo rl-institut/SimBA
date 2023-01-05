@@ -74,7 +74,7 @@ if __name__ == '__main__':
                                                   'start time of a vehicle event im min.',
                         default=10)
     parser.add_argument('--visual', '-v', action='store_true',
-                        help='Show plots of the results- not apllicable', default=False)
+                        help='Show plots of the results- not applicable', default=False)
     parser.add_argument('--generate-report', '-r', help='generates and stores plots and results',
                         default=False)
     parser.add_argument('--show-plots',
@@ -83,11 +83,11 @@ if __name__ == '__main__':
     parser.add_argument('--eta', action='store_true',
                         help='Show estimated time to finish simulation after each step, \
                         instead of progress bar. Not recommended for fast computations.')
-    parser.add_argument('--save-timeseries', help='Write timesteps to file - not apllicable',
+    parser.add_argument('--save-timeseries', help='Write timesteps to file - not applicable',
                         default=False)
-    parser.add_argument('--save-results', help='Write general info to file - not apllicable',
+    parser.add_argument('--save-results', help='Write general info to file - not applicable',
                         default=False)
-    parser.add_argument('--save-soc', help='Write SOC info to file - not apllicable', default=False)
+    parser.add_argument('--save-soc', help='Write SOC info to file - not applicable', default=False)
     parser.add_argument('--strategy', '-s', default='greedy',
                         help='Specify the charging strategy. One of {}. You may define \
                         custom options with --strategy-option.'.format('greedy, balanced'))
