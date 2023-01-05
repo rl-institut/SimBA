@@ -73,13 +73,21 @@ if __name__ == '__main__':
     parser.add_argument('--signal-time-dif', help='time difference between signal time and actual '
                                                   'start time of a vehicle event im min.',
                         default=10)
-    parser.add_argument('--visual', '-v', action='store_true', help='Show plots of the results')
+    parser.add_argument('--visual', '-v', action='store_true',
+                        help='Show plots of the results- not applicable', default=False)
+    parser.add_argument('--generate-report', '-r', help='generates and stores plots and results',
+                        default=False)
+    parser.add_argument('--show-plots',
+                        help='opens plots for user to view, only valid if generate_report=True',
+                        default=False)
     parser.add_argument('--eta', action='store_true',
                         help='Show estimated time to finish simulation after each step, \
                         instead of progress bar. Not recommended for fast computations.')
-    parser.add_argument('--save-timeseries', help='Write timesteps to file')
-    parser.add_argument('--save-results', help='Write general info to file')
-    parser.add_argument('--save-soc', help='Write SOC info to file')
+    parser.add_argument('--save-timeseries', help='Write timesteps to file - not applicable',
+                        default=False)
+    parser.add_argument('--save-results', help='Write general info to file - not applicable',
+                        default=False)
+    parser.add_argument('--save-soc', help='Write SOC info to file - not applicable', default=False)
     parser.add_argument('--strategy', '-s', default='greedy',
                         help='Specify the charging strategy. One of {}. You may define \
                         custom options with --strategy-option.'.format('greedy, balanced'))
@@ -110,21 +118,15 @@ if __name__ == '__main__':
 
     util.set_options_from_config(args, check=True, verbose=False)
 
-    args.output_directory = Path(args.output_directory) / \
-        str(datetime.now().strftime("%Y-%m-%d-%H-%M-%S") + "_eBus_results")
+    args.output_directory = Path(args.output_directory) / (
+        datetime.now().strftime("%Y-%m-%d-%H-%M-%S") + "_eBus_results")
 
     # create subfolder for specific sim results with timestamp.
     # if folder doesnt exists, create folder.
     # needs to happen after set_options_from_config since
     # args.output_directory can be overwritten by config
-    args.output_directory.mkdir(parents=True, exist_ok=True)
-
-    if not args.save_timeseries:
-        args.save_timeseries = args.output_directory / "simulation_spiceEV.csv"
-    if not args.save_results:
-        args.save_results = args.output_directory / "simulation_spiceEV.json"
-    if not args.save_soc:
-        args.save_soc = args.output_directory / "simulation_soc_spiceEV.csv"
+    args.output_directory_input = args.output_directory / "input_data"
+    args.output_directory_input.mkdir(parents=True, exist_ok=True)
 
     # copy input files to output to ensure reproducibility
     copy_list = [args.config, args.electrified_stations, args.vehicle_types]
@@ -132,10 +134,10 @@ if __name__ == '__main__':
     # only copy cost params if they exist
     if args.cost_parameters_file is not None:
         copy_list.append(args.cost_parameters_file)
-    for c_file in copy_list:
-        shutil.copy(str(c_file), str(args.output_directory / Path(c_file).name))
+    for c_file in map(Path, copy_list):
+        shutil.copy(c_file, args.output_directory_input / c_file.name)
 
-    util.save_version(Path(args.output_directory / "program_version.txt"))
+    util.save_version(args.output_directory_input / "program_version.txt")
 
     # rename special options
     args.timing = args.eta
