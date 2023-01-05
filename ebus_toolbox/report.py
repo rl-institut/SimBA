@@ -3,67 +3,8 @@
 import csv
 import datetime
 import warnings
-import json
 import matplotlib.pyplot as plt
-from ebus_toolbox.util import sanitize
-from src.report import aggregate_timeseries, aggregate_local_results, aggregate_global_results, plot
-
-
-def generate_vehicle_socs(scenario, args):
-    """Generates a csv file from the vehicle's socs in the specified simulation time.
-
-    :param scenario: Scenario for with to generate timeseries.
-    :type scenario: spice_ev.Scenario
-    :param args: Configuration arguments specified in config files contained in configs directory.
-    :type args: argparse.Namespace
-    """
-
-    sim_start_time = scenario.start_time
-    v_list = list(scenario.vehicle_socs.keys())
-    with open(args.output_directory / "vehicle_socs.csv", "w", newline='') as f:
-        csv_writer = csv.writer(f)
-        csv_writer.writerow(["timestep", "time", ] + v_list)
-        for i, row in enumerate(zip(*scenario.vehicle_socs.values())):
-            t = (sim_start_time + i * scenario.interval).isoformat()
-            csv_writer.writerow([i, t] + list(row))
-
-
-def generate_station_name_csv(scenario, args):
-    """Generates a csv file from the grid connectors
-    and their header information in the specified simulation time.
-
-    :param scenario: Scenario for with to generate timeseries.
-    :type scenario: spice_ev.Scenario
-    :param args: Configuration arguments specified in config files contained in configs directory.
-    :type args: argparse.Namespace
-    """
-
-    for gc in scenario.constants.grid_connectors.keys():
-        gc_info = aggregate_timeseries(scenario, gc)
-        file_name = f"simulation_{sanitize(gc)}.csv"
-        with open(args.output_directory / file_name, "w", newline='') as f:
-            csv_writer = csv.writer(f)
-            csv_writer.writerow(gc_info["header"])
-            for elem in gc_info["timeseries"]:
-                csv_writer.writerow(elem)
-
-
-def generate_station_name_json(scenario, args):
-    """Generates a json file from the grid connectors
-    and their header information in the specified simulation time.
-
-    :param scenario: Scenario for with to generate timeseries.
-    :type scenario: spice_ev.Scenario
-    :param args: Configuration arguments specified in config files contained in configs directory.
-    :type args: argparse.Namespace
-    """
-
-    file_name_prefix = "simulation"
-    for gc in scenario.constants.grid_connectors.keys():
-        gc_info = aggregate_local_results(scenario, gc)
-        file_name = f"{file_name_prefix}_{sanitize(gc)}.json"
-        with open(args.output_directory / file_name, 'w') as f:
-            json.dump(gc_info, f, indent=2)
+from src.report import aggregate_global_results, plot, generate_reports
 
 
 def generate_gc_power_overview_timeseries(scenario, args):
@@ -125,18 +66,18 @@ def generate_gc_overview(schedule, scenario, args):
                 max_nr_cs = max(ts["# occupied CS"])
                 sum_of_cs_energy = sum(ts["sum CS power"]) * args.interval/60
 
-                # use factors: to which percentage of time are the three least used stations in use
+                # use factors: to which percentage of time are the three least used CS in use
                 least_used_cs = [max_nr_cs, max_nr_cs-1, max_nr_cs-2]
-                use_factors = [ts["# occupied CS"].count(least_used_cs[i]) /
-                               len(ts["# occupied CS"]) for i in range(3)]
+                use_factors = [None, None, None]
                 for i in range(3):
-                    if least_used_cs[i] < 1:
-                        use_factors[i] = None
+                    if least_used_cs[i] >= 1:
+                        use_factors[i] = sum([ts["# occupied CS"].count(least_used_cs[j]) /
+                                              len(ts["# occupied CS"]) for j in range(i+1)])
             else:
                 max_gc_power = 0
                 max_nr_cs = 0
                 sum_of_cs_energy = 0
-                use_factors = [0, 0, 0]
+                use_factors = [None, None, None]
             station_type = stations[gc]["type"]
             csv_writer.writerow([gc,
                                  station_type,
@@ -157,12 +98,10 @@ def generate(schedule, scenario, args):
     :type args: argparse.Namespace
     """
 
-    # generate csv out of vehicle's socs
-    generate_vehicle_socs(scenario, args)
-
-    # generate csv and json for all stations
-    generate_station_name_csv(scenario, args)
-    generate_station_name_json(scenario, args)
+    # generate simulation_timeseries.csv, simulation.json and vehicle_socs.csv in spiceEV
+    with warnings.catch_warnings():
+        warnings.simplefilter('ignore', UserWarning)
+        generate_reports(scenario, vars(args).copy())
 
     # generate gc power overview
     generate_gc_power_overview_timeseries(scenario, args)
@@ -177,8 +116,10 @@ def generate(schedule, scenario, args):
         plt.gcf().set_size_inches(10, 10)
         plt.savefig(args.output_directory / "run_overview.png")
         plt.savefig(args.output_directory / "run_overview.pdf")
-        plt.close()
+        if not args.show_plots:
+            plt.close()
 
+    # calculate SOCs for each rotation
     rotation_infos = []
 
     negative_rotations = schedule.get_negative_rotations(scenario)
@@ -263,3 +204,5 @@ def generate(schedule, scenario, args):
                     csv_writer.writerow([key, round(value, 2), "€/year"])
                 else:
                     csv_writer.writerow([key, round(value, 2), "€"])
+
+    print("Plots and output files saved in", args.output_directory)
