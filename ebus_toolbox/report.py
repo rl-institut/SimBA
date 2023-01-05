@@ -68,12 +68,17 @@ def generate_gc_overview(schedule, scenario, args):
                 sum_of_cs_energy = sum(ts["sum CS power"]) * args.interval/60
 
                 # use factors: to which percentage of time are the three least used CS in use
-                least_used_cs = [max_nr_cs, max_nr_cs-1, max_nr_cs-2]
-                use_factors = [None, None, None]
-                for i in range(3):
-                    if least_used_cs[i] >= 1:
-                        use_factors[i] = sum([ts["# occupied CS"].count(least_used_cs[j]) /
-                                              len(ts["# occupied CS"]) for j in range(i+1)])
+                num_ts = len(ts["# occupied CS"])  # number of timesteps
+                max_nr_cs = max(ts["# occupied CS"]) # maximum number of occupied CS
+                least_used_num = min(3, max_nr_cs
+                                     ) # three least used CS. Less if number of CS is lower.
+                # count number of timesteps with this exact number of occupied CS
+                count_nr_cs = [ts["# occupied CS"].count(max_nr_cs - i) for i in range(
+                    least_used_num)]
+                use_factors = [sum(count_nr_cs[:i + 1]) / num_ts for i in range(
+                    least_used_num)]  # relative occupancy with at least this number of occupied CS
+                use_factors = use_factors + [None] * (3 - least_used_num)  # fill up line with None
+
             else:
                 max_gc_power = 0
                 max_nr_cs = 0
