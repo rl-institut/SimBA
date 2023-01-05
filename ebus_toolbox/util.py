@@ -3,23 +3,6 @@ import warnings
 import subprocess
 
 
-def sanitize(s, chars=''):
-    """
-    Removes special characters from string.
-
-    Used to make strings safe for file paths.
-    :param s: input to be sanitized
-    :type s: string
-    :param chars: characters to replace
-    :type chars: string
-    :return: input without special characters in chars
-    :rtype: string
-    """
-    if not chars:
-        chars = '</|\\>:"?*'
-    return s.translate({ord(c): "" for c in chars})
-
-
 def get_git_revision_hash() -> str:
     return subprocess.check_output(['git', 'rev-parse', 'HEAD']).decode('ascii').strip()
 
