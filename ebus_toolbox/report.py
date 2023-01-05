@@ -8,8 +8,7 @@ from src.report import aggregate_global_results, plot, generate_reports
 
 
 def generate_gc_power_overview_timeseries(scenario, args):
-    """Generates a csv file from each grid connectors summed up
-    charging station power in the specified simulation time.
+    """Generate a csv timeseries with each grid connector's summed up charging station power
 
     :param scenario: Scenario for with to generate timeseries.
     :type scenario: spice_ev.Scenario
@@ -21,7 +20,7 @@ def generate_gc_power_overview_timeseries(scenario, args):
 
     with open(args.output_directory / "gc_power_overview_timeseries.csv", "w", newline='') as f:
         csv_writer = csv.writer(f)
-        csv_writer.writerow(["time", ] + gc_list)
+        csv_writer.writerow(["time"] + gc_list)
         stations = []
         time_col = getattr(scenario, f"{gc_list[0]}_timeseries")["time"]
         for i in range(len(time_col)):
@@ -34,8 +33,10 @@ def generate_gc_power_overview_timeseries(scenario, args):
 
 
 def generate_gc_overview(schedule, scenario, args):
-    """Generates a csv file where each line an electrified station's maximum power
-    and maximum number of charging stations is shown.
+    """Generate a csv file with information regarding electrified stations.
+
+    For each electrified station, the name, type, max. power, max. number of occupied
+    charging stations, sum of charged energy and use factors of least used stations is saved.
 
     :param schedule: Driving schedule for the simulation.
     :type schedule: eBus-Toolbox.Schedule
