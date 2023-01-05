@@ -205,4 +205,4 @@ def generate(schedule, scenario, args):
                 else:
                     csv_writer.writerow([key, round(value, 2), "€"])
 
-    print("Plots and output files saved in " + str(args.output_directory))
+    print("Plots and output files saved in", args.output_directory)
