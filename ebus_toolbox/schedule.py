@@ -480,10 +480,10 @@ class Schedule:
                             cs_power = args.cs_power_deps_oppb \
                                 if trip.rotation.charging_type == 'oppb' \
                                 else args.cs_power_deps_depb
-                            gc_power = args.gc_power_deps
+                            gc_power = station.get("gc_power", args.gc_power_deps)
                         elif station_type == "opps":
                             cs_power = args.cs_power_opps
-                            gc_power = args.gc_power_opps
+                            gc_power = station.get("gc_power", args.gc_power_opps)
 
                         # add one charging station for each bus at bus station
                         charging_stations[connected_charging_station] = {

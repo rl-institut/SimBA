@@ -44,7 +44,8 @@
     "Station-10": {
         "type": "opps",
         "n_charging_stations": 1,
-        "voltage_level" : "MV"
+        "voltage_level" : "MV",
+        "gc_power": 60  // optional: maximum pc power can be defined per station
     },
     "Station-21": {
         "type": "opps",
