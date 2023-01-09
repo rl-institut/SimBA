@@ -93,7 +93,7 @@ def simulate(args):
         calculate_costs(cost_parameters_file, scenario, schedule, args)
 
     import pickle
-    with open("schedule", "wb") as f:
+    with open("schedule.pickle", "wb") as f:
         pickle.dump(schedule, f)
     with open("scenario.pickle", "wb") as f:
         pickle.dump(scenario, f)
