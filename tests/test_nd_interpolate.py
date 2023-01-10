@@ -21,6 +21,40 @@ def get_boundaries(table):
     return lower_bounds, upper_bounds
 
 
+def get_outer_point(table, dims_out_of_bound=1):
+    # Number of input dimensions
+    idims = len(table[0]) - 1
+
+    # Number of dimensions which are out of bounds
+    dims_out_of_bound = min(dims_out_of_bound, idims)
+
+    # Lists for boundaries for each dimension, e.g. Dimension 2 has lower boundary of
+    # low_bounds[1]
+    low_bounds, upper_bounds = get_boundaries(table)
+
+    # define a point where the first dims_out_of_bound values are outside of the boundaries, and
+    # the following are inside of the boundaries
+    point = ()
+    for dim in range(idims):
+        offset = random.random()
+        if dim < dims_out_of_bound:
+            # out of bounds
+            # the point is randomly below the lower bounds or above the upper bound, depending
+            # on the offset value
+            if offset > 0.5:
+                out_of_bounds_value = (low_bounds[dim] - offset)
+            else:
+                out_of_bounds_value = (upper_bounds[dim] + offset)
+            point += (out_of_bounds_value,)
+        else:
+            # inside bounds
+            scaling = offset
+            # find a random value between boundaries
+            inside_bounds_value = scaling * (upper_bounds[dim] - low_bounds[dim]) + low_bounds[dim]
+            point += (inside_bounds_value,)
+    return point
+
+
 class TestNdInterpol:
     random.seed(5)
     linear_function = None
@@ -64,20 +98,32 @@ class TestNdInterpol:
     # possible but is not used at this point
     def test_out_of_bounds(self):
         for num_dim in range(1, self.dim_amount):
-            data_table = self.generate_data_table(num_dimensions=num_dim, random_values=True,
-                                                  dim_lengths=[2] * num_dim)
+            data_table = self.generate_data_table(
+                        num_dimensions=num_dim, random_values=True, dim_lengths=[2] * num_dim)
             lower_bounds, upper_bounds = get_boundaries(data_table)
             for out_of_bounds_dim in range(1, num_dim+1):
                 # copy table
                 stuffed_table = [p for p in data_table]
 
                 # get a point which has one or many input values out of the table boundaries
-                point = self.get_outer_point(data_table, dims_out_of_bound=out_of_bounds_dim)
+                point = get_outer_point(data_table, dims_out_of_bound=out_of_bounds_dim)
 
                 for dim, v in enumerate(point):
                     if lower_bounds[dim] < v < upper_bounds[dim]:
+                        # if the value is inside of the boundaries, no stuffing at the borders has
+                        # to take place. Therefore this dimension can be skipped
                         continue
 
+                    if v < lower_bounds[dim]:
+                        # input value is below the lower boundary of the dimension
+                        value_below_bounds = True
+                    else:
+                        # value is not below the lower boundary. With the previous skip condition
+                        # this means the value is above the upper bounds of the dimension
+                        value_below_bounds = False
+
+                    # Points which will extend the boundaries of the data_table, so that the given
+                    # point with out of bound dimensions can be found in the stuffed table.
                     stuffing = []
                     # go through all rows in the data_table
                     for row in stuffed_table:
@@ -86,33 +132,22 @@ class TestNdInterpol:
                         # copy boundary values to out of bound values.
                         # if a row contains a boundary value which is broken by the input, the
                         # value of this row is copied to a new row, where the boundary value
-                        # changes to the input value
-                        if (v < lower_bounds[dim] and mutated_row[dim] == lower_bounds[dim] or
-                                v > upper_bounds[dim] and mutated_row[dim] == upper_bounds[dim]):
+                        # changes to the input value.
+                        # Eg The lower boundary of dimension 0 is '5'. The data_table has a row with
+                        # the value '5' for dimension 0, but the input value is '4'.
+                        # In this case the row in the data_table including the output value
+                        # is copied, but the value for dimension 0 is changed to '4'.
+                        # In the case where the input value exceeds the boundary of the dimension,
+                        # only the rows of the data_table which have the upper boundary are copied.
+                        lower_bound_broken = value_below_bounds and\
+                            mutated_row[dim] == lower_bounds[dim]
+                        upper_bound_broken = (not value_below_bounds) and\
+                            mutated_row[dim] == upper_bounds[dim]
+                        if lower_bound_broken or upper_bound_broken:
                             mutated_row[dim] = v
                             stuffing.append(mutated_row)
                     stuffed_table.extend(stuffing)
                 self.approx(nd_interp(point, data_table), nd_interp(point, stuffed_table))
-
-    # select a random point in between each boundary of each dimensions
-    def get_outer_point(self, table, dims_out_of_bound=1):
-        idims = len(table[0]) - 1
-        dims_out_of_bound = min(dims_out_of_bound, idims)
-        low_bounds, upper_bounds = get_boundaries(table)
-
-        # define a point with the number of dims_out_of_bound values which are not inside
-        # the dimension values
-        point = ()
-        for dim in range(0, idims):
-            offset = random.random()
-            # out of bounds
-            if dim < dims_out_of_bound:
-                point += ((low_bounds[dim] - offset) + (offset > 0.5) *
-                          ((-low_bounds[dim] + offset) + (upper_bounds[dim] + offset)),)
-            else:
-                # inside bounds
-                point += (offset * (upper_bounds[dim] - low_bounds[dim]) + low_bounds[dim],)
-        return point
 
     # test each point on the grid of an automatically and randomly generated data table.
     def test_grid_points(self):
@@ -152,7 +187,7 @@ class TestNdInterpol:
     def generate_data_table(self, num_dimensions: int, random_values=True, dim_lengths=None):
         dims = []
         # generate dimensions with random values with random step size
-        for dim in range(0, num_dimensions):
+        for dim in range(num_dimensions):
             start = random.randint(-100, 100)
             if dim_lengths is not None:
                 steps = dim_lengths[dim]
@@ -194,9 +229,9 @@ class TestNdInterpol:
 # creates a full matrix, if given a list of lists with unique values per dimension
 def list_combinator(dimension_list):
     table = [(x,) for x in dimension_list[0]]
-    for i, l in enumerate(dimension_list[1:]):
+    for unique_values_single_dimension in dimension_list[1:]:
         new_table = []
-        for v in l:
+        for v in unique_values_single_dimension:
             for ii, t in enumerate(table):
                 new_table.append((*table[ii], v,))
         table = new_table
@@ -205,10 +240,10 @@ def list_combinator(dimension_list):
 
 # select a random point in between each boundary of each dimensions
 def get_random_inner_point(table):
+    # Number of input dimensions
     idims = len(table[0]) - 1
     lower_bounds, upper_bounds = get_boundaries(table)
-    point = ()
+    point = []
     for dim in range(0, idims):
-        point += (
-            random.random() * (upper_bounds[dim] - lower_bounds[dim]) + lower_bounds[dim],)
+        point.append(random.random() * (upper_bounds[dim] - lower_bounds[dim]) + lower_bounds[dim],)
     return point
