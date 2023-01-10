@@ -156,7 +156,7 @@ class TestNdInterpol:
             for row in data_table:
                 self.approx(nd_interp(row[:-1], data_table), row[-1])
 
-    # test 10 randomly generated points in between the table bounds. Values are checked againstAdd
+    # test 10 randomly generated points in between the table bounds. Values are checked against
     # a linear function with a TOLERANCE of 0.0001
     def test_random_points(self):
         for i in range(1, DIM_AMOUNT):
