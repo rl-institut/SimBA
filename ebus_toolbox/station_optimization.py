@@ -54,8 +54,13 @@ def main():
     """ main call"""
     util.print_time()
     config_path = "./data/examples/optimizer.cfg"
-    run_optimization(config_path)
+    opt_sched, opt_scen= run_optimization(config_path)
     util.print_time()
+    import pickle
+    with open("schedule_opt.pickle", "wb") as f:
+        pickle.dump(opt_sched, f)
+    with open("scenario_opt.pickle", "wb") as f:
+        pickle.dump(opt_scen, f)
 
 
 def prepare_filesystem(this_args, conf):
