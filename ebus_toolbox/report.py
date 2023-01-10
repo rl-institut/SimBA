@@ -3,9 +3,128 @@
 import csv
 import datetime
 import warnings
+import matplotlib.pyplot as plt
+from src.report import aggregate_global_results, plot, generate_reports
+
+
+def generate_gc_power_overview_timeseries(scenario, args):
+    """Generate a csv timeseries with each grid connector's summed up charging station power
+
+    :param scenario: Scenario for with to generate timeseries.
+    :type scenario: spice_ev.Scenario
+    :param args: Configuration arguments specified in config files contained in configs directory.
+    :type args: argparse.Namespace
+    """
+
+    gc_list = list(scenario.constants.grid_connectors.keys())
+
+    with open(args.output_directory / "gc_power_overview_timeseries.csv", "w", newline='') as f:
+        csv_writer = csv.writer(f)
+        csv_writer.writerow(["time"] + gc_list)
+        stations = []
+        time_col = getattr(scenario, f"{gc_list[0]}_timeseries")["time"]
+        for i in range(len(time_col)):
+            time_col[i] = time_col[i].isoformat()
+        stations.append(time_col)
+        for gc in gc_list:
+            stations.append([-x for x in getattr(scenario, f"{gc}_timeseries")["grid power [kW]"]])
+        gc_power_overview = list(map(list, zip(*stations)))
+        csv_writer.writerows(gc_power_overview)
+
+
+def generate_gc_overview(schedule, scenario, args):
+    """Generate a csv file with information regarding electrified stations.
+
+    For each electrified station, the name, type, max. power, max. number of occupied
+    charging stations, sum of charged energy and use factors of least used stations is saved.
+
+    :param schedule: Driving schedule for the simulation.
+    :type schedule: eBus-Toolbox.Schedule
+    :param scenario: Scenario for with to generate timeseries.
+    :type scenario: spice_ev.Scenario
+    :param args: Configuration arguments specified in config files contained in configs directory.
+    :type args: argparse.Namespace
+    """
+
+    all_gc_list = list(schedule.stations.keys())
+    used_gc_list = list(scenario.constants.grid_connectors.keys())
+    stations = getattr(schedule, "stations")
+
+    with open(args.output_directory / "gc_overview.csv", "w", newline='') as f:
+        csv_writer = csv.writer(f)
+        csv_writer.writerow(["station_name",
+                             "station_type",
+                             "maximum_power",
+                             "maximum Nr charging stations",
+                             "sum of CS energy",
+                             "use factor least CS",
+                             "use factor 2nd least CS",
+                             "use factor 3rd least CS"])
+        for gc in all_gc_list:
+            if gc in used_gc_list:
+                ts = getattr(scenario, f"{gc}_timeseries")
+                max_gc_power = -min(ts["grid power [kW]"])
+                max_nr_cs = max(ts["# occupied CS"])
+                sum_of_cs_energy = sum(ts["sum CS power"]) * args.interval/60
+
+                # use factors: to which percentage of time are the three least used CS in use
+                num_ts = len(ts["# occupied CS"])  # number of timesteps
+                # three least used CS. Less if number of CS is lower.
+                least_used_num = min(3, max_nr_cs)
+                # count number of timesteps with this exact number of occupied CS
+                count_nr_cs = [ts["# occupied CS"].count(max_nr_cs - i) for i in range(
+                    least_used_num)]
+                use_factors = [sum(count_nr_cs[:i + 1]) / num_ts for i in range(
+                    least_used_num)]  # relative occupancy with at least this number of occupied CS
+                use_factors = use_factors + [None] * (3 - least_used_num)  # fill up line with None
+
+            else:
+                max_gc_power = 0
+                max_nr_cs = 0
+                sum_of_cs_energy = 0
+                use_factors = [None, None, None]
+            station_type = stations[gc]["type"]
+            csv_writer.writerow([gc,
+                                 station_type,
+                                 max_gc_power,
+                                 max_nr_cs,
+                                 sum_of_cs_energy,
+                                 *use_factors])
 
 
 def generate(schedule, scenario, args):
+    """Generates all output files/ plots and saves them in the output directory.
+
+    :param schedule: Driving schedule for the simulation.
+    :type schedule: eBus-Toolbox.Schedule
+    :param scenario: Scenario for with to generate timeseries.
+    :type scenario: spice_ev.Scenario
+    :param args: Configuration arguments specified in config files contained in configs directory.
+    :type args: argparse.Namespace
+    """
+
+    # generate simulation_timeseries.csv, simulation.json and vehicle_socs.csv in spiceEV
+    with warnings.catch_warnings():
+        warnings.simplefilter('ignore', UserWarning)
+        generate_reports(scenario, vars(args).copy())
+
+    # generate gc power overview
+    generate_gc_power_overview_timeseries(scenario, args)
+
+    # generate gc overview
+    generate_gc_overview(schedule, scenario, args)
+
+    # save plots as png and pdf
+    aggregate_global_results(scenario)
+    with plt.ion():     # make plotting temporarily interactive, so plt.show does not block
+        plot(scenario)
+        plt.gcf().set_size_inches(10, 10)
+        plt.savefig(args.output_directory / "run_overview.png")
+        plt.savefig(args.output_directory / "run_overview.pdf")
+        if not args.show_plots:
+            plt.close()
+
+    # calculate SOCs for each rotation
     rotation_infos = []
 
     negative_rotations = schedule.get_negative_rotations(scenario)
@@ -90,3 +209,5 @@ def generate(schedule, scenario, args):
                     csv_writer.writerow([key, round(value, 2), "€/year"])
                 else:
                     csv_writer.writerow([key, round(value, 2), "€"])
+
+    print("Plots and output files saved in", args.output_directory)
