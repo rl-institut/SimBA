@@ -102,35 +102,8 @@ class Schedule:
                                               schedule=schedule)})
                 schedule.rotations[rotation_id].add_trip(trip)
 
-            # read filter rotation file
-            rotation_filter_variable = kwargs.get("rotation_filter_variable")
-            if rotation_filter_variable is not False:
-                rot_filt_file = kwargs.get("rotation_filter")
-                try:
-                    with open(rot_filt_file, encoding='utf-8') as f:
-                        # convert rotation file to dict
-                        rotation_filter = util.file_wrapper_to_dict(f)
-                except FileNotFoundError:
-                    print(f"Path to rotation filter ({rot_filt_file}) does not exist.")
-
-                # filter out rotations in schedule
-                if rotation_filter_variable == "exclude":
-                    for rotation in rotation_filter:
-                        if rotation in schedule.rotations:
-                            try:
-                                schedule.rotations.pop(rotation)
-                            except KeyError:
-                                print(f"Rotation {rotation['id']} does not exist in schedule.")
-                elif rotation_filter_variable == "include":
-                    remove_rotations = list()
-                    for rotation in schedule.rotations:
-                        if rotation not in rotation_filter:
-                            remove_rotations.append(rotation)
-                    for rotation in remove_rotations:
-                        try:
-                            schedule.rotations.pop(rotation)
-                        except KeyError:
-                            print(f"Rotation {rotation['id']} does not exist in schedule.")
+        # read filter rotation file
+        cls.rotation_filter(cls, kwargs, schedule)
 
         # set charging type for all rotations without explicitly specified charging type
         # charging type may have been set above if a trip of a rotation has a specified
@@ -402,6 +375,36 @@ class Schedule:
                     negative_rotations.add(last_rot_id)
 
         return list(negative_rotations)
+
+    def rotation_filter(self, args, schedule):
+        rotation_filter_variable = args["rotation_filter_variable"]
+        if rotation_filter_variable is not False:
+            rot_filt_file = args["rotation_filter"]
+            try:
+                with open(rot_filt_file, encoding='utf-8') as f:
+                    # convert rotation file to dict
+                    rotation_filter = util.file_wrapper_to_dict(f)
+            except FileNotFoundError:
+                print(f"Path to rotation filter ({rot_filt_file}) does not exist.")
+
+            # filter out rotations in schedule
+            if rotation_filter_variable == "exclude":
+                for rotation in rotation_filter:
+                    if rotation in schedule.rotations:
+                        try:
+                            schedule.rotations.pop(rotation)
+                        except KeyError:
+                            print(f"Rotation {rotation['id']} does not exist in schedule.")
+            elif rotation_filter_variable == "include":
+                remove_rotations = list()
+                for rotation in schedule.rotations:
+                    if rotation not in rotation_filter:
+                        remove_rotations.append(rotation)
+                for rotation in remove_rotations:
+                    try:
+                        schedule.rotations.pop(rotation)
+                    except KeyError:
+                        print(f"Rotation {rotation['id']} does not exist in schedule.")
 
     def generate_scenario(self, args):
         """ Generate scenario.json for spiceEV
