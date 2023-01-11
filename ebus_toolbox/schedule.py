@@ -478,12 +478,16 @@ class Schedule:
                     # create charging station and grid connector if necessary
                     if cs_name not in charging_stations:
                         if station_type == "deps":
-                            cs_power = args.cs_power_deps_oppb \
-                                if trip.rotation.charging_type == 'oppb' \
-                                else args.cs_power_deps_depb
+                            if trip.rotation.charging_type == 'oppb':
+                                cs_power = station.get("cs_power_deps_oppb",
+                                                       args.cs_power_deps_oppb)
+                            else:
+                                cs_power = station.get("cs_power_deps_depb",
+                                                       args.cs_power_deps_depb)
                             gc_power = station.get("gc_power", args.gc_power_deps)
                         elif station_type == "opps":
-                            cs_power = args.cs_power_opps
+                            cs_power = station.get("cs_power_opps",
+                                                   args.cs_power_opps)
                             gc_power = station.get("gc_power", args.gc_power_opps)
 
                         # add one charging station for each bus at bus station
