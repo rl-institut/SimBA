@@ -102,9 +102,6 @@ class Schedule:
                                               schedule=schedule)})
                 schedule.rotations[rotation_id].add_trip(trip)
 
-        # read filter rotation file
-        cls.rotation_filter(cls, kwargs, schedule)
-
         # set charging type for all rotations without explicitly specified charging type
         # charging type may have been set above if a trip of a rotation has a specified
         # charging type
@@ -376,10 +373,10 @@ class Schedule:
 
         return list(negative_rotations)
 
-    def rotation_filter(self, args, schedule):
-        rotation_filter_variable = args["rotation_filter_variable"]
+    def rotation_filter(self, schedule, args):
+        rotation_filter_variable = args.rotation_filter_variable
         if rotation_filter_variable is not False:
-            rot_filt_file = args["rotation_filter"]
+            rot_filt_file = args.rotation_filter
             try:
                 with open(rot_filt_file, encoding='utf-8') as f:
                     # convert rotation file to dict
