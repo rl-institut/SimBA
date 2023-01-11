@@ -4,6 +4,14 @@ import subprocess
 
 
 def file_wrapper_to_dict(f):
+    """Returns a dict representation of a file wrapper parameter
+
+    :param f: Input Textwrapper from which the retur_dict gets created.
+    :type f: io.TextIOWrapper
+
+    :return: Textwrapper content in a dict.
+    :rtype: dict
+    """
     line = f.readline()
     header = line.split(",")
     return_dict = dict()
