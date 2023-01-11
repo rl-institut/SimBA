@@ -51,6 +51,12 @@
         "c_maint_transformer_per_year": 0.02,
         "lifetime_transformer": 20
     },
+    "stationary_storage": {
+        "capex_fix": 1,
+        "capex_per_kWh": 1,
+        "c_maint_stat_storage_per_year": 0.02,
+        "lifetime_stat_storage": 20
+    },
     "cs":{
         "capex_opps_per_kW": 877.5,
         "capex_deps_per_kW": 1000,
