@@ -374,6 +374,14 @@ class Schedule:
         return list(negative_rotations)
 
     def rotation_filter(self, schedule, args):
+        """The method edits the schedule.rotations accordingly
+        to the set rotation_filter_variable in args.
+
+        :param schedule: Schedule with property rotations which get filtered.
+        :type schedule: ebus_toolbox.Schedule
+        :param args: Command line arguments.
+        :type args: argparse.Namespace
+        """
         rotation_filter_variable = args.rotation_filter_variable
         if rotation_filter_variable is not False:
             rot_filt_file = args.rotation_filter
