@@ -183,7 +183,8 @@ class Schedule:
         with warnings.catch_warnings():
             warnings.simplefilter('ignore', UserWarning)
             scenario.run('distributed', vars(args).copy())
-
+        assert scenario.step_i == scenario.n_intervals - 1, \
+            'spiceEV simulation aborted, see above for details'
         return scenario
 
     def set_charging_type(self, ct, rotation_ids=None):
