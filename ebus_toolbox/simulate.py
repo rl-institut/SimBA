@@ -62,6 +62,9 @@ def simulate(args):
                                  **vars(args))
     schedule.calculate_consumption()
 
+    # filter rotations
+    schedule.rotation_filter(schedule, args)
+
     # run the mode specified in config
     if args.mode == 'service_optimization':
         schedule, scenario = optimization.service_optimization(schedule, args)["optimized"]
