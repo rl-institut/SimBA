@@ -81,7 +81,7 @@ def calculate_costs(c_params, scenario, schedule, args):
             # get max. nr of occupied CS per grid connector
             gc = getattr(scenario, f"{gcID}_timeseries")
             costs["c_cs"] += (c_params["cs"]["capex_opps_per_kW"] * vars(args)["cs_power_opps"] *
-                              max(gc["# occupied CS"]))
+                              max(gc["CS in use"]))
     # calculate annual cost of charging stations, depending on their lifetime
     costs["c_cs_annual"] = costs["c_cs"] / c_params["cs"]["lifetime_cs"]
 
