@@ -3,31 +3,6 @@ import warnings
 import subprocess
 
 
-def file_wrapper_to_dict(f):
-    """Returns a dict representation of a file wrapper parameter
-
-    :param f: Input Textwrapper from which the retur_dict gets created.
-    :type f: io.TextIOWrapper
-
-    :return: Textwrapper content in a dict.
-    :rtype: dict
-    """
-    line = f.readline()
-    header = line.split(",")
-    return_dict = dict()
-
-    while line != "":
-        tmp_rotation = dict()
-        line = f.readline().split(",")
-        if line == [""]:
-            break
-        for key, value in zip(header, line):
-            tmp_rotation[key] = value
-        return_dict[tmp_rotation['id']] = tmp_rotation
-
-    return return_dict
-
-
 def get_git_revision_hash() -> str:
     return subprocess.check_output(['git', 'rev-parse', 'HEAD']).decode('ascii').strip()
 
