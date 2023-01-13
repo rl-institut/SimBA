@@ -373,7 +373,7 @@ class Schedule:
 
         return list(negative_rotations)
 
-    def rotation_filter(self, schedule, args):
+    def rotation_filter(self, schedule, args, rf_list=None):
         """The method edits the schedule.rotations accordingly
         to the set rotation_filter_variable in args.
 
@@ -381,29 +381,39 @@ class Schedule:
         :type schedule: ebus_toolbox.Schedule
         :param args: Command line arguments.
         :type args: argparse.Namespace
+        :param rf_list: rotation filter list with strings of rotation ids
+        :type rf_list: list, optional
         """
-        rotation_filter_variable = args.rotation_filter_variable
-        if rotation_filter_variable is not False:
-            rot_filt_file = args.rotation_filter
+        if rf_list is None:
+            rf_list = []
+
+        rf_variable = args.rotation_filter_variable
+        if rf_variable is not False:
+            rf_file = args.rotation_filter
             try:
-                with open(rot_filt_file, encoding='utf-8') as f:
-                    # convert rotation file to dict
-                    rotation_filter = util.file_wrapper_to_dict(f)
+                with open(rf_file, encoding='utf-8') as f:
+                    # put rotation_ids from file into rf_list
+                    line = f.readline().strip()
+                    if line == "rotation_id":
+                        line = f.readline().strip()
+                        while line != "":
+                            rf_list.append(line)
+                            line = f.readline().strip()
             except FileNotFoundError:
-                print(f"Path to rotation filter ({rot_filt_file}) does not exist.")
+                print(f"Path to rotation filter ({rf_file}) does not exist.")
 
             # filter out rotations in schedule
-            if rotation_filter_variable == "exclude":
-                for rotation in rotation_filter:
+            if rf_variable == "exclude":
+                for rotation in rf_list:
                     if rotation in schedule.rotations:
                         try:
                             schedule.rotations.pop(rotation)
                         except KeyError:
-                            print(f"Rotation {rotation['id']} does not exist in schedule.")
-            elif rotation_filter_variable == "include":
-                remove_rotations = list()
+                            print(f"Rotation '{rotation}' does not exist in schedule.")
+            elif rf_variable == "include":
+                remove_rotations = []
                 for rotation in schedule.rotations:
-                    if rotation not in rotation_filter:
+                    if rotation not in rf_list:
                         remove_rotations.append(rotation)
                 for rotation in remove_rotations:
                     try:
