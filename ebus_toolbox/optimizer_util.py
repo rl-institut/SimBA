@@ -482,7 +482,7 @@ def charging_curve_to_soc_over_time(charging_curve, capacity, args,
     charge_time = 0
     socs = []
     times = []
-    final_value=args.desired_soc_opps
+    final_value = args.desired_soc_opps
     while soc < args.desired_soc_opps:
         times.append(charge_time)
         socs.append(soc)
