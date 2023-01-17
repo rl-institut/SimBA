@@ -274,7 +274,8 @@ def get_delta_soc(soc_over_time_curve, soc, time_delta, optimizer: 'StationOptim
     if time_delta == 0:
         return 0
     soc = max(min(optimizer.args.desired_soc_opps, soc), 0)
-    first_time, start_soc = soc_over_time_curve[soc_over_time_curve[:, 1] >= soc][0, :]
+    idx = np.searchsorted(soc_over_time_curve[:, 1], soc, side='left')
+    first_time, start_soc = soc_over_time_curve[idx, :]
     second_time = first_time + time_delta
     # catch out of bounds if time of charging end is bigger than table values
 
@@ -481,6 +482,7 @@ def charging_curve_to_soc_over_time(charging_curve, capacity, args,
     charge_time = 0
     socs = []
     times = []
+    final_value=args.desired_soc_opps
     while soc < args.desired_soc_opps:
         times.append(charge_time)
         socs.append(soc)
@@ -490,11 +492,15 @@ def charging_curve_to_soc_over_time(charging_curve, capacity, args,
         power2 = min(np.interp(soc2, normalized_curve[:, 0], normalized_curve[:, 1]),
                      max_charge_from_grid / capacity)
         power = (power1 + power2) / 2 * efficiency
-        soc += time_step / 60 * power
+        delta_soc = time_step / 60 * power
+        soc += delta_soc
         charge_time += time_step
+        if args.desired_soc_opps-soc < 0.0001 and delta_soc < 1e-10:
+            final_value = soc
+            break
     # fill the soc completely in last time step
     times.append(charge_time)
-    socs.append(args.desired_soc_opps)
+    socs.append(final_value)
     return np.array((times, socs)).T
 
 
