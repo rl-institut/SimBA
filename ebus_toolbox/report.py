@@ -92,7 +92,19 @@ def generate_gc_overview(schedule, scenario, args):
                                  *use_factors])
 
 
-def generate(schedule, scenario, args):
+def bus_type_distribution_mileage_consumption():
+    pass
+
+
+def charge_type_proportion():
+    pass
+
+
+def gc_power_time_overview():
+    pass
+
+
+def generate(schedule, scenario, args, extended_plots=False):
     """Generates all output files/ plots and saves them in the output directory.
 
     :param schedule: Driving schedule for the simulation.
@@ -101,7 +113,15 @@ def generate(schedule, scenario, args):
     :type scenario: spice_ev.Scenario
     :param args: Configuration arguments specified in config files contained in configs directory.
     :type args: argparse.Namespace
+    :param extended_plots: Generates more plots.
+    :type extended_plots: bool
     """
+
+    # generate if needed extended output plots
+    if extended_plots:
+        bus_type_distribution_mileage_consumption()
+        charge_type_proportion()
+        gc_power_time_overview()
 
     # generate simulation_timeseries.csv, simulation.json and vehicle_socs.csv in spiceEV
     with warnings.catch_warnings():
