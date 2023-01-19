@@ -6,7 +6,9 @@ from pathlib import Path
 
 from ebus_toolbox import util
 from ebus_toolbox.rotation import Rotation
+from ebus_toolbox import report
 from src.scenario import Scenario
+from ebus_toolbox import run_sensitivity
 
 
 class Schedule:
@@ -179,13 +181,35 @@ class Schedule:
 
         scenario = self.generate_scenario(args)
 
-        print("Running Spice EV...")
-        with warnings.catch_warnings():
-            warnings.simplefilter('ignore', UserWarning)
-            scenario.run('distributed', vars(args).copy())
-        assert scenario.step_i == scenario.n_intervals - 1, \
-            'spiceEV simulation aborted, see above for details'
-        return scenario
+        if self.mode == 1:
+            for ix in range(self.range_sensitivity):
+                args = run_sensitivity.run_sensitivity(args, ix)
+                print("Running Spice EV...")
+                with warnings.catch_warnings():
+                    warnings.simplefilter('ignore', UserWarning)
+                    scenario.run('distributed', vars(args).copy())
+                assert scenario.step_i == scenario.n_intervals - 1, \
+                    'spiceEV simulation aborted, see above for details'
+                print('Sensitivity finished for variation ', ix)
+                # create report
+                args.save_timeseries = args.output_directory / "simulation_timeseries.csv"
+                args.save_results = args.output_directory / "simulation.json"
+                args.save_soc = args.output_directory / "vehicle_socs.csv"
+
+                report.generate(self, scenario, args)
+
+                args.save_timeseries = None
+                args.save_results = None
+                args.save_soc = None
+
+        else:
+            print("Running Spice EV...")
+            with warnings.catch_warnings():
+                warnings.simplefilter('ignore', UserWarning)
+                scenario.run('distributed', vars(args).copy())
+            assert scenario.step_i == scenario.n_intervals - 1, \
+                'spiceEV simulation aborted, see above for details'
+            return scenario
 
     def set_charging_type(self, ct, rotation_ids=None):
         """ Change charging type of either all or specified rotations. Adjust minimum standing time

@@ -62,12 +62,18 @@ def simulate(args):
                                  **vars(args))
     schedule.calculate_consumption()
 
+    schedule.mode = 0
+
     # run the mode specified in config
     if args.mode == 'service_optimization':
         schedule, scenario = optimization.service_optimization(schedule, args)["optimized"]
     elif args.mode in ["sim", "neg_depb_to_oppb", "neg_oppb_to_depb"]:
         # DEFAULT if mode argument is not specified by user
         # Scenario simulated once
+        scenario = schedule.run(args)
+    elif args.mode == 'sensitivity_analysis':
+        schedule.mode = 1
+        schedule.range_sensitivity = 1
         scenario = schedule.run(args)
     if args.mode in ["neg_depb_to_oppb", "neg_oppb_to_depb"]:
         # simple optimization: change charging type, simulate again
