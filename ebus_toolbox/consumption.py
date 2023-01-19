@@ -7,7 +7,7 @@ class Consumption:
     def __init__(self, vehicle_types, **kwargs) -> None:
         # load temperature of the day, now dummy winter day
         self.temperatures_by_hour = {}
-        with open(kwargs.get("outside_temperatures", "data/bvg_test/default_temp_sensitivity.csv")) as f:
+        with open(kwargs.get("outside_temperatures", "data/bvg_test/default_temp_winter.csv")) as f:
             reader = csv.DictReader(f)
             for row in reader:
                 self.temperatures_by_hour.update({int(row['hour']): float(row['temperature'])})
@@ -51,7 +51,7 @@ class Consumption:
                 reader = csv.DictReader(f)
                 for row in reader:
                     consumption['temperature'].append(float(row['Temp.']))
-                    consumption['consumption'].append(float(row['Kat. B']))
+                    consumption['consumption'].append(float(row['Alle']))
             self.consumption_files.update({consumption_file: consumption})
 
         xp = self.consumption_files[consumption_file]['temperature']

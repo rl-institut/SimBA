@@ -12,7 +12,7 @@ if __name__ == '__main__':
     parser.add_argument('--preferred_charging_type', '-pct', default='depot',
                         choices=['depot', 'opp'], help="Preferred charging type. Choose one\
                         from <depb> and <oppb>. opp stands for opportunity.")
-    parser.add_argument('--vehicle-types', default="./data/examples/vehicle_types.json",
+    parser.add_argument('--vehicle-types', default="./data/uebertragbarkeitsanalyse/vehicle_types.json",
                         help='location of vehicle type definitions')
     parser.add_argument('--min_recharge_deps_oppb', default=1,
                         help='Minimum fraction of capacity for recharge when leaving the depot.')
@@ -60,9 +60,9 @@ if __name__ == '__main__':
                         help='Provide start date of simulation in format YYYY-MM-DD.E.g. '
                              '2018-01-31')
     parser.add_argument('--electrified_stations', help='include electrified_stations json',
-                        default='data/examples/electrified_stations.json')
+                        default='data/uebertragbarkeitsanalyse/electrified_stations.json')
     parser.add_argument('--vehicle_types', help='include vehicle_types json',
-                        default='examples/vehicle_types.json')
+                        default='uebertragbarkeitsanalyse/vehicle_types.json')
     parser.add_argument('--min_charging_time_opps', help='define minimum time of charging at opps',
                         default=2)
     parser.add_argument('--default_buffer_time_opps', help='time to subtract off of standing time '

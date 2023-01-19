@@ -24,7 +24,7 @@ def simulate(args):
             vehicle_types = json.load(f)
     except FileNotFoundError:
         warnings.warn("Invalid path for vehicle type JSON. Using default types from EXAMPLE dir.")
-        with open("data/examples/vehicle_types.json") as f:
+        with open("data/uebertragbarkeitsanalyse/vehicle_types.json") as f:
             vehicle_types = json.load(f)
 
     # parse strategy options for Spice EV
