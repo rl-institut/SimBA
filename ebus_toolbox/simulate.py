@@ -73,8 +73,9 @@ def simulate(args):
         scenario = schedule.run(args)
     elif args.mode == 'sensitivity_analysis':
         schedule.mode = 1
-        schedule.range_sensitivity = 5
-        scenario = schedule.run(args)
+        schedule.range_sensitivity = 1
+        schedule.run(args)
+        return
     if args.mode in ["neg_depb_to_oppb", "neg_oppb_to_depb"]:
         # simple optimization: change charging type, simulate again
         change_from = args.mode[4:8]

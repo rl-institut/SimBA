@@ -213,6 +213,7 @@ class Schedule:
                 args.save_timeseries = None
                 args.save_results = None
                 args.save_soc = None
+            #return scenario
 
         else:
             print("Running Spice EV...")
