@@ -1,5 +1,6 @@
 """ Module to implement plotting functionality of busses with georeferences"""
 import datetime
+import typing
 
 from matplotlib.offsetbox import TextArea, AnnotationBbox
 
@@ -103,8 +104,9 @@ with open("args_buffered_all_depb.pickle", "rb") as file:
 
 args.station_data_path = "C:/Users/paul.scheer/Python/bus_toolbox/eBus-Toolbox/data/buffered_all_stations.csv"
 
-
+ANIMATION_DURATION_MIN = 480
 def main():
+    pickle_path="vehicle_data_frames.pickle"
     with open(str(args.station_data_path), "r", encoding='utf-8') as f:
         delim = util.get_csv_delim(args.station_data_path)
         reader = csv.DictReader(f, delimiter=delim)
@@ -119,44 +121,51 @@ def main():
     start_time = scenario.start_time
     time_step = datetime.timedelta(hours=1 / scenario.stepsPerHour)
 
-    vehicle_data_frames = pd.DataFrame()
-    c = 0
-    for v_id, soc_data in scenario.vehicle_socs.items():
-        rotations = get_sorted_rotations(v_id, schedule)
-        trips = [trip for rot in rotations for trip in rot.trips]
-        lats = []
-        lons = []
-        trip_nr = 0
-        for counter, soc in enumerate(soc_data):
-            try:
-                current_time = start_time + counter * time_step
-                current_trip, found_trip_index = find_current_trip(trips[trip_nr:], current_time)
-                trip_nr += found_trip_index
-                rel_time_of_trip = get_rel_time_of_trip(current_time, current_trip)
-                current_station = stations[current_trip.departure_name]
-                next_station = stations[current_trip.arrival_name]
-                lat, lon = current_station.get_lat_lon(next_station, rel_time_of_trip)
-                lats.append(lat)
-                lons.append(lon)
-            except IndexError:
-                pass
-        columns = [(v_id, "soc"), (v_id, "lat"), (v_id, "lon")]
-        data = np.array([soc_data, lats, lons]).transpose()
-        vehicle_data_frames = pd.concat((vehicle_data_frames, pd.DataFrame(data, columns=columns)),
-                                        axis=1)
-        # c += 1
-        # if c > 2:
-        #     break
+    if not pickle_path:
+        vehicle_data_frames = pd.DataFrame()
+        c = 0
 
-    vehicle_data_frames.columns = pd.MultiIndex.from_tuples(vehicle_data_frames.columns,
-                                                            names=['Vehicle_id', 'Data'])
+        for v_id, soc_data in scenario.vehicle_socs.items():
+            rotations = get_sorted_rotations(v_id, schedule)
+            trips = [trip for rot in rotations for trip in rot.trips]
+            lats = []
+            lons = []
+            trip_nr = 0
+            for counter, soc in enumerate(soc_data):
+                try:
+                    current_time = start_time + counter * time_step
+                    current_trip, found_trip_index = find_current_trip(trips[trip_nr:], current_time)
+                    trip_nr += found_trip_index
+                    rel_time_of_trip = get_rel_time_of_trip(current_time, current_trip)
+                    current_station = stations[current_trip.departure_name]
+                    next_station = stations[current_trip.arrival_name]
+                    lat, lon = current_station.get_lat_lon(next_station, rel_time_of_trip)
+                    lats.append(lat)
+                    lons.append(lon)
+                except IndexError:
+                    pass
+            columns = [(v_id, "soc"), (v_id, "lat"), (v_id, "lon")]
+            data = np.array([soc_data, lats, lons]).transpose()
+            vehicle_data_frames = pd.concat((vehicle_data_frames, pd.DataFrame(data, columns=columns)),
+                                            axis=1)
+            # c += 1
+            # if c > 2:
+            #     break
 
-    vehicle_data_frames.index = np.arange(start_time, start_time +
-                                          len(vehicle_data_frames) * time_step, time_step)
+        vehicle_data_frames.columns = pd.MultiIndex.from_tuples(vehicle_data_frames.columns,
+                                                                names=['Vehicle_id', 'Data'])
+
+        vehicle_data_frames.index = np.arange(start_time, start_time +
+                                              len(vehicle_data_frames) * time_step, time_step)
+    else:
+        with open(pickle_path, "rb") as f:
+            print("depickeling")
+            vehicle_data_frames= pickle.load(f)
 
     stations_to_annotate = {name: stat for name, stat in stations.items() if
                             name in schedule.stations}
-    plot_merge_animate_battery(vehicle_data_frames, station_data=stations_to_annotate, save=True, repeat=False)
+    vehicle_data_frames = vehicle_data_frames.iloc[:24*60,:]
+    plot_merge_animate_battery(vehicle_data_frames, station_data=stations_to_annotate, save=False, repeat=False)
 
 
 class station:
@@ -180,7 +189,7 @@ def get_sorted_rotations(v_id, schedule):
     return sorted(rots, key=lambda x: x.departure_time)
 
 
-def plot_merge_animate_battery(data: pd.DataFrame, z_ax=None, station_data=None,
+def plot_merge_animate_battery(data: pd.DataFrame, station_data=None,
                                save=False, repeat=True, vehicle_black=False, track_black=True):
     v_max = 1
     v_min = 0
@@ -232,7 +241,7 @@ def plot_merge_animate_battery(data: pd.DataFrame, z_ax=None, station_data=None,
         for station in station_data.values():
             ax.annotate(station.name,
                         xy=(station.lat, station.lon), xycoords='data', fontsize=8, ha='center')
-            ax.plot(station.lat, station.lon, 'bo')
+            ax.plot(station.lat, station.lon, 'ko')
 
     artist_objects = []
     for _ in vehicles:
@@ -249,7 +258,7 @@ def plot_merge_animate_battery(data: pd.DataFrame, z_ax=None, station_data=None,
     time_annotation_box = [AnnotationBbox(text_box, xy=(0.1, 0.1), xycoords='axes fraction',
                                           fontsize=15)]
     ax.add_artist(time_annotation_box[0])
-
+    hover_texts= [str(v_id) for v_id in vehicles]
     def animate(i, data, counter=[]):
         roll_v = 1
         len_v = 2
@@ -260,7 +269,7 @@ def plot_merge_animate_battery(data: pd.DataFrame, z_ax=None, station_data=None,
         else:
             counter[0] += 1
         i = counter[0]
-        start_index = i * roll_v
+        start_index = i * roll_v+8*60
         end_index = start_index + len_v
 
         ax.artists.remove(time_annotation_box[0])
@@ -270,7 +279,9 @@ def plot_merge_animate_battery(data: pd.DataFrame, z_ax=None, station_data=None,
         ax.add_artist(time_annotation_box[0])
 
         for k, v_id in enumerate(vehicles):
+
             artist_objects[k].remove()
+            mean_soc = 0
             if vehicle_black:
                 plot_dict = dict(color=(0, 0, 0))
             else:
@@ -283,6 +294,7 @@ def plot_merge_animate_battery(data: pd.DataFrame, z_ax=None, station_data=None,
                                              vmin=0, vmax=1,
                                              linestyle='-',
                                              linewidth=0, zorder=50)
+            hover_texts[k] = (v_id, str(round(mean_soc, 3)))
 
         if end_index >= len(data[v_id]["soc"]):
             counter[0] = 0
@@ -293,12 +305,14 @@ def plot_merge_animate_battery(data: pd.DataFrame, z_ax=None, station_data=None,
     # create animation using the animate() function
     myAnimation = animation.FuncAnimation(fig,
                                           lambda i: animate(i, data),
-                                          frames=10,
+                                          frames=ANIMATION_DURATION_MIN,
                                           interval=50, blit=False, repeat=repeat)
     #
     sub2.set_ylabel('Position')
     sub2.set_xlabel('Position')
 
+    fig.canvas.mpl_connect("motion_notify_event",lambda event: hover_for_scatter(
+        event, fig,ax, artist_objects, hover_texts))
     # Toggle save  for saving
     if save:
         myAnimation.save('SOC_animation.gif', writer='imagemagick')
@@ -306,6 +320,47 @@ def plot_merge_animate_battery(data: pd.DataFrame, z_ax=None, station_data=None,
     fig.tight_layout()
 
     plt.show()
+
+def hover_for_scatter(event, fig, ax, plot_points: typing.Iterable[matplotlib.lines.Line2D], hover_texts: typing.Iterable[str], annotations=[]):
+    """Called when user hovers over plot.
+    Checks if user hovers over point. If so, delete old annotation and
+    create new one with relevant info from the hover_texts list.
+    If user does not hover over point, remove annotation, if any.
+    """
+    if len(annotations)==0:
+        annotations.append(None)
+    for i,points in enumerate(plot_points):
+        if points and event.inaxes == ax:
+            # results shown, mouse within plot: get event info
+            # cont: any points hovered?
+            # ind:  list of points hovered
+            cont, ind = points.contains(event)
+
+            if cont and "ind" in ind:
+                ind = ind["ind"]
+                # points hovered
+                # get all point coordinates
+                xy = points.get_offsets().data
+                text = hover_texts[i]
+
+                # # remove old annotation
+                if annotations  and annotations[0]:
+                    annotations[0].remove()
+                    annotations[0]=None
+
+                # create new annotation
+                annotations[0]= ax.annotate(
+                    text,
+                    xy=(xy[ind[0]][0], xy[ind[0]][1]),
+                    xytext=(-20, 20),
+                    textcoords="offset points",
+                    bbox=dict(boxstyle="round", fc="w"),
+                    arrowprops={'arrowstyle': "-"},
+                    annotation_clip=False)
+                fig.canvas.draw()
+
+
+
 
 
 def find_current_trip(trips, current_time):
