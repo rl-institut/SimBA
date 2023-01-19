@@ -5,6 +5,7 @@ from ebus_toolbox.consumption import Consumption
 from ebus_toolbox.schedule import Schedule
 from ebus_toolbox.trip import Trip
 from ebus_toolbox import report  # , optimizer
+from ebus_toolbox.run_sensitivity import prepare_sensitivity
 from ebus_toolbox.run_sensitivity import run_sensitivity
 
 
@@ -14,6 +15,10 @@ def simulate(args):
     :param args: Configuration arguments specified in config files contained in configs directory.
     :type args: argparse.Namespace
     """
+
+    if args.flag_sensitivity:
+        prepare_sensitivity(args)
+
     try:
         with open(args.vehicle_types) as f:
             vehicle_types = json.load(f)
@@ -56,9 +61,9 @@ def simulate(args):
         with warnings.catch_warnings():
             warnings.simplefilter('ignore', UserWarning)
             # for analyzes
-            if args.flag_sensitivity == 1:
+            if args.flag_sensitivity:
                 for ix in range(1):
-                    args = run_sensitivity(args, ix)
+                    run_sensitivity(args, ix)  # args gets changed
                     # Todo create new output folder for every scenario
                     scenario.run('distributed', vars(args).copy())
             else:

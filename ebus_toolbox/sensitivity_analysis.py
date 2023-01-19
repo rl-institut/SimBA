@@ -98,20 +98,17 @@ def get_temperature():
 # 3. reduced power
 
 def get_reduced_power():
-    """creates list of different values which are smaller then the default power
+    """Gets reduced charging power for different bus types
+    :return: reduced_power_opps, reduced_power_depb, reduced_power_oppb
     """
     power_opps = np.arange(start=50, stop=400, step=50)
-    reduced_power_opps = random.choice(power_opps)
+    reduced_power_opps = secrets.choice(power_opps)
 
-
-    # cs_power_deps_depb
     power_deps_depb = np.arange(start=30, stop=90, step=30)
-    reduced_power_depb = random.choice(power_deps_depb)
+    reduced_power_depb = secrets.choice(power_deps_depb)
 
-
-    # cs_power_deps_depb
     power_deps_oppb = np.arange(start=30, stop=120, step=30)
-    reduced_power_oppb = random.choice(power_deps_depb)
+    reduced_power_oppb = secrets.choice(power_deps_depb)
 
     return reduced_power_opps, reduced_power_depb, reduced_power_oppb
 
@@ -121,8 +118,8 @@ def get_reduced_power():
 
 def get_default_hpc():
     """
-    Gets default hpc
-    :return:
+    Gets default hpc by choosing from a preset of electrified_stations.json
+    :return: default_hpc
     """
     list_json = ["data/bvg_test/electrified_stations_v4.json",
                  "data/bvg_test/electrified_stations_v1.json",
@@ -138,8 +135,8 @@ def get_default_hpc():
 
 def get_battery_aging():
     """
-    Gets battery aging
-    :return:
+    Gets battery aging by choosing from a preset of vehicle_types.json
+    :return: battery_aging
     """
     list_json = ["data/bvg_test/vehicle_types_5.json",
                  "data/bvg_test/vehicle_types_10.json",
@@ -159,4 +156,33 @@ def get_depot_delay():
     Gets depot delay
     :return:
     """
-    return
+
+    depot_delay = pd.read_csv('data/monte_carlo/depot_delay_data.csv', sep=',', decimal='.')
+
+    data = pd.DataFrame()
+    data['hour'] = depot_delay['hour'].unique()
+    data = data.sort_values(by='hour')
+    data = data.reset_index(drop=True)
+    means = depot_delay.groupby('hour')['standing_time'].mean()
+    means = means.reset_index(drop=True)
+    stds = depot_delay.groupby('hour')['standing_time'].std()
+    stds = stds.reset_index(drop=True)
+    data['mean'] = means
+    data['std'] = stds
+
+    list_s = []
+
+    for i in range(data.shape[0]):
+        mu = data.loc[i, 'mean']
+        sigma = data.loc[i, 'std']
+        s = np.random.normal(mu, sigma, 1)
+        list_s.append(s[0])
+
+    data['s'] = list_s
+    data.s = data.s.round()
+    data.drop(['mean', 'std'], axis=1, inplace=True)
+
+    delay_dep = dict(zip(data.hour, data.s))
+    delay_dep['else'] = 0
+
+    return delay_dep

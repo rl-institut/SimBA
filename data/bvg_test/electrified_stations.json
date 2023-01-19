@@ -266,5 +266,89 @@
   "BF SO E": {
     "type": "deps",
     "n_charging_stations": 200
+  },
+  "MHDO02B": {
+    "type": "opps",
+    "n_charging_stations": 200
+  },
+  "SSF03B": {
+    "type": "opps",
+    "n_charging_stations": 200
+  },
+  "AHGR04B": {
+    "type": "opps",
+    "n_charging_stations": 200
+  },
+  "SKOE02B": {
+    "type": "opps",
+    "n_charging_stations": 200
+  },
+  "UEWP05B": {
+    "type": "opps",
+    "n_charging_stations": 200
+  },
+  "OTFR01B": {
+  "type": "opps",
+  "n_charging_stations": 200
+  },
+  "ELTP02B": {
+  "type": "opps",
+  "n_charging_stations": 200
+  },
+  "TSTR01B": {
+  "type": "opps",
+  "n_charging_stations": 200
+  },
+  "BER105B": {
+  "type": "opps",
+  "n_charging_stations": 200
+  },
+  "BER506B": {
+  "type": "opps",
+  "n_charging_stations": 200
+  },
+  "KDFS01B": {
+  "type": "opps",
+  "n_charging_stations": 200
+  },
+  "UDD04B": {
+  "type": "opps",
+  "n_charging_stations": 200
+  },
+  "SLIO03B": {
+  "type": "opps",
+  "n_charging_stations": 200
+  },
+  "UMOH01B": {
+  "type": "opps",
+  "n_charging_stations": 200
+  },
+  "BUKR03B": {
+  "type": "opps",
+  "n_charging_stations": 200
+  },
+  "BFAE01B": {
+  "type": "opps",
+  "n_charging_stations": 200
+  },
+  "SPW01B": {
+  "type": "opps",
+  "n_charging_stations": 200
+  },
+  "UBER02B": {
+  "type": "opps",
+  "n_charging_stations": 200
+  },
+  "SSWS16BA": {
+  "type": "opps",
+  "n_charging_stations": 200
+  },
+  "SSWS14BA": {
+  "type": "opps",
+  "n_charging_stations": 200
+  },
+  "GALS01B": {
+  "type": "opps",
+  "n_charging_stations": 200
   }
 }
