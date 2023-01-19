@@ -13,6 +13,3 @@ def run_sensitivity (args, scenario_id):
     export_file.write(str(export_args))
     export_file.close()
     return args
-
-
-eb

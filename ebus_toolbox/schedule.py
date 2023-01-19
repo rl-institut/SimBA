@@ -183,6 +183,18 @@ class Schedule:
 
         if self.mode == 1:
             for ix in range(self.range_sensitivity):
+                # create new output folder
+                args.output_directory = Path("./data/sim_outputs") / (
+                        datetime.datetime.now().strftime("%Y-%m-%d-%H-%M-%S") + "_sensitivity_" + str(ix))
+
+                # create subfolder for specific sim results with timestamp.
+                # if folder doesnt exists, create folder.
+                # needs to happen after set_options_from_config since
+                # args.output_directory can be overwritten by config
+                #args.output_directory_input = args.output_directory / "input_data"
+                args.output_directory.mkdir(parents=True, exist_ok=True)
+
+
                 args = run_sensitivity.run_sensitivity(args, ix)
                 print("Running Spice EV...")
                 with warnings.catch_warnings():
