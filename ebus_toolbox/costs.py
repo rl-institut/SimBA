@@ -118,15 +118,17 @@ def calculate_costs(c_params, scenario, schedule, args):
     costs["c_cs_annual"] = costs["c_cs"] / c_params["cs"]["lifetime_cs"]
 
     # GARAGE
-    costs["c_garage_cs"] = (c_params["garage"]["n_charging_stations"] *
-                            c_params["garage"]["power_cs"] * c_params["cs"]["capex_deps_per_kW"])
-    costs["c_garage_workstations"] = -(-sum(schedule.vehicle_type_counts.values()) //
-                                       c_params["garage"]["vehicles_per_workstation"] *
-                                       c_params["garage"]["cost_per_workstation"])
+    costs["c_garage_cs"] = (
+        c_params["garage"]["n_charging_stations"]
+        * c_params["garage"]["power_cs"] * c_params["cs"]["capex_deps_per_kW"])
+    costs["c_garage_workstations"] = -(
+        -sum(schedule.vehicle_type_counts.values())
+        // c_params["garage"]["vehicles_per_workstation"]
+        * c_params["garage"]["cost_per_workstation"])
     costs["c_garage"] = costs["c_garage_cs"] + costs["c_garage_workstations"]
     costs["c_garage_annual"] = (
-            costs["c_garage_cs"] / c_params["cs"]["lifetime_cs"]
-            + costs["c_garage_workstations"] / c_params["garage"]["lifetime_workstations"])
+        costs["c_garage_cs"] / c_params["cs"]["lifetime_cs"]
+        + costs["c_garage_workstations"] / c_params["garage"]["lifetime_workstations"])
 
     # MAINTENANCE
     costs["c_maint_infrastructure_annual"] = (
