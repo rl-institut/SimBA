@@ -17,16 +17,19 @@ def calculate_costs(c_params, scenario, schedule, args):
     """
 
     # initialize dictionary with all costs
-    costs = {cost: 0 for cost in ["c_vehicles", "c_vehicles_annual", "c_gcs", "c_gcs_annual",
-                                  "c_maint_gc_annual", "c_cs", "c_cs_annual", "c_garage_cs",
-                                  "c_garage_workstations", "c_garage", "c_garage_annual",
-                                  "c_invest", "c_invest_annual", "c_maint_infrastructure_annual",
-                                  "c_maint_vehicles_annual", "c_maint_annual",
-                                  "c_el_procurement_annual", "c_el_power_price_annual",
-                                  "c_el_energy_price_annual", "c_el_taxes_annual",
-                                  "c_el_feed_in_remuneration_annual", "c_el_annual",
-                                  "c_stat_storage", "c_stat_storage_annual",
-                                  "c_maint_stat_storage_annual"]}
+    costs = {cost: 0 for cost in [
+        # investment costs
+        "c_vehicles", "c_gcs", "c_cs", "c_garage_cs", "c_garage", "c_garage_workstations",
+        "c_stat_storage", "c_invest",
+        # annual investment costs
+        "c_vehicles_annual",  "c_gcs_annual",  "c_cs_annual", "c_garage_annual",
+        "c_stat_storage_annual", "c_invest_annual",
+        # annual maintainance costs
+        "c_maint_gc_annual", "c_maint_infrastructure_annual", "c_maint_vehicles_annual",
+        "c_maint_stat_storage_annual", "c_maint_annual",
+        # annual electricity costs
+        "c_el_procurement_annual", "c_el_power_price_annual","c_el_energy_price_annual",
+        "c_el_taxes_annual","c_el_feed_in_remuneration_annual", "c_el_annual"]}
 
     # INVESTMENT COSTS #
 
