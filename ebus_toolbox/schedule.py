@@ -377,8 +377,6 @@ class Schedule:
     def rotation_filter(self, args, rf_list=None):
         """Edit rotations according to args.rotation_filter_variable.
 
-        :param schedule: Schedule with property rotations which get filtered
-        :type schedule: ebus_toolbox.Schedule
         :param args: Command line arguments
         :type args: argparse.Namespace
         :param rf_list: rotation filter list with strings of rotation ids
