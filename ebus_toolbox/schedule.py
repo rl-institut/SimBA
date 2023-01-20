@@ -477,7 +477,10 @@ class Schedule:
                     connected_charging_station = f"{cs_name}_{station_type}"
                     # create charging station and grid connector if necessary
                     if cs_name not in charging_stations:
+                        # get CS and GC power from stations file,
+                        # default back to input arguments from config
                         if station_type == "deps":
+                            # trip type only relevant to depot stations
                             if trip.rotation.charging_type == 'oppb':
                                 cs_power = station.get("cs_power_deps_oppb",
                                                        args.cs_power_deps_oppb)
