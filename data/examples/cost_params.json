@@ -26,27 +26,38 @@
         "cost_per_kWh": 250
     },
     "gc": {
-        "LV_capex_gc_per_meter": 16.85,
-        "LV_capex_gc_per_kW": 24.14,
-        "LV_default_distance": 50,
-        "MV_building_cost_subsidy_per_kW": 158.3,
-        "MV_capex_gc_fix": 62500,
-        "MV_capex_gc_per_meter": 562.5,
-        "MV_default_distance": 50,
-        "MV_capex_transformer_fix": 80000,
-        "MV_capex_transformer_per_kW": 0,
-        "HV/MV_building_cost_subsidy_per_kW": 158.3,
-        "HV/MV_capex_gc_fix": 0,
-        "HV/MV_capex_gc_per_meter": 80,
-        "HV/MV_default_distance": 2000,
-        "HV/MV_capex_transformer_fix": 0,
-        "HV/MV_capex_transformer_per_kW": 63.49,
-        "HV_building_cost_subsidy_per_kW": 158.3,
-        "HV_capex_gc_fix": 0,
-        "HV_capex_gc_per_meter": 1300,
-        "HV_default_distance": 2000,
-        "HV_capex_transformer_fix": 2500000,
-        "HV_capex_transformer_per_kW": 0,
+        "LV": {
+            "default_distance": 50,
+            "capex_gc_fix": 16.85,
+            "capex_gc_per_meter": 16.85,
+            "capex_gc_per_kW": 24.14,
+            "capex_transformer_fix": 0,
+            "capex_transformer_per_kW": 0
+        },
+        "MV": {
+            "default_distance": 50,
+            "capex_gc_fix": 62500,
+            "capex_gc_per_meter": 562.5,
+            "capex_gc_per_kW": 158.3,
+            "capex_transformer_fix": 80000,
+            "capex_transformer_per_kW": 0
+        },
+        "HV/MV": {
+            "default_distance": 2000,
+            "capex_gc_fix": 0,
+            "capex_gc_per_meter": 80,
+            "capex_gc_per_kW": 158.3,
+            "capex_transformer_fix": 0,
+            "capex_transformer_per_kW": 63.49
+        },
+        "HV": {
+            "default_distance": 2000,
+            "capex_gc_fix": 0,
+            "capex_gc_per_meter": 1300,
+            "capex_gc_per_kW": 158.3,
+            "capex_transformer_fix": 2500000,
+            "capex_transformer_per_kW": 0
+        },
         "lifetime_gc": 50,
         "c_maint_transformer_per_year": 0.02,
         "lifetime_transformer": 20
