@@ -2,6 +2,7 @@ import csv
 import random
 import datetime
 import warnings
+import json
 from pathlib import Path
 
 from ebus_toolbox import util
@@ -373,53 +374,31 @@ class Schedule:
 
         return list(negative_rotations)
 
-    def rotation_filter(self, schedule, args, rf_list=None):
-        """The method edits the schedule.rotations accordingly
-        to the set rotation_filter_variable in args.
+    def rotation_filter(self, args, rf_list=None):
+        """Edit rotations according to args.rotation_filter_variable.
 
-        :param schedule: Schedule with property rotations which get filtered.
+        :param schedule: Schedule with property rotations which get filtered
         :type schedule: ebus_toolbox.Schedule
-        :param args: Command line arguments.
+        :param args: Command line arguments
         :type args: argparse.Namespace
         :param rf_list: rotation filter list with strings of rotation ids
-        :type rf_list: list, optional
+        :type rf_list: list, default: no rotation ids
         """
-        if rf_list is None:
-            rf_list = []
-
-        rf_variable = args.rotation_filter_variable
-        if rf_variable is not False:
-            rf_file = args.rotation_filter
-            try:
-                with open(rf_file, encoding='utf-8') as f:
-                    # put rotation_ids from file into rf_list
-                    line = f.readline().strip()
-                    if line == "rotation_id":
-                        line = f.readline().strip()
-                        while line != "":
-                            rf_list.append(line)
-                            line = f.readline().strip()
-            except FileNotFoundError:
-                print(f"Path to rotation filter ({rf_file}) does not exist.")
-
-            # filter out rotations in schedule
-            if rf_variable == "exclude":
-                for rotation in rf_list:
-                    if rotation in schedule.rotations:
-                        try:
-                            schedule.rotations.pop(rotation)
-                        except KeyError:
-                            print(f"Rotation '{rotation}' does not exist in schedule.")
-            elif rf_variable == "include":
-                remove_rotations = []
-                for rotation in schedule.rotations:
-                    if rotation not in rf_list:
-                        remove_rotations.append(rotation)
-                for rotation in remove_rotations:
-                    try:
-                        schedule.rotations.pop(rotation)
-                    except KeyError:
-                        print(f"Rotation {rotation['id']} does not exist in schedule.")
+        rf_list = rf_list or []
+        if not args.rotation_filter_variable:
+            return
+        try:
+            with open(args.rotation_filter, encoding='utf-8') as f:
+                # put rotation_ids from file into rf_list
+                rf_list += json.load(f, parse_int=str)
+        except FileNotFoundError:
+            print(f"Path to rotation filter ({args.rotation_filter}) does not exist.")
+        # filter out rotations in schedule
+        tmp_rot = {}
+        if args.rotation_filter_variable == "exclude":
+            self.rotations = {k: v for k, v in self.rotations.items() if k not in rf_list}
+        elif args.rotation_filter_variable == "include":
+            self.rotations = {k: v for k, v in self.rotations.items() if k in rf_list}
 
     def generate_scenario(self, args):
         """ Generate scenario.json for spiceEV

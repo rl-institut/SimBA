@@ -116,8 +116,8 @@ if __name__ == '__main__':
     args.ALLOW_NEGATIVE_SOC = True
     args.attach_vehicle_soc = True
 
-    args.rotation_filter_variable = ""
-    args.rotation_filter = ""
+    args.rotation_filter_variable = None
+    args.rotation_filter = None
 
     util.set_options_from_config(args, check=True, verbose=False)
 
