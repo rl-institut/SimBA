@@ -64,7 +64,7 @@ def calculate_costs(c_params, scenario, schedule, args):
         # get distance between grid and grid connector
         distance_to_grid = schedule.stations[gcID].get(
                 "distance_to_grid", c_params["gc"][voltage_level]["default_distance"])
-        # calculate grid connection costs
+        # calculate grid connection costs, typically buidling costs and buiding cost subsidy
         c_gc = (c_params["gc"][voltage_level]["capex_gc_fix"] +
                 c_params["gc"][voltage_level]["capex_gc_per_kW"] * gc_max_power +
                 c_params["gc"][voltage_level]["capex_gc_per_meter"] * distance_to_grid)
