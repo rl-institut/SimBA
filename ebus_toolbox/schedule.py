@@ -393,8 +393,7 @@ class Schedule:
                 rf_list += json.load(f, parse_int=str)
         except FileNotFoundError:
             print(f"Path to rotation filter ({args.rotation_filter}) does not exist.")
-        # filter out rotations in schedule
-        tmp_rot = {}
+        # filter out rotations in self.rotations
         if args.rotation_filter_variable == "exclude":
             self.rotations = {k: v for k, v in self.rotations.items() if k not in rf_list}
         elif args.rotation_filter_variable == "include":
