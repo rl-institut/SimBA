@@ -520,7 +520,7 @@ class Schedule:
                             # add PV component
                             photovoltaics[gc_name] = {
                                 "parent": gc_name,
-                                "nominal_power": feed_in.get("pv_power", 0)
+                                "nominal_power": feed_in.get("nominal_power", 0)
                             }
 
                         # add external load if exists
