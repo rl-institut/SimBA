@@ -28,8 +28,8 @@ def calculate_costs(c_params, scenario, schedule, args):
         "c_maint_gc_annual", "c_maint_infrastructure_annual", "c_maint_vehicles_annual",
         "c_maint_stat_storage_annual", "c_maint_annual",
         # annual electricity costs
-        "c_el_procurement_annual", "c_el_power_price_annual","c_el_energy_price_annual",
-        "c_el_taxes_annual","c_el_feed_in_remuneration_annual", "c_el_annual"]}
+        "c_el_procurement_annual", "c_el_power_price_annual", "c_el_energy_price_annual",
+        "c_el_taxes_annual", "c_el_feed_in_remuneration_annual", "c_el_annual"]}
 
     # INVESTMENT COSTS #
 
@@ -45,10 +45,11 @@ def calculate_costs(c_params, scenario, schedule, args):
                 continue
             # sum up cost of vehicles and their batteries, depending on how often the battery
             # has to be replaced in the lifetime of the vehicles
-            c_vehicles_vt = (schedule.vehicle_type_counts[v_type] *
-                             (costs_vehicle + (c_params["vehicles"][v_type]["lifetime"] //
-                                               c_params["batteries"]["lifetime_battery"]) *
-                              v_keys["capacity"] * c_params["batteries"]["cost_per_kWh"]))
+            c_vehicles_vt = (
+                schedule.vehicle_type_counts[v_type] *
+                (costs_vehicle + (c_params["vehicles"][v_type]["lifetime"] //
+                                  c_params["batteries"]["lifetime_battery"]) *
+                 v_keys["capacity"] * c_params["batteries"]["cost_per_kWh"]))
             costs["c_vehicles"] += c_vehicles_vt
             # calculate annual cost of vehicles of this type, depending on their lifetime
             costs["c_vehicles_annual"] += c_vehicles_vt / c_params["vehicles"][v_type]["lifetime"]
@@ -63,15 +64,15 @@ def calculate_costs(c_params, scenario, schedule, args):
         voltage_level = schedule.stations[gcID]["voltage_level"]
         # get distance between grid and grid connector
         distance_to_grid = schedule.stations[gcID].get(
-                "distance_to_grid", c_params["gc"][voltage_level]["default_distance"])
+            "distance_to_grid", c_params["gc"][voltage_level]["default_distance"])
         # calculate grid connection costs, typically buidling costs and buiding cost subsidy
         c_gc = (c_params["gc"][voltage_level]["capex_gc_fix"] +
                 c_params["gc"][voltage_level]["capex_gc_per_kW"] * gc_max_power +
                 c_params["gc"][voltage_level]["capex_gc_per_meter"] * distance_to_grid)
         # calculate transformer costs
         c_transformer = (
-                c_params["gc"][voltage_level]["capex_transformer_fix"] +
-                c_params["gc"][voltage_level]["capex_transformer_per_kW"] * gc_max_power)
+            c_params["gc"][voltage_level]["capex_transformer_fix"] +
+            c_params["gc"][voltage_level]["capex_transformer_per_kW"] * gc_max_power)
         # calculate total cost of grid connection
         costs["c_gcs"] += c_gc + c_transformer
         # calculate annual costs of grid connection, depending on lifetime of gc and transformer
@@ -79,7 +80,7 @@ def calculate_costs(c_params, scenario, schedule, args):
                                   c_transformer / c_params["gc"]["lifetime_transformer"])
         # calculate maintenance cost of grid connection
         costs["c_maint_gc_annual"] += (
-                c_transformer * c_params["gc"]["c_maint_transformer_per_year"])
+            c_transformer * c_params["gc"]["c_maint_transformer_per_year"])
         # STATIONARY STORAGE
         # assume there is a stationary storage
         try:
@@ -87,16 +88,14 @@ def calculate_costs(c_params, scenario, schedule, args):
             costs["c_stat_storage"] += (
                 c_params["stationary_storage"]["capex_fix"] +
                 c_params["stationary_storage"]["capex_per_kWh"] *
-                schedule.stations[gcID]["battery"]["capacity"]
-                )
+                schedule.stations[gcID]["battery"]["capacity"])
         except KeyError:
-            # if no stationary storage at grid connector cost is 0
-            costs["c_stat_storage"] += 0
+            # if no stationary storage at grid connector: cost is 0
+            pass
     costs["c_stat_storage_annual"] = (
-            costs["c_stat_storage"] / c_params["stationary_storage"]["lifetime_stat_storage"])
+        costs["c_stat_storage"] / c_params["stationary_storage"]["lifetime_stat_storage"])
     costs["c_maint_stat_storage_annual"] = (
-            costs["c_stat_storage"] *
-            c_params["stationary_storage"]["c_maint_stat_storage_per_year"])
+        costs["c_stat_storage"] * c_params["stationary_storage"]["c_maint_stat_storage_per_year"])
 
     # CHARGING INFRASTRUCTURE
     cs = schedule.scenario["constants"]["charging_stations"]
@@ -105,12 +104,15 @@ def calculate_costs(c_params, scenario, schedule, args):
         if csID["type"] == "deps":
             costs["c_cs"] += c_params["cs"]["capex_deps_per_kW"] * csID["max_power"]
     # opportunity charging stations - nr of CS depend on max nr of simultaneously occupied CS
-    for gcID, gc_keys in gcs.items():
+    for gcID in gcs:
         if schedule.stations[gcID]["type"] == "opps":
-            # get max. nr of occupied CS per grid connector
             gc_timeseries = getattr(scenario, f"{gcID}_timeseries")
-            costs["c_cs"] += (c_params["cs"]["capex_opps_per_kW"] * vars(args)["cs_power_opps"] *
-                              max(gc_timeseries["CS in use"]))
+            costs["c_cs"] += (
+                c_params["cs"]["capex_opps_per_kW"] *
+                # get cs power of this opps
+                schedule.stations[gcID].get("cs_power_opps", vars(args)["cs_power_opps"]) *
+                # get max. nr of occupied CS per grid connector
+                max(gc_timeseries["CS in use"]))
 
     # calculate annual cost of charging stations, depending on their lifetime
     costs["c_cs_annual"] = costs["c_cs"] / c_params["cs"]["lifetime_cs"]
@@ -128,8 +130,8 @@ def calculate_costs(c_params, scenario, schedule, args):
 
     # MAINTENANCE
     costs["c_maint_infrastructure_annual"] = (
-            costs["c_cs"] * c_params["cs"]["c_maint_cs_per_year"]
-            + costs["c_maint_gc_annual"] + costs["c_maint_stat_storage_annual"])
+        costs["c_cs"] * c_params["cs"]["c_maint_cs_per_year"]
+        + costs["c_maint_gc_annual"] + costs["c_maint_stat_storage_annual"])
     # calculate (ceil) number of days in scenario
     drive_days = -(-(schedule.scenario["scenario"]["n_intervals"] *
                      schedule.scenario["scenario"]["interval"]) // (24 * 60))
