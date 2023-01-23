@@ -111,9 +111,9 @@ if __name__ == '__main__':
                         help="Use csv. data with 'hour' and level_of_loading' columns to set \
                         level of loading in case they are not in trips.csv")
     parser.add_argument('--rotation-filter', default=None,
-                        help="Use json. data with rotation ids")
-    parser.add_argument('--rotation-filter-variable', default=None,
-                        help="Add option for filtering the rotations in the schedule")
+                        help='Use json data with rotation ids')
+    parser.add_argument('--rotation-filter-variable', default=None, choices=['include', 'exclude'],
+                        help='set mode for filtering schedule rotations')
 
     args = parser.parse_args()
     # arguments relevant to SpiceEV, setting automatically to reduce clutter in config
