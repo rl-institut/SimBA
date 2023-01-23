@@ -6,7 +6,7 @@ from pathlib import Path
 
 from ebus_toolbox import util
 from ebus_toolbox.rotation import Rotation
-from src.scenario import Scenario
+from spice_ev.scenario import Scenario
 
 
 class Schedule:
@@ -381,7 +381,7 @@ class Schedule:
         :type args: argparse.Namespace
         :return: A spiceEV Scenario instance that can be run and also collects all
                  simulation outputs.
-        :rtype:  spice_ev.src.Scenario
+        :rtype:  spice_ev.Scenario
         """
 
         random.seed(args.seed)
@@ -648,7 +648,7 @@ class Schedule:
                 "interval": interval.days * 24 * 60 + interval.seconds // 60,
                 "n_intervals": (stop_simulation - start_simulation) // interval
             },
-            "constants": {
+            "components": {
                 "vehicle_types": vehicle_types_spiceev,
                 "vehicles": vehicles,
                 "grid_connectors": grid_connectors,
