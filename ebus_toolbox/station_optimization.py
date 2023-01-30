@@ -177,8 +177,8 @@ def run_optimization(config_path, sched=None, scen=None, this_args=None):
         logger.debug("Still not electrified with abs. soc with fast calc")
         for event in new_events:
             logger.debug(event.rotation.id)
-    with open(new_ele_stations_path, "w", encoding="utf-8", ) as file:
-        json.dump(ele_stations, file, indent=2)
+    with open(new_ele_stations_path, "w", encoding="utf-8") as file:
+        json.dump(ele_stations, file,ensure_ascii=False, indent=2)
     util.print_time()
     logger.debug("Spice EV is calculating optimized case as a complete scenario")
     _, __ = optimizer.preprocessing_scenario(

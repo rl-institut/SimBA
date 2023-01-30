@@ -105,8 +105,10 @@ with open("args_buffered_all_depb.pickle", "rb") as file:
 args.station_data_path = "C:/Users/paul.scheer/Python/bus_toolbox/eBus-Toolbox/data/buffered_all_stations.csv"
 
 ANIMATION_DURATION_MIN = 480
+
+
 def main():
-    pickle_path="vehicle_data_frames.pickle"
+    pickle_path = "vehicle_data_frames.pickle"
     with open(str(args.station_data_path), "r", encoding='utf-8') as f:
         delim = util.get_csv_delim(args.station_data_path)
         reader = csv.DictReader(f, delimiter=delim)
@@ -134,7 +136,8 @@ def main():
             for counter, soc in enumerate(soc_data):
                 try:
                     current_time = start_time + counter * time_step
-                    current_trip, found_trip_index = find_current_trip(trips[trip_nr:], current_time)
+                    current_trip, found_trip_index = find_current_trip(trips[trip_nr:],
+                                                                       current_time)
                     trip_nr += found_trip_index
                     rel_time_of_trip = get_rel_time_of_trip(current_time, current_trip)
                     current_station = stations[current_trip.departure_name]
@@ -146,11 +149,9 @@ def main():
                     pass
             columns = [(v_id, "soc"), (v_id, "lat"), (v_id, "lon")]
             data = np.array([soc_data, lats, lons]).transpose()
-            vehicle_data_frames = pd.concat((vehicle_data_frames, pd.DataFrame(data, columns=columns)),
-                                            axis=1)
-            # c += 1
-            # if c > 2:
-            #     break
+            vehicle_data_frames = pd.concat(
+                (vehicle_data_frames, pd.DataFrame(data, columns=columns)),
+                axis=1)
 
         vehicle_data_frames.columns = pd.MultiIndex.from_tuples(vehicle_data_frames.columns,
                                                                 names=['Vehicle_id', 'Data'])
@@ -160,12 +161,13 @@ def main():
     else:
         with open(pickle_path, "rb") as f:
             print("depickeling")
-            vehicle_data_frames= pickle.load(f)
+            vehicle_data_frames = pickle.load(f)
 
     stations_to_annotate = {name: stat for name, stat in stations.items() if
                             name in schedule.stations}
-    vehicle_data_frames = vehicle_data_frames.iloc[:24*60,:]
-    plot_merge_animate_battery(vehicle_data_frames, station_data=stations_to_annotate, save=False, repeat=False)
+    vehicle_data_frames = vehicle_data_frames.iloc[:24 * 60, :]
+    plot_merge_animate_battery(vehicle_data_frames, vehicle_black=True, track_black=False,
+                               station_data=stations_to_annotate, save=False, repeat=False)
 
 
 class station:
@@ -190,7 +192,14 @@ def get_sorted_rotations(v_id, schedule):
 
 
 def plot_merge_animate_battery(data: pd.DataFrame, station_data=None,
-                               save=False, repeat=True, vehicle_black=False, track_black=True):
+                               save=False, repeat=True, vehicle_black=False, track_black=True,
+                               track_method="min"):
+    data.xs("lat", level="Data", axis=1)
+    lat_boundary = (data.xs("lat", level="Data", axis=1).min().min(),
+                    data.xs("lat", level="Data", axis=1).max().max())
+    lon_boundary = (data.xs("lon", level="Data", axis=1).min().min(),
+                    data.xs("lon", level="Data", axis=1).max().max())
+
     v_max = 1
     v_min = 0
     fig = plt.figure(figsize=(14, 8))
@@ -199,11 +208,6 @@ def plot_merge_animate_battery(data: pd.DataFrame, station_data=None,
 
     sub2 = fig.add_subplot(111)
     ax = plt.gca()
-    data.xs("lat", level="Data", axis=1)
-    lat_boundary = (data.xs("lat", level="Data", axis=1).min().min(),
-                    data.xs("lat", level="Data", axis=1).max().max())
-    lon_boundary = (data.xs("lon", level="Data", axis=1).min().min(),
-                    data.xs("lon", level="Data", axis=1).max().max())
 
     # Get all the vehicle ids from data
     vehicles = list(data.columns.levels[0])
@@ -213,20 +217,75 @@ def plot_merge_animate_battery(data: pd.DataFrame, station_data=None,
     # above the position.
     # ToDo for soc printing soc handling needs to be implemented so for every position only a
     #  single soc is printed
-    for v_id in vehicles:
-        if track_black:
+    round_nr = 3
+    stacked_array_unique = make_unique_data(vehicles, data, track_black, track_method)
+    x_org=  stacked_array_unique[0, :].copy()
+    y_org= stacked_array_unique[1, :].copy()
+
+    stacked_array_unique[0, :] = stacked_array_unique[0, :] - min(stacked_array_unique[0, :])
+    stacked_array_unique[1, :] = stacked_array_unique[1, :] - min(stacked_array_unique[1, :])
+    stacked_array_unique[0, :] = stacked_array_unique[0, :]
+    stacked_array_unique[0, :] = stacked_array_unique[0, :] * 10 ** round_nr
+    stacked_array_unique[1, :] = stacked_array_unique[1, :] * 10 ** round_nr
+    ##############
+    # from scipy.ndimage import gaussian_filter as gauss
+    # fig = plt.figure(figsize=(8, 8))
+    #
+    # fig.suptitle('Vehicle Tracking', fontsize=14)
+    # sub2 = fig.add_subplot(111)
+    # ax = plt.gca()
+    #
+    # stacked_array_pic = make_unique_data(vehicles, data, track_black, track_method,
+    #                                      round_nr=round_nr)
+    #
+    # x = (stacked_array_pic[0, :] * 10 ** round_nr).astype(int)
+    # X = x - np.min(x)
+    # y = (stacked_array_pic[1, :] * 10 ** round_nr).astype(int)
+    # Y = y - np.min(y)
+    # z = stacked_array_pic[2, :]
+    # idx1 = X
+    # idx2 = Y
+    # grid_data = z
+    # grid = np.ones((np.max(Y) + 1, np.max(X) + 1))
+    # grid[idx2, idx1] = grid_data
+    # ax.imshow(gauss(grid, 10))
+    # #############################
+    #     fig = plt.figure(figsize=(14, 8))
+    #
+    #     fig.suptitle('Vehicle Tracking', fontsize=14)
+    #
+    #     sub2 = fig.add_subplot(111)
+    #     ax = plt.gca()
+    #
+    #     x=stacked_array_unique[0,:]
+    #     y=stacked_array_unique[1,:]
+    #     z=stacked_array_unique[2,:]
+    #
+    #     steps=500
+    #     X = np.linspace(stacked_array_unique[0, :].min(), stacked_array_unique[0, :].max(), steps)
+    #     Y = np.linspace(stacked_array_unique[1, :].min(), stacked_array_unique[1, :].max(), steps)
+    #     from scipy.interpolate import griddata
+    #     Z = griddata((x, y), z,((X[None, :], Y[:, None])), method='linear')
+    #     contour = sub2.contourf(X, Y, Z)
+    # ########################
+    #     ax.imshow(Z)
+    # ########################
+
+    if track_black:
+        for v_id in vehicles:
             plot_dict = dict(color=(0.9, 0.9, 0.9), alpha=1)
             lns2_1 = sub2.plot(data[v_id]['lat'], data[v_id]['lon'],
                                **plot_dict, linestyle='-',
                                linewidth=2)
-        else:
-            plot_dict = dict(c=data[v_id]['soc'] * 100, alpha=0.01)
-            lns2_1 = sub2.scatter(data[v_id]['lat'], data[v_id]['lon'],
-                                  **plot_dict, linestyle='-',
-                                  linewidth=0, vmin=v_min, vmax=v_max)
-            lns2_1.set_clim(vmin=v_min, vmax=v_max)
+    else:
+        plot_dict = dict(c=stacked_array_unique[2, :] * 1, alpha=0.1)
+        lns2_1 = sub2.scatter(stacked_array_unique[0, :], stacked_array_unique[1, :],
+                              **plot_dict, linestyle='-',
+                              linewidth=0, vmin=v_min, vmax=v_max)
+        lns2_1.set_clim(vmin=v_min, vmax=v_max)
 
     # Helper plot so we can plot a colorbar aftwards, not possible with only line plot
+    plot_dict = dict()
     lns2_1 = sub2.scatter([], [],
                           **plot_dict, linestyle='-',
                           linewidth=0, vmin=v_min, vmax=v_max)
@@ -239,9 +298,10 @@ def plot_merge_animate_battery(data: pd.DataFrame, station_data=None,
     # Plot Station Names
     if station_data:
         for station in station_data.values():
+            xy=((station.lat-np.min(x_org))*10**round_nr, (station.lon-np.min(y_org))*10**round_nr)
             ax.annotate(station.name,
-                        xy=(station.lat, station.lon), xycoords='data', fontsize=8, ha='center')
-            ax.plot(station.lat, station.lon, 'ko')
+                        xy=xy, xycoords='data', fontsize=8, ha='center')
+            ax.plot(xy[0], xy[1], 'ko', zorder=100)
 
     artist_objects = []
     for _ in vehicles:
@@ -258,10 +318,11 @@ def plot_merge_animate_battery(data: pd.DataFrame, station_data=None,
     time_annotation_box = [AnnotationBbox(text_box, xy=(0.1, 0.1), xycoords='axes fraction',
                                           fontsize=15)]
     ax.add_artist(time_annotation_box[0])
-    hover_texts= [str(v_id) for v_id in vehicles]
+    hover_texts = [str(v_id) for v_id in vehicles]
+
     def animate(i, data, counter=[]):
         roll_v = 1
-        len_v = 2
+        len_v = 1
         ax = plt.gca()
         vehicles = list(data.columns.levels[0])
         if not counter:
@@ -269,7 +330,7 @@ def plot_merge_animate_battery(data: pd.DataFrame, station_data=None,
         else:
             counter[0] += 1
         i = counter[0]
-        start_index = i * roll_v+8*60
+        start_index = i * roll_v + 8 * 60
         end_index = start_index + len_v
 
         ax.artists.remove(time_annotation_box[0])
@@ -279,13 +340,11 @@ def plot_merge_animate_battery(data: pd.DataFrame, station_data=None,
         ax.add_artist(time_annotation_box[0])
 
         for k, v_id in enumerate(vehicles):
-
             artist_objects[k].remove()
-            mean_soc = 0
+            mean_soc = data[v_id]["soc"][start_index:end_index].mean()
             if vehicle_black:
                 plot_dict = dict(color=(0, 0, 0))
             else:
-                mean_soc = data[v_id]["soc"][start_index:end_index].mean()
                 l = len(data[v_id]["lat"][start_index:end_index])
                 plot_dict = dict(c=mean_soc * np.ones(l))
             artist_objects[k] = sub2.scatter(data[v_id]["lat"][start_index:end_index],
@@ -311,8 +370,8 @@ def plot_merge_animate_battery(data: pd.DataFrame, station_data=None,
     sub2.set_ylabel('Position')
     sub2.set_xlabel('Position')
 
-    fig.canvas.mpl_connect("motion_notify_event",lambda event: hover_for_scatter(
-        event, fig,ax, artist_objects, hover_texts))
+    fig.canvas.mpl_connect("motion_notify_event", lambda event: hover_for_scatter(
+        event, fig, ax, artist_objects, hover_texts))
     # Toggle save  for saving
     if save:
         myAnimation.save('SOC_animation.gif', writer='imagemagick')
@@ -321,15 +380,53 @@ def plot_merge_animate_battery(data: pd.DataFrame, station_data=None,
 
     plt.show()
 
-def hover_for_scatter(event, fig, ax, plot_points: typing.Iterable[matplotlib.lines.Line2D], hover_texts: typing.Iterable[str], annotations=[]):
+
+def make_unique_data(vehicles, data, track_black, track_method, round_nr=None):
+    v_iter = iter(vehicles)
+    v_id = next(v_iter)
+    data = pd.DataFrame(data)
+    if not round_nr:
+        r = lambda x: x
+    else:
+        r = lambda i: round(i, round_nr)
+    stacked_array = np.array((r(data[v_id]['lat']), r(data[v_id]['lon']), data[v_id]['soc']))
+    for v_id in v_iter:
+        stacked_array = np.hstack(
+            (stacked_array, (r(data[v_id]['lat']), r(data[v_id]['lon']), data[v_id]['soc'])))
+    # stacked_array has all vehicle socs and geo positions in
+    unique_mask = np.unique(stacked_array[0:2, :], axis=1, return_index=True)[1]
+    stacked_array_unique = stacked_array[:, unique_mask]
+
+    # find soc data for stacked array depending on method. Since its only needed if the track is not black check this as well
+
+    if not track_black:
+        apply_function = None
+        if track_method == "mean":
+            apply_function = np.mean
+        elif track_method == "max":
+            apply_function = np.max
+        else:
+            apply_function = np.min
+
+        for geo_index in range(len(stacked_array_unique)):
+            geo_loc = stacked_array_unique[0:2, geo_index]
+            found_positions = np.all([stacked_array[0:2, :].T == geo_loc], axis=0)[:, 0]
+            fill_value = apply_function(stacked_array[2, found_positions])
+            stacked_array_unique[2, geo_index] = fill_value
+
+        return stacked_array_unique
+
+
+def hover_for_scatter(event, fig, ax, plot_points: typing.Iterable[matplotlib.lines.Line2D],
+                      hover_texts: typing.Iterable[str], annotations=[]):
     """Called when user hovers over plot.
     Checks if user hovers over point. If so, delete old annotation and
     create new one with relevant info from the hover_texts list.
     If user does not hover over point, remove annotation, if any.
     """
-    if len(annotations)==0:
+    if len(annotations) == 0:
         annotations.append(None)
-    for i,points in enumerate(plot_points):
+    for i, points in enumerate(plot_points):
         if points and event.inaxes == ax:
             # results shown, mouse within plot: get event info
             # cont: any points hovered?
@@ -344,12 +441,12 @@ def hover_for_scatter(event, fig, ax, plot_points: typing.Iterable[matplotlib.li
                 text = hover_texts[i]
 
                 # # remove old annotation
-                if annotations  and annotations[0]:
+                if annotations and annotations[0]:
                     annotations[0].remove()
-                    annotations[0]=None
+                    annotations[0] = None
 
                 # create new annotation
-                annotations[0]= ax.annotate(
+                annotations[0] = ax.annotate(
                     text,
                     xy=(xy[ind[0]][0], xy[ind[0]][1]),
                     xytext=(-20, 20),
@@ -358,9 +455,6 @@ def hover_for_scatter(event, fig, ax, plot_points: typing.Iterable[matplotlib.li
                     arrowprops={'arrowstyle': "-"},
                     annotation_clip=False)
                 fig.canvas.draw()
-
-
-
 
 
 def find_current_trip(trips, current_time):
