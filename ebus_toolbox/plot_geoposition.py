@@ -14,19 +14,9 @@ if TYPE_CHECKING:
     import ebus_toolbox.schedule
     import spiceev.scenario
 
-import requests
-import json
-from time import sleep
-import io
-
-import matplotlib.pyplot as plt
-import pandas as pd
-from matplotlib.colors import LinearSegmentedColormap
 import numpy as np
 import matplotlib.pyplot as plt
 import pandas as pd
-
-import math
 
 # Mathematical function we need to plot
 from matplotlib.colors import LinearSegmentedColormap
@@ -165,9 +155,11 @@ def main():
 
     stations_to_annotate = {name: stat for name, stat in stations.items() if
                             name in schedule.stations}
-    vehicle_data_frames = vehicle_data_frames.iloc[:24 * 60, :]
-    plot_merge_animate_battery(vehicle_data_frames, vehicle_black=True, track_black=False,
-                               station_data=stations_to_annotate, save=False, repeat=False)
+
+    vehicle_data_frames = vehicle_data_frames.iloc[:24*60,:]
+    plot_merge_animate_battery(vehicle_data_frames, station_data=stations_to_annotate,
+                               soc_threshold=0.2,track_black=False, vehicle_black=True,
+                               save=False, repeat=False)
 
 
 class station:
@@ -193,12 +185,14 @@ def get_sorted_rotations(v_id, schedule):
 
 def plot_merge_animate_battery(data: pd.DataFrame, station_data=None,
                                save=False, repeat=True, vehicle_black=False, track_black=True,
-                               track_method="min"):
+                               track_method="min", soc_threshold=1.0):
+
     data.xs("lat", level="Data", axis=1)
     lat_boundary = (data.xs("lat", level="Data", axis=1).min().min(),
                     data.xs("lat", level="Data", axis=1).max().max())
     lon_boundary = (data.xs("lon", level="Data", axis=1).min().min(),
                     data.xs("lon", level="Data", axis=1).max().max())
+
 
     v_max = 1
     v_min = 0
@@ -212,21 +206,28 @@ def plot_merge_animate_battery(data: pd.DataFrame, station_data=None,
     # Get all the vehicle ids from data
     vehicles = list(data.columns.levels[0])
 
+    # Filter data for relevant SOCs
+    for v_id in vehicles:
+            if data[v_id]['soc'].min()>soc_threshold:
+                data=data.drop(v_id,axis=1)
+    data.columns = data.columns.remove_unused_levels()
+    vehicles = list(data.columns.levels[0])
+
     # Plot track onto canvas via line which doesnt allow soc printing
     # or via scatter plot. With a scatter plot the points can take the color of the soc which drove
     # above the position.
-    # ToDo for soc printing soc handling needs to be implemented so for every position only a
-    #  single soc is printed
+
+
     round_nr = 3
-    stacked_array_unique = make_unique_data(vehicles, data, track_black, track_method)
+    stacked_array_unique = make_unique_data(vehicles, data, track_method)
     x_org=  stacked_array_unique[0, :].copy()
     y_org= stacked_array_unique[1, :].copy()
-
-    stacked_array_unique[0, :] = stacked_array_unique[0, :] - min(stacked_array_unique[0, :])
-    stacked_array_unique[1, :] = stacked_array_unique[1, :] - min(stacked_array_unique[1, :])
-    stacked_array_unique[0, :] = stacked_array_unique[0, :]
-    stacked_array_unique[0, :] = stacked_array_unique[0, :] * 10 ** round_nr
-    stacked_array_unique[1, :] = stacked_array_unique[1, :] * 10 ** round_nr
+    #
+    # stacked_array_unique[0, :] = stacked_array_unique[0, :] - min(stacked_array_unique[0, :])
+    # stacked_array_unique[1, :] = stacked_array_unique[1, :] - min(stacked_array_unique[1, :])
+    # stacked_array_unique[0, :] = stacked_array_unique[0, :]
+    # stacked_array_unique[0, :] = stacked_array_unique[0, :] * 10 ** round_nr
+    # stacked_array_unique[1, :] = stacked_array_unique[1, :] * 10 ** round_nr
     ##############
     # from scipy.ndimage import gaussian_filter as gauss
     # fig = plt.figure(figsize=(8, 8))
@@ -278,7 +279,7 @@ def plot_merge_animate_battery(data: pd.DataFrame, station_data=None,
                                **plot_dict, linestyle='-',
                                linewidth=2)
     else:
-        plot_dict = dict(c=stacked_array_unique[2, :] * 1, alpha=0.1)
+        plot_dict = dict(c=stacked_array_unique[2, :] * 1, alpha=0.2)
         lns2_1 = sub2.scatter(stacked_array_unique[0, :], stacked_array_unique[1, :],
                               **plot_dict, linestyle='-',
                               linewidth=0, vmin=v_min, vmax=v_max)
@@ -298,7 +299,8 @@ def plot_merge_animate_battery(data: pd.DataFrame, station_data=None,
     # Plot Station Names
     if station_data:
         for station in station_data.values():
-            xy=((station.lat-np.min(x_org))*10**round_nr, (station.lon-np.min(y_org))*10**round_nr)
+            # xy=((station.lat-np.min(x_org))*10**round_nr, (station.lon-np.min(y_org))*10**round_nr)
+            xy=(station.lat, station.lon)
             ax.annotate(station.name,
                         xy=xy, xycoords='data', fontsize=8, ha='center')
             ax.plot(xy[0], xy[1], 'ko', zorder=100)
@@ -362,7 +364,7 @@ def plot_merge_animate_battery(data: pd.DataFrame, station_data=None,
 
     ax.axis('off')
     # create animation using the animate() function
-    myAnimation = animation.FuncAnimation(fig,
+    my_animation = animation.FuncAnimation(fig,
                                           lambda i: animate(i, data),
                                           frames=ANIMATION_DURATION_MIN,
                                           interval=50, blit=False, repeat=repeat)
@@ -374,14 +376,14 @@ def plot_merge_animate_battery(data: pd.DataFrame, station_data=None,
         event, fig, ax, artist_objects, hover_texts))
     # Toggle save  for saving
     if save:
-        myAnimation.save('SOC_animation.gif', writer='imagemagick')
+        my_animation.save('SOC_animation.gif', writer='imagemagick')
 
     fig.tight_layout()
 
     plt.show()
 
 
-def make_unique_data(vehicles, data, track_black, track_method, round_nr=None):
+def make_unique_data(vehicles, data, track_method, round_nr=None):
     v_iter = iter(vehicles)
     v_id = next(v_iter)
     data = pd.DataFrame(data)
@@ -399,20 +401,19 @@ def make_unique_data(vehicles, data, track_black, track_method, round_nr=None):
 
     # find soc data for stacked array depending on method. Since its only needed if the track is not black check this as well
 
-    if not track_black:
-        apply_function = None
-        if track_method == "mean":
-            apply_function = np.mean
-        elif track_method == "max":
-            apply_function = np.max
-        else:
-            apply_function = np.min
+    apply_function = None
+    if track_method == "mean":
+        apply_function = np.mean
+    elif track_method == "max":
+        apply_function = np.max
+    else:
+        apply_function = np.min
 
-        for geo_index in range(len(stacked_array_unique)):
-            geo_loc = stacked_array_unique[0:2, geo_index]
-            found_positions = np.all([stacked_array[0:2, :].T == geo_loc], axis=0)[:, 0]
-            fill_value = apply_function(stacked_array[2, found_positions])
-            stacked_array_unique[2, geo_index] = fill_value
+    for geo_index in range(len(stacked_array_unique)):
+        geo_loc = stacked_array_unique[0:2, geo_index]
+        found_positions = np.all([stacked_array[0:2, :].T == geo_loc], axis=0)[:, 0]
+        fill_value = apply_function(stacked_array[2, found_positions])
+        stacked_array_unique[2, geo_index] = fill_value
 
         return stacked_array_unique
 
