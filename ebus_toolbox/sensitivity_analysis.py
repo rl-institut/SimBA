@@ -112,6 +112,18 @@ def get_reduced_power():
 
     return reduced_power_opps, reduced_power_depb, reduced_power_oppb
 
+# 4. network utilization
+# gc_power_opps, gc_power_deps (Netzauslastung)
+
+def get_grid_utilization():
+    """
+    Gets grid utilization
+    :return:
+    """
+    return
+
+# 5. extra mileage
+
 
 # 4. default hpc
 
@@ -146,9 +158,7 @@ def get_battery_aging():
 
     battery_aging = secrets.choice(list_json)
 
-    return battery_aging
-
-# 6. depot delay
+# 8. depot delay
 
 
 def get_depot_delay():
