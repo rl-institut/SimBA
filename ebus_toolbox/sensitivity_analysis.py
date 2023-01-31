@@ -6,6 +6,7 @@ import pandas as pd
 import numpy as np
 from random import *
 import random
+import secrets
 
 # define sturgeon values
 
@@ -14,7 +15,6 @@ import random
 
 def get_buffer_times():
     """Gets buffer times based on gamma function
-
     :return: delay
     """
     # reading data
@@ -56,7 +56,6 @@ def get_buffer_times():
 
 def get_temperature():
     """Gets temperature profile of a random day
-
     :return: day
     """
     # reading data
@@ -88,76 +87,66 @@ def get_temperature():
 
     day = weather_data[(weather_data.year == year) & (weather_data.month == month) & (weather_data.day == day)]
     day = day[['Date', 'TT_TU']]
+    day['Date'] = day['Date'].dt.hour
+    day.rename(columns={'Date': 'hour', 'TT_TU': 'temperature'}, inplace=True)
     day = day.reset_index(drop=True)
-    day = day.drop(['Date'], axis=1)
-
-    day = day.to_dict()
 
     return day
 
-# gc_power_opps, gc_power_deps (Netzauslastung)
-# cs_power_opps, cs_power_deps_depb, cs_power_deps_oppb (Technik)
-
-# cs_power_opps
+# 3. reduced power
 
 def get_reduced_power():
-    "creates list of different values which are smaller then the default power "
-    power_opps = np.arange(start=50, stop=350, step=50)
-    reduced_power_opps = random.choice(power_opps)
+    """Gets reduced charging power for different bus types
+    :return: reduced_power_opps, reduced_power_depb, reduced_power_oppb
+    """
+    power_opps = np.arange(start=50, stop=400, step=50)
+    reduced_power_opps = secrets.choice(power_opps)
 
-
-    # cs_power_deps_depb
     power_deps_depb = np.arange(start=30, stop=90, step=30)
-    reduced_power_depb = random.choice(power_deps_depb)
+    reduced_power_depb = secrets.choice(power_deps_depb)
 
-
-    # cs_power_deps_depb
     power_deps_oppb = np.arange(start=30, stop=120, step=30)
-    reduced_power_oppb = random.choice(power_deps_depb)
+    reduced_power_oppb = secrets.choice(power_deps_depb)
 
     return reduced_power_opps, reduced_power_depb, reduced_power_oppb
 
-# 4. network utilization
-# gc_power_opps, gc_power_deps (Netzauslastung)
 
-def get_grid_utilization():
-    """
-    Gets grid utilization
-    :return:
-    """
-    return
-
-# 5. extra mileage
-
-
-def get_extra_mileage():
-    """
-    Gets extra mileage
-    :return:
-    """
-    return
-
-# 6. default hpc
+# 4. default hpc
 
 
 def get_default_hpc():
     """
-    Gets default hpc
-    :return:
+    Gets default hpc by choosing from a preset of electrified_stations.json
+    :return: default_hpc
     """
-    return
+    list_json = ["data/bvg/electrified_stations_02.json",
+                 "data/bvg/electrified_stations_11.json",
+                 "data/bvg/electrified_stations_20.json",
+                 "data/bvg/electrified_stations_22.json"]
 
-# 7. battery aging
+    default_hpc = secrets.choice(list_json)
+
+    return default_hpc
+
+# 5. battery aging
 
 
 def get_battery_aging():
     """
-    Gets battery aging
-    :return:
+    Gets battery aging by choosing from a preset of vehicle_types.json
+    :return: battery_aging
     """
-    return
+    list_json = ["data/bvg/vehicle_types_95.json",
+                 "data/bvg/vehicle_types_90.json",
+                 "data/bvg/vehicle_types_85.json",
+                 "data/bvg/vehicle_types_80.json",
+                 "data/bvg/vehicle_types.json"]
 
-# 8. depot delay
+    battery_aging = secrets.choice(list_json)
+
+    return battery_aging
+
+# 6. depot delay
 
 
 def get_depot_delay():
@@ -165,4 +154,33 @@ def get_depot_delay():
     Gets depot delay
     :return:
     """
-    return
+
+    depot_delay = pd.read_csv('data/monte_carlo/depot_delay_data.csv', sep=',', decimal='.')
+
+    data = pd.DataFrame()
+    data['hour'] = depot_delay['hour'].unique()
+    data = data.sort_values(by='hour')
+    data = data.reset_index(drop=True)
+    means = depot_delay.groupby('hour')['standing_time'].mean()
+    means = means.reset_index(drop=True)
+    stds = depot_delay.groupby('hour')['standing_time'].std()
+    stds = stds.reset_index(drop=True)
+    data['mean'] = means
+    data['std'] = stds
+
+    list_s = []
+
+    for i in range(data.shape[0]):
+        mu = data.loc[i, 'mean']
+        sigma = data.loc[i, 'std']
+        s = np.random.normal(mu, sigma, 1)
+        list_s.append(s[0])
+
+    data['s'] = list_s
+    data.s = data.s.round()
+    data.drop(['mean', 'std'], axis=1, inplace=True)
+
+    delay_dep = dict(zip(data.hour, data.s))
+    delay_dep['else'] = 0
+
+    return delay_dep

@@ -4,6 +4,7 @@ from ebus_toolbox.schedule import Schedule
 from ebus_toolbox.trip import Trip
 from ebus_toolbox.costs import calculate_costs
 from ebus_toolbox import report, optimization, util
+from ebus_toolbox.run_sensitivity import prepare_sensitivity
 
 
 def simulate(args):
@@ -15,6 +16,9 @@ def simulate(args):
     :raises SystemExit: If an input file does not exist, exit the program.
     """
     # load vehicle types
+    if args.mode == 'sensitivity_analysis':
+        args = prepare_sensitivity(args)
+
     try:
         with open(args.vehicle_types, encoding='utf-8') as f:
             vehicle_types = util.uncomment_json_file(f)

@@ -1,0 +1,56 @@
+{
+    "BVG-GE": {
+        "depb": {
+            "name": "articulated bus - depot charging",
+            "capacity": 340,
+            "charging_curve": [
+                [
+                    0,
+                    450
+                ],
+                [
+                    0.8,
+                    296
+                ],
+                [
+                    0.9,
+                    210
+                ],
+                [
+                    1,
+                    20
+                ]
+            ],
+            "min_charging_power": 0,
+            "v2g": false,
+            "v2g_power_factor": 0.5,
+            "mileage": 3.0
+        },
+        "oppb": {
+            "name": "articulated bus - opportunity charging",
+            "capacity": 340,
+            "charging_curve": [
+                [
+                    0,
+                    450
+                ],
+                [
+                    0.8,
+                    296
+                ],
+                [
+                    0.9,
+                    210
+                ],
+                [
+                    1,
+                    20
+                ]
+            ],
+            "min_charging_power": 0,
+            "v2g": false,
+            "v2g_power_factor": 0.5,
+            "mileage": 3.0
+        }
+    }
+}
