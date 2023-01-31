@@ -16,9 +16,6 @@ def simulate(args):
     :raises SystemExit: If an input file does not exist, exit the program.
     """
     # load vehicle types
-    if args.mode == 'sensitivity_analysis':
-        args = prepare_sensitivity(args)
-
     try:
         with open(args.vehicle_types, encoding='utf-8') as f:
             vehicle_types = util.uncomment_json_file(f)

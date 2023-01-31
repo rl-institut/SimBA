@@ -194,6 +194,9 @@ class Schedule:
                 #args.output_directory_input = args.output_directory / "input_data"
                 args.output_directory.mkdir(parents=True, exist_ok=True)
 
+                # prepare temperature file
+                args = run_sensitivity.prepare_sensitivity(args)
+
 
                 args = run_sensitivity.run_sensitivity(args, ix)
                 print("Running Spice EV...")

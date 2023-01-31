@@ -7,6 +7,18 @@ from ebus_toolbox.sensitivity_analysis import get_depot_delay
 from ebus_toolbox.sensitivity_analysis import get_reduced_power
 
 def prepare_sensitivity(args):
+
+    temperature = get_temperature()
+    temperature.to_csv('data/bvg/default_temp_sensitivity.csv')
+
+    args.outside_temperature_over_day_path = 'data/bvg/default_temp_sensitivity.csv'
+
+    return args
+
+
+def run_sensitivity (args, scenario_id):
+    print('Run sensitivity analysis')
+
     buffertimes = get_buffer_times()
     args.default_buffer_time_opps = buffertimes
 
@@ -16,9 +28,6 @@ def prepare_sensitivity(args):
     battery_aging = get_battery_aging()
     args.vehicle_types = battery_aging
 
-    temperature = get_temperature()
-    temperature.to_csv('data/bvg_test/default_temp_sensitivity.csv')
-
     reduced_power_opps, reduced_power_depb, reduced_power_oppb = get_reduced_power()
     args.cs_power_opps = reduced_power_opps
     args.cs_power_deps_depb = reduced_power_depb
@@ -26,12 +35,6 @@ def prepare_sensitivity(args):
 
     # depot_delay = get_depot_delay()
     # args.depot_delay = delay_dep
-
-    return args
-
-
-def run_sensitivity (args, scenario_id):
-    print('Run sensitivity analysis')
 
     # true/false in config für arten der störgrößen, z.b. delay = true -> run sensitivity_analysis.delay -> ändere args
     # verspätung immer wieder neu aufrufen, dann kommen jedes mal neue werte
