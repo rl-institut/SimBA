@@ -1,10 +1,9 @@
 # imports
-import json
 from ebus_toolbox.consumption import Consumption
 from ebus_toolbox.schedule import Schedule
 from ebus_toolbox.trip import Trip
 from ebus_toolbox.costs import calculate_costs
-from ebus_toolbox import report, optimization
+from ebus_toolbox import report, optimization, util
 
 
 def simulate(args):
@@ -17,8 +16,8 @@ def simulate(args):
     """
     # load vehicle types
     try:
-        with open(args.vehicle_types) as f:
-            vehicle_types = json.load(f)
+        with open(args.vehicle_types, encoding='utf-8') as f:
+            vehicle_types = util.uncomment_json_file(f)
             del args.vehicle_types
     except FileNotFoundError:
         raise SystemExit(f"Path to vehicle types ({args.vehicle_types}) "
@@ -26,19 +25,19 @@ def simulate(args):
 
     # load stations file
     try:
-        with open(args.electrified_stations) as f:
-            stations = json.load(f)
+        with open(args.electrified_stations, encoding='utf-8') as f:
+            stations = util.uncomment_json_file(f)
     except FileNotFoundError:
         raise SystemExit(f"Path to electrified stations ({args.electrified_stations}) "
                          "does not exist. Exiting...")
 
     # load cost parameters
-    if args.cost_params is not None:
+    if args.cost_parameters_file is not None:
         try:
-            with open(args.cost_params) as f:
-                cost_params = json.load(f)
+            with open(args.cost_parameters_file, encoding='utf-8') as f:
+                cost_parameters_file = util.uncomment_json_file(f)
         except FileNotFoundError:
-            raise SystemExit(f"Path to cost parameters ({args.cost_params}) "
+            raise SystemExit(f"Path to cost parameters ({args.cost_parameters_file}) "
                              "does not exist. Exiting...")
 
     # parse strategy options for Spice EV
@@ -53,12 +52,16 @@ def simulate(args):
             setattr(args, opt_key, opt_val)
 
     # setup consumption calculator that can be accessed by all trips
-    Trip.consumption = Consumption(vehicle_types)
+    Trip.consumption = Consumption(
+        vehicle_types,
+        outside_temperatures=args.outside_temperature_over_day_path,
+        level_of_loading_over_day=args.level_of_loading_over_day_path)
 
     schedule = Schedule.from_csv(args.input_schedule,
                                  vehicle_types,
                                  stations,
                                  **vars(args))
+    schedule.calculate_consumption()
     scenario = None
 
     # run the mode(s) specified in config
@@ -67,43 +70,40 @@ def simulate(args):
         args.mode = [args.mode]
 
     for i, mode in enumerate(args.mode):
-        if mode == "sim":
+        if mode in ["sim", "neg_depb_to_oppb", "neg_oppb_to_depb"]:
             # scenario simulated once
             # default if mode argument is not specified by user
             scenario = schedule.run(args)
-        elif mode == "neg_depb_to_oppb":
-            # simple optimization
-            # change charging type of negative depb rotations from depot to opportunity
-            if scenario is None:
-                # not simulated yet
-                scenario = schedule.run(args)
-            neg_rot = schedule.get_negative_rotations(scenario)
-            # only depot rotations relevant
-            neg_rot = [r for r in neg_rot if schedule.rotations[r].charging_type == "depb"]
-            if neg_rot:
-                print("Changing charging type to oppb for rotations " + ', '.join(neg_rot))
-                schedule.set_charging_type("oppb", neg_rot)
-                # simulate again
-                scenario = schedule.run(args)
-                neg_rot = schedule.get_negative_rotations(scenario)
-                if neg_rot:
-                    print(f"Rotations {', '.join(neg_rot)} remain negative.")
         elif mode == 'service_optimization':
             # find largest set of rotations that produce no negative SoC
             schedule, scenario = optimization.service_optimization(schedule, args)["optimized"]
             if scenario is None:
                 print("*"*49 + "\nNo optimization possible (all rotations negative)")
+        if mode in ["neg_depb_to_oppb", "neg_oppb_to_depb"]:
+            # simple optimization: change charging type, simulate again
+            change_from = mode[4:8]
+            change_to = mode[-4:]
+            # get negative rotations
+            neg_rot = schedule.get_negative_rotations(scenario)
+            # check which rotations are relevant and if vehicle with other charging type exists
+            neg_rot = [r for r in neg_rot if schedule.rotations[r].charging_type == change_from
+                       if change_to in vehicle_types[schedule.rotations[r].vehicle_type]]
+            if neg_rot:
+                print(f"Changing charging type from {change_from} to {change_to} for rotations "
+                      + ', '.join(neg_rot))
+                schedule.set_charging_type(change_to, neg_rot)
+                # simulate again
+                scenario = schedule.run(args)
+                neg_rot = schedule.get_negative_rotations(scenario)
+                if neg_rot:
+                    print(f"Rotations {', '.join(neg_rot)} remain negative.")
         elif mode == 'report':
             # create report based on all previous modes
             assert scenario is not None, "Can't report without simulation"
-            report_name = '__'.join([m for m in args.mode[:i] if m not in ["report", "cost"]])
-            report.generate(schedule, scenario, args, prefix=report_name)
-        elif mode == 'cost' and args.cost_params is not None:
-            # calculate costs of iteration
-            costs = calculate_costs(cost_params, schedule)
-            opex_energy_annual = 0  # ToDo: Import annual energy costs from SpiceEV
-            cost_invest = costs["c_invest"]
-            cost_annual = (opex_energy_annual
-                           + costs["c_invest_annual"]
-                           + costs["c_maintenance_annual"])
-            print(f"Investment cost: {cost_invest} €. Total annual cost: {cost_annual} €.")
+            if args.cost_calculation:
+                # cost calculation part of report
+                calculate_costs(cost_parameters_file, scenario, schedule, args)
+            report_name = '__'.join([m for m in args.mode[:i] if m != "report"])
+            args.results_directory = args.output_directory.joinpath(report_name)
+            args.results_directory.mkdir(parents=True, exist_ok=True)
+            report.generate(schedule, scenario, args)

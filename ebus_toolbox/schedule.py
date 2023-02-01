@@ -65,10 +65,36 @@ class Schedule:
         """
         schedule = cls(vehicle_types, stations, **kwargs)
 
-        with open(path_to_csv, 'r') as trips_file:
+        station_data = dict()
+        station_path = kwargs.get("station_data_path")
+
+        if station_path is not None:
+            try:
+                with open(str(station_path), "r", encoding='utf-8') as f:
+                    delim = util.get_csv_delim(station_path)
+                    reader = csv.DictReader(f, delimiter=delim)
+                    station_data = dict()
+                    for row in reader:
+                        station_data.update({str(row['Endhaltestelle']):
+                                            {"elevation": float(row['elevation'])}})
+            except FileNotFoundError or KeyError:
+                warnings.warn("Warning: external csv file '{}' not found or not named properly "
+                              "(Needed column names are 'Endhaltestelle' and 'elevation')".
+                              format(station_path),
+                              stacklevel=100)
+            except ValueError:
+                warnings.warn("Warning: external csv file '{}' does not contain numeric "
+                              "values in the column 'elevation'. Station data is discarded.".
+                              format(station_path),
+                              stacklevel=100)
+
+        with open(path_to_csv, 'r', encoding='utf-8') as trips_file:
             trip_reader = csv.DictReader(trips_file)
             for trip in trip_reader:
                 rotation_id = trip['rotation_id']
+                # trip gets reference to station data and calculates height diff during trip
+                # initialization. Could also get the height difference from here on
+                trip["station_data"] = station_data
                 if rotation_id not in schedule.rotations.keys():
                     schedule.rotations.update({
                         rotation_id: Rotation(id=rotation_id,
@@ -83,7 +109,69 @@ class Schedule:
             if rot.charging_type is None:
                 rot.set_charging_type(ct=kwargs.get('preferred_charging_type', 'oppb'))
 
+        if kwargs.get("check_rotation_consistency"):
+            # check rotation expectations
+            ignored_rotations = cls.check_consistency(schedule)
+            if ignored_rotations:
+                # write errors to file
+                with open(kwargs["output_directory"] / "inconsistent_rotations.csv", "w") as f:
+                    for rot_id, e in ignored_rotations.items():
+                        f.write(f"Rotation {rot_id}: {e}\n")
+                        print(f"Rotation {rot_id}: {e}")
+                        if kwargs.get("ignore_inconsistent_rotations"):
+                            # remove this rotation from schedule
+                            del schedule.rotations[rot_id]
+        elif kwargs.get("ignore_inconsistent_rotations"):
+            warnings.warn("Option ignore_inconsistent_rotations ignored, "
+                          "as check_rotation_consistency is not set")
+
         return schedule
+
+    @classmethod
+    def check_consistency(cls, schedule):
+        """
+        Check rotation expectations, such as
+        - each rotation has one "Einsetzfahrt"
+        - each rotation has one "Aussetzfahrt"
+        - the "Einsatzfahrt" starts where the "Aussetzfahrt" ends
+        - the rotation name is unique
+        - every trip within a rotation starts where the previous trip ended
+
+        :param schedule: the schedule to check
+        :type schedule: dict
+        :return: faulty rotations. Dict of rotation ID -> error message
+        :rtype: dict
+        """
+        ignored_rotations = {}
+        for rot_id, rotation in schedule.rotations.items():
+            # iterate over trips, looking for initial and final stations
+            dep_name = None
+            arr_name = None
+            prev_station_name = None
+            try:
+                for trip in rotation.trips:
+                    if trip.line == "Einsetzfahrt":
+                        # must have exactly one "Einsetzfahrt"
+                        assert dep_name is None, "Einsetzfahrt encountered mutliple times"
+                        dep_name = trip.departure_name
+                    if trip.line == "Aussetzfahrt":
+                        # must have exactly one "Aussetzfahrt"
+                        assert arr_name is None, "Aussetzfahrt encountered multiple times"
+                        arr_name = trip.arrival_name
+                    if prev_station_name is not None:
+                        # must depart from the previous station
+                        assert trip.departure_name == prev_station_name, "Wrong departure station"
+                        prev_station_name = trip.arrival_name
+                # must have exactly one "Einsetzfahrt" and "Aussetzfahrt"
+                assert dep_name is not None and arr_name is not None, "No Ein- or Aussetzfahrt"
+                # rotation must end where it started
+                assert dep_name == arr_name, "Start and end of rotation differ"
+            except AssertionError as e:
+                # some assumption is violated
+                # save error text
+                ignored_rotations[rot_id] = e
+
+        return ignored_rotations
 
     def run(self, args):
         # each rotation is assigned a vehicle ID
@@ -95,7 +183,8 @@ class Schedule:
         with warnings.catch_warnings():
             warnings.simplefilter('ignore', UserWarning)
             scenario.run('distributed', vars(args).copy())
-
+        assert scenario.step_i == scenario.n_intervals - 1, \
+            'spiceEV simulation aborted, see above for details'
         return scenario
 
     def set_charging_type(self, ct, rotation_ids=None):
@@ -301,6 +390,7 @@ class Schedule:
 
         vehicles = {}
         batteries = {}
+        photovoltaics = {}
         charging_stations = {}
         grid_connectors = {}
         events = {
@@ -327,7 +417,7 @@ class Schedule:
             # sort rotations by time leveraging the fact that the
             # list of trips per rotation is always sorted
             vehicle_rotations = {k: v for k, v in sorted(
-                                 vehicle_rotations.items(), key=lambda x: x[1].departure_time)}
+                vehicle_rotations.items(), key=lambda x: x[1].departure_time)}
             vehicle_trips = [t for rot in vehicle_rotations.values() for t in rot.trips]
 
             for i, trip in enumerate(vehicle_trips):
@@ -356,8 +446,8 @@ class Schedule:
                         # a depot bus cannot charge at an opp station
                         station_type = None
                     else:
-                        # at opp station, always try to charge as much as you can
-                        desired_soc = 1 if station_type == "opps" else args.desired_soc
+                        # get desired soc by station type
+                        desired_soc = vars(args).get("desired_soc_" + station_type)
                 except KeyError:
                     # non-electrified station
                     station_type = None
@@ -386,17 +476,15 @@ class Schedule:
                     # vehicle connects to charging station
                     connected_charging_station = f"{cs_name}_{station_type}"
                     # create charging station and grid connector if necessary
-                    if cs_name not in charging_stations or gc_name not in grid_connectors:
-                        number_cs = station["n_charging_stations"]
-                        if station_type == "deps":
-                            cs_power = args.cs_power_deps_oppb \
-                                if trip.rotation.charging_type == 'oppb' \
-                                else args.cs_power_deps_depb
-                            gc_power = args.gc_power_deps
-                        elif station_type == "opps":
-                            cs_power = args.cs_power_opps
-                            gc_power = args.gc_power_opps
-
+                    if cs_name not in charging_stations:
+                        # get CS and GC power from stations file,
+                        # default back to input arguments from config
+                        # trip type only relevant to depot stations
+                        trip_type = trip.rotation.charging_type
+                        trip_type = '_' + trip_type if station_type == "deps" else ""
+                        cs_power_type = f"cs_power_{station_type}{trip_type}"
+                        cs_power = station.get(cs_power_type, vars(args)[cs_power_type])
+                        gc_power = station.get("gc_power", vars(args)[f"gc_power_{station_type}"])
                         # add one charging station for each bus at bus station
                         charging_stations[connected_charging_station] = {
                             "type": station_type,
@@ -404,12 +492,47 @@ class Schedule:
                             "min_power": 0.1 * cs_power,
                             "parent": gc_name
                         }
+                    if gc_name not in grid_connectors:
                         # add one grid connector for each bus station
                         grid_connectors[gc_name] = {
                             "max_power": gc_power,
                             "cost": {"type": "fixed", "value": 0.3},
-                            "number_cs": number_cs
+                            "number_cs": station["n_charging_stations"],
+                            "voltage_level": station.get("voltage_level")
                         }
+                        # check for stationary battery
+                        battery = station.get("battery")
+                        if battery is not None:
+                            # add stationary battery at this station/GC
+                            battery["parent"] = gc_name
+                            batteries[gc_name] = battery
+
+                        # add feed-in name and power at grid connector if exists
+                        feed_in = station.get("energy_feed_in")
+                        if feed_in:
+                            feed_in_path = Path(feed_in["csv_file"])
+                            if not feed_in_path.exists():
+                                warnings.warn("feed-in csv file '{}' does not exist".format(
+                                    feed_in_path))
+                            feed_in["grid_connector_id"] = gc_name
+                            feed_in["csv_file"] = feed_in_path
+                            events["energy_feed_in"][gc_name + " feed-in"] = feed_in
+                            # add PV component
+                            photovoltaics[gc_name] = {
+                                "parent": gc_name,
+                                "nominal_power": feed_in.get("nominal_power", 0)
+                            }
+
+                        # add external load if exists
+                        ext_load = station.get("external_load")
+                        if ext_load:
+                            ext_load_path = Path(ext_load["csv_file"])
+                            if not ext_load_path.exists():
+                                warnings.warn("external load csv file '{}' does not exist".format(
+                                    ext_load_path))
+                            ext_load["grid_connector_id"] = gc_name
+                            ext_load["csv_file"] = ext_load_path
+                            events["external_load"][gc_name + " ext. load"] = ext_load
 
                 # initial condition of vehicle
                 if i == 0:
@@ -417,7 +540,7 @@ class Schedule:
                         "connected_charging_station": None,
                         "estimated_time_of_departure": trip.departure_time.isoformat(),
                         "desired_soc": None,
-                        "soc": args.desired_soc,
+                        "soc": args.desired_soc_deps,
                         "vehicle_type":
                             f"{trip.rotation.vehicle_type}_{trip.rotation.charging_type}"
                     }
@@ -493,46 +616,6 @@ class Schedule:
 
         # add timeseries from csv
         # save path and options for CSV timeseries
-
-        if args.include_ext_load_csv:
-            for filename, gc_name in args.include_ext_load_csv:
-                options = {
-                    "csv_file": filename,
-                    "start_time": start_simulation.isoformat(),
-                    "step_duration_s": 900,  # 15 minutes
-                    "grid_connector_id": gc_name,
-                    "column": "energy"
-                }
-                if args.include_ext_csv_option:
-                    for key, value in args.include_ext_csv_option:
-                        if key == "step_duration_s":
-                            value = int(value)
-                        options[key] = value
-                events['external_load'][Path(filename).stem] = options
-                # check if CSV file exists
-                ext_csv_path = args.output_directory / filename
-                if not ext_csv_path.exists():
-                    print("Warning: external csv file '{}' does not exist yet".format(ext_csv_path))
-
-        if args.include_feed_in_csv:
-            for filename, gc_name in args.include_feed_in_csv:
-                options = {
-                    "csv_file": filename,
-                    "start_time": start_simulation.isoformat(),
-                    "step_duration_s": 3600,  # 60 minutes
-                    "grid_connector_id": gc_name,
-                    "column": "energy"
-                }
-                if args.include_feed_in_csv_option:
-                    for key, value in args.include_feed_in_csv_option:
-                        if key == "step_duration_s":
-                            value = int(value)
-                        options[key] = value
-                events['energy_feed_in'][Path(filename).stem] = options
-                feed_in_path = args.output_directory / filename
-                if not feed_in_path.exists():
-                    print("Warning: feed-in csv file '{}' does not exist yet".format(feed_in_path))
-
         if args.include_price_csv:
             for filename, gc_name in args.include_price_csv:
                 options = {
@@ -551,32 +634,12 @@ class Schedule:
                 if not price_csv_path.exists():
                     print("Warning: price csv file '{}' does not exist yet".format(price_csv_path))
 
-        if args.battery:
-            for idx, bat in enumerate(args.battery, 1):
-                capacity, c_rate, gc = bat[:3]
-                if gc not in grid_connectors:
-                    # no vehicle charges here
-                    continue
-                if capacity > 0:
-                    max_power = c_rate * capacity
-                else:
-                    # unlimited battery: set power directly
-                    max_power = c_rate
-                batteries[f"BAT{idx}"] = {
-                    "parent": gc,
-                    "capacity": capacity,
-                    "charging_curve": [[0, max_power], [1, max_power]],
-                }
-                if len(bat) == 4:
-                    # discharge curve can be passed as optional 4th param
-                    batteries[f"BAT{idx}"].update({
-                        "discharge_curve": bat[3]
-                    })
-
         # reformat vehicle types for spiceEV
-        vehicle_types_spiceev = {f'{vehicle_type}_{charging_type}': body
-                                 for vehicle_type, subtypes in self.vehicle_types.items()
-                                 for charging_type, body in subtypes.items()}
+        vehicle_types_spiceev = {
+            f'{vehicle_type}_{charging_type}': body
+            for vehicle_type, subtypes in self.vehicle_types.items()
+            for charging_type, body in subtypes.items()
+        }
 
         # create final dict
         self.scenario = {
@@ -590,9 +653,10 @@ class Schedule:
                 "vehicles": vehicles,
                 "grid_connectors": grid_connectors,
                 "charging_stations": charging_stations,
-                "batteries": batteries
+                "batteries": batteries,
+                "photovoltaics": photovoltaics,
             },
             "events": events
         }
 
-        return Scenario(self.scenario, args.output_directory)
+        return Scenario(self.scenario, Path())

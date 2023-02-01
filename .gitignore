@@ -12,3 +12,5 @@ docs/source/temp
 data/private_examples
 data/sim_outputs
 data/preprocessing_scripts
+src/
+*.bak
