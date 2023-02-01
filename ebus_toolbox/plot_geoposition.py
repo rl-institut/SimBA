@@ -83,22 +83,22 @@ cdict = {'red': [[0.0, 0, 0],
                   [1, 255 / 255, 45 / 255]]}
 rli_blue_cmp = LinearSegmentedColormap('testCmap', segmentdata=cdict, N=256)
 
-with open("schedule_opt.pickle", "rb") as file:
+with open("schedule_rebased_BVG_BFI.pickle", "rb") as file:
     schedule = pickle.load(file)
 
-with open("scenario_opt.pickle", "rb") as file:
+with open("scenario_rebased_BVG_BFI.pickle", "rb") as file:
     scenario = pickle.load(file)
 
-with open("args_buffered_all_depb.pickle", "rb") as file:
+with open("args_rebased_BVG_BFI.pickle", "rb") as file:
     args = pickle.load(file)
 
-args.station_data_path = "C:/Users/paul.scheer/Python/bus_toolbox/eBus-Toolbox/data/buffered_all_stations.csv"
+args.station_data_path = "C:/Users/paul.scheer/Python/bus_toolbox/eBus-Toolbox/Haltestellen.csv"
 
 ANIMATION_DURATION_MIN = 480
 
 
 def main():
-    pickle_path = "vehicle_data_frames.pickle"
+    pickle_path = None #"vehicle_data_frames.pickle"
     with open(str(args.station_data_path), "r", encoding='utf-8') as f:
         delim = util.get_csv_delim(args.station_data_path)
         reader = csv.DictReader(f, delimiter=delim)
@@ -115,8 +115,6 @@ def main():
 
     if not pickle_path:
         vehicle_data_frames = pd.DataFrame()
-        c = 0
-
         for v_id, soc_data in scenario.vehicle_socs.items():
             rotations = get_sorted_rotations(v_id, schedule)
             trips = [trip for rot in rotations for trip in rot.trips]
@@ -130,8 +128,15 @@ def main():
                                                                        current_time)
                     trip_nr += found_trip_index
                     rel_time_of_trip = get_rel_time_of_trip(current_time, current_trip)
-                    current_station = stations[current_trip.departure_name]
-                    next_station = stations[current_trip.arrival_name]
+                    try:
+                        current_station = stations[current_trip.departure_name]
+                    except:
+                        current_station = last_station
+                    try:
+                        next_station = stations[current_trip.arrival_name]
+                    except:
+                        next_station = current_station
+                    last_station=current_station
                     lat, lon = current_station.get_lat_lon(next_station, rel_time_of_trip)
                     lats.append(lat)
                     lons.append(lon)
@@ -158,8 +163,8 @@ def main():
 
     vehicle_data_frames = vehicle_data_frames.iloc[:24*60,:]
     plot_merge_animate_battery(vehicle_data_frames, station_data=stations_to_annotate,
-                               soc_threshold=0.2,track_black=False, vehicle_black=True,
-                               save=False, repeat=False)
+                               soc_threshold=1,track_black=False, vehicle_black=True,
+                               save=False, repeat=True)
 
 
 class station:
@@ -279,7 +284,7 @@ def plot_merge_animate_battery(data: pd.DataFrame, station_data=None,
                                **plot_dict, linestyle='-',
                                linewidth=2)
     else:
-        plot_dict = dict(c=stacked_array_unique[2, :] * 1, alpha=0.2)
+        plot_dict = dict(c=stacked_array_unique[2, :] * 1, alpha=0.8)
         lns2_1 = sub2.scatter(stacked_array_unique[0, :], stacked_array_unique[1, :],
                               **plot_dict, linestyle='-',
                               linewidth=0, vmin=v_min, vmax=v_max)
@@ -302,7 +307,7 @@ def plot_merge_animate_battery(data: pd.DataFrame, station_data=None,
             # xy=((station.lat-np.min(x_org))*10**round_nr, (station.lon-np.min(y_org))*10**round_nr)
             xy=(station.lat, station.lon)
             ax.annotate(station.name,
-                        xy=xy, xycoords='data', fontsize=8, ha='center')
+                        xy=xy, xycoords='data', xytext=(0, 5), textcoords='offset points', fontsize=8, ha='center')
             ax.plot(xy[0], xy[1], 'ko', zorder=100)
 
     artist_objects = []
@@ -317,6 +322,7 @@ def plot_merge_animate_battery(data: pd.DataFrame, station_data=None,
     sub2.set_xlabel('Position')
 
     text_box = TextArea(data.index[0])
+
     time_annotation_box = [AnnotationBbox(text_box, xy=(0.1, 0.1), xycoords='axes fraction',
                                           fontsize=15)]
     ax.add_artist(time_annotation_box[0])
@@ -334,40 +340,64 @@ def plot_merge_animate_battery(data: pd.DataFrame, station_data=None,
         i = counter[0]
         start_index = i * roll_v + 8 * 60
         end_index = start_index + len_v
-
-        ax.artists.remove(time_annotation_box[0])
+        try:
+            ax.artists.remove(time_annotation_box[0])
+        except:
+            return artist_objects
         text_box = TextArea(data.index[start_index])
         time_annotation_box[0] = AnnotationBbox(text_box, xy=(0.1, 0.1), xycoords='axes fraction',
                                                 fontsize=15)
         ax.add_artist(time_annotation_box[0])
+        #
+        #
 
-        for k, v_id in enumerate(vehicles):
-            artist_objects[k].remove()
-            mean_soc = data[v_id]["soc"][start_index:end_index].mean()
-            if vehicle_black:
-                plot_dict = dict(color=(0, 0, 0))
-            else:
-                l = len(data[v_id]["lat"][start_index:end_index])
-                plot_dict = dict(c=mean_soc * np.ones(l))
-            artist_objects[k] = sub2.scatter(data[v_id]["lat"][start_index:end_index],
-                                             data[v_id]["lon"][start_index:end_index],
-                                             **plot_dict,
-                                             vmin=0, vmax=1,
-                                             linestyle='-',
-                                             linewidth=0, zorder=50)
-            hover_texts[k] = (v_id, str(round(mean_soc, 3)))
+        plot_dict = dict(color=(0, 0, 0))
+        artist_objects[0].remove()
+        lat_data=data.xs("lat", level="Data", axis=1).iloc[start_index:end_index].values
+        lon_data=data.xs("lon", level="Data", axis=1).iloc[start_index:end_index].values
+        soc_data=data.xs("soc", level="Data", axis=1).iloc[start_index:end_index].mean().values
+        if vehicle_black:
+            plot_dict = dict(color=(0, 0, 0))
+        else:
+            plot_dict = dict(c=soc_data)
+        artist_objects[0] = sub2.scatter(lat_data,
+                                         lon_data,
+                                         **plot_dict,
+                                         vmin=0, vmax=1,
+                                         linestyle='-',
+                                         linewidth=0, zorder=50)
 
-        if end_index >= len(data[v_id]["soc"]):
+        #
+        #
+        # for k, v_id in enumerate(vehicles):
+        #     artist_objects[k].remove()
+        #     mean_soc = data[v_id]["soc"][start_index:end_index].mean()
+        #     if vehicle_black:
+        #         plot_dict = dict(color=(0, 0, 0))
+        #     else:
+        #         l = len(data[v_id]["lat"][start_index:end_index])
+        #         plot_dict = dict(c=mean_soc * np.ones(l))
+        #     artist_objects[k] = sub2.scatter(data[v_id]["lat"][start_index:end_index],
+        #                                      data[v_id]["lon"][start_index:end_index],
+        #                                      **plot_dict,
+        #                                      vmin=0, vmax=1,
+        #                                      linestyle='-',
+        #                                      linewidth=0, zorder=50)
+        #     hover_texts[k] = (v_id, str(round(mean_soc, 3)))
+
+        if end_index >= len(data):
             counter[0] = 0
 
         return artist_objects
 
     ax.axis('off')
     # create animation using the animate() function
+
     my_animation = animation.FuncAnimation(fig,
                                           lambda i: animate(i, data),
                                           frames=ANIMATION_DURATION_MIN,
-                                          interval=50, blit=False, repeat=repeat)
+                                          interval=15, blit=False, repeat=repeat)
+
     #
     sub2.set_ylabel('Position')
     sub2.set_xlabel('Position')
@@ -380,8 +410,12 @@ def plot_merge_animate_battery(data: pd.DataFrame, station_data=None,
 
     fig.tight_layout()
 
-    plt.show()
-
+    def on_close(event):
+        plt.close()
+        print('Closed Figure!')
+    fig.canvas.mpl_connect('close_event',lambda event:on_close(event))
+    plt.show(block=True)
+    print("stopped")
 
 def make_unique_data(vehicles, data, track_method, round_nr=None):
     v_iter = iter(vehicles)
@@ -395,6 +429,7 @@ def make_unique_data(vehicles, data, track_method, round_nr=None):
     for v_id in v_iter:
         stacked_array = np.hstack(
             (stacked_array, (r(data[v_id]['lat']), r(data[v_id]['lon']), data[v_id]['soc'])))
+    stacked_array = stacked_array.astype(float)
     # stacked_array has all vehicle socs and geo positions in
     unique_mask = np.unique(stacked_array[0:2, :], axis=1, return_index=True)[1]
     stacked_array_unique = stacked_array[:, unique_mask]
@@ -471,8 +506,9 @@ def find_current_trip(trips, current_time):
 
 
 def get_rel_time_of_trip(current_time: datetime.datetime, current_trip: 'ebus_toolbox.trip.Trip'):
+    trip_time= (current_trip.arrival_time - current_trip.departure_time)
     rel_time = (current_time - current_trip.departure_time) / \
-               (current_trip.arrival_time - current_trip.departure_time)
+               max(trip_time,datetime.timedelta(minutes=1))
     return min(1, max(rel_time, 0))
 
 
