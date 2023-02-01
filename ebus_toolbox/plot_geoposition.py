@@ -1,7 +1,7 @@
 """ Module to implement plotting functionality of busses with georeferences"""
 import datetime
 import typing
-
+import pathlib
 from matplotlib.offsetbox import TextArea, AnnotationBbox
 
 import ebus_toolbox.util as util
@@ -83,13 +83,14 @@ cdict = {'red': [[0.0, 0, 0],
                   [1, 255 / 255, 45 / 255]]}
 rli_blue_cmp = LinearSegmentedColormap('testCmap', segmentdata=cdict, N=256)
 
-with open("schedule_rebased_BVG_BFI.pickle", "rb") as file:
+f_path=pathlib.Path(__file__).parent.parent
+with open(f_path / "schedule_rebased_BVG_BFI.pickle", "rb") as file:
     schedule = pickle.load(file)
 
-with open("scenario_rebased_BVG_BFI.pickle", "rb") as file:
+with open(f_path / "scenario_rebased_BVG_BFI.pickle", "rb") as file:
     scenario = pickle.load(file)
 
-with open("args_rebased_BVG_BFI.pickle", "rb") as file:
+with open(f_path / "args_rebased_BVG_BFI.pickle", "rb") as file:
     args = pickle.load(file)
 
 args.station_data_path = "C:/Users/paul.scheer/Python/bus_toolbox/eBus-Toolbox/Haltestellen.csv"

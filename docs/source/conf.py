@@ -9,11 +9,23 @@
 # If extensions (or modules to document with autodoc) are in another directory,
 # add these directories to sys.path here. If the directory is relative to the
 # documentation root, use os.path.abspath to make it absolute, like shown here.
+# for example
+
+
+#If conf.py is located in this directory,
 #
+#D:\\Projects\MyProject\Docs\source
+#
+#and the project's Python modules are in
+#
+#D:\\Projects\MyProject\SourceCode,
+
 import os
 import sys
-sys.path.insert(0, os.path.abspath('..'))
-
+import pathlib
+sys.path.insert(0, os.path.abspath('../../'))
+sys.path.insert(0, pathlib.Path(__file__).parents[2].resolve().as_posix())
+sys.path.insert(0, os.path.abspath('C:/Users/paul.scheer/Python/spiceev'))
 
 # -- Project information -----------------------------------------------------
 
