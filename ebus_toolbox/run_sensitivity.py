@@ -1,10 +1,11 @@
-import pandas
 from ebus_toolbox.sensitivity_analysis import get_buffer_times
 from ebus_toolbox.sensitivity_analysis import get_temperature
 from ebus_toolbox.sensitivity_analysis import get_default_hpc
 from ebus_toolbox.sensitivity_analysis import get_battery_aging
 from ebus_toolbox.sensitivity_analysis import get_depot_delay
 from ebus_toolbox.sensitivity_analysis import get_reduced_power
+from pathlib import Path
+
 
 def prepare_sensitivity(args):
 
@@ -12,6 +13,7 @@ def prepare_sensitivity(args):
     temperature.to_csv('data/bvg/default_temp_sensitivity.csv')
 
     args.outside_temperature_over_day_path = 'data/bvg/default_temp_sensitivity.csv'
+    temperature.to_csv(args.output_directory / 'default_temp_sensitivity.csv')
 
     return args
 
@@ -36,8 +38,6 @@ def run_sensitivity (args, scenario_id):
     # depot_delay = get_depot_delay()
     # args.depot_delay = delay_dep
 
-    # true/false in config für arten der störgrößen, z.b. delay = true -> run sensitivity_analysis.delay -> ändere args
-    # verspätung immer wieder neu aufrufen, dann kommen jedes mal neue werte
     # metadaten(args) speichern
     export_args = {'scenario': args}
     export_str = 'meta_scenario_' + str(scenario_id) + '.txt'
