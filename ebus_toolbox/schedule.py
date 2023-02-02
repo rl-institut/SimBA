@@ -179,7 +179,7 @@ class Schedule:
         # each rotation is assigned a vehicle ID
         self.assign_vehicles()
 
-        scenario = self.generate_scenario(args)
+        #scenario = self.generate_scenario(args)
 
         if self.mode == 1:
             for ix in range(self.range_sensitivity):
@@ -199,6 +199,9 @@ class Schedule:
 
 
                 args = run_sensitivity.run_sensitivity(args, ix)
+
+                scenario = self.generate_scenario(args)
+
                 print("Running Spice EV...")
                 with warnings.catch_warnings():
                     warnings.simplefilter('ignore', UserWarning)
@@ -219,6 +222,8 @@ class Schedule:
             #return scenario
 
         else:
+            scenario = self.generate_scenario(args)
+
             print("Running Spice EV...")
             with warnings.catch_warnings():
                 warnings.simplefilter('ignore', UserWarning)
