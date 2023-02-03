@@ -4,15 +4,18 @@
    contain the root `toctree` directive.
 
 Welcome to the eBus-Toolbox's documentation!
-========================================
+============================================
 
-This toolbox extends the functionality of the Open Source simulation tool SpiceEV to facilitate eBus feasibility studies. 
+This toolbox extends the functionality of the Open Source simulation tool SpiceEV to facilitate eBus feasibility studies.
 
 
 .. toctree::
-   :maxdepth: 2
+   :maxdepth: 3
    :caption: Contents:
 
+   getting_started
+   modes
+   simulation_parameters
 
 
 Indices and tables
