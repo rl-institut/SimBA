@@ -375,7 +375,7 @@ class Schedule:
         return list(negative_rotations)
 
     def rotation_filter(self, args, rf_list=None):
-        """Edit rotations according to args.rotation_filter_variable.
+        """Edits rotations according to args.rotation_filter_variable.
 
         :param args: used arguments are rotation_filter, path to rotation ids,
                      and rotation_filter_variable that sets mode (options: include, exclude)
@@ -383,15 +383,19 @@ class Schedule:
         :param rf_list: rotation filter list with strings of rotation ids (default is None)
         :type rf_list: list
         """
-        rf_list = rf_list or []
+        rf_list = [str(i) for i in rf_list] or []
         if not args.rotation_filter_variable:
             return
-        try:
-            with open(args.rotation_filter, encoding='utf-8') as f:
-                # read rotation_ids from file into rf_list
-                rf_list += json.load(f, parse_int=str)
-        except FileNotFoundError:
-            print(f"Path to rotation filter ({args.rotation_filter}) does not exist.")
+        if args.rotation_filter_variable and not args.rotation_filter and not rf_list:
+            warnings.warn("Rotation filter variable is enabled but both json and list are not used.")
+            return
+        if args.rotation_filter:
+            try:
+                with open(args.rotation_filter, encoding='utf-8') as f:
+                    # read rotation_ids from file into rf_list
+                    rf_list += json.load(f, parse_int=str)
+            except FileNotFoundError:
+                warnings.warn(f"Path to rotation filter {args.rotation_filter} is invalid.")
         # filter out rotations in self.rotations
         if args.rotation_filter_variable == "exclude":
             self.rotations = {k: v for k, v in self.rotations.items() if k not in rf_list}
