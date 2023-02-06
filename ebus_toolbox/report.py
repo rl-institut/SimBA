@@ -92,12 +92,79 @@ def generate_gc_overview(schedule, scenario, args):
                                  *use_factors])
 
 
-def bus_type_distribution_mileage_consumption():
-    pass
+def bus_type_distribution_consumption_rotation(args, schedule):
+    """Plots distribution of bus types in consumption brackets as a stacked bar chart.
+
+    :param args: Configuration arguments from cfg file. args.output_directory is used
+    :type args: argparse.Namespace
+    :param schedule: Driving schedule for the simulation. schedule.rotations are used
+    :type schedule: eBus-Toolbox.Schedule
+    """
+
+    step = 50
+    max_con = int(max([schedule.rotations[rot].consumption for rot in schedule.rotations]))
+    if max_con % step < step / 2:
+        max_con_up = ((max_con // step) * step)
+    else:
+        max_con_up = (max_con // step) * step + step
+    labels = [f"{i - step} - {i}" for i in range(step, int(max_con), step) if i > 0]
+    bins = {v_types: [0 for _ in range(int(max_con / step))] for v_types in schedule.vehicle_types}
+
+    # fill bins with rotations
+    for rot in schedule.rotations:
+        for v_type in schedule.vehicle_types:
+            if schedule.rotations[rot].vehicle_type == v_type:
+                position = int(schedule.rotations[rot].consumption // step)
+                if position >= max_con_up / step:
+                    position -= 1
+                bins[v_type][position] += 1
+                break
+    # plot
+    fig, ax = plt.subplots()
+    bar_bottom = [0 for _ in range(max_con_up//step)]
+    for v_type in schedule.vehicle_types:
+        ax.bar(labels, bins[v_type], width=0.9, label=v_type, bottom=bar_bottom)
+        # something more efficient than for loop
+        for i in range(max_con_up//step):
+            bar_bottom[i] += bins[v_type][i]
+        print(bar_bottom)
+    ax.set_xlabel('Energieverbrauch in kWh')
+    ax.set_ylabel('Anzahl der Umläufe')
+    ax.set_title('Verteilung der Bustypen über den Energieverbrauch und den Umläufen')
+    ax.legend()
+    fig.autofmt_xdate()
+    ax.yaxis.grid(True)
+    plt.savefig(args.output_directory / "distribution_bustypes_consumption_rotations")
 
 
-def charge_type_proportion():
-    pass
+def charge_type_proportion(args, schedule):
+    """Plots percentages of charging types in a horizontal bar chart.
+
+    :param args: Configuration arguments from cfg file. args.output_directory is used
+    :type args: argparse.Namespace
+    :param schedule: Driving schedule for the simulation. schedule.rotations are used
+    :type schedule: eBus-Toolbox.Schedule
+    """
+    # get plotting data
+    charging_types = {'oppb': 0, 'depb': 0, 'rest': 0}
+    for rot in schedule.rotations:
+        if schedule.rotations[rot].charging_type == 'oppb':
+            charging_types['oppb'] += schedule.rotations[rot].consumption
+        elif schedule.rotations[rot].charging_type == 'depb':
+            charging_types['depb'] += schedule.rotations[rot].consumption
+        else:
+            charging_types['rest'] += schedule.rotations[rot].consumption
+    bins = [round(v/sum(charging_types.values()) * 100, 1) for v in charging_types.values()]
+
+    # plot
+    fig, ax = plt.subplots()
+    ax.barh([k for k in charging_types.keys()], bins, color=['#6495ED', '#66CDAA', 'grey'])
+    ax.set_xlabel('Umläufe')
+    ax.set_ylabel('Ladetyp')
+    ax.set_title('Verteilung von Gelegenheitslader, Depotlader und nicht elektrifizierbaren')
+    ax.bar_label(ax.containers[0], [f"{v}%" for v in bins])
+    ax.yaxis.grid(True)
+    plt.savefig(args.output_directory / "charge_type_proportion")
 
 
 def gc_power_time_overview():
@@ -119,8 +186,8 @@ def generate(schedule, scenario, args, extended_plots=False):
 
     # generate if needed extended output plots
     if extended_plots:
-        bus_type_distribution_mileage_consumption()
-        charge_type_proportion()
+        bus_type_distribution_consumption_rotation(args, schedule)
+        charge_type_proportion(args, schedule)
         gc_power_time_overview()
 
     # generate simulation_timeseries.csv, simulation.json and vehicle_socs.csv in spiceEV
