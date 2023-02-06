@@ -387,7 +387,7 @@ class Schedule:
         if not args.rotation_filter_variable:
             return
         if args.rotation_filter_variable and not args.rotation_filter and not rf_list:
-            warnings.warn("Rotation filter variable is enabled but both json and list are not used.")
+            warnings.warn("Rotation filter variable is enabled but json and list are not used.")
             return
         if args.rotation_filter:
             try:
