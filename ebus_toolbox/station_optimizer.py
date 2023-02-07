@@ -439,7 +439,7 @@ class StationOptimizer:
                     warnings.warn("Station to be checked has no following trip. Final destinations"
                                   "can not offer lift to the soc and are therefore discarded")
                     continue
-                arrival_time= trip.arrival_time
+                arrival_time = trip.arrival_time
                 start_idx = self.get_index_by_time(charging_event_start_time)
                 end_time = rot.trips[i+1].departure_time
                 buffer_time = util.get_buffer_time(trip, self.args.default_buffer_time_opps)
@@ -447,7 +447,7 @@ class StationOptimizer:
                 cht = rot.vehicle_id.find("depb")
                 ch_type = (cht > 0) * "depb" + (cht <= 0) * "oppb"
                 v_type = rot.vehicle_id.split("_" + ch_type)[0]
-                event = util.ChargingEvent(start_idx=start_idx,end_idx=end_idx,
+                event = util.ChargingEvent(start_idx=start_idx, end_idx=end_idx,
                                            arrival_time=arrival_time,
                                            start_time=charging_event_start_time, end_time=end_time,
                                            buffer_time=buffer_time, vehicle_id=rot.vehicle_id,
@@ -456,7 +456,6 @@ class StationOptimizer:
                                            station_name=station_name, rotation=rot)
                 charging_events.append(event)
         return charging_events
-
 
     def sort_station_events(self, charge_events_single_station):
         return sorted(charge_events_single_station, key=lambda x: x.arrival_time)
@@ -885,7 +884,7 @@ class StationOptimizer:
 
         ###############
         must_stations = {'Heppenheim Graben', 'Wahlen Grundschule', 'Erbach Gesundheiszentrum',
-                  'Heppenheim Vogelsbergstraße', 'Rimbach Kirche', 'Hirschhorn Grundschule',
+                         'Heppenheim Vogelsbergstraße', 'Rimbach Kirche', 'Hirschhorn Grundschule',
                          'Bensheim Geschw.-Scholl-Schule', 'Lindenfels Poststraße',
                          'Heppenheim Bahnhof', 'Zotzenbach Schule', 'Heppenheim Kreiskrankenhaus',
                          'Weinheim Hauptbahnhof', 'Worms Hauptbahnhof',
