@@ -54,7 +54,7 @@ def main():
     """ main call"""
     util.print_time()
     config_path = "./data/examples/optimizer.cfg"
-    opt_sched, opt_scen= run_optimization(config_path)
+    opt_sched, opt_scen = run_optimization(config_path)
     util.print_time()
     import pickle
     with open("schedule_opt.pickle", "wb") as f:
@@ -121,8 +121,8 @@ def run_optimization(config_path, sched=None, scen=None, this_args=None):
 
     logger = setup_logger(args, conf)
 
-        # remove those args, since they lead to file creation, which is not
-        # needed.
+    # remove those args, since they lead to file creation, which is not
+    # needed.
     if not conf.save_all_results:
         del args.save_timeseries
         del args.save_results
@@ -178,7 +178,7 @@ def run_optimization(config_path, sched=None, scen=None, this_args=None):
         for event in new_events:
             logger.debug(event.rotation.id)
     with open(new_ele_stations_path, "w", encoding="utf-8") as file:
-        json.dump(ele_stations, file,ensure_ascii=False, indent=2)
+        json.dump(ele_stations, file, ensure_ascii=False, indent=2)
     util.print_time()
     logger.debug("Spice EV is calculating optimized case as a complete scenario")
     _, __ = optimizer.preprocessing_scenario(

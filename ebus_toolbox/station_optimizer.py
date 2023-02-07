@@ -429,8 +429,6 @@ class StationOptimizer:
                 try:
                     charging_event_start_time = util.get_charging_start(trip, self.args)
                     end_time = rot.trips[i + 1].departure_time
-
-
                     # Do not add the event if there is charging time of at least the defined
                     # min charging time
                     if charging_event_start_time + self.args.min_charging_time >= end_time:

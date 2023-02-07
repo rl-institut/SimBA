@@ -25,7 +25,7 @@ from ebus_toolbox.util import get_buffer_time as get_buffer_time_spice_ev, uncom
 
 class ChargingEvent:
     """ Class to gather information about a charging event"""
-    def __init__(self, start_idx, end_idx,arrival_time, start_time, end_time, buffer_time,
+    def __init__(self, start_idx, end_idx, arrival_time, start_time, end_time, buffer_time,
                  vehicle_id, capacity,
                  station_name, rotation):
         self.start_idx = start_idx
@@ -213,15 +213,16 @@ def get_charging_time(trip1, trip2, args):
         return 0
     return max(0, standing_time_min)
 
+
 def get_charging_start(trip1, args):
     """ Returns the possible start of charging consindering buffer times
-
     :param trip1: First trip
     :param args:  arguments Namespace with default buffer time
     :return: First possible charging time as datetime object
     """
     buffer_time = get_buffer_time(trip1, args.default_buffer_time_opps)
     return trip1.arrival_time+buffer_time
+
 
 def get_buffer_time(trip, default_buffer_time_opps):
     """  Return the buffer time as timedelta object
