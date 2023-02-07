@@ -1,7 +1,9 @@
+.. _simulation_parameters:
+
 Simulation Parameters
 =====================
 
-The simulation of an eBus-Sytem relies on a variety of simulation parameters.
+The simulation of an eBus-System relies on a variety of simulation parameters.
 The eBus-Toolbox provides most of them as default values. Depending on specific needs adjusting
 these values can increase the accuracy of the simulation outputs. The eBus-Toolbox input files are described
 in detail in the following subsections as well as their default parameters.
@@ -10,6 +12,9 @@ encoded or not contain regional characters.
 
 Configuration
 -------------
+The configuration file config.cfg is provided as example in ./examples/ and provides the user with most of the functionality surrounding the settings and boundary conditions of a simulation. The example contains parameter descriptions which are explained here in more detail:
+
+.. _schedule:
 
 Schedule
 --------
@@ -69,5 +74,47 @@ To analyze your own electric bus schedule, the data needs to be provided as a .c
      - 0.5.
 
 
+.. _vehicle_types:
+
+Vehicle types
+-------------
+vehicle_type.json
+tbc
+
+Electrified stations
+--------------------
+Stations which are electrified. TBC
+
+Cost parameters
+---------------
+TBC
 
 
+
+TBC
+
+.. _station_geo_data:
+
+Station data
+------------
+Geodata. TBV
+
+
+.. _level_of_loading:
+
+Level of loading
+----------------
+TBC
+
+.. _temperature_data:
+
+Temperatures
+------------
+
+TBC
+
+.. _consumption_table:
+
+Consumption table
+-----------------
+The consumption table can be referenced in the :ref:`vehicle_types` file. Instead of constant consumption the eBus-Toolbox uses provided temperatures, level of loadings, mean speeds, average inclines and the vehicle type to interpolate the consumption value from this data table. Level of loading and temperatures are read from the :ref:`schedule` if the trips provide them. If they are missing from the schedule, they are looked up from the files :ref:`level_of_loading` and :ref:`temperature_data`. The average incline is calculated from :ref:`station_geo_data` and the mean speed is calculated by using the departure and arrival time and distance provided by the schedule.
