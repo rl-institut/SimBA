@@ -845,7 +845,10 @@ class StationOptimizer:
         new_sched, new_scen = util.run_schedule(self.schedule, self.args,
                                                 electrified_stations,
                                                 cost_calc=cost_calc)
-        report.generate(new_sched, new_scen, self.args)
+        try:
+            report.generate(new_sched, new_scen, self.args)
+        except:
+            pass
         self.schedule = new_sched
         self.scenario = new_scen
         self.must_include_set = must_include_set
@@ -884,22 +887,22 @@ class StationOptimizer:
         :return: Set(Station_ids)
         """
 
-        ###############
-        must_stations = {'Heppenheim Graben', 'Wahlen Grundschule', 'Erbach Gesundheiszentrum',
-                  'Heppenheim Vogelsbergstraße', 'Rimbach Kirche', 'Hirschhorn Grundschule',
-                         'Bensheim Geschw.-Scholl-Schule', 'Lindenfels Poststraße',
-                         'Heppenheim Bahnhof', 'Zotzenbach Schule', 'Heppenheim Kreiskrankenhaus',
-                         'Weinheim Hauptbahnhof', 'Worms Hauptbahnhof',
-                         'Bürstadt Lampertheimer Straße', 'Wald-Michelbach Alter Bahnhof',
-                         'Heppenheim Gießener Straße', 'Heppenheim Starkenburg-Gymnasium',
-                         'Erbach Post', 'Wald-Michelbach ZOB', 'Viernheim Bahnhof',
-                         'Bensheim Bahnhof/ ZOB'}
-        self.not_possible_stations = self.not_possible_stations.union(must_stations)
-        for stat in must_stations:
-            # do not put must stations in electrified set, but in extra set must_include_set
-            self.electrify_station(stat, self.must_include_set)
-
-        return must_stations
+        # ###############
+        # must_stations = {'Heppenheim Graben', 'Wahlen Grundschule', 'Erbach Gesundheiszentrum',
+        #           'Heppenheim Vogelsbergstraße', 'Rimbach Kirche', 'Hirschhorn Grundschule',
+        #                  'Bensheim Geschw.-Scholl-Schule', 'Lindenfels Poststraße',
+        #                  'Heppenheim Bahnhof', 'Zotzenbach Schule', 'Heppenheim Kreiskrankenhaus',
+        #                  'Weinheim Hauptbahnhof', 'Worms Hauptbahnhof',
+        #                  'Bürstadt Lampertheimer Straße', 'Wald-Michelbach Alter Bahnhof',
+        #                  'Heppenheim Gießener Straße', 'Heppenheim Starkenburg-Gymnasium',
+        #                  'Erbach Post', 'Wald-Michelbach ZOB', 'Viernheim Bahnhof',
+        #                  'Bensheim Bahnhof/ ZOB'}
+        # self.not_possible_stations = self.not_possible_stations.union(must_stations)
+        # for stat in must_stations:
+        #     # do not put must stations in electrified set, but in extra set must_include_set
+        #     self.electrify_station(stat, self.must_include_set)
+        #
+        # return must_stations
         #################
 
         events = self.get_low_soc_events(rel_soc=relative_soc)

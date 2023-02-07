@@ -603,15 +603,18 @@ def run_schedule(this_sched, this_args, electrified_stations=None, cost_calc=Fal
         warnings.simplefilter('ignore', UserWarning)
         new_scen.run('distributed', vars(this_args).copy())
     sys.stdout = sys.__stdout__
-    if this_args.cost_calculation and cost_calc:
-        # cost calculation following directly after simulation
-        try:
-            with open(this_args.cost_parameters_file, encoding='utf-8') as file:
-                cost_parameters_file = uncomment_json_file(file)
-        except FileNotFoundError:
-            raise SystemExit(f"Path to cost parameters ({this_args.cost_parameters_file}) "
-                             "does not exist. Exiting...")
-        calculate_costs(cost_parameters_file, new_scen, this_sched2, this_args)
+    try:
+        if this_args.cost_calculation and cost_calc:
+            # cost calculation following directly after simulation
+            try:
+                with open(this_args.cost_parameters_file, encoding='utf-8') as file:
+                    cost_parameters_file = uncomment_json_file(file)
+            except FileNotFoundError:
+                raise SystemExit(f"Path to cost parameters ({this_args.cost_parameters_file}) "
+                                 "does not exist. Exiting...")
+            calculate_costs(cost_parameters_file, new_scen, this_sched2, this_args)
+    except:
+        pass
     return this_sched2, new_scen
 
 

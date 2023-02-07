@@ -130,7 +130,7 @@ def run_optimization(config_path, sched=None, scen=None, this_args=None):
         args.save_timeseries = args.output_directory / "simulation_spiceEV.csv"
         args.save_results = args.output_directory / "simulation_spiceEV.json"
 
-    if args.desired_soc_deps != 1 and conf.opt_type == "quick":
+    if args.desired_soc_deps != 1 and conf.solver == "quick":
         logger.error("Fast calc is not yet optimized for desired socs unequal to 1")
 
     optimizer = ebus_toolbox.station_optimizer.StationOptimizer(sched, scen, args, conf, logger)
