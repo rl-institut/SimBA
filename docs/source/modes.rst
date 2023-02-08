@@ -39,12 +39,22 @@ This mode optimizes a scenario by creating sub-scenarios, so the given sub-scena
 
 station optimization
 --------------------
+.. _optimization_loop:
 .. figure:: https://user-images.githubusercontent.com/104760879/217225177-66201146-d31a-4127-9ca0-4d6e6e5a3cc4.png
+    :width: 600
     :alt: optimization_loop
 
     Caption
 
+:numref:`optimization_loop` shows xxxxxxxxxxxxxxxxxxx
+
 .. figure:: https://user-images.githubusercontent.com/104760879/217225588-abfad83d-9d2a-463a-8597-584e29f5f885.png
+    :width: 600
     :alt: below_0_soc_event
 
     Caption
+
+
+chained modes
+-------------
+Lorem ipsum ...

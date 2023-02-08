@@ -35,13 +35,13 @@ To analyze your own electric bus schedule, the data needs to be provided as a .c
      - Name of the station the trip starts at
      - Warschauer Straße
    * - departure_time
-     - Date and Time at which bus starts trip
+     - Date and time at which bus starts trip (ISO-Format)
      - 2022-03-13T10:25
    * - arrival_name
      - Name of the station the trip ends at
      - Ostbahnhof Berlin
    * - arrival_time
-     - Date and Time at which bus completes trip (e.g. yyyy-mm-ddThh:mm[:ss])
+     - Date and Time at which bus completes trip (ISO-Format) (e.g. yyyy-mm-ddThh:mm[:ss])
      - 2022-03-13T10:30
    * - distance
      - Distance traveled in **m**
@@ -72,6 +72,20 @@ To analyze your own electric bus schedule, the data needs to be provided as a .c
    * - level_of_loading
      - The level of loading of the bus on this trip in between 0 and 1
      - 0.5.
+
+This is how a schedule file might look like.
+
++--------+----------------+---------------------+---------------------+--------------+----------+-------------+--------------+-------------+------------------+
+| line   | departure_name | departure_time      | arrival_time        | arrival_name | distance | rotation_id | vehicle_type | temperature | level_of_loading |
++========+================+=====================+=====================+==============+==========+=============+==============+=============+==================+
+| LINE_0 | Station-0      | 2022-03-07 21:28:00 | 2022-03-07 21:31:00 | Station-1    | 1530     | 1           | 12m_bus      | 20          | 0                |
++--------+----------------+---------------------+---------------------+--------------+----------+-------------+--------------+-------------+------------------+
+| LINE_0 | Station-1      | 2022-03-07 21:31:00 | 2022-03-07 22:04:00 | Station-3    | 14519    | 1           | 12m_bus      | -5          | 0.9              |
++--------+----------------+---------------------+---------------------+--------------+----------+-------------+--------------+-------------+------------------+
+| LINE_0 | Station-3      | 2022-03-07 22:08:00 | 2022-03-07 22:43:00 | Station-1    | 13541    | 1           | 12m_bus      |             |                  |
++--------+----------------+---------------------+---------------------+--------------+----------+-------------+--------------+-------------+------------------+
+| LINE_0 | Station-1      | 2022-03-07 22:51:00 | 2022-03-07 23:24:00 | Station-2    | 14519    | 1           | 12m_bus      |             |                  |
++--------+----------------+---------------------+---------------------+--------------+----------+-------------+--------------+-------------+------------------+
 
 
 .. _vehicle_types:

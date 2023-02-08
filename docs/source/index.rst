@@ -12,8 +12,6 @@ Welcome to the eBus-Toolbox's documentation!
 This toolbox extends the functionality of the Open Source simulation tool SpiceEV to facilitate eBus feasibility studies in Python.
 
 
-
-
 .. toctree::
    :maxdepth: 3
    :caption: Contents:
@@ -21,11 +19,11 @@ This toolbox extends the functionality of the Open Source simulation tool SpiceE
    getting_started
    modes
    simulation_parameters
-
+   modindex
 
 Indices and tables
 ==================
 
 * :ref:`genindex`
 * :ref:`modindex`
-* :ref:`search`
+
