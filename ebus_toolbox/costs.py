@@ -1,6 +1,6 @@
 import warnings
 
-from calculate_costs import calculate_costs as calc_costs_spice_ev
+from spice_ev.costs import calculate_costs as calc_costs_spice_ev
 
 
 def calculate_costs(c_params, scenario, schedule, args):
@@ -34,7 +34,7 @@ def calculate_costs(c_params, scenario, schedule, args):
     # INVESTMENT COSTS #
 
     # VEHICLES
-    v_types = schedule.scenario["constants"]["vehicle_types"]
+    v_types = schedule.scenario["components"]["vehicle_types"]
     for v_type, v_keys in v_types.items():
         if schedule.vehicle_type_counts[v_type] > 0:
             try:
@@ -55,7 +55,7 @@ def calculate_costs(c_params, scenario, schedule, args):
             costs["c_vehicles_annual"] += c_vehicles_vt / c_params["vehicles"][v_type]["lifetime"]
 
     # GRID CONNECTION POINTS
-    gcs = schedule.scenario["constants"]["grid_connectors"]
+    gcs = schedule.scenario["components"]["grid_connectors"]
     for gcID in gcs.keys():
         # get max. power of grid connector
         gc_timeseries = getattr(scenario, f"{gcID}_timeseries")
@@ -98,7 +98,7 @@ def calculate_costs(c_params, scenario, schedule, args):
         costs["c_stat_storage"] * c_params["stationary_storage"]["c_maint_stat_storage_per_year"])
 
     # CHARGING INFRASTRUCTURE
-    cs = schedule.scenario["constants"]["charging_stations"]
+    cs = schedule.scenario["components"]["charging_stations"]
     # depot charging stations - each charging bus generates one CS
     for csID in cs.values():
         if csID["type"] == "deps":
@@ -154,8 +154,8 @@ def calculate_costs(c_params, scenario, schedule, args):
 
     # ELECTRICITY COSTS #
 
-    for gcID, gc in scenario.constants.grid_connectors.items():
-        pv = sum([pv.nominal_power for pv in scenario.constants.photovoltaics.values()
+    for gcID, gc in scenario.components.grid_connectors.items():
+        pv = sum([pv.nominal_power for pv in scenario.components.photovoltaics.values()
                   if pv.parent == gcID])
         timeseries = vars(scenario).get(f"{gcID}_timeseries")
 
@@ -174,7 +174,7 @@ def calculate_costs(c_params, scenario, schedule, args):
             power_pv_nominal=pv,
         )
         # ToDo: Decide if gc-specific costs should be added to scenario object to use in report.py
-        # setattr(scenario.constants.grid_connectors[gcID], "costs_electricity", costs_electricity)
+        # setattr(scenario.components.grid_connectors[gcID], "costs_electricity", costs_electricity)
         costs["c_el_procurement_annual"] += costs_electricity['power_procurement_costs_per_year']
         costs["c_el_power_price_annual"] += costs_electricity['capacity_costs_eur']
         costs["c_el_energy_price_annual"] += costs_electricity['commodity_costs_eur_per_year']
