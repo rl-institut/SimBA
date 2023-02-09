@@ -30,6 +30,7 @@ class Schedule:
         self.consumption = 0
         self.vehicle_types = vehicle_types
         self.original_rotations = None
+        self.station_data = None
 
         # mandatory config parameters
         mandatory_options = [
@@ -87,6 +88,8 @@ class Schedule:
                               "values in the column 'elevation'. Station data is discarded.".
                               format(station_path),
                               stacklevel=100)
+            else:
+                schedule.station_data = station_data
 
         with open(path_to_csv, 'r', encoding='utf-8') as trips_file:
             trip_reader = csv.DictReader(trips_file)
