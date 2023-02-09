@@ -183,7 +183,7 @@ class Schedule:
         with warnings.catch_warnings():
             warnings.simplefilter('ignore', UserWarning)
             scenario.run('distributed', vars(args).copy())
-        assert scenario.step_i == scenario.n_intervals - 1, \
+        assert scenario.step_i == scenario.n_intervals, \
             'spiceEV simulation aborted, see above for details'
         return scenario
 
