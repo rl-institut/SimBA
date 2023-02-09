@@ -164,7 +164,7 @@ class Schedule:
                     if prev_station_name is not None:
                         # must depart from the previous station
                         assert trip.departure_name == prev_station_name, "Wrong departure station"
-                        prev_station_name = trip.arrival_name
+                    prev_station_name = trip.arrival_name
                 # must have exactly one "Einsetzfahrt" and "Aussetzfahrt"
                 assert dep_name is not None and arr_name is not None, "No Ein- or Aussetzfahrt"
                 # rotation must end where it started
