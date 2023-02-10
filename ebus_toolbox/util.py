@@ -3,6 +3,7 @@ import warnings
 import subprocess
 import argparse
 
+
 def get_git_revision_hash() -> str:
     return subprocess.check_output(['git', 'rev-parse', 'HEAD']).decode('ascii').strip()
 
@@ -267,8 +268,8 @@ def create_ArgumentParser_with_arguments():
                         help='Path to CSV file containing all trips of schedule to be analyzed.')
     parser.add_argument('--mode', default='sim', choices=['sim', 'service_optimization'],
                         help='Specify what you want to do. Choose one from {sim, \
-                            service_optimization}. sim runs a single simulation with the given inputs. \
-                            service optimization finds the largest set of electrified rotations.')
+                        service_optimization}. sim runs a single simulation with the given inputs.\
+                        service optimization finds the largest set of electrified rotations.')
     parser.add_argument('--output-directory', default="./data/sim_outputs", nargs='?',
                         help='Location where all simulation outputs are stored')
     parser.add_argument('--preferred-charging-type', '-pct', default='depb',
@@ -323,8 +324,9 @@ def create_ArgumentParser_with_arguments():
     parser.add_argument('--cost-parameters-file', help='include cost parameters json', default=None)
     parser.add_argument('--min-charging-time', help='define minimum time of charging',
                         default=0)
-    parser.add_argument('--default-buffer-time-opps', help='time to subtract off of standing time '
-                                                           'at opp station to simulate docking procedure.',
+    parser.add_argument('--default-buffer-time-opps',
+                        help='time to subtract off of standing time '
+                             'at opp station to simulate docking procedure.',
                         default=0)
     parser.add_argument('--signal-time-dif', help='time difference between signal time and actual '
                                                   'start time of a vehicle event im min.',
@@ -357,7 +359,7 @@ def create_ArgumentParser_with_arguments():
                         help='Append additional options to the charging strategy.')
     parser.add_argument('--config', help='Use config file to set arguments')
     parser.add_argument('--station_data_path', help='Use station data to back calculation       \
-                                                        of consumption with height information of   \
+                                                        of consumption with height information of \
                                                         stations')
     parser.add_argument('--outside_temperature_over_day_path', default=None,
                         help="Use csv. data with 'hour' and temperature' columns to set \
