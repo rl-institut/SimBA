@@ -109,7 +109,7 @@ class TestNdInterpol:
                 point = get_outer_point(data_table, dims_out_of_bound=out_of_bounds_dim)
 
                 for dim, v in enumerate(point):
-                    if lower_bounds[dim] < v < upper_bounds[dim]:
+                    if lower_bounds[dim] <= v <= upper_bounds[dim]:
                         # if the value is inside of the boundaries, no stuffing at the borders has
                         # to take place. Therefore this dimension can be skipped
                         continue
@@ -247,3 +247,6 @@ def get_random_inner_point(table):
     for dim in range(0, idims):
         point.append(random.random() * (upper_bounds[dim] - lower_bounds[dim]) + lower_bounds[dim],)
     return point
+
+t=TestNdInterpol()
+t.test_out_of_bounds()
