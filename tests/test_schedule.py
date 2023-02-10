@@ -82,8 +82,8 @@ class TestSchedule:
         """ Test if the consistency check for rotations finds missing einsetz or ausetzfahrten,
         if it finds gaps between arrival and departure stations of successive trips and last
         it checks if the arguments for check_rotation_consistency and ignore_inconsistent_rotations
-        were set correctly, i.e. if ignore_inconsistent_rotations is True, check_rotation_consistency
-        has to be true as well. If not a warning has to be thrown"""
+        were set correctly, i.e. if ignore_inconsistent_rotations is True,
+        check_rotation_consistency has to be true as well. If not a warning has to be thrown"""
 
         trip.Trip.consumption = consumption.Consumption(self.vehicle_types,
                                                         outside_temperatures=self.temperature_path,
@@ -139,7 +139,9 @@ class TestSchedule:
             assert len(record) == 1
 
     def test_run(self):
-        """ Check if running a basic example works and if a scenario object is returned"""
+        """ Check if running a basic example works and if a scenario object is returned
+        :return: schedule, scenario"""
+
         path_to_trips = file_root / "trips.csv"
         parser = util.create_ArgumentParser_with_arguments()
         args = parser.parse_args(args="")
@@ -208,7 +210,6 @@ class TestSchedule:
                 charge_typ['mileage'] = mileage / 2
         assert calc_consumption == generated_schedule.calculate_consumption() * 2
 
-
     def test_get_common_stations(self):
         """ Test if getting common_stations works. Rotation 1 is on the first day, rotation 2 and 3
         on the second day. rotation 1 should not share any stations with other rotations and
@@ -222,13 +223,12 @@ class TestSchedule:
         generated_schedule = schedule.Schedule.from_csv(path_to_trips, self.vehicle_types,
                                                         self.electrified_stations, **mandatory_args)
 
-        common_stations=generated_schedule.get_common_stations(only_opps=False)
+        common_stations = generated_schedule.get_common_stations(only_opps=False)
         assert len(common_stations["1"]) == 0
         assert len(common_stations["2"]) == 1
         assert len(common_stations["3"]) == 1
         assert '3' in (common_stations["2"])
         assert '2' in (common_stations["3"])
-
 
     def test_get_negative_rotations(self):
         """Check if the single rotation '1' with a negative soc is found """
@@ -236,9 +236,8 @@ class TestSchedule:
         # make use of the test_run() which has to return schedule and scenario object
         sched, scen = self.test_run()
 
-        neg_rots= sched.get_negative_rotations(scen)
+        neg_rots = sched.get_negative_rotations(scen)
         assert '1' in neg_rots
-
 
     def test_set_charging_type(self):
         pass

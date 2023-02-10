@@ -247,6 +247,3 @@ def get_random_inner_point(table):
     for dim in range(0, idims):
         point.append(random.random() * (upper_bounds[dim] - lower_bounds[dim]) + lower_bounds[dim],)
     return point
-
-t=TestNdInterpol()
-t.test_out_of_bounds()
