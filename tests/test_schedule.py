@@ -138,7 +138,7 @@ class TestSchedule:
                                                             output_directory=output_dir)
             assert len(record) == 1
 
-    def test_run(self):
+    def test_basic_run(self):
         """ Check if running a basic example works and if a scenario object is returned
         :return: schedule, scenario"""
 
@@ -234,10 +234,69 @@ class TestSchedule:
         """Check if the single rotation '1' with a negative soc is found """
 
         # make use of the test_run() which has to return schedule and scenario object
-        sched, scen = self.test_run()
+        sched, scen = self.test_basic_run()
 
         neg_rots = sched.get_negative_rotations(scen)
         assert '1' in neg_rots
+
+    def test_scenario_with_feed_in(self):
+        """ Check if running a example with an extended electrified stations file
+         with feed in, external load and battery works and if a scenario object is returned"""
+
+        path_to_trips = file_root / "trips.csv"
+        parser = util.create_ArgumentParser_with_arguments()
+        args = parser.parse_args(args="")
+        args.config = file_root / "ebus_toolbox.cfg"
+        electrified_stations_path = file_root / "electrified_stations_with_feeds.json"
+        args.electrified_stations = electrified_stations_path
+        with open(electrified_stations_path, "r", encoding='utf-8') as file:
+            electrified_stations = util.uncomment_json_file(file)
+        args.days = None
+        args.seed = 5
+
+        trip.Trip.consumption = consumption.Consumption(self.vehicle_types,
+                                                        outside_temperatures=self.temperature_path,
+                                                        level_of_loading_over_day=self.lol_path)
+
+        path_to_all_station_data = file_root / "all_stations_example.csv"
+        generated_schedule = schedule.Schedule.from_csv(path_to_trips, self.vehicle_types,
+                                                        electrified_stations, **mandatory_args,
+                                                        station_data_path=path_to_all_station_data)
+
+        util.set_options_from_config(args, check=False, verbose=False)
+        args.ALLOW_NEGATIVE_SOC = True
+        args.attach_vehicle_soc = True
+        scen = generated_schedule.generate_scenario(args)
+        assert "Station-0" in scen.components.photovoltaics
+        assert "Station-3" in scen.components.photovoltaics
+        assert "Station-0" in scen.components.batteries
+        assert scen.components.batteries["Station-0"].capacity == 300
+        assert scen.components.batteries["Station-0"].efficiency == 0.95
+        assert scen.components.batteries["Station-0"].min_charging_power == 0
+        scen = generated_schedule.run(args)
+        assert type(scen) == scenario.Scenario
+
+        with open(electrified_stations_path, "r", encoding='utf-8') as file:
+            electrified_stations = util.uncomment_json_file(file)
+
+        electrified_stations["Station-0"]["energy_feed_in"]["csv_file"] = file_root / "not_a_file"
+        electrified_stations["Station-0"]["external_load"]["csv_file"] = file_root / "not_a_file"
+        generated_schedule = schedule.Schedule.from_csv(path_to_trips, self.vehicle_types,
+                                                        electrified_stations, **mandatory_args,
+                                                        station_data_path=path_to_all_station_data)
+
+        util.set_options_from_config(args, check=False, verbose=False)
+
+        # check that 2 user warnings are put put for missing files and an error is thrown
+        with pytest.warns(Warning) as record:
+            try:
+                scen = generated_schedule.generate_scenario(args)
+            except FileNotFoundError:
+                user_warning_count = sum([1 for warning in record.list
+                                          if warning.category == UserWarning])
+                assert user_warning_count == 2
+            else:
+                assert 0, "No error despite wrong file paths"
 
     def test_set_charging_type(self):
         pass
@@ -246,7 +305,3 @@ class TestSchedule:
         generated_schedule = generate_basic_schedule()
         assert len(generated_schedule.rotations) == 1
         assert type(generated_schedule) == schedule.Schedule
-
-
-t = TestSchedule()
-t.test_get_negative_rotations()
