@@ -26,15 +26,55 @@
         "cost_per_kWh": 250
     },
     "gc": {
-        "building_cost_subsidy_per_kW": 158.3,
-        "capex_gc_fix": 62500,
-        "capex_gc_per_meter": 562.5,
-        "default_distance": 50,
+        "LV": {
+            "default_distance": 50,
+            "capex_gc_fix": 16.85,
+            "capex_gc_per_meter": 16.85,
+            "capex_gc_per_kW": 24.14,
+            "capex_transformer_fix": 0,
+            "capex_transformer_per_kW": 0
+        },
+        "MV/LV": {
+            "default_distance": 100,
+            "capex_gc_fix": 16.85,
+            "capex_gc_per_meter": 16.85,
+            "capex_gc_per_kW": 24.14,
+            "capex_transformer_fix": 0,
+            "capex_transformer_per_kW": 0
+        },
+        "MV": {
+            "default_distance": 200,
+            "capex_gc_fix": 62500,
+            "capex_gc_per_meter": 562.5,
+            "capex_gc_per_kW": 158.3,
+            "capex_transformer_fix": 80000,
+            "capex_transformer_per_kW": 0
+        },
+        "HV/MV": {
+            "default_distance": 2000,
+            "capex_gc_fix": 0,
+            "capex_gc_per_meter": 80,
+            "capex_gc_per_kW": 158.3,
+            "capex_transformer_fix": 0,
+            "capex_transformer_per_kW": 63.49
+        },
+        "HV": {
+            "default_distance": 2000,
+            "capex_gc_fix": 0,
+            "capex_gc_per_meter": 1300,
+            "capex_gc_per_kW": 158.3,
+            "capex_transformer_fix": 2500000,
+            "capex_transformer_per_kW": 0
+        },
         "lifetime_gc": 50,
-        "capex_transformer_fix": 80000,
-        "capex_transformer_per_kW": 0,
         "c_maint_transformer_per_year": 0.02,
         "lifetime_transformer": 20
+    },
+    "stationary_storage": {
+        "capex_fix": 1,
+        "capex_per_kWh": 1,
+        "c_maint_stat_storage_per_year": 0.02,
+        "lifetime_stat_storage": 20
     },
     "cs":{
         "capex_opps_per_kW": 877.5,

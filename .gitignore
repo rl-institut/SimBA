@@ -15,4 +15,5 @@ data/private_examples
 data/gogs_buffered
 
 src/
+spice_ev/
 *.bak

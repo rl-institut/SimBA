@@ -6,7 +6,7 @@ from pathlib import Path
 
 from ebus_toolbox import util
 from ebus_toolbox.rotation import Rotation
-from src.scenario import Scenario
+from spice_ev.scenario import Scenario
 
 
 class Schedule:
@@ -183,7 +183,8 @@ class Schedule:
         with warnings.catch_warnings():
             warnings.simplefilter('ignore', UserWarning)
             scenario.run('distributed', vars(args).copy())
-
+        assert scenario.step_i == scenario.n_intervals, \
+            'spiceEV simulation aborted, see above for details'
         return scenario
 
     def set_charging_type(self, ct, rotation_ids=None):
@@ -380,7 +381,7 @@ class Schedule:
         :type args: argparse.Namespace
         :return: A spiceEV Scenario instance that can be run and also collects all
                  simulation outputs.
-        :rtype:  spice_ev.src.Scenario
+        :rtype:  spice_ev.Scenario
         """
 
         random.seed(args.seed)
@@ -476,15 +477,14 @@ class Schedule:
                     connected_charging_station = f"{cs_name}_{station_type}"
                     # create charging station and grid connector if necessary
                     if cs_name not in charging_stations:
-                        if station_type == "deps":
-                            cs_power = args.cs_power_deps_oppb \
-                                if trip.rotation.charging_type == 'oppb' \
-                                else args.cs_power_deps_depb
-                            gc_power = station.get("gc_power", args.gc_power_deps)
-                        elif station_type == "opps":
-                            cs_power = args.cs_power_opps
-                            gc_power = station.get("gc_power", args.gc_power_opps)
-
+                        # get CS and GC power from stations file,
+                        # default back to input arguments from config
+                        # trip type only relevant to depot stations
+                        trip_type = trip.rotation.charging_type
+                        trip_type = '_' + trip_type if station_type == "deps" else ""
+                        cs_power_type = f"cs_power_{station_type}{trip_type}"
+                        cs_power = station.get(cs_power_type, vars(args)[cs_power_type])
+                        gc_power = station.get("gc_power", vars(args)[f"gc_power_{station_type}"])
                         # add one charging station for each bus at bus station
                         charging_stations[connected_charging_station] = {
                             "type": station_type,
@@ -520,7 +520,7 @@ class Schedule:
                             # add PV component
                             photovoltaics[gc_name] = {
                                 "parent": gc_name,
-                                "nominal_power": feed_in.get("pv_power", 0)
+                                "nominal_power": feed_in.get("nominal_power", 0)
                             }
 
                         # add external load if exists
@@ -648,7 +648,7 @@ class Schedule:
                 "interval": interval.days * 24 * 60 + interval.seconds // 60,
                 "n_intervals": (stop_simulation - start_simulation) // interval
             },
-            "constants": {
+            "components": {
                 "vehicle_types": vehicle_types_spiceev,
                 "vehicles": vehicles,
                 "grid_connectors": grid_connectors,
