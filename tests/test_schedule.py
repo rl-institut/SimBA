@@ -1,11 +1,3 @@
-"""
-run these tests with `pytest tests/test_something.py` or `pytest tests` or simply `pytest`
-pytest will look for all files starting with "test_" and run all functions
-within this file. For basic example of tests you can look at our workshop
-https://github.com/rl-institut/workshop/tree/master/test-driven-development.
-Otherwise https://docs.pytest.org/en/latest/ and https://docs.python.org/3/library/unittest.html
-are also good support.
-"""
 import pytest
 import spice_ev.scenario as scenario
 from tests.helpers import generate_basic_schedule
@@ -251,6 +243,7 @@ class TestSchedule:
         args.electrified_stations = electrified_stations_path
         with open(electrified_stations_path, "r", encoding='utf-8') as file:
             electrified_stations = util.uncomment_json_file(file)
+
         args.days = None
         args.seed = 5
 
