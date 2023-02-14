@@ -4,7 +4,7 @@ import csv
 import datetime
 import warnings
 import matplotlib.pyplot as plt
-from src.report import aggregate_global_results, plot, generate_reports
+from spice_ev.report import aggregate_global_results, plot, generate_reports
 
 
 def generate_gc_power_overview_timeseries(scenario, args):
@@ -16,7 +16,7 @@ def generate_gc_power_overview_timeseries(scenario, args):
     :type args: argparse.Namespace
     """
 
-    gc_list = list(scenario.constants.grid_connectors.keys())
+    gc_list = list(scenario.components.grid_connectors.keys())
 
     with open(args.results_directory / "gc_power_overview_timeseries.csv", "w", newline='') as f:
         csv_writer = csv.writer(f)
@@ -47,7 +47,7 @@ def generate_gc_overview(schedule, scenario, args):
     """
 
     all_gc_list = list(schedule.stations.keys())
-    used_gc_list = list(scenario.constants.grid_connectors.keys())
+    used_gc_list = list(scenario.components.grid_connectors.keys())
     stations = getattr(schedule, "stations")
 
     with open(args.results_directory / "gc_overview.csv", "w", newline='') as f:

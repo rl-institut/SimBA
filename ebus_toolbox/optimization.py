@@ -14,7 +14,7 @@ def service_optimization(schedule, args):
     :param args: Command line arguments
     :type args: argparse.Namespace
     :return: original and most optimized scenario (highest electrification rate)
-    :rtype: dict of tuple of schedule and spice_ev.src.scenario
+    :rtype: dict of tuple of schedule and spice_ev.Scenario
     :raises Exception: if the charging type of a rotation with negative SoC is not oppb
     """
     common_stations = schedule.get_common_stations(only_opps=True)
