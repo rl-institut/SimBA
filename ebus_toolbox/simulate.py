@@ -70,9 +70,9 @@ def simulate(args):
         args.mode = [args.mode]
 
     for i, mode in enumerate(args.mode):
-        if mode in ["sim", "neg_depb_to_oppb", "neg_oppb_to_depb"]:
+        if mode == "sim":
             # scenario simulated once
-            # default if mode argument is not specified by user
+            # default mode: 'sim' if mode argument is not specified by user
             scenario = schedule.run(args)
         elif mode == 'service_optimization':
             # find largest set of rotations that produce no negative SoC
@@ -81,6 +81,9 @@ def simulate(args):
                 print("*"*49 + "\nNo optimization possible (all rotations negative)")
         if mode in ["neg_depb_to_oppb", "neg_oppb_to_depb"]:
             # simple optimization: change charging type, simulate again
+            if scenario is None:
+                # no prior simulation/optimization: run once
+                scenario = schedule.run(args)
             change_from = mode[4:8]
             change_to = mode[-4:]
             # get negative rotations
