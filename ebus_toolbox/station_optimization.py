@@ -54,7 +54,8 @@ def main():
     """ main call"""
     util.print_time()
     config_path = "./data/examples/optimizer.cfg"
-    opt_sched, opt_scen= run_optimization(config_path)
+    conf = util.read_config(config_path)
+    opt_sched, opt_scen = run_optimization(conf)
     util.print_time()
     import pickle
     with open("schedule_opt.pickle", "wb") as f:
@@ -80,14 +81,14 @@ def prepare_filesystem(this_args, conf):
     shutil.copy(copy_file, destination)
 
 
-def run_optimization(config_path, sched=None, scen=None, this_args=None):
+def run_optimization(conf, sched=None, scen=None, this_args=None):
     """    Optimizes scenario by adding electrified stations sparingly
     until scenario has no below 0 soc events.
 
     The optimizer config file is used for setting the optimization up.
 
-    :param config_path: path to optimizer.cfg file.
-    :type config_path: str
+    :param conf: Configuration object of optimization
+    :type conf: OptimizerConfig
 
     :param sched: Simulation schedule containing buses, rotations etc.
     :type sched: ebus_toolbox.Schedule
@@ -101,7 +102,6 @@ def run_optimization(config_path, sched=None, scen=None, this_args=None):
     :return: (Schedule,Scenario) optimized schedule and Scenario
     :rtype: tuple(ebus_toolbox.Schedule, spice_ev.Scenario)
     """
-    conf = util.read_config(config_path)
 
     # load pickle files
     if sched is None or scen is None or this_args is None:
@@ -121,8 +121,8 @@ def run_optimization(config_path, sched=None, scen=None, this_args=None):
 
     logger = setup_logger(args, conf)
 
-        # remove those args, since they lead to file creation, which is not
-        # needed.
+    # remove those args, since they lead to file creation, which is not
+    # needed.
     if not conf.save_all_results:
         del args.save_timeseries
         del args.save_results
@@ -139,7 +139,7 @@ def run_optimization(config_path, sched=None, scen=None, this_args=None):
     optimizer.set_battery_and_charging_curves()
 
     # rebasing the scenario meaning simulating it again with the given conditions of
-    # included and excluded stations and rotations
+    # included and excluded stations and rotations and maybe changed battery sizes
     if conf.rebase_scenario:
         must_include_set, ele_stations = optimizer.rebase_spice_ev()
     else:
@@ -148,7 +148,7 @@ def run_optimization(config_path, sched=None, scen=None, this_args=None):
     # create charging dicts which contain soc over time, which is numerically calculated
     optimizer.create_charging_curves()
 
-    # Remove none Values from socs in the vehicle_socs an
+    # remove none Values from socs in the vehicle_socs
     optimizer.remove_none_socs()
     if conf.remove_impossible_rots:
         neg_rots = optimizer.get_negative_rotations_all_electrified()
@@ -178,7 +178,7 @@ def run_optimization(config_path, sched=None, scen=None, this_args=None):
         for event in new_events:
             logger.debug(event.rotation.id)
     with open(new_ele_stations_path, "w", encoding="utf-8") as file:
-        json.dump(ele_stations, file,ensure_ascii=False, indent=2)
+        json.dump(ele_stations, file, ensure_ascii=False, indent=2)
     util.print_time()
     logger.debug("Spice EV is calculating optimized case as a complete scenario")
     _, __ = optimizer.preprocessing_scenario(

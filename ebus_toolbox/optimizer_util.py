@@ -25,7 +25,7 @@ from ebus_toolbox.util import get_buffer_time as get_buffer_time_spice_ev, uncom
 
 class ChargingEvent:
     """ Class to gather information about a charging event"""
-    def __init__(self, start_idx, end_idx,arrival_time, start_time, end_time, buffer_time,
+    def __init__(self, start_idx, end_idx, arrival_time, start_time, end_time, buffer_time,
                  vehicle_id, capacity,
                  station_name, rotation):
         self.start_idx = start_idx
@@ -87,6 +87,7 @@ class OptimizerConfig:
         self.node_choice = None
         self.max_brute_loop = None
         self.run_only_neg = None
+        self.run_only_depb = None
         self.estimation_threshold = None
         self.output_path = None
         self.check_for_must_stations = None
@@ -180,6 +181,7 @@ def read_config(config_path):
     conf.node_choice = optimizer.get("node_choice", "step-by-step")
     conf.max_brute_loop = int(optimizer.get("max_brute_loop", "20"))
     conf.run_only_neg = optimizer.getboolean("run_only_neg", False)
+    conf.run_only_depb = optimizer.getboolean("run_only_depb", False)
     conf.estimation_threshold = float(optimizer.get("estimation_threshold", "0.8"))
     conf.output_path = optimizer.get("output_path")
     conf.check_for_must_stations = optimizer.getboolean("check_for_must_stations", True)
@@ -213,6 +215,7 @@ def get_charging_time(trip1, trip2, args):
         return 0
     return max(0, standing_time_min)
 
+
 def get_charging_start(trip1, args):
     """ Returns the possible start of charging consindering buffer times
 
@@ -222,6 +225,7 @@ def get_charging_start(trip1, args):
     """
     buffer_time = get_buffer_time(trip1, args.default_buffer_time_opps)
     return trip1.arrival_time+buffer_time
+
 
 def get_buffer_time(trip, default_buffer_time_opps):
     """  Return the buffer time as timedelta object
@@ -589,7 +593,6 @@ def run_schedule(this_sched, this_args, electrified_stations=None, cost_calc=Fal
     :param electrified_stations: dict of electrified stations. Default value None means no further
         stations are electrified
     :param cost_calc: should the cost be calculated
-    :raises SystemExit: in case of wrong cost calculation file
     :return: schedule and scenario objects after spiceev simulation
     """
     this_sched2 = copy(this_sched)
@@ -613,7 +616,8 @@ def run_schedule(this_sched, this_args, electrified_stations=None, cost_calc=Fal
                 raise SystemExit(f"Path to cost parameters ({this_args.cost_parameters_file}) "
                                  "does not exist. Exiting...")
             calculate_costs(cost_parameters_file, new_scen, this_sched2, this_args)
-    except:
+    except Exception as e:
+        warnings.warn("Cost Calculation was ignored due to some error :", e)
         pass
     return this_sched2, new_scen
 

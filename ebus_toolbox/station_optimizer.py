@@ -458,7 +458,6 @@ class StationOptimizer:
                 charging_events.append(event)
         return charging_events
 
-
     def sort_station_events(self, charge_events_single_station):
         return sorted(charge_events_single_station, key=lambda x: x.arrival_time)
 
@@ -847,7 +846,8 @@ class StationOptimizer:
                                                 cost_calc=cost_calc)
         try:
             report.generate(new_sched, new_scen, self.args)
-        except:
+        except Exception:
+            warnings.warn("Report generation failed")
             pass
         self.schedule = new_sched
         self.scenario = new_scen
@@ -1000,7 +1000,7 @@ class StationOptimizer:
             is false, it means coupled rotations might be prone to errors due to impossible lifts.
         :param soc_data: soc data to be used. Default None means the soc data from the optimizer
             scenario is used
-        :param kwargs: optional soc_lower_tresh or soc_upper_thresh if from optimizer differing
+        :param kwargs: optional soc_lower_thresh or soc_upper_thresh if from optimizer differing
             values should be used
         :return: list(LowSocEvents)
         """
