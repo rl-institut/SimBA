@@ -9,10 +9,9 @@ from pathlib import Path
 
 import numpy as np
 
-import optimizer_util as util
+import ebus_toolbox.optimizer_util as util
 from src import scenario
-import schedule
-from ebus_toolbox import report, rotation
+from ebus_toolbox import report, rotation, schedule
 
 
 class StationOptimizer:
