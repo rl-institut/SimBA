@@ -600,12 +600,15 @@ def run_schedule(this_sched, this_args, electrified_stations=None, cost_calc=Fal
     this_sched2, new_scen = preprocess_schedule(this_sched2, this_args,
                                                 electrified_stations=electrified_stations)
     # do not print output from spice ev to reduce clutter
-    sys.stdout = open(os.devnull, 'w')
+
 
     with warnings.catch_warnings():
         warnings.simplefilter('ignore', UserWarning)
+        if not "pytest" in sys.modules:
+            sys.stdout = open(os.devnull, 'w')
         new_scen.run('distributed', vars(this_args).copy())
-    sys.stdout = sys.__stdout__
+        if not "pytest" in sys.modules:
+            sys.stdout = sys.__stdout__
     try:
         if this_args.cost_calculation and cost_calc:
             # cost calculation following directly after simulation
@@ -616,8 +619,8 @@ def run_schedule(this_sched, this_args, electrified_stations=None, cost_calc=Fal
                 raise SystemExit(f"Path to cost parameters ({this_args.cost_parameters_file}) "
                                  "does not exist. Exiting...")
             calculate_costs(cost_parameters_file, new_scen, this_sched2, this_args)
-    except Exception as e:
-        warnings.warn("Cost Calculation was ignored due to some error :", e)
+    except:
+        warnings.warn(f"Cost Calculation was ignored due to some error")
         pass
     return this_sched2, new_scen
 

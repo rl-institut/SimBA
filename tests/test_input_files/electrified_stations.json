@@ -1,6 +1,7 @@
 {
     "Station-0": {
         "type": "deps",
-        "n_charging_stations": null
+        "n_charging_stations": null,
+		"voltage_level" : "MV"
     }
 }

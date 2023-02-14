@@ -10,7 +10,7 @@ from pathlib import Path
 import numpy as np
 
 import ebus_toolbox.optimizer_util as util
-from src import scenario
+from spice_ev import scenario
 from ebus_toolbox import report, rotation, schedule
 
 

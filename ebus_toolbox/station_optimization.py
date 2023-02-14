@@ -102,7 +102,7 @@ def run_optimization(conf, sched=None, scen=None, this_args=None):
     :return: (Schedule,Scenario) optimized schedule and Scenario
     :rtype: tuple(ebus_toolbox.Schedule, spice_ev.Scenario)
     """
-
+    print("Finished")
     # load pickle files
     if sched is None or scen is None or this_args is None:
         # if no schedule was given as argument, make sure no scenario
@@ -156,7 +156,10 @@ def run_optimization(conf, sched=None, scen=None, this_args=None):
         optimizer.schedule.rotations = {r: optimizer.schedule.rotations[r]
                                         for r in optimizer.schedule.rotations if
                                         r not in optimizer.config.exclusion_rots}
-        logger.warning("%s negative rotations %s", len(neg_rots), neg_rots)
+        logger.warning("%s negative rotations %s were removed from schedule",
+                       len(neg_rots), neg_rots)
+        assert len(optimizer.schedule.rotations)>0, "Schedule cant be optimized, since rotations" \
+                                                    "cant be electrified."
 
     if conf.check_for_must_stations:
         must_stations = optimizer.get_must_stations_and_rebase(relative_soc=False)
@@ -186,6 +189,7 @@ def run_optimization(conf, sched=None, scen=None, this_args=None):
 
     logger.warning("Still negative rotations: %s", optimizer.schedule.
                    get_negative_rotations(optimizer.scenario))
+
     print("Finished")
     return optimizer.schedule, optimizer.scenario
 

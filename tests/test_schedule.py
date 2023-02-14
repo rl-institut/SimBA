@@ -130,11 +130,11 @@ class TestSchedule:
                                                             output_directory=output_dir)
             assert len(record) == 1
 
-    def test_basic_run(self):
+    def test_basic_run(self, trips_file_name="trips.csv"):
         """ Check if running a basic example works and if a scenario object is returned
         :return: schedule, scenario"""
 
-        path_to_trips = file_root / "trips.csv"
+        path_to_trips = file_root / trips_file_name
         parser = util.create_ArgumentParser_with_arguments()
         args = parser.parse_args(args="")
         args.config = file_root / "ebus_toolbox.cfg"
@@ -157,7 +157,7 @@ class TestSchedule:
         scen = generated_schedule.run(args)
         assert type(scen) == scenario.Scenario
 
-        return generated_schedule, scen
+        return generated_schedule, scen, args
 
     def test_assign_vehicles(self):
         """ Test if assigning vehicles works as intended.
@@ -226,7 +226,7 @@ class TestSchedule:
         """Check if the single rotation '1' with a negative soc is found """
 
         # make use of the test_run() which has to return schedule and scenario object
-        sched, scen = self.test_basic_run()
+        sched, scen, _ = self.test_basic_run()
 
         neg_rots = sched.get_negative_rotations(scen)
         assert '1' in neg_rots
