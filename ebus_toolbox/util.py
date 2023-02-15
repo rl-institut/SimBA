@@ -12,7 +12,7 @@ def save_version(file_path):
         f.write("Git Hash eBus-Toolbox:" + get_git_revision_hash())
 
 
-def set_options_from_config(args, check=False, verbose=True):
+def set_options_from_config(args, check=None, verbose=True):
     """Read options from config file, update given args, try to parse options
     , ignore comment lines (begin with #)
 
@@ -23,7 +23,8 @@ def set_options_from_config(args, check=False, verbose=True):
     :param verbose: gives final overview of arguments
     :type bool
 
-    :raises ValueError: Raised if unknown options are given.
+    :raise argparse.ArgumentError: Raised if wrong option values are given
+    :raises Exception: Raised if unknown option is given
     """
 
     if "config" in args and args.config is not None:
@@ -46,11 +47,26 @@ def set_options_from_config(args, check=False, verbose=True):
                 except ValueError:
                     # or not
                     pass
-                # known option?
-                if (k not in args) and check:
-                    raise ValueError("Unknown option {}".format(k))
-                # set option
-                vars(args)[k] = v
+                # check option
+                if check is not None:
+                    # find action by name
+                    try:
+                        action = [a for a in check._actions if a.dest == k][0]
+                    except IndexError:
+                        raise Exception(f"Unknown option {k}")
+                    # check each item in list individually
+                    v_list = [v] if type(v) != list else v
+                    for v_item in v_list:
+                        # check item. Returns None on success
+                        # may raise ArgumentError if not successful
+                        check._check_value(action, v_item)
+                    else:
+                        # all checks successful: set argument
+                        vars(args)[k] = v
+                else:
+                    # set option
+                    vars(args)[k] = v
+
         # Give overview of options
         if verbose:
             print("Options: {}".format(vars(args)))
