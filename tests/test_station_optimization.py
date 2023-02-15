@@ -1,5 +1,5 @@
-from tests.helpers import generate_basic_schedule
 import ebus_toolbox.optimizer_util as util
+
 from ebus_toolbox.station_optimization import run_optimization
 import tests.test_schedule
 import pathlib
@@ -7,20 +7,20 @@ import pathlib
 test_root = pathlib.Path(__file__).parent
 file_root = test_root / "test_input_files"
 
+
+
 class TestStationOptimization:
 
     def test_basic_optimization(self):
         trips_file_name = "trips_for_optimizer.csv"
         schedule_test = tests.test_schedule.TestSchedule()
-
         sched, scen, args = schedule_test.test_basic_run(trips_file_name)
-
-        config_path = "./tests/test_input_files/optimizer.cfg"
+        config_path = file_root / "optimizer.cfg"
         conf = util.read_config(config_path)
         opt_sched, opt_scen = run_optimization(conf, sched=sched, scen=scen, this_args=args)
 
-
-
+        conf.solver = "spiceev"
+        opt_sched, opt_scen = run_optimization(conf, sched=sched, scen=scen, this_args=args)
 
     def test_deep_optimization(self):
         """ Check if deep analysis finds the prepared optimal solution for the test case.
@@ -39,29 +39,38 @@ class TestStationOptimization:
         """
         trips_file_name = "trips_for_optimizer_deep.csv"
         schedule_test = tests.test_schedule.TestSchedule()
-
-        sched, scen, args = schedule_test.test_basic_run(trips_file_name)
+        sched, scen, args = schedule_test.test_basic_run(trips_file_name=trips_file_name)
         args.input_schedule = file_root / trips_file_name
-        config_path = "./tests/test_input_files/optimizer.cfg"
+        config_path = file_root / "optimizer.cfg"
         conf = util.read_config(config_path)
+
+        solvers = ["quick", "spiceev"]
+        node_choices = ["step-by-step", "brute"]
+        conf.opt_type = "deep"
+        for solver in solvers:
+            for node_choice in node_choices:
+                conf.solver = solver
+                conf.node_choice = node_choice
+                opt_sched, opt_scen = run_optimization(conf, sched=sched, scen=scen, this_args=args)
+                assert "Station-1" not in opt_sched.stations
+                assert "Station-2" in opt_sched.stations
+                assert "Station-3" in opt_sched.stations
+
+    def test_must_stations_optimization(self, caplog):
+        """ Test if station 2 and 3 are correctly recognized as must stations"""
+        trips_file_name = "trips_for_optimizer_deep.csv"
+        schedule_test = tests.test_schedule.TestSchedule()
+        sched, scen, args = schedule_test.test_basic_run(trips_file_name=trips_file_name)
+        args.input_schedule = file_root / trips_file_name
+        config_path = file_root / "optimizer.cfg"
+        conf = util.read_config(config_path)
+        conf.check_for_must_stations = True
         conf.solver = "quick"
-        conf.opt_type = "deep"
+        conf.node_choice = "step-by-step"
         opt_sched, opt_scen = run_optimization(conf, sched=sched, scen=scen, this_args=args)
-        assert "Station-1" not in opt_sched.stations
-        assert "Station-2" in opt_sched.stations
-        assert "Station-3" in opt_sched.stations
-
-        conf.solver = "spiceev"
-        conf.opt_type = "deep"
-        # sched = deepcopy(schedb)
-        # scen = deepcopy(scenb)
-        # args = deepcopy(argsb)
-        opt_sched, opt_scen = run_optimization(conf, sched=sched, scen=scen, this_args=args)
-        assert "Station-1" not in opt_sched.stations
-        assert "Station-2" in opt_sched.stations
-        assert "Station-3" in opt_sched.stations
+        assert ("must stations {'Station-3', 'Station-2'}" in caplog.text or
+                "must stations {'Station-2', 'Station-3'}" in caplog.text)
 
 
 
-t = TestStationOptimization()
-t.test_deep_optimization()
+

@@ -164,6 +164,7 @@ def run_optimization(conf, sched=None, scen=None, this_args=None):
     if conf.check_for_must_stations:
         must_stations = optimizer.get_must_stations_and_rebase(relative_soc=False)
         logger.warning("%s must stations %s", len(must_stations), must_stations)
+        print("%s must stations %s", len(must_stations), must_stations)
 
     logger.debug("Starting greedy optimization")
     ele_stations, ele_station_set = optimizer.loop()

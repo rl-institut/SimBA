@@ -1,3 +1,5 @@
+from copy import deepcopy
+
 import pytest
 import spice_ev.scenario as scenario
 from tests.helpers import generate_basic_schedule
@@ -135,6 +137,7 @@ class TestSchedule:
         :return: schedule, scenario"""
 
         path_to_trips = file_root / trips_file_name
+        print("XXX" , path_to_trips)
         parser = util.create_ArgumentParser_with_arguments()
         args = parser.parse_args(args="")
         args.config = file_root / "ebus_toolbox.cfg"
@@ -156,7 +159,8 @@ class TestSchedule:
 
         scen = generated_schedule.run(args)
         assert type(scen) == scenario.Scenario
-
+        print(self.electrified_stations)
+        print("############### NEGATIVE ROTATIONS", generated_schedule.get_negative_rotations(scen))
         return generated_schedule, scen, args
 
     def test_assign_vehicles(self):
@@ -183,12 +187,15 @@ class TestSchedule:
     def test_calculate_consumption(self):
         """ Test if calling the consumption calculation works
         """
-        trip.Trip.consumption = consumption.Consumption(self.vehicle_types,
+        # deepcopy so other vehicle consumptions are not changed
+        vehicle_types = deepcopy(self.vehicle_types)
+        trip.Trip.consumption = consumption.Consumption(vehicle_types,
                                                         outside_temperatures=self.temperature_path,
                                                         level_of_loading_over_day=self.lol_path)
 
+
         path_to_trips = file_root / "trips_assign_vehicles.csv"
-        generated_schedule = schedule.Schedule.from_csv(path_to_trips, self.vehicle_types,
+        generated_schedule = schedule.Schedule.from_csv(path_to_trips, vehicle_types,
                                                         self.electrified_stations, **mandatory_args)
         # set mileage constant
         mileage = 10

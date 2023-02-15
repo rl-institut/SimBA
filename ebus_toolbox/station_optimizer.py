@@ -406,56 +406,56 @@ class StationOptimizer:
     # ToDo implement a fast calculation of timeseries_calc but with a limited amount of charging
     #  points. Implementation could look like this
 
-    def get_charge_events_per_station(self, station_name, rotations=None):
-        """ Gather low soc events below the config threshold.
-
-        :param rotations: rotations to be searched for low soc events. Default None means whole
-            schedule is searched
-        :param station_name: name of the station to be checked
-        :return: list(ChargingEvents)
-        """
-        if not rotations:
-            rotations = self.schedule.rotations
-
-        # Find relevant charging events for this station
-        charging_events = []
-
-        for rot_id in rotations:
-            rot = self.schedule.rotations[rot_id]
-            for i, trip in enumerate(rot.trips):
-                # if the trip station name is not the searched station continue.
-                if trip.arrival_name != station_name:
-                    continue
-                try:
-                    charging_event_start_time = util.get_charging_start(trip, self.args)
-                    end_time = rot.trips[i + 1].departure_time
-
-
-                    # Do not add the event if there is charging time of at least the defined
-                    # min charging time
-                    if charging_event_start_time + self.args.min_charging_time >= end_time:
-                        continue
-                except IndexError:
-                    warnings.warn("Station to be checked has no following trip. Final destinations"
-                                  "can not offer lift to the soc and are therefore discarded")
-                    continue
-                arrival_time= trip.arrival_time
-                start_idx = self.get_index_by_time(charging_event_start_time)
-                end_time = rot.trips[i+1].departure_time
-                buffer_time = util.get_buffer_time(trip, self.args.default_buffer_time_opps)
-                end_idx = self.get_index_by_time(end_time)
-                cht = rot.vehicle_id.find("depb")
-                ch_type = (cht > 0) * "depb" + (cht <= 0) * "oppb"
-                v_type = rot.vehicle_id.split("_" + ch_type)[0]
-                event = util.ChargingEvent(start_idx=start_idx,end_idx=end_idx,
-                                           arrival_time=arrival_time,
-                                           start_time=charging_event_start_time, end_time=end_time,
-                                           buffer_time=buffer_time, vehicle_id=rot.vehicle_id,
-                                           capacity=self.schedule.vehicle_types[v_type][ch_type][
-                                             'capacity'],
-                                           station_name=station_name, rotation=rot)
-                charging_events.append(event)
-        return charging_events
+    # def get_charge_events_per_station(self, station_name, rotations=None):
+    #     """ Gather low soc events below the config threshold.
+    #
+    #     :param rotations: rotations to be searched for low soc events. Default None means whole
+    #         schedule is searched
+    #     :param station_name: name of the station to be checked
+    #     :return: list(ChargingEvents)
+    #     """
+    #     if not rotations:
+    #         rotations = self.schedule.rotations
+    #
+    #     # Find relevant charging events for this station
+    #     charging_events = []
+    #
+    #     for rot_id in rotations:
+    #         rot = self.schedule.rotations[rot_id]
+    #         for i, trip in enumerate(rot.trips):
+    #             # if the trip station name is not the searched station continue.
+    #             if trip.arrival_name != station_name:
+    #                 continue
+    #             try:
+    #                 charging_event_start_time = util.get_charging_start(trip, self.args)
+    #                 end_time = rot.trips[i + 1].departure_time
+    #
+    #
+    #                 # Do not add the event if there is charging time of at least the defined
+    #                 # min charging time
+    #                 if charging_event_start_time + self.args.min_charging_time >= end_time:
+    #                     continue
+    #             except IndexError:
+    #                 warnings.warn("Station to be checked has no following trip. Final destinations"
+    #                               "can not offer lift to the soc and are therefore discarded")
+    #                 continue
+    #             arrival_time= trip.arrival_time
+    #             start_idx = self.get_index_by_time(charging_event_start_time)
+    #             end_time = rot.trips[i+1].departure_time
+    #             buffer_time = util.get_buffer_time(trip, self.args.default_buffer_time_opps)
+    #             end_idx = self.get_index_by_time(end_time)
+    #             cht = rot.vehicle_id.find("depb")
+    #             ch_type = (cht > 0) * "depb" + (cht <= 0) * "oppb"
+    #             v_type = rot.vehicle_id.split("_" + ch_type)[0]
+    #             event = util.ChargingEvent(start_idx=start_idx,end_idx=end_idx,
+    #                                        arrival_time=arrival_time,
+    #                                        start_time=charging_event_start_time, end_time=end_time,
+    #                                        buffer_time=buffer_time, vehicle_id=rot.vehicle_id,
+    #                                        capacity=self.schedule.vehicle_types[v_type][ch_type][
+    #                                          'capacity'],
+    #                                        station_name=station_name, rotation=rot)
+    #             charging_events.append(event)
+    #     return charging_events
 
     def sort_station_events(self, charge_events_single_station):
         return sorted(charge_events_single_station, key=lambda x: x.arrival_time)
@@ -1018,6 +1018,7 @@ class StationOptimizer:
         for rot_id in rotations:
             rot = self.schedule.rotations[rot_id]
             soc, rot_start_idx, rot_end_idx = self.get_rotation_soc(rot_id, soc_data)
+            rot_end_idx += 1
             idx = range(0, len(soc))
             comb = list(zip(soc, idx))[rot_start_idx:rot_end_idx]
             min_soc, min_idx = min(comb, key=lambda x: x[0])
@@ -1045,7 +1046,7 @@ class StationOptimizer:
                 start = i
                 i = min_idx
                 while soc[i] < soc_upper_thresh:
-                    if i >= rot_end_idx - 1:
+                    if i >= rot_end_idx-1:
                         break
                     i += 1
                 end_comb = idx.index(i)
@@ -1087,6 +1088,7 @@ class StationOptimizer:
                     min_soc, min_idx = min(reduced_list, key=lambda x: x[0])
                 else:
                     break
+        print([event.min_soc for event in events])
         return events
 
 
