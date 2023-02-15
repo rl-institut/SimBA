@@ -82,10 +82,8 @@ if __name__ == '__main__':
                         default=10)
     parser.add_argument('--visual', '-v', action='store_true',
                         help='Show plots of the results- not applicable', default=False)
-    parser.add_argument('--generate-report', '-r', help='generates and stores plots and results',
-                        default=False)
     parser.add_argument('--show-plots',
-                        help='opens plots for user to view, only valid if generate_report=True',
+                        help='show plots for users to view in "report" mode',
                         default=False)
     parser.add_argument('--eta', action='store_true',
                         help='Show estimated time to finish simulation after each step, \

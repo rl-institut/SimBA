@@ -129,8 +129,8 @@ def generate(schedule, scenario, args):
         plt.gcf().set_size_inches(10, 10)
         plt.savefig(args.results_directory / "run_overview.png")
         plt.savefig(args.results_directory / "run_overview.pdf")
-        if not args.show_plots:
-            plt.close()
+    if args.show_plots:
+        plt.show()
 
     # calculate SOCs for each rotation
     rotation_infos = []
