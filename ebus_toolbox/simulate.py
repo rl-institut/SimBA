@@ -77,10 +77,10 @@ def simulate(args):
         if mode == 'service_optimization':
             # find largest set of rotations that produce no negative SoC
             result = optimization.service_optimization(schedule, args)
-            schedule, scenario = ['optimized']
+            schedule, scenario = result['optimized']
             if scenario is None:
                 print('*'*49 + '\nNo optimization possible (all rotations negative), reverting')
-                schedule, scenario = ['original']
+                schedule, scenario = result['original']
         elif mode in ['neg_depb_to_oppb', 'neg_oppb_to_depb']:
             # simple optimization: change charging type, simulate again
             if scenario is None:
@@ -108,8 +108,9 @@ def simulate(args):
             if args.cost_calculation:
                 # cost calculation part of report
                 calculate_costs(cost_parameters_file, scenario, schedule, args)
-            # name: always start with sim, append all following optimization modes
-            report_name = 'sim' + '__'.join([m for m in args.mode[:i] if m not in ['sim', 'report']])
+            # name: always start with sim, append all prior optimization modes
+            prior_modes = ['sim'] + [m for m in args.mode[:i] if m not in ['sim', 'report']]
+            report_name = '__'.join(prior_modes)
             args.results_directory = args.output_directory.joinpath(report_name)
             args.results_directory.mkdir(parents=True, exist_ok=True)
             report.generate(schedule, scenario, args)
