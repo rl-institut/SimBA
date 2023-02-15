@@ -18,8 +18,8 @@ def set_options_from_config(args, check=None, verbose=True):
 
     :param args: input arguments
     :type args: argparse.Namespace
-    :param check: raise ValueError on unknown options
-    :type check: bool
+    :param check: check config options against argparser
+    :type check: argparser
     :param verbose: gives final overview of arguments
     :type bool
 
