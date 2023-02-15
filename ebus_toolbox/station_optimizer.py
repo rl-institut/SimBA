@@ -965,7 +965,7 @@ class StationOptimizer:
 
         trips = []
         for i, trip in enumerate(rot.trips):
-            if end_time_event > trip.arrival_time > start_time_event:
+            if end_time_event >= trip.arrival_time > start_time_event:
                 trips.append(trip)
 
         return trips

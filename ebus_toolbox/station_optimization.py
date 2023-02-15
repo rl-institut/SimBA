@@ -102,7 +102,7 @@ def run_optimization(conf, sched=None, scen=None, this_args=None):
     :return: (Schedule,Scenario) optimized schedule and Scenario
     :rtype: tuple(ebus_toolbox.Schedule, spice_ev.Scenario)
     """
-    print("Finished")
+
     # load pickle files
     if sched is None or scen is None or this_args is None:
         # if no schedule was given as argument, make sure no scenario
@@ -158,8 +158,8 @@ def run_optimization(conf, sched=None, scen=None, this_args=None):
                                         r not in optimizer.config.exclusion_rots}
         logger.warning("%s negative rotations %s were removed from schedule",
                        len(neg_rots), neg_rots)
-        assert len(optimizer.schedule.rotations)>0, "Schedule cant be optimized, since rotations" \
-                                                    "cant be electrified."
+        assert len(optimizer.schedule.rotations) > 0, "Schedule cant be optimized, since rotations" \
+                                                      "cant be electrified."
 
     if conf.check_for_must_stations:
         must_stations = optimizer.get_must_stations_and_rebase(relative_soc=False)
@@ -172,9 +172,9 @@ def run_optimization(conf, sched=None, scen=None, this_args=None):
     logger.debug("%s total stations", len(ele_stations))
     logger.debug("These rotations could not be electrified: %s", optimizer.could_not_be_electrified)
 
-    scen.vehicle_socs = optimizer.timeseries_calc()
+    vehicle_socs = optimizer.timeseries_calc()
 
-    new_events = optimizer.get_low_soc_events(soc_data=scen.vehicle_socs)
+    new_events = optimizer.get_low_soc_events(soc_data=vehicle_socs)
 
     if len(new_events) > 0:
         logger.debug("Still not electrified with abs. soc with fast calc")
