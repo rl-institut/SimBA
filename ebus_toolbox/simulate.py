@@ -63,29 +63,27 @@ def simulate(args):
                                  stations,
                                  **vars(args))
     schedule.calculate_consumption()
-    scenario = None
+    # scenario simulated once
+    scenario = schedule.run(args)
 
     # run the mode(s) specified in config
     if type(args.mode) != list:
         # backwards compatibility: run single mode
         args.mode = [args.mode]
 
-    # scenario simulated once
-    scenario = schedule.run(args)
-
     for i, mode in enumerate(args.mode):
+        # scenario must be set from initial run / prior modes
+        assert scenario is not None, f"Scenario became None after mode {args.mode[i-1]} (index {i})"
+
         if mode == 'service_optimization':
             # find largest set of rotations that produce no negative SoC
-            result = optimization.service_optimization(schedule, args)
+            result = optimization.service_optimization(schedule, scenario, args)
             schedule, scenario = result['optimized']
             if scenario is None:
                 print('*'*49 + '\nNo optimization possible (all rotations negative), reverting')
                 schedule, scenario = result['original']
         elif mode in ['neg_depb_to_oppb', 'neg_oppb_to_depb']:
             # simple optimization: change charging type, simulate again
-            if scenario is None:
-                # no prior simulation/optimization: run once
-                scenario = schedule.run(args)
             change_from = mode[4:8]
             change_to = mode[-4:]
             # get negative rotations
@@ -104,7 +102,6 @@ def simulate(args):
                     print(f'Rotations {", ".join(neg_rot)} remain negative.')
         elif mode == 'report':
             # create report based on all previous modes
-            assert scenario is not None, 'Can\'t report without simulation'
             if args.cost_calculation:
                 # cost calculation part of report
                 calculate_costs(cost_parameters_file, scenario, schedule, args)

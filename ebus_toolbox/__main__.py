@@ -13,7 +13,7 @@ if __name__ == '__main__':
     parser.add_argument('--input-schedule', nargs='?',
                         help='Path to CSV file containing all trips of schedule to be analyzed.')
     mode_choices = ['sim', 'neg_depb_to_oppb', 'neg_oppb_to_depb', 'service_optimization', 'report']
-    parser.add_argument('--mode', default=['sim'], nargs='*', choices=mode_choices,
+    parser.add_argument('--mode', default=['sim', 'report'], nargs='*', choices=mode_choices,
                         help=f"Specify what you want to do. Choose one or more from \
                         {', '.join(mode_choices)}. \
                         sim runs a single simulation with the given inputs. \
