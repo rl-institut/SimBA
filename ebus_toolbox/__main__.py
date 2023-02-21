@@ -90,7 +90,7 @@ if __name__ == '__main__':
     parser.add_argument('--save-soc', help='Write SOC info to file - not applicable', default=False)
     parser.add_argument('--strategy', '-s', default='distributed',
                         help='Specify the charging strategy for spiceEV\
-                         - not applicable'.format('greedy, balanced'))
+                         - not applicable')
     parser.add_argument('--margin', '-m', metavar='X', type=float, default=1,
                         help=('Add margin for desired SOC [0.0 - 1.0].\
                         margin=0.05 means the simulation will not abort if vehicles \
@@ -99,7 +99,7 @@ if __name__ == '__main__':
                          - not applicable.'))
     parser.add_argument('--strategy-option', '-so', metavar=('KEY', 'VALUE'),
                         nargs=2, action='append',
-                        default= [["CONCURRENCY", 1.0], ["PRICE_THRESHOLD", 0.001],
+                        default=[["CONCURRENCY", 1.0], ["PRICE_THRESHOLD", 0.001],
                         ["ALLOW_NEGATIVE_SOC", True], ["RESET_NEGATIVE_SOC", False]],
                         help='Append additional options to the charging strategy.\
                          - not applicable')
