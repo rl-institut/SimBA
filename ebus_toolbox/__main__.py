@@ -37,13 +37,13 @@ if __name__ == '__main__':
                         help='set minimum desired SOC (0 - 1) for depot charging')
     parser.add_argument('--desired-soc-opps', metavar='SOC', type=float, default=0.8,
                         help='set minimum desired SOC (0 - 1) for opportunity charging')
-    parser.add_argument('--gc-power-opps', metavar='POPP', type=float, default=None,
+    parser.add_argument('--gc-power-opps', metavar='POPP', type=float, default=100000,
                         help='max power of grid connector at opp stations')
-    parser.add_argument('--gc-power-deps', metavar='PDEP', type=float, default=None,
+    parser.add_argument('--gc-power-deps', metavar='PDEP', type=float, default=100000,
                         help='max power of grid connector at depot stations')
-    parser.add_argument('--cs-power-opps', metavar='CSPOPP', type=float, default=450,
+    parser.add_argument('--cs-power-opps', metavar='CSPOPP', type=float, default=300,
                         help='max power of charging station at opp stations')
-    parser.add_argument('--cs-power-deps-depb', metavar='CSPDEPDEP', type=float, default=100,
+    parser.add_argument('--cs-power-deps-depb', metavar='CSPDEPDEP', type=float, default=150,
                         help='max power of charging station at depot stations for depot busses')
     parser.add_argument('--cs-power-deps-oppb', metavar='CSPDEPOPP', type=float, default=150,
                         help='max power of charging station at depot stations for opp busses')
@@ -88,17 +88,21 @@ if __name__ == '__main__':
     parser.add_argument('--save-results', help='Write general info to file - not applicable',
                         default=False)
     parser.add_argument('--save-soc', help='Write SOC info to file - not applicable', default=False)
-    parser.add_argument('--strategy', '-s', default='greedy',
-                        help='Specify the charging strategy. One of {}. You may define \
-                        custom options with --strategy-option.'.format('greedy, balanced'))
-    parser.add_argument('--margin', '-m', metavar='X', type=float, default=0.05,
+    parser.add_argument('--strategy', '-s', default='distributed',
+                        help='Specify the charging strategy for spiceEV\
+                         - not applicable'.format('greedy, balanced'))
+    parser.add_argument('--margin', '-m', metavar='X', type=float, default=1,
                         help=('Add margin for desired SOC [0.0 - 1.0].\
                         margin=0.05 means the simulation will not abort if vehicles \
                         reach at least 95%% of the desired SOC before leaving. \
-                        margin=1 -> the simulation continues with every positive SOC value.'))
+                        margin=1 -> the simulation continues with every positive SOC value.\
+                         - not applicable.'))
     parser.add_argument('--strategy-option', '-so', metavar=('KEY', 'VALUE'),
                         nargs=2, action='append',
-                        help='Append additional options to the charging strategy.')
+                        default= [["CONCURRENCY", 1.0], ["PRICE_THRESHOLD", 0.001],
+                        ["ALLOW_NEGATIVE_SOC", True], ["RESET_NEGATIVE_SOC", False]],
+                        help='Append additional options to the charging strategy.\
+                         - not applicable')
     parser.add_argument('--config', help='Use config file to set arguments')
     parser.add_argument('--station_data_path', help='Use station data to back calculation       \
                                                     of consumption with height information of   \
