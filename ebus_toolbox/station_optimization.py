@@ -191,9 +191,11 @@ def run_optimization(conf, sched=None, scen=None, this_args=None):
     with open(new_ele_stations_path, "w", encoding="utf-8") as file:
         json.dump(ele_stations, file, ensure_ascii=False, indent=2)
     util.print_time()
+
+    # todo remove cost calc and report generation
     logger.debug("Spice EV is calculating optimized case as a complete scenario")
     _, __ = optimizer.preprocessing_scenario(
-        electrified_stations=ele_stations, run_only_neg=False, cost_calc=True)
+        electrified_stations=ele_stations, run_only_neg=False)
 
     logger.warning("Still negative rotations: %s", optimizer.schedule.
                    get_negative_rotations(optimizer.scenario))

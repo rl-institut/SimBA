@@ -812,13 +812,11 @@ class StationOptimizer:
         self.base_stations = self.electrified_stations.copy()
         return must_include_set, self.electrified_stations
 
-    def preprocessing_scenario(self, electrified_stations=None, run_only_neg=False,
-                               cost_calc=False):
+    def preprocessing_scenario(self, electrified_stations=None, run_only_neg=False):
         """Prepare scenario and run schedule
         :param electrified_stations: optional dict of electrified stations to use in simulation.
             Default None leads to using optimizer.electrified_stations
         :param run_only_neg: should only negative rotations be simulated
-        :param cost_calc: should costs be calculated
         :return: schedule, scenario, electrified_station_set, electrified_stations
         :rtype (schedule.Schedule, scenario.Scenario, set(), dict())
         """
@@ -841,12 +839,7 @@ class StationOptimizer:
             self.schedule.rotations = rots
 
         new_sched, new_scen = util.run_schedule(self.schedule, self.args,
-                                                electrified_stations,
-                                                cost_calc=cost_calc)
-        try:
-            report.generate(new_sched, new_scen, self.args)
-        except Exception:
-            warnings.warn('Report generation failed: " {0}'.format(traceback.format_exc()))
+                                                electrified_stations)
         self.schedule = new_sched
         self.scenario = new_scen
         self.must_include_set = must_include_set

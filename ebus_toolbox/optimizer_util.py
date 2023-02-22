@@ -596,7 +596,7 @@ def combs_unordered_no_putting_back(n: int, k: int):
         return 0
 
 
-def run_schedule(this_sched, this_args, electrified_stations=None, cost_calc=False):
+def run_schedule(this_sched, this_args, electrified_stations=None):
     """Run a given schedule and electrify stations if need be
     :param this_sched: schedule object
     :param this_args: args namespace object
@@ -620,18 +620,6 @@ def run_schedule(this_sched, this_args, electrified_stations=None, cost_calc=Fal
         new_scen.run('distributed', vars(this_args).copy())
         if "pytest" not in sys.modules:
             sys.stdout = sys.__stdout__
-    try:
-        if this_args.cost_calculation and cost_calc:
-            # cost calculation following directly after simulation
-            try:
-                with open(this_args.cost_parameters_file, encoding='utf-8') as file:
-                    cost_parameters_file = uncomment_json_file(file)
-            except FileNotFoundError:
-                raise SystemExit(f"Path to cost parameters ({this_args.cost_parameters_file}) "
-                                 "does not exist. Exiting...")
-            calculate_costs(cost_parameters_file, new_scen, this_sched2, this_args)
-    except Exception as e:
-        warnings.warn('Unexpected error in Cost calculation: {0}'.format(e))
     return this_sched2, new_scen
 
 
