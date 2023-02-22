@@ -121,15 +121,6 @@ def run_optimization(conf, sched=None, scen=None, this_args=None):
 
     logger = setup_logger(args, conf)
 
-    # # remove those args, since they lead to file creation, which is not
-    # # needed.
-    # if not conf.save_all_results:
-    #     del args.save_timeseries
-    #     del args.save_results
-    # else:
-    #     args.save_timeseries = args.output_directory / "simulation_spiceEV.csv"
-    #     args.save_results = args.output_directory / "simulation_spiceEV.json"
-
     if args.desired_soc_deps != 1 and conf.solver == "quick":
         logger.error("Fast calc is not yet optimized for desired socs unequal to 1")
 

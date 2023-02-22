@@ -196,8 +196,8 @@ class StationOptimizer:
         util.print_time()
         # saving decision tree only in case of deep analysis
         if self.config.save_decision_tree:
-            with open(self.config.optimizer_output_dir / Path("decision_tree.pickle"), "wb") as file:
-                pickle.dump(self.current_tree, file)
+            with open(self.config.optimizer_output_dir / Path("decision_tree.pickle"), "wb") as f:
+                pickle.dump(self.current_tree, f)
 
         self.electrified_stations = self.base_stations.copy()
         self.electrified_station_set = self.base_electrified_station_set.copy()
