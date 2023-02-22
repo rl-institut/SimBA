@@ -18,7 +18,7 @@ def generate_gc_power_overview_timeseries(scenario, args):
 
     gc_list = list(scenario.components.grid_connectors.keys())
 
-    with open(args.output_directory / "gc_power_overview_timeseries.csv", "w", newline='') as f:
+    with open(args.results_directory / "gc_power_overview_timeseries.csv", "w", newline='') as f:
         csv_writer = csv.writer(f)
         csv_writer.writerow(["time"] + gc_list)
         stations = []
@@ -50,7 +50,7 @@ def generate_gc_overview(schedule, scenario, args):
     used_gc_list = list(scenario.components.grid_connectors.keys())
     stations = getattr(schedule, "stations")
 
-    with open(args.output_directory / "gc_overview.csv", "w", newline='') as f:
+    with open(args.results_directory / "gc_overview.csv", "w", newline='') as f:
         csv_writer = csv.writer(f)
         csv_writer.writerow(["station_name",
                              "station_type",
@@ -106,7 +106,14 @@ def generate(schedule, scenario, args):
     # generate simulation_timeseries.csv, simulation.json and vehicle_socs.csv in spiceEV
     with warnings.catch_warnings():
         warnings.simplefilter('ignore', UserWarning)
+        # re-route output paths
+        args.save_soc = args.results_directory / "vehicle_socs.csv"
+        args.save_results = args.results_directory / "simulation.json"
+        args.save_timeseries = args.results_directory / "simulation_timeseries.csv"
         generate_reports(scenario, vars(args).copy())
+        args.save_timeseries = None
+        args.save_results = None
+        args.save_soc = None
 
     # generate gc power overview
     generate_gc_power_overview_timeseries(scenario, args)
@@ -117,12 +124,13 @@ def generate(schedule, scenario, args):
     # save plots as png and pdf
     aggregate_global_results(scenario)
     with plt.ion():     # make plotting temporarily interactive, so plt.show does not block
+        plt.clf()
         plot(scenario)
         plt.gcf().set_size_inches(10, 10)
-        plt.savefig(args.output_directory / "run_overview.png")
-        plt.savefig(args.output_directory / "run_overview.pdf")
-        if not args.show_plots:
-            plt.close()
+        plt.savefig(args.results_directory / "run_overview.png")
+        plt.savefig(args.results_directory / "run_overview.pdf")
+    if args.show_plots:
+        plt.show()
 
     # calculate SOCs for each rotation
     rotation_infos = []
@@ -184,21 +192,21 @@ def generate(schedule, scenario, args):
                       "Omit parameter <days> to simulate entire schedule.",
                       stacklevel=100)
 
-    with open(args.output_directory / "rotation_socs.csv", "w+", newline='') as f:
+    with open(args.results_directory / "rotation_socs.csv", "w", newline='') as f:
         csv_writer = csv.writer(f)
         csv_writer.writerow(("time",) + tuple(rotation_socs.keys()))
         for i, row in enumerate(zip(*rotation_socs.values())):
             t = sim_start_time + i * scenario.interval
             csv_writer.writerow((t,) + row)
 
-    with open(args.output_directory / "rotation_summary.csv", "w+", newline='') as f:
+    with open(args.results_directory / "rotation_summary.csv", "w", newline='') as f:
         csv_writer = csv.DictWriter(f, list(rotation_infos[0].keys()))
         csv_writer.writeheader()
         csv_writer.writerows(rotation_infos)
 
     # summary of used vehicle types and all costs
     if args.cost_calculation:
-        with open(args.output_directory / "summary_vehicles_costs.csv", "w", newline='') as f:
+        with open(args.results_directory / "summary_vehicles_costs.csv", "w", newline='') as f:
             csv_writer = csv.writer(f)
             csv_writer.writerow(["parameter", "value", "unit"])
             for key, value in schedule.vehicle_type_counts.items():
@@ -210,4 +218,4 @@ def generate(schedule, scenario, args):
                 else:
                     csv_writer.writerow([key, round(value, 2), "€"])
 
-    print("Plots and output files saved in", args.output_directory)
+    print("Plots and output files saved in", args.results_directory)
