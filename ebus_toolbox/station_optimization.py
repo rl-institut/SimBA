@@ -6,11 +6,9 @@ import json
 from pathlib import Path
 import logging
 import shutil
-import matplotlib
 import ebus_toolbox.station_optimizer
 from ebus_toolbox.station_optimizer import util
 config = util.OptimizerConfig()
-
 
 
 def setup_logger(conf):
