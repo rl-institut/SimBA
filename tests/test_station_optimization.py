@@ -11,13 +11,14 @@ file_root = test_root / "test_input_files"
 class TestStationOptimization:
 
     def test_basic_optimization(self):
+        """ Test the base optimization simply by checking of optimization finishes without
+        raising errors"""
         trips_file_name = "trips_for_optimizer.csv"
         schedule_test = tests.test_schedule.TestSchedule()
         sched, scen, args = schedule_test.test_basic_run(trips_file_name)
         config_path = file_root / "optimizer.cfg"
         conf = util.read_config(config_path)
         opt_sched, opt_scen = run_optimization(conf, sched=sched, scen=scen, this_args=args)
-
         conf.solver = "spiceev"
         opt_sched, opt_scen = run_optimization(conf, sched=sched, scen=scen, this_args=args)
 

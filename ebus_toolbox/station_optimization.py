@@ -103,7 +103,7 @@ def run_optimization(conf, sched=None, scen=None, this_args=None):
     :rtype: tuple(ebus_toolbox.Schedule, spice_ev.Scenario)
     """
 
-    # load pickle files
+    # load pickle files only in the case they are not given as arguments
     if sched is None or scen is None or this_args is None:
         # if no schedule was given as argument, make sure no scenario
         # and args input was given as well.
@@ -138,6 +138,13 @@ def run_optimization(conf, sched=None, scen=None, this_args=None):
     # set battery and charging curves through config file if wished for
     optimizer.set_battery_and_charging_curves()
 
+    # filter out depot chargers if option is set
+    if conf.run_only_oppb:
+        sched.rotations = {r: sched.rotations[r] for r in sched.rotations
+                           if "oppb" in sched.rotations[r].vehicle_id}
+        assert len(sched.rotations) > 0, "Removing depot chargers led to a schedule without any " \
+                                         "rotations."
+
     # rebasing the scenario meaning simulating it again with the given conditions of
     # included and excluded stations and rotations and maybe changed battery sizes
     if conf.rebase_scenario:
@@ -148,7 +155,7 @@ def run_optimization(conf, sched=None, scen=None, this_args=None):
     # create charging dicts which contain soc over time, which is numerically calculated
     optimizer.create_charging_curves()
 
-    # remove none Values from socs in the vehicle_socs
+    # remove none values from socs in the vehicle_socs
     optimizer.remove_none_socs()
     if conf.remove_impossible_rots:
         neg_rots = optimizer.get_negative_rotations_all_electrified()

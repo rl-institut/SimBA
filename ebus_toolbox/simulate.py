@@ -1,3 +1,4 @@
+import warnings
 from warnings import warn
 
 from ebus_toolbox.consumption import Consumption
@@ -5,6 +6,8 @@ from ebus_toolbox.schedule import Schedule
 from ebus_toolbox.trip import Trip
 from ebus_toolbox.costs import calculate_costs
 from ebus_toolbox import report, optimization, util
+from ebus_toolbox.station_optimization import run_optimization
+from ebus_toolbox.optimizer_util import read_config as read_optimzier_config
 
 
 def simulate(args):
@@ -100,6 +103,18 @@ def simulate(args):
                 neg_rot = schedule.get_negative_rotations(scenario)
                 if neg_rot:
                     print(f'Rotations {", ".join(neg_rot)} remain negative.')
+        elif mode == "station_optimization":
+            if str(args.optimizer_config) == "" or args.optimizer_config is None:
+                warnings.warn("Station optimization needs an optimization config file. Since no"
+                              "path was given, station optimization is skipped")
+                break
+            conf = read_optimzier_config(args.optimizer_config)
+            try:
+                schedule, scenario = run_optimization(conf, sched=schedule, scen=scenario,
+                                                      this_args=args)
+            except Exception as err:
+                warnings.warn('During Station optimization an Error occurred {0}.'
+                              'Optimization was skipped'.format(err))
         elif mode == 'report':
             # create report based on all previous modes
             if args.cost_calculation:

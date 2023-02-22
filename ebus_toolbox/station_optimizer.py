@@ -1,17 +1,17 @@
 """ Optimizer class which implements the optimizer object and methods needed"""
-import json
+import traceback
 import logging
 import pickle
 import warnings
 from copy import deepcopy, copy
 from datetime import datetime, timedelta
 from pathlib import Path
-
 import numpy as np
 
 import ebus_toolbox.optimizer_util as util
 from spice_ev import scenario
 from ebus_toolbox import report, rotation, schedule
+from ebus_toolbox.util import uncomment_json_file
 
 
 class StationOptimizer:
@@ -34,7 +34,7 @@ class StationOptimizer:
         self.config = config
         self.electrified_station_set = set()
         with open(self.args.electrified_stations, "r", encoding="utf-8", ) as file:
-            self.electrified_stations = json.load(file)
+            self.electrified_stations = uncomment_json_file(file)
         self.base_stations = self.electrified_stations.copy()
         self.base_electrified_station_set = set()
 
@@ -846,8 +846,7 @@ class StationOptimizer:
         try:
             report.generate(new_sched, new_scen, self.args)
         except Exception:
-            warnings.warn("Report generation failed")
-            pass
+            warnings.warn('Report generation failed: " {0}'.format(traceback.format_exc()))
         self.schedule = new_sched
         self.scenario = new_scen
         self.must_include_set = must_include_set
@@ -1088,7 +1087,6 @@ class StationOptimizer:
                     min_soc, min_idx = min(reduced_list, key=lambda x: x[0])
                 else:
                     break
-        print([event.min_soc for event in events])
         return events
 
 

@@ -2,6 +2,7 @@
 LowSocEvents, like evaluating them, gathering them and so on"""
 import math
 import os
+import pathlib
 import pickle
 import sys
 import typing
@@ -87,7 +88,7 @@ class OptimizerConfig:
         self.node_choice = None
         self.max_brute_loop = None
         self.run_only_neg = None
-        self.run_only_depb = None
+        self.run_only_oppb = None
         self.estimation_threshold = None
         self.output_path = None
         self.check_for_must_stations = None
@@ -138,12 +139,21 @@ def read_config(config_path):
     """
     config_parser = configparser.ConfigParser()
     config_parser.sections()
-    config_parser.read(config_path, encoding="utf-8")
 
+    assert pathlib.Path(config_path).is_file(), f"Path to optimizer_config: {config_path} " \
+                                                f"does not lead to file"
+    config_parser.read(config_path, encoding="utf-8")
     conf = OptimizerConfig()
     conf.path = config_path
 
-    default = config_parser["DEFAULT"]
+    section_dict = dict()
+    for section in ["DEFAULT", "SCENARIO", "PICKLE", "VEHICLE", "OPTIMIZER", "SPECIAL"]:
+        try:
+            section_dict[section] = config_parser[section]
+        except KeyError:
+            section_dict[section] = config_parser["DEFAULT"]
+
+    default = section_dict["DEFAULT"]
     conf.debug_level = int(default.get("debug_level", "0"))
     sce = config_parser["SCENARIO"]
     conf.exclusion_rots = set(json.loads(sce.get("exclusion_rots", "[]")))
@@ -151,12 +161,12 @@ def read_config(config_path):
     conf.inclusion_stations = set(json.loads(sce.get("inclusion_stations", "[]")))
     conf.standard_opp_station = dict(json.loads(sce.get("standard_opp_station", "{}")))
 
-    pick = config_parser["PICKLE"]
+    pick = section_dict["PICKLE"]
     conf.schedule = pick.get("schedule", "")
     conf.scenario = pick.get("scenario", "")
     conf.args = pick.get("args", "")
 
-    vehicle = config_parser["VEHICLE"]
+    vehicle = section_dict["VEHICLE"]
     conf.charge_eff = float(vehicle.get("charge_eff", "0.95"))
     conf.battery_capacity = float(vehicle.get("battery_capacity", "0"))
     if conf.battery_capacity == 0:
@@ -169,7 +179,7 @@ def read_config(config_path):
         conf.charging_power = None
     conf.min_soc = float(vehicle.get("min_soc", "0.0"))
 
-    optimizer = config_parser["OPTIMIZER"]
+    optimizer = section_dict["OPTIMIZER"]
     conf.solver = optimizer.get("solver", "spiceev")
     conf.rebase_scenario = optimizer.getboolean("rebase_scenario", True)
     conf.pickle_rebased = optimizer.getboolean("pickle_rebased", False)
@@ -181,14 +191,14 @@ def read_config(config_path):
     conf.node_choice = optimizer.get("node_choice", "step-by-step")
     conf.max_brute_loop = int(optimizer.get("max_brute_loop", "20"))
     conf.run_only_neg = optimizer.getboolean("run_only_neg", False)
-    conf.run_only_depb = optimizer.getboolean("run_only_depb", False)
+    conf.run_only_oppb = optimizer.getboolean("run_only_oppb", False)
     conf.estimation_threshold = float(optimizer.get("estimation_threshold", "0.8"))
     conf.output_path = optimizer.get("output_path")
     conf.check_for_must_stations = optimizer.getboolean("check_for_must_stations", True)
     conf.pruning_threshold = int(optimizer.get("pruning_threshold", "3"))
     conf.save_all_results = optimizer.getboolean("save_all_results", False)
 
-    special = config_parser["SPECIAL"]
+    special = section_dict["SPECIAL"]
     conf.decision_tree_path = special.get("decision_tree_path", None)
     if conf.decision_tree_path in ["", '""', "''"]:
         conf.decision_tree_path = None
