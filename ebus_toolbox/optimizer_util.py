@@ -66,6 +66,7 @@ class OptimizerConfig:
 
     def __init__(self):
         self.debug_level = None
+        self.console_level = None
         self.exclusion_rots = None
         self.exclusion_stations = None
         self.inclusion_stations = None
@@ -154,6 +155,7 @@ def read_config(config_path):
 
     default = section_dict["DEFAULT"]
     conf.debug_level = int(default.get("debug_level", "0"))
+    conf.console_level = int(default.get("console_level", "99"))
     sce = config_parser["SCENARIO"]
     conf.exclusion_rots = set(json.loads(sce.get("exclusion_rots", "[]")))
     conf.exclusion_stations = set(json.loads(sce.get("exclusion_stations", "[]")))
@@ -660,7 +662,7 @@ def print_time(start=[]):
         start.append(time())
     delta = round(time() - start[0], 2)
     if delta > 0:
-        print(delta, " seconds till start")
+        print(delta, "seconds since start")
 
 
 def plot_(data):

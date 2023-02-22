@@ -186,7 +186,7 @@ class StationOptimizer:
                         list_greedy_sets[group_nr] = new_electrified_set.copy()
                         pre_optimized_set = new_electrified_set.copy()
             else:
-                print(f"Ran all {self.config.max_brute_loop} loops")
+                self.logger.warning(f"Ran all {self.config.max_brute_loop} loops")
 
             # print all solutions with the length of the
             self.logger.debug("All solutions for this group: %s", sols)

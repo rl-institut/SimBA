@@ -14,8 +14,8 @@ config = util.OptimizerConfig()
 matplotlib.use("TkAgg")
 
 
-def setup_logger(this_args, conf):
-    """ setup file and stream logging by config and args arguments
+def setup_logger(conf):
+    """ Setup file and stream logging by config and args arguments
     :param conf: configuration object
     :param this_args: Namespace object of arguments for ebus toolbox
     :return: logger
@@ -42,7 +42,7 @@ def setup_logger(this_args, conf):
     formatter = logging.Formatter('%(message)s')
     stream_handler = logging.StreamHandler()
     stream_handler.setFormatter(formatter)
-    stream_handler.setLevel(conf.debug_level)
+    stream_handler.setLevel(conf.console_level)
     this_logger.addHandler(file_handler_this_opt)
     this_logger.addHandler(file_handler_all_opts)
     this_logger.addHandler(stream_handler)
@@ -119,7 +119,7 @@ def run_optimization(conf, sched=None, scen=None, this_args=None):
         args.save_soc = args.output_directory / "simulation_soc_spiceEV.csv"
     new_ele_stations_path = conf.optimizer_output_dir / Path("optimized_stations" + ".json")
 
-    logger = setup_logger(args, conf)
+    logger = setup_logger(conf)
 
     if args.desired_soc_deps != 1 and conf.solver == "quick":
         logger.error("Fast calc is not yet optimized for desired socs unequal to 1")
@@ -141,6 +141,7 @@ def run_optimization(conf, sched=None, scen=None, this_args=None):
     if conf.rebase_scenario:
         must_include_set, ele_stations = optimizer.rebase_spice_ev()
     else:
+        # no new spice ev calculation will take place but some variables need to be adjusted.
         must_include_set, ele_stations = optimizer.rebase_simple()
 
     # create charging dicts which contain soc over time, which is numerically calculated
@@ -148,6 +149,8 @@ def run_optimization(conf, sched=None, scen=None, this_args=None):
 
     # remove none values from socs in the vehicle_socs
     optimizer.remove_none_socs()
+
+    # check if rotations cant be operated electric, even with all stations electrified.
     if conf.remove_impossible_rots:
         neg_rots = optimizer.get_negative_rotations_all_electrified()
         optimizer.config.exclusion_rots.update(neg_rots)
@@ -159,12 +162,16 @@ def run_optimization(conf, sched=None, scen=None, this_args=None):
         assert len(optimizer.schedule.rotations) > 0, "Schedule cant be optimized, since" \
                                                       "rotations cant be electrified."
 
+    # if the whole network cant be fully electrified if even just a single station is not
+    # electrified, this station must be included in a fully electrified network
+    # this can make solving networks much simpler. Some information in the electrification path
+    # gets lost though
     if conf.check_for_must_stations:
         must_stations = optimizer.get_must_stations_and_rebase(relative_soc=False)
         logger.warning("%s must stations %s", len(must_stations), must_stations)
-        print("%s must stations %s", len(must_stations), must_stations)
 
-    logger.debug("Starting greedy optimization")
+    logger.debug("Starting greedy station optimization")
+    print("Starting greedy station optimization")
     ele_stations, ele_station_set = optimizer.loop()
     ele_station_set = ele_station_set.union(must_include_set)
     logger.debug("%s electrified stations : %s", len(ele_station_set), ele_station_set)
@@ -181,7 +188,6 @@ def run_optimization(conf, sched=None, scen=None, this_args=None):
             logger.debug(event.rotation.id)
     with open(new_ele_stations_path, "w", encoding="utf-8") as file:
         json.dump(ele_stations, file, ensure_ascii=False, indent=2)
-    util.print_time()
 
     logger.debug("Spice EV is calculating optimized case as a complete scenario")
     _, __ = optimizer.preprocessing_scenario(
@@ -189,8 +195,9 @@ def run_optimization(conf, sched=None, scen=None, this_args=None):
 
     logger.warning("Still negative rotations: %s", optimizer.schedule.
                    get_negative_rotations(optimizer.scenario))
+    print("Station optimization finished after ", end="")
+    util.print_time()
 
-    print("Finished")
     return optimizer.schedule, optimizer.scenario
 
 
