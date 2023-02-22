@@ -8,7 +8,6 @@ test_root = pathlib.Path(__file__).parent
 file_root = test_root / "test_input_files"
 
 
-
 class TestStationOptimization:
 
     def test_basic_optimization(self):
@@ -57,7 +56,9 @@ class TestStationOptimization:
                 assert "Station-3" in opt_sched.stations
 
     def test_must_stations_optimization(self, caplog):
-        """ Test if station 2 and 3 are correctly recognized as must stations"""
+        """ Test if station 2 and 3 are correctly recognized as must stations
+        :param caplog: pytest fixture, which is automatically created
+        """
         trips_file_name = "trips_for_optimizer_deep.csv"
         schedule_test = tests.test_schedule.TestSchedule()
         sched, scen, args = schedule_test.test_basic_run(trips_file_name=trips_file_name)
@@ -70,7 +71,3 @@ class TestStationOptimization:
         opt_sched, opt_scen = run_optimization(conf, sched=sched, scen=scen, this_args=args)
         assert ("must stations {'Station-3', 'Station-2'}" in caplog.text or
                 "must stations {'Station-2', 'Station-3'}" in caplog.text)
-
-
-
-

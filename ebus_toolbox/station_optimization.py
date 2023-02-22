@@ -158,8 +158,8 @@ def run_optimization(conf, sched=None, scen=None, this_args=None):
                                         r not in optimizer.config.exclusion_rots}
         logger.warning("%s negative rotations %s were removed from schedule",
                        len(neg_rots), neg_rots)
-        assert len(optimizer.schedule.rotations) > 0, "Schedule cant be optimized, since rotations" \
-                                                      "cant be electrified."
+        assert len(optimizer.schedule.rotations) > 0, "Schedule cant be optimized, since" \
+                                                      "rotations cant be electrified."
 
     if conf.check_for_must_stations:
         must_stations = optimizer.get_must_stations_and_rebase(relative_soc=False)

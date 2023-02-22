@@ -117,4 +117,3 @@ def simulate(args):
                 warn('Intermediate sim ignored')
         else:
             warn(f'Unknown mode {mode} ignored')
-

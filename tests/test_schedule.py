@@ -134,10 +134,12 @@ class TestSchedule:
 
     def test_basic_run(self, trips_file_name="trips.csv"):
         """ Check if running a basic example works and if a scenario object is returned
+        :param trips_file_name: file name of the trips file. Has to be inside the test_input_file
+            folder
+        :type trips_file_name: str
         :return: schedule, scenario"""
 
         path_to_trips = file_root / trips_file_name
-        print("XXX" , path_to_trips)
         parser = util.create_ArgumentParser_with_arguments()
         args = parser.parse_args(args="")
         args.config = file_root / "ebus_toolbox.cfg"
@@ -192,7 +194,6 @@ class TestSchedule:
         trip.Trip.consumption = consumption.Consumption(vehicle_types,
                                                         outside_temperatures=self.temperature_path,
                                                         level_of_loading_over_day=self.lol_path)
-
 
         path_to_trips = file_root / "trips_assign_vehicles.csv"
         generated_schedule = schedule.Schedule.from_csv(path_to_trips, vehicle_types,

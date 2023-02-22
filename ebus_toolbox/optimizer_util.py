@@ -594,20 +594,21 @@ def run_schedule(this_sched, this_args, electrified_stations=None, cost_calc=Fal
         stations are electrified
     :param cost_calc: should the cost be calculated
     :return: schedule and scenario objects after spiceev simulation
+    :raises SystemExit: Failing spiceEv Simulation raises SystemExit
     """
     this_sched2 = copy(this_sched)
     this_sched2.stations = electrified_stations
     this_sched2, new_scen = preprocess_schedule(this_sched2, this_args,
                                                 electrified_stations=electrified_stations)
-    # do not print output from spice ev to reduce clutter
-
 
     with warnings.catch_warnings():
         warnings.simplefilter('ignore', UserWarning)
-        if not "pytest" in sys.modules:
+        if "pytest" not in sys.modules:
+            # do not print output from spice ev to reduce clutter. Dont do it in testing
+            # since it produces errors
             sys.stdout = open(os.devnull, 'w')
         new_scen.run('distributed', vars(this_args).copy())
-        if not "pytest" in sys.modules:
+        if "pytest" not in sys.modules:
             sys.stdout = sys.__stdout__
     try:
         if this_args.cost_calculation and cost_calc:
@@ -619,9 +620,8 @@ def run_schedule(this_sched, this_args, electrified_stations=None, cost_calc=Fal
                 raise SystemExit(f"Path to cost parameters ({this_args.cost_parameters_file}) "
                                  "does not exist. Exiting...")
             calculate_costs(cost_parameters_file, new_scen, this_sched2, this_args)
-    except:
-        warnings.warn(f"Cost Calculation was ignored due to some error")
-        pass
+    except Exception as e:
+        warnings.warn('Unexpected error in Cost calculation: {0}'.format(e))
     return this_sched2, new_scen
 
 
