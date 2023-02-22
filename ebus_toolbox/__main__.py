@@ -14,11 +14,11 @@ if __name__ == '__main__':
     # #### Paths #####
     parser.add_argument('--input-schedule', nargs='?',
                         help='Path to CSV file containing all trips of schedule to be analyzed.',
-                        required = True)
+                        required=True)
     parser.add_argument('--output-directory', default="./data/sim_outputs", nargs='?',
                         help='Location where all simulation outputs are stored')
     parser.add_argument('--electrified-stations', help='include electrified_stations json',
-                        required = True)
+                        required=True)
     parser.add_argument('--vehicle-types', default="./data/examples/vehicle_types.json",
                         help='location of vehicle type definitions')
     parser.add_argument('--station_data_path', default=None,
