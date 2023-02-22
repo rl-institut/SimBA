@@ -13,22 +13,25 @@ if __name__ == '__main__':
 
     # #### Paths #####
     parser.add_argument('--input-schedule', nargs='?',
-                        help='Path to CSV file containing all trips of schedule to be analyzed.')
+                        help='Path to CSV file containing all trips of schedule to be analyzed.',
+                        required = True)
     parser.add_argument('--output-directory', default="./data/sim_outputs", nargs='?',
                         help='Location where all simulation outputs are stored')
-    parser.add_argument('--electrified-stations', help='include electrified_stations json')
+    parser.add_argument('--electrified-stations', help='include electrified_stations json',
+                        required = True)
     parser.add_argument('--vehicle-types', default="./data/examples/vehicle_types.json",
                         help='location of vehicle type definitions')
-    parser.add_argument('--station_data_path', help='Use station data to back calculation       \
-                                                    of consumption with height information of   \
-                                                    stations')
+    parser.add_argument('--station_data_path', default=None,
+                        help='Use station data to back calculation of consumption with height\
+                         information of stations')
     parser.add_argument('--outside_temperature_over_day_path', default=None,
                         help="Use csv. data with 'hour' and temperature' columns to set \
                         temperatures in case they are not in trips.csv")
     parser.add_argument('--level_of_loading_over_day_path', default=None,
                         help="Use csv. data with 'hour' and level_of_loading' columns to set \
                         level of loading in case they are not in trips.csv")
-    parser.add_argument('--cost-parameters-file', help='include cost parameters json', default=None)
+    parser.add_argument('--cost-parameters-file', default=None,
+                        help='include cost parameters json, needed if cost_calculation==True')
 
     # #### Modes #####
     mode_choices = ['sim', 'neg_depb_to_oppb', 'neg_oppb_to_depb', 'service_optimization', 'report']
@@ -48,9 +51,8 @@ if __name__ == '__main__':
                         help='Check rotation assumptions when building schedule.')
     parser.add_argument('--ignore-inconsistent-rotations', action='store_true',
                         help='Remove rotations from schedule that violate assumptions. ')
-    parser.add_argument('--show-plots',
-                        help='show plots for users to view in "report" mode',
-                        default=False)
+    parser.add_argument('--show-plots', action='store_true',
+                        help='show plots for users to view in "report" mode')
 
     # #### Physical setup of environment #####
     parser.add_argument('--preferred-charging-type', '-pct', default='depb',
@@ -68,7 +70,7 @@ if __name__ == '__main__':
                         help='max power of charging station at depot stations for opp busses')
     parser.add_argument('--desired-soc-deps', metavar='SOC', type=float, default=1.0,
                         help='set minimum desired SOC (0 - 1) for depot charging')
-    parser.add_argument('--desired-soc-opps', metavar='SOC', type=float, default=0.8,
+    parser.add_argument('--desired-soc-opps', metavar='SOC', type=float, default=1.0,
                         help='set minimum desired SOC (0 - 1) for opportunity charging')
     parser.add_argument('--min-recharge-deps-oppb', default=1,
                         help='Minimum fraction of capacity for recharge when leaving the depot.')
@@ -82,14 +84,14 @@ if __name__ == '__main__':
     # #### SIMULATION PARAMETERS #####
     parser.add_argument('--days', metavar='N', type=int, default=None,
                         help='set duration of scenario as number of days')
-    parser.add_argument('--interval', metavar='MIN', type=int, default=15,
+    parser.add_argument('--interval', metavar='MIN', type=int, default=1,
                         help='set number of minutes for each timestep (Δt)')
-    parser.add_argument('--signal-time-dif', help='time difference between signal time and actual '
-                                                  'start time of a vehicle event im min.',
-                        default=10)
+    parser.add_argument('--signal-time-dif', default=10,
+                        help='time difference between signal time and actual '
+                             'start time of a vehicle event im min.')
     parser.add_argument('--eta', action='store_true',
-                        help='Show estimated time to finish simulation after each step, \
-                        instead of progress bar. Not recommended for fast computations.')
+                        help='Show estimated time to finish simulation after each step, '
+                             'instead of progress bar. Not recommended for fast computations.')
 
     # #### SPICE EV PARAMETERS ONLY DEFAULT VALUES NOT IN eBus-Toolbox CONFIG #####
     parser.add_argument('--seed', default=1, type=int, help='set random seed')
@@ -160,8 +162,5 @@ if __name__ == '__main__':
 
     if any([args.save_soc, args.save_results, args.save_timeseries]):
         print("save_* options ignored for eBus-Toolbox reports naming")
-
-    if args.input_schedule is None:
-        raise SystemExit("The following argument is required: input_schedule")
 
     simulate.simulate(args)
