@@ -1,5 +1,5 @@
 from copy import deepcopy
-
+from spice_ev.util import set_options_from_config
 import pytest
 import spice_ev.scenario as scenario
 from tests.helpers import generate_basic_schedule
@@ -155,7 +155,7 @@ class TestSchedule:
                                                         self.electrified_stations, **mandatory_args,
                                                         station_data_path=path_to_all_station_data)
 
-        util.set_options_from_config(args, check=False, verbose=False)
+        set_options_from_config(args, check=parser, verbose=False)
         args.ALLOW_NEGATIVE_SOC = True
         args.attach_vehicle_soc = True
 
@@ -264,7 +264,7 @@ class TestSchedule:
                                                         electrified_stations, **mandatory_args,
                                                         station_data_path=path_to_all_station_data)
 
-        util.set_options_from_config(args, check=False, verbose=False)
+        set_options_from_config(args, check=parser, verbose=False)
         args.ALLOW_NEGATIVE_SOC = True
         args.attach_vehicle_soc = True
         scen = generated_schedule.generate_scenario(args)
@@ -286,7 +286,7 @@ class TestSchedule:
                                                         electrified_stations, **mandatory_args,
                                                         station_data_path=path_to_all_station_data)
 
-        util.set_options_from_config(args, check=False, verbose=False)
+        set_options_from_config(args, check=parser, verbose=False)
 
         # check that 2 user warnings are put put for missing files and an error is thrown
         with pytest.warns(Warning) as record:
