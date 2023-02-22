@@ -11,7 +11,7 @@ if __name__ == '__main__':
         description='eBus-Toolbox - \
         simulation program for electric bus fleets.')
 
-    ##### Paths #####
+    # #### Paths #####
     parser.add_argument('--input-schedule', nargs='?',
                         help='Path to CSV file containing all trips of schedule to be analyzed.')
     parser.add_argument('--output-directory', default="./data/sim_outputs", nargs='?',
@@ -30,7 +30,7 @@ if __name__ == '__main__':
                         level of loading in case they are not in trips.csv")
     parser.add_argument('--cost-parameters-file', help='include cost parameters json', default=None)
 
-    ##### Modes #####
+    # #### Modes #####
     mode_choices = ['sim', 'neg_depb_to_oppb', 'neg_oppb_to_depb', 'service_optimization', 'report']
     parser.add_argument('--mode', default=['sim', 'report'], nargs='*', choices=mode_choices,
                         help=f"Specify what you want to do. Choose one or more from \
@@ -41,7 +41,7 @@ if __name__ == '__main__':
                         service optimization finds the largest set of electrified rotations. \
                         report generates simulation output files.")
 
-    ##### Flags #####
+    # #### Flags #####
     parser.add_argument('--cost-calculation', '-cc', action='store_true',
                         help='Calculate costs')
     parser.add_argument('--check-rotation-consistency', action='store_true',
@@ -52,7 +52,7 @@ if __name__ == '__main__':
                         help='show plots for users to view in "report" mode',
                         default=False)
 
-    ##### Physical setup of environment #####
+    # #### Physical setup of environment #####
     parser.add_argument('--preferred-charging-type', '-pct', default='depb',
                         choices=['depb', 'oppb'], help="Preferred charging type. Choose one\
                         from {depb, oppb}. opp stands for opportunity.")
@@ -79,7 +79,7 @@ if __name__ == '__main__':
     parser.add_argument('--default-buffer-time-opps', help='time to subtract off of standing time '
                         'at opp station to simulate docking procedure.', default=0)
 
-    ##### SIMULATION PARAMETERS #####
+    # #### SIMULATION PARAMETERS #####
     parser.add_argument('--days', metavar='N', type=int, default=None,
                         help='set duration of scenario as number of days')
     parser.add_argument('--interval', metavar='MIN', type=int, default=15,
@@ -91,7 +91,7 @@ if __name__ == '__main__':
                         help='Show estimated time to finish simulation after each step, \
                         instead of progress bar. Not recommended for fast computations.')
 
-    ##### SPICE EV PARAMETERS ONLY DEFAULT VALUES NOT IN eBus-Toolbox CONFIG #####
+    # #### SPICE EV PARAMETERS ONLY DEFAULT VALUES NOT IN eBus-Toolbox CONFIG #####
     parser.add_argument('--seed', default=1, type=int, help='set random seed')
     parser.add_argument('--iterations', default=1, type=int, help='iterations for optimization')
     parser.add_argument('--include-price-csv',
