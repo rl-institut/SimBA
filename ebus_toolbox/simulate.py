@@ -113,7 +113,7 @@ def simulate(args):
                 schedule, scenario = run_optimization(conf, sched=schedule, scen=scenario,
                                                       this_args=args)
             except Exception as err:
-                warnings.warn('During Station optimization an Error occurred {0}.'
+                warnings.warn('During Station optimization an error occurred {0}.'
                               'Optimization was skipped'.format(err))
         elif mode == 'report':
             # create report based on all previous modes

@@ -1,8 +1,6 @@
 """ Optimizer class which implements the optimizer object and methods needed"""
-import traceback
 import logging
 import pickle
-import warnings
 from copy import deepcopy, copy
 from datetime import datetime, timedelta
 from pathlib import Path
@@ -10,7 +8,7 @@ import numpy as np
 
 import ebus_toolbox.optimizer_util as util
 from spice_ev import scenario
-from ebus_toolbox import report, rotation, schedule
+from ebus_toolbox import rotation, schedule
 from ebus_toolbox.util import uncomment_json_file
 
 
@@ -198,7 +196,7 @@ class StationOptimizer:
         util.print_time()
         # saving decision tree only in case of deep analysis
         if self.config.save_decision_tree:
-            with open(self.args.output_directory / Path("decision_tree.pickle"), "wb") as file:
+            with open(self.config.optimizer_output_dir / Path("decision_tree.pickle"), "wb") as file:
                 pickle.dump(self.current_tree, file)
 
         self.electrified_stations = self.base_stations.copy()

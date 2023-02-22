@@ -19,9 +19,8 @@ if typing.TYPE_CHECKING:
     from ebus_toolbox.station_optimizer import StationOptimizer
 
 from ebus_toolbox.consumption import Consumption
-from ebus_toolbox.costs import calculate_costs
 from ebus_toolbox.trip import Trip
-from ebus_toolbox.util import get_buffer_time as get_buffer_time_spice_ev, uncomment_json_file
+from ebus_toolbox.util import get_buffer_time as get_buffer_time_spice_ev
 
 
 class ChargingEvent:
@@ -90,10 +89,10 @@ class OptimizerConfig:
         self.run_only_neg = None
         self.run_only_oppb = None
         self.estimation_threshold = None
-        self.output_path = None
         self.check_for_must_stations = None
         self.decision_tree_path = None
         self.save_decision_tree = None
+        self.optimizer_output_dir = None
         self.reduce_rots = None
         self.rots = None
         self.path = None
@@ -193,7 +192,6 @@ def read_config(config_path):
     conf.run_only_neg = optimizer.getboolean("run_only_neg", False)
     conf.run_only_oppb = optimizer.getboolean("run_only_oppb", False)
     conf.estimation_threshold = float(optimizer.get("estimation_threshold", "0.8"))
-    conf.output_path = optimizer.get("output_path")
     conf.check_for_must_stations = optimizer.getboolean("check_for_must_stations", True)
     conf.pruning_threshold = int(optimizer.get("pruning_threshold", "3"))
     conf.save_all_results = optimizer.getboolean("save_all_results", False)
@@ -602,14 +600,23 @@ def run_schedule(this_sched, this_args, electrified_stations=None):
     :param this_args: args namespace object
     :param electrified_stations: dict of electrified stations. Default value None means no further
         stations are electrified
-    :param cost_calc: should the cost be calculated
     :return: schedule and scenario objects after spiceev simulation
-    :raises SystemExit: Failing spiceEv Simulation raises SystemExit
     """
     this_sched2 = copy(this_sched)
     this_sched2.stations = electrified_stations
     this_sched2, new_scen = preprocess_schedule(this_sched2, this_args,
                                                 electrified_stations=electrified_stations)
+
+    # parse strategy options for Spice EV
+    if this_args.strategy_option is not None:
+        for opt_key, opt_val in this_args.strategy_option:
+            try:
+                # option may be number
+                opt_val = float(opt_val)
+            except ValueError:
+                # or not
+                pass
+            setattr(this_args, opt_key, opt_val)
 
     with warnings.catch_warnings():
         warnings.simplefilter('ignore', UserWarning)
