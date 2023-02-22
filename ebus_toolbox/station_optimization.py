@@ -17,7 +17,6 @@ matplotlib.use("TkAgg")
 def setup_logger(conf):
     """ Setup file and stream logging by config and args arguments
     :param conf: configuration object
-    :param this_args: Namespace object of arguments for ebus toolbox
     :return: logger
     :rtype: Logger
     """
