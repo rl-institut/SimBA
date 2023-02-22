@@ -3,8 +3,8 @@ from datetime import datetime
 from pathlib import Path
 import shutil
 
+from spice_ev.util import set_options_from_config
 from ebus_toolbox import simulate, util
-
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(
@@ -121,7 +121,7 @@ if __name__ == '__main__':
     args.ALLOW_NEGATIVE_SOC = True
     args.attach_vehicle_soc = True
 
-    util.set_options_from_config(args, check=True, verbose=False)
+    set_options_from_config(args, check=parser, verbose=False)
 
     args.output_directory = Path(args.output_directory) / (
         datetime.now().strftime("%Y-%m-%d-%H-%M-%S") + "_eBus_results")
