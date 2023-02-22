@@ -9,9 +9,8 @@ import shutil
 import matplotlib
 import ebus_toolbox.station_optimizer
 from ebus_toolbox.station_optimizer import util
-
 config = util.OptimizerConfig()
-matplotlib.use("TkAgg")
+
 
 
 def setup_logger(conf):
