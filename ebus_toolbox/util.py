@@ -12,66 +12,6 @@ def save_version(file_path):
         f.write("Git Hash eBus-Toolbox:" + get_git_revision_hash())
 
 
-def set_options_from_config(args, check=None, verbose=True):
-    """Read options from config file, update given args, try to parse options
-    , ignore comment lines (begin with #)
-
-    :param args: input arguments
-    :type args: argparse.Namespace
-    :param check: check config options against argparser
-    :type check: argparser
-    :param verbose: gives final overview of arguments
-    :type bool
-
-    :raise argparse.ArgumentError: Raised if wrong option values are given
-    :raises Exception: Raised if unknown option is given
-    """
-
-    if "config" in args and args.config is not None:
-        # read options from config file
-        with open(args.config, 'r', encoding='utf-8') as f:
-            for line in f:
-                line = line.strip()
-                if line.startswith('#'):
-                    # comment
-                    continue
-                if len(line) == 0:
-                    # empty line
-                    continue
-                k, v = line.split('=')
-                k = k.strip()
-                v = v.strip()
-                try:
-                    # option may be special: number, array, etc.
-                    v = json.loads(v)
-                except ValueError:
-                    # or not
-                    pass
-                # check option
-                if check is not None:
-                    # find action by name
-                    try:
-                        action = [a for a in check._actions if a.dest == k][0]
-                    except IndexError:
-                        raise Exception(f"Unknown option {k}")
-                    # check each item in list individually
-                    v_list = [v] if type(v) != list else v
-                    for v_item in v_list:
-                        # check item. Returns None on success
-                        # may raise ArgumentError if not successful
-                        check._check_value(action, v_item)
-                    else:
-                        # all checks successful: set argument
-                        vars(args)[k] = v
-                else:
-                    # set option
-                    vars(args)[k] = v
-
-        # Give overview of options
-        if verbose:
-            print("Options: {}".format(vars(args)))
-
-
 def get_buffer_time(trip, default=0):
     """ Get buffer time at arrival station of a trip.
         Buffer_time is an abstraction of delays like docking procedures and
