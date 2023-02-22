@@ -91,10 +91,7 @@ if __name__ == '__main__':
                         help='Show estimated time to finish simulation after each step, \
                         instead of progress bar. Not recommended for fast computations.')
 
-    ##### SPICE EV PARAMETERS ONLY DEFAULT NOT BY DEFAULT IN eBus-Toolbox CONFIG #####
-    parser.add_argument('--battery', '-b', default=[], nargs=2, type=float, action='append',
-                        help='add battery with specified capacity in kWh and C-rate \
-                            (-1 for variable capacity, second argument is fixed power))')
+    ##### SPICE EV PARAMETERS ONLY DEFAULT VALUES NOT IN eBus-Toolbox CONFIG #####
     parser.add_argument('--seed', default=1, type=int, help='set random seed')
     parser.add_argument('--iterations', default=1, type=int, help='iterations for optimization')
     parser.add_argument('--include-price-csv',
