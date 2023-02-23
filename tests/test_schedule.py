@@ -75,7 +75,9 @@ class TestSchedule:
         if it finds gaps between arrival and departure stations of successive trips and last
         it checks if the arguments for check_rotation_consistency and ignore_inconsistent_rotations
         were set correctly, i.e. if ignore_inconsistent_rotations is True,
-        check_rotation_consistency has to be true as well. If not a warning has to be thrown"""
+        check_rotation_consistency has to be true as well. If not a warning has to be thrown
+        :param tmp_path: pytest fixture to a path that is dynamically created
+        """
 
         trip.Trip.consumption = consumption.Consumption(self.vehicle_types,
                                                         outside_temperatures=self.temperature_path,
