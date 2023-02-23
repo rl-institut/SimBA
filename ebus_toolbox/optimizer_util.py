@@ -141,7 +141,7 @@ def read_config(config_path):
     config_parser.sections()
 
     assert Path(config_path).is_file(), f"Path to optimizer_config: {config_path} " \
-                                                f"does not lead to file"
+                                        f"does not lead to file"
     config_parser.read(config_path, encoding="utf-8")
     conf = OptimizerConfig()
     conf.path = config_path
@@ -203,7 +203,7 @@ def read_config(config_path):
         conf.decision_tree_path = None
     conf.save_decision_tree = special.getboolean("save_decision_tree", False)
     conf.reduce_rotations = special.getboolean("reduce_rotations", False)
-    conf.rotations = json.loads(special.get("rotations", []))
+    conf.rotations = json.loads(special.get("rotations", "[]"))
 
     return conf
 
@@ -347,7 +347,8 @@ def evaluate(events: typing.Iterable[LowSocEvent],
 
             # potential is the minimal amount of the following boundaries
             # - soc can only be lifted to the upper threshold
-            # - useful lift is in between the minimal soc of the event and the lower threshold of soc
+            # - useful lift is in between the minimal soc of the event and the
+            #      lower threshold of soc
             # - useful lift can only occur in between the current soc and the
             # - the highest useful lift is the amount between a "full" and "empty" battery, where
             # "full" and "empty" are described by the upper and lower thresholds
@@ -372,7 +373,7 @@ def evaluate(events: typing.Iterable[LowSocEvent],
                 station_eval[trip.arrival_name] = delta_e_pot
 
     # sort by pot_sum
-    station_eval_list = sorted(station_eval.items(), key=lambda x: x[1],reverse=True)
+    station_eval_list = sorted(station_eval.items(), key=lambda x: x[1], reverse=True)
     return station_eval_list
 
 

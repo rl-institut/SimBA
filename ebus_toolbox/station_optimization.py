@@ -164,7 +164,7 @@ def run_optimization(conf, sched=None, scen=None, args=None):
     # this can make solving networks much simpler. Some information in the electrification path
     # gets lost though
     if conf.check_for_must_stations:
-        must_stations = optimizer.get_must_stations_and_rebase(relative_soc=False)
+        must_stations = optimizer.get_critical_stations_and_rebase(relative_soc=False)
         logger.warning("%s must stations %s", len(must_stations), must_stations)
 
     logger.debug("Starting greedy station optimization")
@@ -174,6 +174,9 @@ def run_optimization(conf, sched=None, scen=None, args=None):
     logger.debug("%s electrified stations : %s", len(ele_station_set), ele_station_set)
     logger.debug("%s total stations", len(ele_stations))
     logger.debug("These rotations could not be electrified: %s", optimizer.could_not_be_electrified)
+
+    # remove none values from socs in the vehicle_socs so timeseries_calc can work
+    optimizer.remove_none_socs()
 
     vehicle_socs = optimizer.timeseries_calc()
 

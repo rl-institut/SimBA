@@ -866,11 +866,11 @@ class StationOptimizer:
         self.soc_charge_curve_dict = soc_charge_curve_dict
 
     @util.time_it
-    def get_must_stations_and_rebase(self, relative_soc=False):
+    def get_critical_stations_and_rebase(self, relative_soc=False):
         """ Get the stations that must be electrified and put them into the electrified stations
-        and an extra set of must stations
-        Electrify everything minus 1 station. If without the stations there are below zero events
-        it is a must have station
+        and an extra set of critical stations.
+        Electrify every station but one. If without this single station there are below zero events
+        it is a critical station.
 
         :param relative_soc: should the evaluation use the relative or absolute soc
         :return: Set(Station_ids)
@@ -882,8 +882,9 @@ class StationOptimizer:
                  if station not in self.not_possible_stations}
 
         electrified_station_set_all = set(stats)
-        must_stations = set()
-        print(f"Electrifying {len(electrified_station_set_all)} stations minus one", )
+        critical_stations = set()
+        nr_of_all_stations = len(electrified_station_set_all)
+        print(f"Electrifying {nr_of_all_stations-1}/{nr_of_all_stations} stations", )
         for station in sorted(electrified_station_set_all):
             electrified_station_set = electrified_station_set_all.difference([station])
 
@@ -894,16 +895,16 @@ class StationOptimizer:
 
                 soc_min = min(np.min(soc[start:end]), soc_min)
                 if soc_min < self.config.min_soc:
-                    must_stations.add(station)
+                    critical_stations.add(station)
             self.logger.debug("%s , with min soc: %s", station, soc_min)
 
-        self.not_possible_stations = self.not_possible_stations.union(must_stations)
+        self.not_possible_stations = self.not_possible_stations.union(critical_stations)
 
         # rebasing
-        for stat in must_stations:
+        for stat in critical_stations:
             # do not put must stations in electrified set, but in extra set must_include_set
             self.electrify_station(stat, self.must_include_set)
-        return must_stations
+        return critical_stations
 
     def remove_none_socs(self):
         """ Removes soc values of None by filling them with the last value which is not None
@@ -934,10 +935,7 @@ class StationOptimizer:
         :param search_time: The time for which to return the index as datetime object
         :return: the time corresponding to the given index.
         """
-        start_time = self.scenario.start_time
-        delta_time = timedelta(minutes=60 / self.scenario.stepsPerHour)
-        idx = (search_time - start_time) // delta_time
-        return idx
+        return util.get_index_by_time(self.scenario, search_time)
 
     @util.time_it
     def get_trips(self, rot: rotation.Rotation, start_idx: int, end_idx: int):
@@ -998,9 +996,9 @@ class StationOptimizer:
 
         soc_lower_thresh = kwargs.get("soc_lower_thresh", self.config.min_soc)
         soc_upper_thresh = kwargs.get("soc_upper_thresh", self.args.desired_soc_deps)
-        # Create list of events which describe trips which end in a soc below zero
-        # The event is bound by the lowest soc and an upper soc threshold which is naturally 1
-        # Properties before and after these points have no effect on the event itself, similar to
+        # create list of events which describe trips which end in a soc below zero
+        # the event is bound by the lowest soc and an upper soc threshold which is naturally 1
+        # properties before and after these points have no effect on the event itself, similar to
         # an event horizon
         events = []
         count_electrified_rot = 0
@@ -1010,12 +1008,16 @@ class StationOptimizer:
             soc, rot_start_idx, rot_end_idx = self.get_rotation_soc(rot_id, soc_data)
             rot_end_idx += 1
             idx = range(0, len(soc))
+            # combined data of the soc data of the rotation and the original index
             comb = list(zip(soc, idx))[rot_start_idx:rot_end_idx]
+
+            # get the minimum soc and index of this value
             min_soc, min_idx = min(comb, key=lambda x: x[0])
             reduced_list = comb.copy()
+
             soc_lower_thresh_cur = soc_lower_thresh
-            # if rotation gets a start soc below 1 this should change below 0 soc
-            # events since fixing the rotation before would lead to fixing this rotation
+            # if rotation gets a start soc below 1 this should change below 0 soc events,
+            # since fixing the rotation before would lead to fixing this rotation
 
             # if using relative SOC, SOC lookup has to be adjusted
             if rel_soc:
@@ -1023,26 +1025,43 @@ class StationOptimizer:
                 soc_lower_thresh_cur = min(start_soc, soc_upper_thresh) - (
                         soc_upper_thresh - soc_lower_thresh)
                 soc_upper_thresh = soc_lower_thresh_cur + soc_upper_thresh
-            if min_soc >= soc_lower_thresh_cur:
-                count_electrified_rot += 1
+
+            # while the minimal soc of the soc time series is below the threshold find the events
+            # which are connected with this event. Every iteration the data of the found events is
+            # removed. At some point the reduced time series is either empty or does not have a
+            # soc below the lower threshold.
             while min_soc < soc_lower_thresh_cur:
                 i = min_idx
+                # these indicies were not removed yet.
                 idx = [x[1] for x in reduced_list]
+
+                # find the first index by going back from the minimal soc index, where the soc
+                # was above the upper threshold OR the index where the rotation started.
                 while soc[i] < soc_upper_thresh:
                     if i == rot_start_idx:
                         break
                     i -= 1
-                start_comb = idx.index(i)
+
+                # which index in the original data is the found index?
                 start = i
+                start_comb = idx.index(start)
+
                 i = min_idx
+                # do the same as before but find the index after the minimal soc.
                 while soc[i] < soc_upper_thresh:
                     if i >= rot_end_idx-1:
                         break
                     i += 1
                 end_comb = idx.index(i)
+
+                # with the start index and and the minimal index find trips, in this time span
                 trips = self.get_trips(rot=rot, start_idx=start, end_idx=min_idx)
                 possible_stations = set()
                 possible_stations_list = []
+
+                # check which stations the bus arrives at with these trips. Depending on
+                # filter_standing_time, every station is returned or only the stations where the bus
+                # stops long enough to be able to charge.
                 if not filter_standing_time:
                     possible_stations = {t.arrival_name for t in trips}
                     possible_stations_list = [t.arrival_name for t in trips]
@@ -1057,10 +1076,14 @@ class StationOptimizer:
                             possible_stations.add(trip.arrival_name)
                             possible_stations_list.append(trip.arrival_name)
 
+                # the stations which have potential should be filtered by the not_possible_stations,
+                # which are stations which for some reason should not be electrified.
                 possible_stations = possible_stations.difference(self.not_possible_stations)
                 cht = rot.vehicle_id.find("depb")
                 ch_type = (cht > 0) * "depb" + (cht <= 0) * "oppb"
                 v_type = rot.vehicle_id.split("_" + ch_type)[0]
+
+                # with the gathered data create the event object
                 event = util.LowSocEvent(start_idx=start, end_idx=min_idx,
                                          min_soc=min_soc, stations=possible_stations,
                                          vehicle_id=rot.vehicle_id, trip=trips,
@@ -1071,7 +1094,20 @@ class StationOptimizer:
 
                 events.append(event)
                 copy_list = reduced_list.copy()
+
+                # to leave the while loop, we need to change the data source of the loop, which is
+                # reduced_list and the minimal soc and index.
+                # the reduced list, contains the same values as the reduced list up to the point,
+                # where our current low soc event started
                 reduced_list = reduced_list[:start_comb]
+
+                # if the index end_comb is smaller than the length of the list, the end of the
+                # list has to be appended, since there is data left in the rotation
+                # after the low soc event.
+                # Note: The event goes from start_comb to min_index. Therefore this part is removed
+                # from the reduced list. Since the socs right after the minimal soc are dominated,
+                # by the previous minimal socs they can be removed up to the point of the upper soc
+                # threshold. This index was found earlier as end_comb.
                 if end_comb + 1 <= len(copy_list):
                     reduced_list.extend(copy_list[end_comb + 1:])
                 if len(reduced_list) > 0:
