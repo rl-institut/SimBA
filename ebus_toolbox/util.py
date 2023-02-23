@@ -217,6 +217,7 @@ def nd_interp(input_values, lookup_table):
 
     return points[0][-1]
 
+
 def get_args():
     parser = argparse.ArgumentParser(
         description='eBus-Toolbox - simulation program for electric bus fleets.')
