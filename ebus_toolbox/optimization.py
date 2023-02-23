@@ -5,12 +5,14 @@ import datetime
 from copy import deepcopy
 
 
-def service_optimization(schedule, args):
+def service_optimization(schedule, scenario, args):
     """ Optimize rotations based on feasability.
         Try to find sets of rotations that produce no negative SoC
 
     :param schedule: Schedule to be optimized
     :type schedule: ebus_toolbox.Schedule
+    :param scenario: Simulated schedule
+    :type scenario: spice_ev.Scenario
     :param args: Command line arguments
     :type args: argparse.Namespace
     :return: original and most optimized scenario (highest electrification rate)
@@ -19,8 +21,6 @@ def service_optimization(schedule, args):
     """
     common_stations = schedule.get_common_stations(only_opps=True)
 
-    # initial run
-    scenario = schedule.run(args)
     original = (deepcopy(schedule), deepcopy(scenario))
     optimal = (None, None)
 
@@ -33,7 +33,7 @@ def service_optimization(schedule, args):
         rotation = schedule.rotations[rot_key]
         if rotation.charging_type != "oppb":
             raise Exception(f"Rotation {rot_key} should be optimized, "
-                            "but is of type {rotation.charging_type}.")
+                            f"but is of type {rotation.charging_type}.")
         # oppb: build non-interfering sets of negative rotations
         # (these include the dependent non-negative rotations)
         s = {rot_key}
