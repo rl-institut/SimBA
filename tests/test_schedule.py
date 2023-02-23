@@ -70,7 +70,7 @@ class TestSchedule:
                                        **mandatory_args, station_data_path=path_to_all_station_data)
             assert len(record) == 2
 
-    def test_rotation_consistency(self):
+    def test_rotation_consistency(self, tmp_path):
         """ Test if the consistency check for rotations finds missing einsetz or ausetzfahrten,
         if it finds gaps between arrival and departure stations of successive trips and last
         it checks if the arguments for check_rotation_consistency and ignore_inconsistent_rotations
@@ -80,7 +80,7 @@ class TestSchedule:
         trip.Trip.consumption = consumption.Consumption(self.vehicle_types,
                                                         outside_temperatures=self.temperature_path,
                                                         level_of_loading_over_day=self.lol_path)
-        output_dir = test_root / "test_output_files"
+        output_dir = tmp_path
         rotation_consistency_dict = dict(check_rotation_consistency=True,
                                          ignore_inconsistent_rotations=True,
                                          output_directory=output_dir)
