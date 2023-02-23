@@ -55,7 +55,7 @@ class Consumption:
         :return: Consumed energy [kWh] and delta SOC as tuple
         :rtype: (float, float)
 
-        :raises IndexError: if there is missing data for temperature or lol data
+        :raises KeyError: if there is missing data for temperature or lol data
         :raises AttributeError: if there is no path to temperature or lol data provided
         """
 
@@ -78,12 +78,12 @@ class Consumption:
                 print("Neither of these conditions is met:\n"
                       "1. Temperature data is available for every trip through the trips file "
                       "or a temperature over day file.\n"
-                      f"2. A constant mileage for the vehicle "
-                      f"{vehicle_info['mileage']} is provided.")
+                      f"2. A constant mileage for the vehicle: "
+                      f"{vehicle_info['name']} - is provided.")
                 raise AttributeError
-            except IndexError:
+            except KeyError:
                 print(f"No temperature data for the hour {time.hour} is provided")
-                raise IndexError
+                raise KeyError
 
         # if no specific LoL is given, lookup temperature
         if level_of_loading is None:
@@ -93,12 +93,12 @@ class Consumption:
                 print("Neither of these conditions is met:\n"
                       "1. Level of loading data is available for every trip through the trips file "
                       "or a level of loading over day file.\n"
-                      f"2. A constant mileage for the vehicle "
-                      f"{vehicle_info['mileage']} is provided.")
+                      f"2. A constant mileage for the vehicle: "
+                      f"{vehicle_info['name']} - is provided.")
                 raise AttributeError
-            except IndexError:
+            except KeyError:
                 print(f"No level of loading data for the hour {time.hour} is provided")
-                raise IndexError
+                raise KeyError
 
         # load consumption csv
         consumption_path = vehicle_info["mileage"]
