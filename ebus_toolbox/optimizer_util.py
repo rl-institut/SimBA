@@ -2,7 +2,7 @@
 LowSocEvents, like evaluating them, gathering them and so on"""
 import math
 import os
-import pathlib
+from pathlib import Path
 import pickle
 import sys
 import typing
@@ -84,7 +84,7 @@ class OptimizerConfig:
         self.pickle_rebased = None
         self.pickle_rebased_name = None
         self.opt_type = None
-        self.remove_impossible_rots = None
+        self.remove_impossible_rotations = None
         self.node_choice = None
         self.max_brute_loop = None
         self.run_only_neg = None
@@ -94,8 +94,8 @@ class OptimizerConfig:
         self.decision_tree_path = None
         self.save_decision_tree = None
         self.optimizer_output_dir = None
-        self.reduce_rots = None
-        self.rots = None
+        self.reduce_rotations = None
+        self.rotations = None
         self.path = None
         self.pruning_threshold = None
         self.save_all_results = None
@@ -140,7 +140,7 @@ def read_config(config_path):
     config_parser = configparser.ConfigParser()
     config_parser.sections()
 
-    assert pathlib.Path(config_path).is_file(), f"Path to optimizer_config: {config_path} " \
+    assert Path(config_path).is_file(), f"Path to optimizer_config: {config_path} " \
                                                 f"does not lead to file"
     config_parser.read(config_path, encoding="utf-8")
     conf = OptimizerConfig()
@@ -154,8 +154,8 @@ def read_config(config_path):
             section_dict[section] = config_parser["DEFAULT"]
 
     default = section_dict["DEFAULT"]
-    conf.debug_level = int(default.get("debug_level", "0"))
-    conf.console_level = int(default.get("console_level", "99"))
+    conf.debug_level = default.getint("debug_level", 0)
+    conf.console_level = default.getint("console_level", 99)
     sce = config_parser["SCENARIO"]
     conf.exclusion_rots = set(json.loads(sce.get("exclusion_rots", "[]")))
     conf.exclusion_stations = set(json.loads(sce.get("exclusion_stations", "[]")))
@@ -168,34 +168,33 @@ def read_config(config_path):
     conf.args = pick.get("args", "")
 
     vehicle = section_dict["VEHICLE"]
-    conf.charge_eff = float(vehicle.get("charge_eff", "0.95"))
-    conf.battery_capacity = float(vehicle.get("battery_capacity", "0"))
+    conf.charge_eff = vehicle.getfloat("charge_eff", 0.95)
+    conf.battery_capacity = vehicle.getfloat("battery_capacity", 0)
     if conf.battery_capacity == 0:
         conf.battery_capacity = None
     conf.charging_curve = json.loads(vehicle.get("charging_curve", "[]"))
     if not conf.charging_curve:
         conf.charging_curve = None
-    conf.charging_power = float(vehicle.get("charging_power", "0"))
+    conf.charging_power = vehicle.getfloat("charging_power", 0)
     if conf.charging_power == 0:
         conf.charging_power = None
-    conf.min_soc = float(vehicle.get("min_soc", "0.0"))
+    conf.min_soc = vehicle.getfloat("min_soc", 0)
 
     optimizer = section_dict["OPTIMIZER"]
     conf.solver = optimizer.get("solver", "spiceev")
     conf.rebase_scenario = optimizer.getboolean("rebase_scenario", True)
     conf.pickle_rebased = optimizer.getboolean("pickle_rebased", False)
-    conf.pickle_rebased_name = optimizer.get("pickle_rebased_name",
-                                             "rebased_" + str(
-                                                 datetime.now().strftime("%Y-%m-%d-%H-%M-%S")))
+    conf.pickle_rebased_name = optimizer.get("pickle_rebased_name", "rebased_" +
+                                             datetime.now().isoformat(sep='-', timespec='seconds'))
     conf.opt_type = optimizer.get("opt_type", "greedy")
-    conf.remove_impossible_rots = optimizer.getboolean("remove_impossible_rots", False)
+    conf.remove_impossible_rotations = optimizer.getboolean("remove_impossible_rotations", False)
     conf.node_choice = optimizer.get("node_choice", "step-by-step")
-    conf.max_brute_loop = int(optimizer.get("max_brute_loop", "20"))
+    conf.max_brute_loop = optimizer.getint("max_brute_loop", 20)
     conf.run_only_neg = optimizer.getboolean("run_only_neg", False)
     conf.run_only_oppb = optimizer.getboolean("run_only_oppb", False)
-    conf.estimation_threshold = float(optimizer.get("estimation_threshold", "0.8"))
+    conf.estimation_threshold = optimizer.getfloat("estimation_threshold", 0.8)
     conf.check_for_must_stations = optimizer.getboolean("check_for_must_stations", True)
-    conf.pruning_threshold = int(optimizer.get("pruning_threshold", "3"))
+    conf.pruning_threshold = optimizer.getint("pruning_threshold", 3)
     conf.save_all_results = optimizer.getboolean("save_all_results", False)
 
     special = section_dict["SPECIAL"]
@@ -203,19 +202,20 @@ def read_config(config_path):
     if conf.decision_tree_path in ["", '""', "''"]:
         conf.decision_tree_path = None
     conf.save_decision_tree = special.getboolean("save_decision_tree", False)
-    conf.reduce_rots = special.getboolean("reduce_rots", False)
-    conf.rots = json.loads(special.get("rots", []))
+    conf.reduce_rotations = special.getboolean("reduce_rotations", False)
+    conf.rotations = json.loads(special.get("rotations", []))
 
     return conf
 
 
 def get_charging_time(trip1, trip2, args):
-    """ Returns the charging time between trips as numeric value
+    """ Returns the charging time in minutes between trips as numeric value/float
 
     :param trip1: First trip
     :param trip2: Following trip
     :param args:  arguments Namespace with default buffer time
     :return: maximum possible charging time in minutes between trips
+    :rtype: float
     """
     standing_time_min = (trip2.departure_time - trip1.arrival_time) / timedelta(minutes=1)
     buffer_time = (get_buffer_time(trip1, args.default_buffer_time_opps) / timedelta(minutes=1))
@@ -227,7 +227,8 @@ def get_charging_time(trip1, trip2, args):
 
 
 def get_charging_start(trip1, args):
-    """ Returns the possible start of charging consindering buffer times
+    """ Returns the possible start time of charging considering buffer times before charging
+    can take place
 
     :param trip1: First trip
     :param args:  arguments Namespace with default buffer time
@@ -248,18 +249,19 @@ def get_buffer_time(trip, default_buffer_time_opps):
 
 def get_index_by_time(scenario, search_time):
     """ Get the index for a given time
+
+    In case the time does not coincide with a simulation index the lower index is returned.
+
     :param scenario: scenario object
     :param search_time: search time as datetime object
     :return: index as int
     """
-    start_time = scenario.start_time
-    delta_time = timedelta(minutes=60 / scenario.stepsPerHour)
-    idx = (search_time - start_time) // delta_time
+    idx = (search_time - scenario.start_time) // scenario.interval
     return idx
 
 
 def get_rotation_soc_util(rot_id, this_sched, this_scen, soc_data: dict = None):
-    """Gets you the soc object with start and end index for a given rotation id
+    """Returns the soc time series with start and end index for a given rotation id
     :param rot_id: rotation_id
     :param this_sched: schedule object contain rotation information
     :param this_scen: scenario object containing the soc data
@@ -275,7 +277,7 @@ def get_rotation_soc_util(rot_id, this_sched, this_scen, soc_data: dict = None):
 
 
 def get_delta_soc(soc_over_time_curve, soc, time_delta, optimizer: 'StationOptimizer'):
-    """get expected soc lift for a given start_soc and time_delta.
+    """Return expected soc lift for a given soc charging time series, start_soc and time_delta.
 
     :param soc_over_time_curve: array with socs over time
     :param soc: start socs
@@ -330,19 +332,25 @@ def evaluate(events: typing.Iterable[LowSocEvent],
     soc_data = kwargs.get("soc_data", optimizer.scenario.vehicle_socs)
 
     station_eval = {}
+    # Note: Lift describes the positive delta in the soc time series through electrification.
     # cycle through events and determine how much lift can be provided by electrifying a station
     # the lift is determined by the soc position, standing time, power supply and charging curve
     for e in events:
         soc_over_time = optimizer.soc_charge_curve_dict[e.v_type][e.ch_type]
         for i, trip in enumerate(e.trip):
             # station is only evaluated if station name is part of event stations
-            # only these stations showed potential in electrification, e.g enough standing time
+            # only these stations showed potential in electrification, e.g. enough standing time
             if trip.arrival_name not in e.stations:
                 continue
             idx = get_index_by_time(optimizer.scenario, trip.arrival_time, )
             soc = soc_data[e.vehicle_id][idx]
 
-            # potential is the minimal amount of
+            # potential is the minimal amount of the following boundaries
+            # - soc can only be lifted to the upper threshold
+            # - useful lift is in between the minimal soc of the event and the lower threshold of soc
+            # - useful lift can only occur in between the current soc and the
+            # - the highest useful lift is the amount between a "full" and "empty" battery, where
+            # "full" and "empty" are described by the upper and lower thresholds
             delta_soc_pot = min(soc_upper_thresh - soc,
                                 soc_lower_thresh - e.min_soc,
                                 soc - e.min_soc,
@@ -364,9 +372,8 @@ def evaluate(events: typing.Iterable[LowSocEvent],
                 station_eval[trip.arrival_name] = delta_e_pot
 
     # sort by pot_sum
-    station_eval = list(dict(sorted(station_eval.items(), key=lambda x: x[1])).items())
-    station_eval.reverse()
-    return station_eval
+    station_eval_list = sorted(station_eval.items(), key=lambda x: x[1],reverse=True)
+    return station_eval_list
 
 
 def get_groups_from_events(events, not_possible_stations=None, could_not_be_electrified=None,
@@ -623,7 +630,7 @@ def run_schedule(this_sched, this_args, electrified_stations=None):
     with warnings.catch_warnings():
         warnings.simplefilter('ignore', UserWarning)
         if "pytest" not in sys.modules:
-            # do not print output from spice ev to reduce clutter. Dont do it in testing
+            # do not print output from spice ev to reduce clutter. Don't do it in testing
             # since it produces errors
             sys.stdout = open(os.devnull, 'w')
         new_scen.run('distributed', vars(this_args).copy())
@@ -633,7 +640,7 @@ def run_schedule(this_sched, this_args, electrified_stations=None):
 
 
 def preprocess_schedule(this_sched, this_args, electrified_stations=None):
-    """ Prepare the schedule by calculating consumption, setting elctrified stations and assigning
+    """ Prepare the schedule by calculating consumption, setting electrified stations and assigning
     vehicles
 
     :param this_sched: schedule containing the rotations

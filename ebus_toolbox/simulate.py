@@ -7,7 +7,7 @@ from ebus_toolbox.trip import Trip
 from ebus_toolbox.costs import calculate_costs
 from ebus_toolbox import report, optimization, util
 from ebus_toolbox.station_optimization import run_optimization
-from ebus_toolbox.optimizer_util import read_config as read_optimzier_config
+from ebus_toolbox.optimizer_util import read_config as read_optimizer_config
 
 
 def simulate(args):
@@ -29,7 +29,7 @@ def simulate(args):
 
     # load stations file
     try:
-        with open(args.electrified_stations, encoding='UTF-8') as f:
+        with open(args.electrified_stations, encoding='utf-8') as f:
             stations = util.uncomment_json_file(f)
     except FileNotFoundError:
         raise SystemExit(f"Path to electrified stations ({args.electrified_stations}) "
@@ -104,14 +104,14 @@ def simulate(args):
                 if neg_rot:
                     print(f'Rotations {", ".join(neg_rot)} remain negative.')
         elif mode == "station_optimization":
-            if str(args.optimizer_config) == "" or args.optimizer_config is None:
-                warnings.warn("Station optimization needs an optimization config file. Since no"
-                              "path was given, station optimization is skipped")
-                break
-            conf = read_optimzier_config(args.optimizer_config)
+            if not args.optimizer_config:
+                warnings.warn("Station optimization needs an optimization config file."
+                              "Since no path was given, station optimization is skipped")
+                continue
+            conf = read_optimizer_config(args.optimizer_config)
             try:
                 schedule, scenario = run_optimization(conf, sched=schedule, scen=scenario,
-                                                      this_args=args)
+                                                      args=args)
             except Exception as err:
                 warnings.warn('During Station optimization an error occurred {0}.'
                               'Optimization was skipped'.format(err))

@@ -41,8 +41,8 @@ class StationOptimizer:
         self.not_possible_stations = config.inclusion_stations.union(config.exclusion_stations)
 
         # if the config defines special rotations, only use them in the schedule
-        if config.reduce_rots:
-            self.schedule.rotations = {rot: sched.rotations[rot] for rot in config.rots}
+        if config.reduce_rotations:
+            self.schedule.rotations = {rot: sched.rotations[rot] for rot in config.rotations}
 
     def loop(self, **kwargs):
         """ Loops over every base group with the core of group optimization and handles deep or

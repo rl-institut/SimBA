@@ -1,6 +1,8 @@
-""" Optimizer that evaluates inputs and outputs of every iteration, adapting scenario setup
-    to optimize for specified metrics.
+""" Optimization that tries minimizing the amount of electrified stations to achieve full
+electrification.
+
 """
+
 from datetime import datetime
 import json
 from pathlib import Path
@@ -48,7 +50,7 @@ def setup_logger(conf):
 def main():
     """ main call"""
     util.print_time()
-    config_path = "./data/examples/optimizer.cfg"
+    config_path = "./data/examples/default_optimizer.cfg"
     conf = util.read_config(config_path)
     opt_sched, opt_scen = run_optimization(conf)
     util.print_time()
@@ -66,7 +68,7 @@ def prepare_filesystem(this_args, conf):
     """
     now = datetime.now().strftime("%Y-%m-%d-%H-%M-%S")
     this_args.output_directory = Path(this_args.output_directory)
-    conf.optimizer_output_dir = Path(this_args.output_directory) / str(now + "_optimizer")
+    conf.optimizer_output_dir = Path(this_args.output_directory) / (now + "_optimizer")
     # create sub folder for specific sim results with timestamp.
     # if folder doesnt exists, create folder.
     conf.optimizer_output_dir.mkdir(parents=True, exist_ok=True)
@@ -77,7 +79,7 @@ def prepare_filesystem(this_args, conf):
     shutil.copy(copy_file, destination)
 
 
-def run_optimization(conf, sched=None, scen=None, this_args=None):
+def run_optimization(conf, sched=None, scen=None, args=None):
     """    Optimizes scenario by adding electrified stations sparingly
     until scenario has no below 0 soc events.
 
@@ -92,21 +94,20 @@ def run_optimization(conf, sched=None, scen=None, this_args=None):
     :param scen: Simulation scenario containing simulation results
                      including the SoC of all vehicles over time
     :type scen: spice_ev.Scenario
-    :param this_args: Simulation arguments for manipulation or generated outputs
-    :type this_args: object
+    :param args: Simulation arguments for manipulation or generated outputs
+    :type args: object
 
     :return: (Schedule,Scenario) optimized schedule and Scenario
     :rtype: tuple(ebus_toolbox.Schedule, spice_ev.Scenario)
     """
 
     # load pickle files only in the case they are not given as arguments
-    if sched is None or scen is None or this_args is None:
+    if sched is None or scen is None or args is None:
         # if no schedule was given as argument, make sure no scenario
         # and args input was given as well.
-        assert sched == scen == this_args is None
-        sched, scen, this_args = util.toolbox_from_pickle(conf.schedule,
-                                                          conf.scenario, conf.args)
-    args = this_args
+        assert sched == scen == args is None
+        sched, scen, args = util.toolbox_from_pickle(conf.schedule,
+                                                     conf.scenario, conf.args)
 
     # prepare Filesystem with folders and paths and copy config
     prepare_filesystem(args, conf)
@@ -147,7 +148,7 @@ def run_optimization(conf, sched=None, scen=None, this_args=None):
     optimizer.remove_none_socs()
 
     # check if rotations cant be operated electric, even with all stations electrified.
-    if conf.remove_impossible_rots:
+    if conf.remove_impossible_rotations:
         neg_rots = optimizer.get_negative_rotations_all_electrified()
         optimizer.config.exclusion_rots.update(neg_rots)
         optimizer.schedule.rotations = {r: optimizer.schedule.rotations[r]
