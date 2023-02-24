@@ -20,6 +20,8 @@ if __name__ == '__main__':
                         neg_depb_to_oppb changes charging type of negative depb rotations. \
                         neg_oppb_to_depb changes charging type of negative oppb rotations. \
                         service optimization finds the largest set of electrified rotations. \
+                        station_optimization finds the set of fewest stations to electrify \
+                        all rotations. \
                         report generates simulation output files.")
     parser.add_argument('--output-directory', default="./data/sim_outputs", nargs='?',
                         help='Location where all simulation outputs are stored')
