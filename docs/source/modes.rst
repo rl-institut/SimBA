@@ -11,12 +11,24 @@ different modes support the user in finding optimal solutions for their eBus-Sys
 * simple simulation
 * negative depot to opportunity charger
 * negative opportunity to depot charger
+* service optimization
 * station optimization
+* report
+
+While the default mode is the simple simulation modes can be chained together to achieve the desired results. The chain of modes is defined in the config file (default: ebus_toolbox.cfg) under the keyword *mode*:
+::
+    mode = ["sim", "report"]
+
+This results in a simple simulation with a following report. To run a simulation the ebus-toolbox creates a schedule which contains all information about how the bus system is supposed to run. Some modes are allowed to mutate the schedule in some way, which makes chaining of modes especially useful. An extended simple use case would be
+    mode = ["sim", "report" ,"neg_depb_to_oppb", "report]
 
 
-Single simulation
+
+
+simple simulation
 -----------------
-The single simulation case is the default mode. Its usage is explained in :ref:`Getting Started`
+The simple simulation case is the default mode. Its usage is explained in :ref:`Getting Started`. The simulation takes the scenario as is. No parameters will be adjusted, optimized or changed in any way. The report will include information about the expected socs, power loads at the charging stations or depots, default plots for the scenario and other useful data
+
 
 negative depot to opportunity charger
 -------------------------------------
