@@ -34,16 +34,11 @@ class TestSchedule:
     def test_mandatory_options_exit(self):
         """ Check if the schedule creation properly throws a SystemExit error in case of missing
         mandatory options"""
-        try:
+
+        # check if System exit is properly thrown when mandatory options are not given
+        with pytest.raises(SystemExit):
             # schedule creation without mandatory args
             schedule.Schedule(self.vehicle_types, self.electrified_stations)
-        except SystemExit:
-            # exception was properly thrown
-            pass
-        else:
-            # create assertion error since schedule creation did no
-            assert 0, "Schedule initialization did not get mandatory options but did" \
-                      "not throw an exception"
 
     def test_station_data_reading(self):
         """ Test if the reading of the geo station data works and outputs warnings in
