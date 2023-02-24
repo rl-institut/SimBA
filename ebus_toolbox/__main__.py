@@ -1,8 +1,10 @@
 import argparse
-import shutil
-from ebus_toolbox import simulate, util
-from pathlib import Path
 from datetime import datetime
+from pathlib import Path
+import shutil
+
+from spice_ev.util import set_options_from_config
+from ebus_toolbox import simulate, util
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(
@@ -10,10 +12,15 @@ if __name__ == '__main__':
         simulation program for electric bus fleets.')
     parser.add_argument('--input-schedule', nargs='?',
                         help='Path to CSV file containing all trips of schedule to be analyzed.')
-    parser.add_argument('--mode', default='sim', choices=['sim', 'service_optimization'],
-                        help='Specify what you want to do. Choose one from {sim, \
-                        service_optimization}. sim runs a single simulation with the given inputs. \
-                        service optimization finds the largest set of electrified rotations.')
+    mode_choices = ['sim', 'neg_depb_to_oppb', 'neg_oppb_to_depb', 'service_optimization', 'report']
+    parser.add_argument('--mode', default=['sim', 'report'], nargs='*', choices=mode_choices,
+                        help=f"Specify what you want to do. Choose one or more from \
+                        {', '.join(mode_choices)}. \
+                        sim runs a single simulation with the given inputs. \
+                        neg_depb_to_oppb changes charging type of negative depb rotations. \
+                        neg_oppb_to_depb changes charging type of negative oppb rotations. \
+                        service optimization finds the largest set of electrified rotations. \
+                        report generates simulation output files.")
     parser.add_argument('--output-directory', default="./data/sim_outputs", nargs='?',
                         help='Location where all simulation outputs are stored')
     parser.add_argument('--preferred-charging-type', '-pct', default='depb',
@@ -75,10 +82,8 @@ if __name__ == '__main__':
                         default=10)
     parser.add_argument('--visual', '-v', action='store_true',
                         help='Show plots of the results- not applicable', default=False)
-    parser.add_argument('--generate-report', '-r', help='generates and stores plots and results',
-                        default=False)
     parser.add_argument('--show-plots',
-                        help='opens plots for user to view, only valid if generate_report=True',
+                        help='show plots for users to view in "report" mode',
                         default=False)
     parser.add_argument('--eta', action='store_true',
                         help='Show estimated time to finish simulation after each step, \
@@ -116,7 +121,7 @@ if __name__ == '__main__':
     args.ALLOW_NEGATIVE_SOC = True
     args.attach_vehicle_soc = True
 
-    util.set_options_from_config(args, check=True, verbose=False)
+    set_options_from_config(args, check=parser, verbose=False)
 
     args.output_directory = Path(args.output_directory) / (
         datetime.now().strftime("%Y-%m-%d-%H-%M-%S") + "_eBus_results")
@@ -141,6 +146,9 @@ if __name__ == '__main__':
 
     # rename special options
     args.timing = args.eta
+
+    if any([args.save_soc, args.save_results, args.save_timeseries]):
+        print("save_* options ignored for eBus-Toolbox reports naming")
 
     if args.input_schedule is None:
         raise SystemExit("The following argument is required: input_schedule")
