@@ -118,9 +118,10 @@ if __name__ == '__main__':
                         help="Use csv. data with 'hour' and level_of_loading' columns to set \
                         level of loading in case they are not in trips.csv")
 
-    parser.add_argument('--optimizer_config', default=None,
-                        help="For station_optimization a optimizer_config is needed. Input"
-                             "a path to an .cfg file or use the default_optimizer.cfg")
+    parser.add_argument(
+        '--optimizer_config', default=None,
+        help="For station_optimization a optimizer_config is needed. Input "
+             "a path to an .cfg file or use the default_optimizer.cfg")
 
     args = parser.parse_args()
     # arguments relevant to SpiceEV, setting automatically to reduce clutter in config
