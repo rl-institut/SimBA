@@ -20,7 +20,7 @@ if typing.TYPE_CHECKING:
 
 from ebus_toolbox.consumption import Consumption
 from ebus_toolbox.trip import Trip
-from ebus_toolbox.util import get_buffer_time as get_buffer_time_spice_ev
+from ebus_toolbox.util import get_buffer_time as get_buffer_time_util
 
 
 class ChargingEvent:
@@ -244,7 +244,7 @@ def get_buffer_time(trip, default_buffer_time_opps):
     :param default_buffer_time_opps: the default buffer time at opps charging stations
     :return: timedelta object for the buffer time
     """
-    return timedelta(minutes=get_buffer_time_spice_ev(trip, default_buffer_time_opps))
+    return timedelta(minutes=get_buffer_time_util(trip, default_buffer_time_opps))
 
 
 def get_index_by_time(scenario, search_time):
@@ -609,14 +609,14 @@ def run_schedule(this_sched, this_args, electrified_stations=None):
     :param this_args: args namespace object
     :param electrified_stations: dict of electrified stations. Default value None means no further
         stations are electrified
-    :return: schedule and scenario objects after spiceev simulation
+    :return: schedule and scenario objects after SpiceEV simulation
     """
     this_sched2 = copy(this_sched)
     this_sched2.stations = electrified_stations
     this_sched2, new_scen = preprocess_schedule(this_sched2, this_args,
                                                 electrified_stations=electrified_stations)
 
-    # parse strategy options for Spice EV
+    # parse strategy options for SpiceEV
     if this_args.strategy_option is not None:
         for opt_key, opt_val in this_args.strategy_option:
             try:
@@ -630,7 +630,7 @@ def run_schedule(this_sched, this_args, electrified_stations=None):
     with warnings.catch_warnings():
         warnings.simplefilter('ignore', UserWarning)
         if "pytest" not in sys.modules:
-            # do not print output from spice ev to reduce clutter. Don't do it in testing
+            # do not print output from SpiceEV to reduce clutter. Don't do it in testing
             # since it produces errors
             sys.stdout = open(os.devnull, 'w')
         new_scen.run('distributed', vars(this_args).copy())

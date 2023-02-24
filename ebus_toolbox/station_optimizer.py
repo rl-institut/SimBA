@@ -780,10 +780,10 @@ class StationOptimizer:
 
     def rebase_spice_ev(self):
         """ Rebase the scenario meaning configuring various variables according to the input data
-        and running a spice ev simulation
+        and running a SpiceEV simulation
         :return: must_include_set and dict of electrified_stations
         """
-        self.logger.debug("Spice EV Rebasing Scenario")
+        self.logger.debug("Rebasing Scenario")
         must_include_set, ele_stations = self.preprocessing_scenario(
             run_only_neg=self.config.run_only_neg)
         self.logger.debug("Rebasing finished")

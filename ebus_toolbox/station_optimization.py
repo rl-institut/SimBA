@@ -138,7 +138,7 @@ def run_optimization(conf, sched=None, scen=None, args=None):
     if conf.rebase_scenario:
         must_include_set, ele_stations = optimizer.rebase_spice_ev()
     else:
-        # no new spice ev calculation will take place but some variables need to be adjusted.
+        # no new SpiceEV calculation will take place but some variables need to be adjusted.
         must_include_set, ele_stations = optimizer.rebase_simple()
 
     # create charging dicts which contain soc over time, which is numerically calculated
@@ -186,7 +186,7 @@ def run_optimization(conf, sched=None, scen=None, args=None):
     with open(new_ele_stations_path, "w", encoding="utf-8") as file:
         json.dump(ele_stations, file, ensure_ascii=False, indent=2)
 
-    logger.debug("Spice EV is calculating optimized case as a complete scenario")
+    logger.debug("Calculating optimized case as a complete scenario")
     _, __ = optimizer.preprocessing_scenario(
         electrified_stations=ele_stations, run_only_neg=False)
 
