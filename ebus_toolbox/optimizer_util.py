@@ -135,7 +135,9 @@ def time_it(function, timers={}):
 def read_config(config_path):
     """ Read the config path to a config object
     :param config_path: path to file
-    :return: config object
+    :type config_path: str
+    :return: configuration
+    :rtype: ebus_toolbox.optimizer_util.OptimizerConfig
     """
     config_parser = configparser.ConfigParser()
     config_parser.sections()
@@ -211,9 +213,12 @@ def read_config(config_path):
 def get_charging_time(trip1, trip2, args):
     """ Returns the charging time in minutes between trips as numeric value/float
 
-    :param trip1: First trip
-    :param trip2: Following trip
-    :param args:  arguments Namespace with default buffer time
+    :param trip1: first trip
+    :type trip1: ebus_toolbox.trip.Trip
+    :param trip2: following trip
+    :type trip2: ebus_toolbox.trip.Trip
+    :param args:  arguments including default buffer time
+    :type args: Namespace object
     :return: maximum possible charging time in minutes between trips
     :rtype: float
     """
@@ -230,8 +235,10 @@ def get_charging_start(trip1, args):
     """ Returns the possible start time of charging considering buffer times before charging
     can take place
 
-    :param trip1: First trip
-    :param args:  arguments Namespace with default buffer time
+    :param trip1: trip to be checked
+    :type trip1: ebus_toolbox.trip.Trip
+    :param args: arguments including default buffer time
+    :type args: Namespace object
     :return: First possible charging time as datetime object
     """
     buffer_time = get_buffer_time(trip1, args.default_buffer_time_opps)
@@ -240,9 +247,12 @@ def get_charging_start(trip1, args):
 
 def get_buffer_time(trip, default_buffer_time_opps):
     """  Return the buffer time as timedelta object
-    :param trip: trip object
+
+    :param trip: trip to be checked
+    :type trip: ebus_toolbox.trip.Trip
     :param default_buffer_time_opps: the default buffer time at opps charging stations
-    :return: timedelta object for the buffer time
+    :return: buffer time
+    :rtype: datetime.timedelta
     """
     return timedelta(minutes=get_buffer_time_util(trip, default_buffer_time_opps))
 
@@ -252,38 +262,50 @@ def get_index_by_time(scenario, search_time):
 
     In case the time does not coincide with a simulation index the lower index is returned.
 
-    :param scenario: scenario object
-    :param search_time: search time as datetime object
-    :return: index as int
+    :param scenario: scenario to be checked
+    :type scenario: spice_ev.Scenario
+    :param search_time: search time
+    :type search_time: datetime.datetime
+    :return: index
+    :rtype: int
     """
     idx = (search_time - scenario.start_time) // scenario.interval
     return idx
 
 
-def get_rotation_soc_util(rot_id, this_sched, this_scen, soc_data: dict = None):
+def get_rotation_soc_util(rot_id, schedule, scenario, soc_data: dict = None):
     """Returns the soc time series with start and end index for a given rotation id
     :param rot_id: rotation_id
-    :param this_sched: schedule object contain rotation information
-    :param this_scen: scenario object containing the soc data
-    :param soc_data: optional soc_data if not the scenario data should be used
-    :return: tuple with soc array, start index and end index
+    :type rot_id: str
+    :param schedule: schedule object contain rotation information
+    :param scenario: scenario containing the soc data
+    :type scenario: spice_ev.Scenario
+    :param soc_data: optional soc_data if the scenario data should not be used
+    :type soc_data: dict
+    :return: soc time series, start index and end index
+    :rtype: (list, int, int)
     """
-    rot = this_sched.rotations[rot_id]
-    rot_start_idx = get_index_by_time(this_scen, rot.departure_time)
-    rot_end_idx = get_index_by_time(this_scen, rot.arrival_time)
+    rot = schedule.rotations[rot_id]
+    rot_start_idx = get_index_by_time(scenario, rot.departure_time)
+    rot_end_idx = get_index_by_time(scenario, rot.arrival_time)
     if soc_data:
         return soc_data[rot.vehicle_id], rot_start_idx, rot_end_idx
-    return this_scen.vehicle_socs[rot.vehicle_id], rot_start_idx, rot_end_idx
+    return scenario.vehicle_socs[rot.vehicle_id], rot_start_idx, rot_end_idx
 
 
 def get_delta_soc(soc_over_time_curve, soc, time_delta, optimizer: 'StationOptimizer'):
     """Return expected soc lift for a given soc charging time series, start_soc and time_delta.
 
-    :param soc_over_time_curve: array with socs over time
+    :param soc_over_time_curve: Data with columns: time, soc and n rows
+    :type soc_over_time_curve: np.array() with shape(n, 2)
     :param soc: start socs
+    :type soc: float
     :param time_delta: time of charging
+    :type time_delta: float
     :param optimizer: optimizer object
-    :return: (float) the lift of the soc
+    :type optimizer: ebus_toolbox.station_optimizer.StationOptimizer
+    :return: positive delta of the soc
+    :rtype: float
     """
     # units for time_delta and time_curve are assumed to be the same, e.g. minutes
     # first element which is bigger than current soc
@@ -322,9 +344,11 @@ def evaluate(events: typing.Iterable[LowSocEvent],
     by  loading power, standing time at a station, soc at station and minimal soc of the event
 
     :param events: events to be evaluated
-    :param optimizer: StationOptimizer object with scenario and schedule data
+    :type events: list(ebus_toolbox.optimizer_util.LowSocEvent)
+    :param optimizer: optimizer with scenario and schedule data
+    :type optimizer: ebus_toolbox.station_optimizer.StationOptimizer
     :param kwargs: optional overwriting of soc_lower_thresh, soc_upper_thresh or soc_data
-    :return: sorted list with the best station and its potential on index 0
+    :return: sorted stations and potentials
     :rtype: list(str(station_id), float(potential))
     """
     soc_lower_thresh = kwargs.get("soc_lower_thresh", optimizer.config.min_soc)
@@ -661,16 +685,17 @@ def preprocess_schedule(this_sched, this_args, electrified_stations=None):
     return this_sched, this_sched.generate_scenario(this_args)
 
 
-def print_time(start=[]):
+def get_time(start=[]):
     """Print the time and automatically set start time to the first time the function getting
     called
     :param start: list for storing times
+    :returns: String with seconds which passed since the first call.
     """
     if not start:
         start.append(time())
     delta = round(time() - start[0], 2)
     if delta > 0:
-        print(delta, "seconds since start")
+        return str(delta) + " seconds since start"
 
 
 def plot_(data):

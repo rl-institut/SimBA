@@ -85,7 +85,7 @@ class StationOptimizer:
 
         # baseline greedy optimization
         # base line is created simply by not having a decision tree and not a pre optimized_set yet
-        util.print_time()
+        print(util.get_time())
         for group_nr, group in enumerate(groups[:]):
             # unpack the group
             events, stations = group
@@ -116,7 +116,7 @@ class StationOptimizer:
                     self.electrify_station(stat, self.electrified_station_set)
             return self.electrified_stations, self.electrified_station_set
         self.logger.warning("Starting deep analysis with mode: %s", self.config.node_choice)
-        util.print_time()
+        print(util.get_time())
         # from here on only for deep analysis
         for group_nr, group in enumerate(groups[:]):
             events, stations = group
@@ -193,7 +193,7 @@ class StationOptimizer:
             self.logger.debug("Optimized with %s stations out of %s", len(pre_optimized_set),
                               len(stations))
 
-        util.print_time()
+        print(util.get_time())
         # saving decision tree only in case of deep analysis
         if self.config.save_decision_tree:
             with open(self.config.optimizer_output_dir / Path("decision_tree.pickle"), "wb") as f:
@@ -967,7 +967,8 @@ class StationOptimizer:
         """
 
         start_time = self.scenario.start_time
-        delta_time = timedelta(minutes=60 / self.scenario.stepsPerHour)
+
+        delta_time = self.scenario.interval
         searched_time = start_time + delta_time * idx
         return searched_time
 
