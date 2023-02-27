@@ -1001,7 +1001,6 @@ class StationOptimizer:
         # properties before and after these points have no effect on the event itself, similar to
         # an event horizon
         events = []
-        count_electrified_rot = 0
 
         for rot_id in rotations:
             rot = self.schedule.rotations[rot_id]
