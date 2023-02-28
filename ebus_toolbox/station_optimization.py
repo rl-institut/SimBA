@@ -16,6 +16,7 @@ config = util.OptimizerConfig()
 def setup_logger(conf):
     """ Setup file and stream logging by config and args arguments
     :param conf: configuration object
+    :type conf: ebus_toolbox.optimizer_util.OptimizerConfig
     :return: logger
     :rtype: Logger
     """
@@ -66,7 +67,7 @@ def prepare_filesystem(args, conf):
     :param conf: configuration
     :type conf:  ebus_toolbox.optimizer_util.OptimizerConfig
     :param args: Arguments for ebus toolbox
-    :type args: Namespace object
+    :type args: Namespace
     """
     now = datetime.now().strftime("%Y-%m-%d-%H-%M-%S")
     args.output_directory = Path(args.output_directory)
@@ -89,15 +90,15 @@ def run_optimization(conf, sched=None, scen=None, args=None):
     :param conf: Configuration object of optimization
     :type conf: OptimizerConfig
     :param sched: Simulation schedule containing buses, rotations etc.
-    :type sched: ebus_toolbox.Schedule
+    :type sched: ebus_toolbox.schedule.Schedule
     :param scen: Simulation scenario containing simulation results
                      including the SoC of all vehicles over time
     :type scen: spice_ev.Scenario
     :param args: Simulation arguments for manipulation or generated outputs
-    :type args: object
+    :type args: Namespace
 
     :return: optimized schedule and Scenario
-    :rtype: tuple(ebus_toolbox.Schedule, spice_ev.Scenario)
+    :rtype: tuple(ebus_toolbox.schedule.Schedule, spice_ev.Scenario)
     """
 
     # load pickle files if they are not given as arguments
