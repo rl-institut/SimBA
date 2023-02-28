@@ -1,5 +1,6 @@
 """ Module for the class LowSocEvent which gathers functionality around
 LowSocEvents, like evaluating them, gathering them and so on"""
+import logging
 import math
 import os
 from pathlib import Path
@@ -99,6 +100,7 @@ class OptimizerConfig:
         self.path = None
         self.pruning_threshold = None
         self.save_all_results = None
+        self.eps = None
 
 
 def time_it(function, timers={}):
@@ -189,6 +191,7 @@ def read_config(config_path):
     conf.pickle_rebased_name = optimizer.get("pickle_rebased_name", "rebased_" +
                                              datetime.now().isoformat(sep='-', timespec='seconds'))
     conf.opt_type = optimizer.get("opt_type", "greedy")
+    conf.eps = optimizer.getfloat("eps", 0.0001)
     conf.remove_impossible_rotations = optimizer.getboolean("remove_impossible_rotations", False)
     conf.node_choice = optimizer.get("node_choice", "step-by-step")
     conf.max_brute_loop = optimizer.getint("max_brute_loop", 20)
@@ -408,7 +411,8 @@ def get_groups_from_events(events, impossible_stations=None, could_not_be_electr
 
     First it creates a simple list of station sets for single events. They are connected if they
     share possible stations.
-    Electrified and other not possible to electrify stations should not connect groups
+    Electrified and non-electrifiable stations are ignored, i.e. will not show up as possible
+    station
 
     :param events: events for a given state of a scenario
     :type events: list(ebus_toolbox.optimizer_util.LowSocEvent)
@@ -429,11 +433,10 @@ def get_groups_from_events(events, impossible_stations=None, could_not_be_electr
     if could_not_be_electrified is None:
         could_not_be_electrified = set()
 
-    possible_stations = [
-        {station for station in event.stations if station not in impossible_stations}
-        for event
-        in events]
-    # if stations overlap join them
+    possible_stations = \
+        [{station for station in event.stations if station not in impossible_stations}
+            for event in events]
+    # if station sets have intersections they are returned as single set
     station_subsets = join_all_subsets(possible_stations)
     event_groups = [[] for __ in range(len(station_subsets))]
 
@@ -451,7 +454,7 @@ def get_groups_from_events(events, impossible_stations=None, could_not_be_electr
             if optimizer:
                 optimizer.logger.warning('Did not find rotation %s in any subset'
                                          'of possible electrifiable stations', event.rotation.id)
-                # this event will no show up in an event_group.
+                # this event will not show up in an event_group.
                 # therefore it needs to be put into this set
             could_not_be_electrified.update([event.rotation.id])
 
@@ -472,15 +475,18 @@ def join_all_subsets(subsets):
 
 
 def join_subsets(subsets: typing.Iterable[set]):
-    """ Run through every subset and check with every other subset if there is an intersection
-    If an intersection is found. The subsets are joined and returned with a boolean of True.
-    If not intersection is found over all subsets False is returned which will cancel the outer
+    """ Run through subsets and return their union, if they have an intersection
+
+    Run through every subset and check with every other subset if there is an intersection
+    If an intersection is found, the subsets are joined and returned with a boolean of True.
+    If no intersection is found over all subsets False is returned which will cancel the outer
     call in join_all_subsets
 
     :param subsets: sets to be joined
     :type subsets: iterable
     :return: boolean if joining subsets is finished (i.e. False if all subsets are connected
-        and thus far connected subsets
+        and thus far connected subsets)
+    :rtype: (bool,list(set))
     """
     subsets = [s.copy() for s in subsets]
     for i in range(len(subsets)):
@@ -522,9 +528,14 @@ def toolbox_to_pickle(name, sched, scen, args):
 
 def charging_curve_to_soc_over_time(charging_curve, capacity, args,
                                     max_charge_from_grid=float('inf'),
-                                    time_step=0.1, efficiency=1):
+                                    time_step=0.1, efficiency=1, eps=0.001,
+                                    logger: logging.Logger = None):
     """ create charging curve as nested list of SOC, Power[kW] and capacity in [kWh]
 
+    :param logger: logger
+    :type logger: logging.Logger
+    :param eps: smallest normalized power, where charging curve will stop
+    :type eps: float
     :param charging_curve: the charging curve with power over soc
     :type charging_curve: list(float,float)
     :param capacity: capacity of the vehicle
@@ -547,6 +558,14 @@ def charging_curve_to_soc_over_time(charging_curve, capacity, args,
     socs = []
     times = []
     final_value = args.desired_soc_opps
+
+    starting_power = min(np.interp(soc, normalized_curve[:, 0], normalized_curve[:, 1]),
+                         max_charge_from_grid / capacity)
+    if starting_power <= 0:
+        times.append(charge_time)
+        socs.append(soc)
+        return np.array((times, socs)).T
+
     while soc < args.desired_soc_opps:
         times.append(charge_time)
         socs.append(soc)
@@ -559,7 +578,13 @@ def charging_curve_to_soc_over_time(charging_curve, capacity, args,
         delta_soc = time_step / 60 * power
         soc += delta_soc
         charge_time += time_step
-        if args.desired_soc_opps-soc < 0.0001 and delta_soc < 1e-10:
+        if power/starting_power < eps:
+            if logger:
+                warnings.warn("charging_curve_to_soc_over_time stopped early")
+                logger.warning("charging_curve_to_soc_over_time stopped early,"
+                               "because the charging power of %s was to low for eps: %s"
+                               "at an soc of %s an a desired soc of %s",
+                               power, eps, soc, args.desired_soc_opps)
             final_value = soc
             break
     # fill the soc completely in last time step
