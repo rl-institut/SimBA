@@ -104,8 +104,8 @@ class OptimizerConfig:
 
 
 def time_it(function, timers={}):
-    """decorator function to time the duration function calls
-    take and count how often they happen
+    """Decorator function to time the duration and number of function calls
+
     :param function: function do be decorated
     :type function: function
     :param timers: storage for cumulated time and call number
@@ -136,6 +136,7 @@ def time_it(function, timers={}):
 
 def read_config(config_path):
     """ Read the config path to a config object
+
     :param config_path: path to file
     :type config_path: str
     :return: configuration
@@ -235,8 +236,9 @@ def get_charging_time(trip1, trip2, args):
 
 
 def get_charging_start(trip1, args):
-    """ Returns the possible start time of charging considering buffer times before charging
-    can take place
+    """ Returns the possible start time of charging
+
+    This function considers the buffer times before charging can take place
 
     :param trip1: trip to be checked
     :type trip1: ebus_toolbox.trip.Trip
@@ -278,6 +280,7 @@ def get_index_by_time(scenario, search_time):
 
 def get_rotation_soc_util(rot_id, schedule, scenario, soc_data: dict = None):
     """Returns the soc time series with start and end index for a given rotation id
+
     :param rot_id: rotation_id
     :type rot_id: str
     :param schedule: schedule containing rotation information
@@ -343,9 +346,11 @@ class AllCombinationsCheckedException(Exception):
 @time_it
 def evaluate(events: typing.Iterable[LowSocEvent],
              optimizer: 'StationOptimizer', **kwargs):
-    """Analyse stations for "helpful" energy supply. Energy supply is helpful if the minimal soc of
-    an event is raised (up to a minimal soc (probably zero)). The supplied energy is approximated
-    by  loading power, standing time at a station, soc at station and minimal soc of the event
+    """Analyse stations for useful energy supply.
+
+    Energy supply is helpful if the minimal soc of an event is raised (up to a minimal soc
+    (probably zero)). The supplied energy is approximated by  charging power, standing time at a
+    station, soc at station and minimal soc of the event.
 
     :param events: events to be evaluated
     :type events: list(ebus_toolbox.optimizer_util.LowSocEvent)
@@ -464,9 +469,11 @@ def get_groups_from_events(events, impossible_stations=None, could_not_be_electr
 
 def join_all_subsets(subsets):
     """ join sets for as long as needed until no elements share any intersections
+
     :param subsets: sets to be joined
     :type subsets: iterable
     :return: joined subsets if they connect with other subsets in some way
+    :rtype: list(set)
     """
     joined_subset = True
     while joined_subset:
@@ -484,8 +491,7 @@ def join_subsets(subsets: typing.Iterable[set]):
 
     :param subsets: sets to be joined
     :type subsets: iterable
-    :return: boolean if joining subsets is finished (i.e. False if all subsets are connected
-        and thus far connected subsets)
+    :return: status if joining subsets is finished and the current list of connected subsets
     :rtype: (bool,list(set))
     """
     subsets = [s.copy() for s in subsets]
@@ -530,7 +536,7 @@ def charging_curve_to_soc_over_time(charging_curve, capacity, args,
                                     max_charge_from_grid=float('inf'),
                                     time_step=0.1, efficiency=1, eps=0.001,
                                     logger: logging.Logger = None):
-    """ create charging curve as nested list of SOC, Power[kW] and capacity in [kWh]
+    """Create charging curve as np.array with soc and time as two columns of an np.array
 
     :param logger: logger
     :type logger: logging.Logger
@@ -548,7 +554,7 @@ def charging_curve_to_soc_over_time(charging_curve, capacity, args,
     :type time_step: float
     :param efficiency: efficiency of charging
     :type efficiency: float
-    :return: soc over time with n values
+    :return: soc and time with n values each
     :rtype: np.array of shape (n, 2)
     """
     # simple numeric creation of power over time --> to energy over time
@@ -595,6 +601,7 @@ def charging_curve_to_soc_over_time(charging_curve, capacity, args,
 
 def get_missing_energy(events):
     """ Sum up all the missing energies of the given events
+
     :param events: events to be checked
     :type events: list(ebus_toolbox.optimizer_util.LowSocEvent)
     :return: missing energy
@@ -608,18 +615,21 @@ def get_missing_energy(events):
 
 def stations_hash(stations_set):
     """ Create a simple str as hash for a set of stations
+
     :param stations_set: stations to be hashed
     :type stations_set: set
     :return: hash
     :rtype: str
     """
-    return str(sorted(list(stations_set)))
+    return str(sorted(stations_set))
 
 
 def combination_generator(iterable: typing.Iterable, amount: int):
-    """ Generator which yields all possible combinations of choosing
-    an amount out of an iterable without putting them back and without caring about the
-    order of elements
+    """ Yields all combinations of choosing an amount, without putting back and without order
+
+    Generator which yields all possible combinations of choosing an amount out of an iterable
+    without putting them back and without caring about the order of elements
+
     :param iterable: Any collection which can be cast to a list
     :rtype iterable: iterable
     :param amount: Number of elements which should be drawn from iterable
@@ -709,7 +719,7 @@ def run_schedule(sched, args, electrified_stations=None):
     with warnings.catch_warnings():
         warnings.simplefilter('ignore', UserWarning)
         if "pytest" not in sys.modules:
-            # do not print output from SpiceEV to reduce clutter. Don't do it in testing
+            # do not print output from SpiceEV to reduce clutter. Do not do it in testing
             # since it produces errors
             sys.stdout = open(os.devnull, 'w')
         new_scen.run('distributed', vars(args).copy())

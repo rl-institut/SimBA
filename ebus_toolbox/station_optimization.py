@@ -9,12 +9,13 @@ from pathlib import Path
 import logging
 import shutil
 import ebus_toolbox.station_optimizer
-from ebus_toolbox.station_optimizer import util
-config = util.OptimizerConfig()
+from ebus_toolbox.station_optimizer import opt_util
+config = opt_util.OptimizerConfig()
 
 
 def setup_logger(conf):
     """ Setup file and stream logging by config and args arguments
+
     :param conf: configuration object
     :type conf: ebus_toolbox.optimizer_util.OptimizerConfig
     :return: logger
@@ -50,11 +51,11 @@ def setup_logger(conf):
 
 def main():
     """ main call"""
-    print(util.get_time())
+    print(opt_util.get_time())
     config_path = "./data/examples/default_optimizer.cfg"
-    conf = util.read_config(config_path)
+    conf = opt_util.read_config(config_path)
     opt_sched, opt_scen = run_optimization(conf)
-    print(util.get_time())
+    print(opt_util.get_time())
     import pickle
     with open("schedule_opt.pickle", "wb") as f:
         pickle.dump(opt_sched, f)
@@ -64,6 +65,7 @@ def main():
 
 def prepare_filesystem(args, conf):
     """ Prepare files and folders in the optimization results folder
+
     :param conf: configuration
     :type conf:  ebus_toolbox.optimizer_util.OptimizerConfig
     :param args: Arguments for ebus toolbox
@@ -104,9 +106,9 @@ def run_optimization(conf, sched=None, scen=None, args=None):
     # load pickle files if they are not given as arguments
     if sched is None or scen is None or args is None:
         # either all optional arguments are given or none are
-        assert sched == scen == args is None
-        sched, scen, args = util.toolbox_from_pickle(conf.schedule,
-                                                     conf.scenario, conf.args)
+        assert sched == scen == args is None, "To optimize from .pickle files, schedule," \
+                                              "scenario and arguments need to be provided together"
+        sched, scen, args = opt_util.toolbox_from_pickle(conf.schedule, conf.scenario, conf.args)
 
     # setup folders, paths and copy config
     prepare_filesystem(args, conf)
@@ -132,19 +134,19 @@ def run_optimization(conf, sched=None, scen=None, args=None):
         assert len(sched.rotations) > 0, "Removing depot chargers led to a schedule without any " \
                                          "rotations."
 
-    # rebasing the scenario meaning simulating it again with the given conditions of
+    # rebasing the scenario meaning simulating it again with SpiceEV and the given conditions of
     # included stations, excluded stations, filtered rotations and changed battery sizes
     if conf.rebase_scenario:
         must_include_set, ele_stations = optimizer.rebase_spice_ev()
     else:
-        # no new SpiceEV calculation will take place but some variables need to be adjusted.
+        # no new SpiceEV simulation will take place, but some variables need to be adjusted
         must_include_set, ele_stations = optimizer.rebase_simple()
 
     # create charging dicts which contain soc over time, which is numerically calculated
     optimizer.create_charging_curves()
 
     # remove none values from socs in the vehicle_socs
-    optimizer.remove_none_socs()
+    optimizer.replace_socs_from_none_to_value()
 
     # all stations electrified: are there still negative rotations?
     if conf.remove_impossible_rotations:
@@ -176,7 +178,7 @@ def run_optimization(conf, sched=None, scen=None, args=None):
     logger.debug("These rotations could not be electrified: %s", optimizer.could_not_be_electrified)
 
     # remove none values from socs in the vehicle_socs so timeseries_calc can work
-    optimizer.remove_none_socs()
+    optimizer.replace_socs_from_none_to_value()
 
     vehicle_socs = optimizer.timeseries_calc()
 
@@ -196,8 +198,8 @@ def run_optimization(conf, sched=None, scen=None, args=None):
 
     logger.warning("Still negative rotations: %s", optimizer.schedule.
                    get_negative_rotations(optimizer.scenario))
-    print("Station optimization finished after " + util.get_time())
-    logger.warning("Station optimization finished after %s", util.get_time())
+    print("Station optimization finished after " + opt_util.get_time())
+    logger.warning("Station optimization finished after %s", opt_util.get_time())
 
     return optimizer.schedule, optimizer.scenario
 

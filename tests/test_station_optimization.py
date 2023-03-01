@@ -31,6 +31,7 @@ class TestStationOptimization:
 
     def test_basic_run(self, trips_file_name="trips.csv"):
         """ Check if running a basic example works and if a scenario object is returned
+
         :param trips_file_name: file name of the trips file. Has to be inside the test_input_file
             folder
         :type trips_file_name: str
@@ -60,8 +61,7 @@ class TestStationOptimization:
         return generated_schedule, scen, args
 
     def test_basic_optimization(self):
-        """ Test the base optimization simply by checking if optimization finishes without
-        raising errors"""
+        """ Test if the base optimization finishes without raising errors"""
         trips_file_name = "trips_for_optimizer.csv"
         sched, scen, args = self.test_basic_run(trips_file_name)
         config_path = file_root / "optimizer.cfg"
@@ -72,6 +72,7 @@ class TestStationOptimization:
 
     def test_deep_optimization(self):
         """ Check if deep analysis finds the prepared optimal solution for the test case.
+
         The Test case is a a 3 star like network with two rotations which are negative without
         electrification.
         Rotation 1:
@@ -106,6 +107,7 @@ class TestStationOptimization:
 
     def test_critical_stations_optimization(self, caplog):
         """ Test if station 2 and 3 are correctly recognized as critical stations
+
         :param caplog: pytest fixture, which is automatically created,
             to have access to logging data
         """
