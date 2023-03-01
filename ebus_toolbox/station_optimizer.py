@@ -45,8 +45,7 @@ class StationOptimizer:
             self.schedule.rotations = {rot: sched.rotations[rot] for rot in config.rotations}
 
     def loop(self, **kwargs):
-        """ Loops over every base group with the core of group optimization and handles deep or
-        greedy arguments
+        """ Loops recursively over every base group and handles deep or greedy arguments.
 
         :param kwargs: arguments handled by the function and config.
         :type kwargs: dict
@@ -207,8 +206,7 @@ class StationOptimizer:
         return self.electrified_stations, self.electrified_station_set
 
     def get_negative_rotations_all_electrified(self, rel_soc=False):
-        """Get the rotation ids for the rotations which show negative socs, even when everything
-        is electrified
+        """Get the ids for the rotations which show negative socs when everything is electrified.
 
         :param rel_soc: if true, the start soc is handled like it has the desired deps soc
         :type rel_soc: bool
@@ -227,7 +225,7 @@ class StationOptimizer:
     @opt_util.time_it
     def group_optimization(self, group, choose_station_function, track_not_possible_rots=True,
                            pre_optimized_set=None, **kwargs):
-        """Optimize a single group events and returns the electrified stations and a flag
+        """Optimize a single group events and returns the electrified stations and a flag.
 
         :param group: tuple of events and station_ids to be optimized together
         :type group: (list(ebus_toolbox.optimizer_util.LowSocEvent), list(str))
@@ -403,17 +401,18 @@ class StationOptimizer:
 
     @opt_util.time_it
     def deepcopy_socs(self):
-        """ Deepcopy of the socs in the scenario"""
+        """ Deepcopy of the socs in the scenario."""
         self.scenario.vehicle_socs = deepcopy(self.base_scenario.vehicle_socs)
 
     @opt_util.time_it
     def copy_scen_sched(self):
-        """Copy of the base scenario and base schedule"""
+        """Copy of the base scenario and base schedule."""
         self.scenario = copy(self.base_scenario)
         self.schedule = copy(self.base_schedule)
 
     def sort_station_events(self, charge_events_single_station):
-        """ Sort events by arrival times
+        """ Sort events by arrival times.
+
         :param charge_events_single_station: charge events
         :type charge_events_single_station: list
         :return: sorted charging events
@@ -424,7 +423,7 @@ class StationOptimizer:
     @opt_util.time_it
     def timeseries_calc(self, rotations=None, soc_dict=None, ele_station_set=None,
                         soc_upper_threshold=None, electrify_stations=None) -> object:
-        """ A quick estimation of socs for after electrifying stations
+        """ A quick estimation of socs for after electrifying stations.
 
         The function assumes unlimited charging points per electrified station.
 
@@ -516,7 +515,8 @@ class StationOptimizer:
 
     @opt_util.time_it
     def expand_tree(self, station_eval):
-        """ Check which nodes can be reached from the current node
+        """ Check which nodes can be reached from the current node.
+
         :param station_eval: station evaluation with station names and potential
         :type station_eval: list(str, float)
         """
@@ -535,8 +535,11 @@ class StationOptimizer:
 
     @opt_util.time_it
     def is_node_viable(self):
-        """Check if a node has viable children. Viable children are not terminal and did not show
+        """Check if a node has viable children.
+
+        Viable children are not terminal and did not show
         lack of potential yet
+
         :return: True if the node still has potential
         """
         parent_name = opt_util.stations_hash(self.electrified_station_set)
@@ -551,7 +554,8 @@ class StationOptimizer:
     @opt_util.time_it
     def is_branch_promising(self, station_eval, electrified_station_set,
                             pre_optimized_set, missing_energy):
-        """Quickly evaluates if following a branch is promising by summing up estimated potentials
+        """Return if following a branch is promising by summing up estimated potentials.
+
         :param station_eval: sorted station evaluation with name and potential of station
         :type station_eval: list(str, float)
         :param electrified_station_set: electrified stations
@@ -580,7 +584,8 @@ class StationOptimizer:
         return True
 
     def node_to_tree(self, delta_base_energy):
-        """ Fill decision tree with the given info
+        """ Fill decision tree with the given info.
+
         :param delta_base_energy: missing energy
         :type delta_base_energy: float
         :return decision tree
@@ -596,8 +601,11 @@ class StationOptimizer:
     def choose_station_brute(self, station_eval,
                              pre_optimized_set=None, missing_energy=0,
                              gens=dict()):
-        """Gives back a possible set of Stations to electrify which shows potential and has not been
+        """Return a possible set of stations to electrify which has not been tried yet.
+
+        Gives back a possible set of stations to electrify which shows potential and has not been
         tried yet. The set of stations is smaller than the best optimized set so far.
+
         :param station_eval: sorted station evaluation with names and potential
         :type station_eval list(str, float)
         :param pre_optimized_set: optimized stations thus far
@@ -641,9 +649,12 @@ class StationOptimizer:
     @opt_util.time_it
     def choose_station_step_by_step(self, station_eval,
                                     pre_optimized_set=None, missing_energy=0):
-        """ Gives back a station of possible stations to electrify which shows the biggest potential
-        and has not been picked before.
+        """ Returns a station of possible stations to electrify which shows the biggest potential.
 
+        It checks that this station has not been picked before and the path of electrification is
+        viable. If all stations have been picked, the minimum amount of picks is determined. From
+        the group of stations with this number of picks, the one with the highest amount of
+        potential is chosen.
 
         :param station_eval: sorted station evaluation with names and potential
         :type station_eval list(str, float)
@@ -651,7 +662,8 @@ class StationOptimizer:
         :type pre_optimized_set: set
         :param missing_energy: missing energy in this branch before electrification
         :type missing_energy: float
-        :return:a station to electrify and True since this function needs recursive calling
+        :return: a station to electrify and True since this function needs recursive calling
+        :rtype: str, bool
         :raises SuboptimalSimulationException: if a suboptimal Simulation has been identified
         """
 
@@ -699,7 +711,7 @@ class StationOptimizer:
         raise opt_util.SuboptimalSimulationException
 
     def set_battery_and_charging_curves(self):
-        """ Set battery and charging curves from config
+        """ Set battery and charging curves from config.
         """
         for v_type in self.schedule.vehicle_types.values():
             for vehicle in v_type.values():
@@ -709,7 +721,7 @@ class StationOptimizer:
                     vehicle["charging_curve"] = self.config.charging_curve
 
     def set_up_decision_tree(self, group_amount):
-        """ Load decision tree if given in the config
+        """ Load decision tree if given in the config.
 
         :param group_amount: amount of groups for decision tree
         :type group_amount: int
@@ -742,7 +754,7 @@ class StationOptimizer:
         return must_include_set, ele_stations
 
     def rebase_simple(self):
-        """ Configure various variables according to the input data
+        """ Configure various variables according to the input data.
 
         To configure is these variables, e.g. rebasing, is necessary, so data is consistent between
         schedule and scenario
@@ -760,15 +772,15 @@ class StationOptimizer:
         return must_include_set, self.electrified_stations
 
     def preprocessing_scenario(self, electrified_stations=None, run_only_neg=False):
-        """Prepare scenario and run schedule
+        """Prepare scenario and run schedule.
 
         :param electrified_stations: optional electrified stations to use in simulation.
             Default None leads to using optimizer.electrified_stations
         :type electrified_stations: dict
         :param run_only_neg: should only negative rotations be simulated
         :type run_only_neg: bool
-        :return: schedule, scenario, electrified_station_set, electrified_stations
-        :rtype (ebus_toolbox.schedule.Schedule, spice_ev.Scenario, set, dict)
+        :return: stations that must be included and stations which are electrified
+        :rtype (set, dict)
         """
         if electrified_stations is None:
             electrified_stations = self.electrified_stations
@@ -796,7 +808,7 @@ class StationOptimizer:
         return must_include_set, electrified_stations
 
     def electrify_station(self, stat, electrified_set):
-        """Electrify a station and keep track of it in the electrified set file
+        """Electrify a station and keep track of it in the electrified set file.
 
         :param stat: station id to be electrified
         :param stat: str
@@ -807,7 +819,7 @@ class StationOptimizer:
         electrified_set.add(stat)
 
     def create_charging_curves(self):
-        """Create charging curves with energy supplied over time for all vehicles
+        """Create charging curves with energy supplied over time for all vehicles.
 
         Cycle through vehicles and create numerically created charging curves with energy
         supplied over time, taking efficiencies into consideration """
@@ -824,10 +836,12 @@ class StationOptimizer:
 
     @opt_util.time_it
     def get_critical_stations_and_rebase(self, relative_soc=False):
-        """ Get the stations that must be electrified and put them into the electrified stations
-        and an extra set of critical stations.
-        Electrify every station but one. If without this single station there are below zero events
-        it is a critical station.
+        """ Get the stations that must be electrified for full electrification of the system.
+
+        Get the stations that must be electrified for full electrification of the system and put
+        them into the electrified stations and an extra set of critical stations.
+        Electrify every station but one. If without this single station there are below zero soc
+        events it is a critical station.
 
         :param relative_soc: should the evaluation use the relative or absolute soc
         :param relative_soc: bool
@@ -866,7 +880,8 @@ class StationOptimizer:
         return critical_stations
 
     def replace_socs_from_none_to_value(self):
-        """ Removes soc values of None by filling them with the last value which is not None
+        """ Removes soc values of None by filling them with the last value which is not None.
+
         """
         # make sure no None values exists in SOCs. Fill later values with last value
         # which was not None, eg, [1,5,4,None,None] becomes [1,5,4,4,4]
@@ -882,7 +897,8 @@ class StationOptimizer:
             self.scenario.vehicle_socs[v_id] = soc
 
     def get_rotation_soc(self, rot_id, soc_data: dict = None):
-        """ Gets you the soc object with start and end index for a given rotation id
+        """ Gets you the soc object with start and end index for a given rotation id.
+
         :param rot_id: rotation_id
         :param soc_data: optional soc_data if not the scenario data should be used
         :return: tuple with soc array, start index and end index
@@ -892,6 +908,7 @@ class StationOptimizer:
 
     def get_index_by_time(self, search_time: datetime):
         """Get the index for a given time.
+
         :param search_time: The time for which to return the index as datetime object
         :type search_time: datetime
         :return: the index corresponding to the time. In case there is no exact match, the index
@@ -902,8 +919,10 @@ class StationOptimizer:
 
     @opt_util.time_it
     def get_trips(self, rot: rotation.Rotation, start_idx: int, end_idx: int):
-        """ Get trips in a rotation from a start to an end index, if the arrival time is in between
-         the start and end idx
+        """ Return trips from rotation with start to end index.
+
+        Get trips in a rotation from a start to an end index, if the arrival time is in between
+        the start and end idx
 
         :param rot: The rotation object containing the trips.
         :type rot: ebus_toolbox.rotation.Rotation
@@ -927,7 +946,7 @@ class StationOptimizer:
 
     @opt_util.time_it
     def get_time_by_index(self, idx):
-        """Get the time for a given index.
+        """Get the time for a given index
 
         :param idx: The index for which to return the time.
         :type idx: int
@@ -943,7 +962,7 @@ class StationOptimizer:
     @opt_util.time_it
     def get_low_soc_events(self, rotations=None, filter_standing_time=True,
                            rel_soc=False, soc_data=None, **kwargs):
-        """ Gather low soc events below the config threshold.
+        """ Return low soc events below the config threshold.
 
         :param rotations: rotations to be searched for low soc events. Default None means whole
             schedule is searched
@@ -1089,7 +1108,8 @@ class StationOptimizer:
 
 
 def get_init_node():
-    """ Returns the initialization dictionary / node of the decision tree
+    """ Returns the initialization dictionary / node of the decision tree.
+
     :return: init node
     :rtype: dict
     """

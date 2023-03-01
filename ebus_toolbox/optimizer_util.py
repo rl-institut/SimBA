@@ -104,7 +104,7 @@ class OptimizerConfig:
 
 
 def time_it(function, timers={}):
-    """Decorator function to time the duration and number of function calls
+    """Decorator function to time the duration and number of function calls.
 
     :param function: function do be decorated
     :type function: function
@@ -135,7 +135,7 @@ def time_it(function, timers={}):
 
 
 def read_config(config_path):
-    """ Read the config path to a config object
+    """ Read the config path to a config object.
 
     :param config_path: path to file
     :type config_path: str
@@ -215,7 +215,7 @@ def read_config(config_path):
 
 
 def get_charging_time(trip1, trip2, args):
-    """ Returns the charging time in minutes between trips as numeric value/float
+    """ Returns the charging time in minutes between trips as numeric value/float.
 
     :param trip1: first trip
     :type trip1: ebus_toolbox.trip.Trip
@@ -236,7 +236,7 @@ def get_charging_time(trip1, trip2, args):
 
 
 def get_charging_start(trip1, args):
-    """ Returns the possible start time of charging
+    """ Returns the possible start time of charging.
 
     This function considers the buffer times before charging can take place
 
@@ -263,7 +263,7 @@ def get_buffer_time(trip, default_buffer_time_opps):
 
 
 def get_index_by_time(scenario, search_time):
-    """ Get the index for a given time
+    """ Get the index for a given time.
 
     In case the time does not coincide with a simulation index the lower index is returned.
 
@@ -279,7 +279,7 @@ def get_index_by_time(scenario, search_time):
 
 
 def get_rotation_soc_util(rot_id, schedule, scenario, soc_data: dict = None):
-    """Returns the soc time series with start and end index for a given rotation id
+    """Returns the soc time series with start and end index for a given rotation id.
 
     :param rot_id: rotation_id
     :type rot_id: str
@@ -412,7 +412,7 @@ def evaluate(events: typing.Iterable[LowSocEvent],
 
 def get_groups_from_events(events, impossible_stations=None, could_not_be_electrified=None,
                            optimizer=None):
-    """ Create groups from events which need to be optimized together
+    """ Create groups from events which need to be optimized together.
 
     First it creates a simple list of station sets for single events. They are connected if they
     share possible stations.
@@ -468,7 +468,7 @@ def get_groups_from_events(events, impossible_stations=None, could_not_be_electr
 
 
 def join_all_subsets(subsets):
-    """ join sets for as long as needed until no elements share any intersections
+    """ Return sets which are joined together if they have any intersections.
 
     :param subsets: sets to be joined
     :type subsets: iterable
@@ -482,7 +482,7 @@ def join_all_subsets(subsets):
 
 
 def join_subsets(subsets: typing.Iterable[set]):
-    """ Run through subsets and return their union, if they have an intersection
+    """ Run through subsets and return their union, if they have an intersection.
 
     Run through every subset and check with every other subset if there is an intersection
     If an intersection is found, the subsets are joined and returned with a boolean of True.
@@ -508,7 +508,7 @@ def join_subsets(subsets: typing.Iterable[set]):
 
 
 def toolbox_to_pickle(name, sched, scen, args):
-    """ Dump the 3 files to pickle files
+    """ Dump the 3 files to pickle files.
 
     :param name: base name of the files
     :param sched: schedule
@@ -536,7 +536,7 @@ def charging_curve_to_soc_over_time(charging_curve, capacity, args,
                                     max_charge_from_grid=float('inf'),
                                     time_step=0.1, efficiency=1, eps=0.001,
                                     logger: logging.Logger = None):
-    """Create charging curve as np.array with soc and time as two columns of an np.array
+    """Create charging curve as np.array with soc and time as two columns of an np.array.
 
     :param logger: logger
     :type logger: logging.Logger
@@ -600,7 +600,7 @@ def charging_curve_to_soc_over_time(charging_curve, capacity, args,
 
 
 def get_missing_energy(events):
-    """ Sum up all the missing energies of the given events
+    """ Sum up all the missing energies of the given events.
 
     :param events: events to be checked
     :type events: list(ebus_toolbox.optimizer_util.LowSocEvent)
@@ -614,7 +614,7 @@ def get_missing_energy(events):
 
 
 def stations_hash(stations_set):
-    """ Create a simple str as hash for a set of stations
+    """ Create a simple str as hash for a set of stations.
 
     :param stations_set: stations to be hashed
     :type stations_set: set
@@ -625,7 +625,7 @@ def stations_hash(stations_set):
 
 
 def combination_generator(iterable: typing.Iterable, amount: int):
-    """ Yields all combinations of choosing an amount, without putting back and without order
+    """ Yields all combinations of choosing an amount, without putting back and without order.
 
     Generator which yields all possible combinations of choosing an amount out of an iterable
     without putting them back and without caring about the order of elements
@@ -651,7 +651,7 @@ def combination_generator(iterable: typing.Iterable, amount: int):
 
 
 def toolbox_from_pickle(sched_name, scen_name, args_name):
-    """ Load the 3 files from pickle
+    """Load the 3 files from pickle.
 
     :param sched_name: name of schedule file
     :type sched_name: str
@@ -672,9 +672,11 @@ def toolbox_from_pickle(sched_name, scen_name, args_name):
 
 
 def combs_unordered_no_putting_back(n: int, k: int):
-    """ Returns amount of combinations for pulling k elements out of n, without putting elements
-    back or looking at the order. this is equal to n over k
-    :param n: number of elements in the base group
+    """ Return number of combinations of choosing an amount, without putting back and without order.
+
+    Returns amount of combinations for pulling k elements out of n, without putting elements
+    back or looking at the order. This is equal to n over k
+    :param n: number of elements to chose from
     :type n: int
     :param k: number of elements in the sub group of picked elements
     :type k: int
@@ -689,7 +691,8 @@ def combs_unordered_no_putting_back(n: int, k: int):
 
 
 def run_schedule(sched, args, electrified_stations=None):
-    """Run a given schedule and electrify stations if need be
+    """Run a given schedule and electrify stations if need be.
+
     :param sched: schedule object
     :type sched: ebus_toolbox.schedule.Schedule
     :param args: arguments
@@ -729,7 +732,9 @@ def run_schedule(sched, args, electrified_stations=None):
 
 
 def preprocess_schedule(sched, args, electrified_stations=None):
-    """ Prepare the schedule by calculating consumption, setting electrified stations and assigning
+    """ Calculate consumption, set electrified stations and assign vehicles.
+
+    Prepare the schedule by calculating consumption, setting electrified stations and assigning
     vehicles
 
     :param sched: schedule containing the rotations
@@ -754,8 +759,8 @@ def preprocess_schedule(sched, args, electrified_stations=None):
 
 
 def get_time(start=[]):
-    """Print the time and automatically set start time to the first time the function getting
-    called
+    """Prints the time which passed since the first function call.
+
     :param start: start time
     :type start: list(float)
     :return: String with seconds which passed since the first call.
@@ -769,7 +774,8 @@ def get_time(start=[]):
 
 
 def plot_(data):
-    """ Simple plot of data without having to create subplots
+    """ Simple plot of data without having to create subplots.
+
     :param data: data to be plotted
     :type data: iterable
     :return: axis of the plot """
@@ -779,7 +785,8 @@ def plot_(data):
 
 
 def plot_rot(rot_id, sched, scen, axis=None, rot_only=True):
-    """Simple plot of data without having to create subplots
+    """Simple plot of data without having to create subplots.
+
     :param rot_id: id of the rotation
     :type rot_id: str
     :param sched: schedule

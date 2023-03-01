@@ -14,7 +14,7 @@ config = opt_util.OptimizerConfig()
 
 
 def setup_logger(conf):
-    """ Setup file and stream logging by config and args arguments
+    """ Setup file and stream logging by config and args arguments.
 
     :param conf: configuration object
     :type conf: ebus_toolbox.optimizer_util.OptimizerConfig
@@ -50,7 +50,7 @@ def setup_logger(conf):
 
 
 def main():
-    """ main call"""
+    """ Main call"""
     print(opt_util.get_time())
     config_path = "./data/examples/default_optimizer.cfg"
     conf = opt_util.read_config(config_path)
@@ -64,7 +64,7 @@ def main():
 
 
 def prepare_filesystem(args, conf):
-    """ Prepare files and folders in the optimization results folder
+    """ Prepare files and folders in the optimization results folder.
 
     :param conf: configuration
     :type conf:  ebus_toolbox.optimizer_util.OptimizerConfig

@@ -30,7 +30,7 @@ class TestStationOptimization:
         electrified_stations = json.load(file)
 
     def test_basic_run(self, trips_file_name="trips.csv"):
-        """ Check if running a basic example works and if a scenario object is returned
+        """ Check if running a basic example works and if a scenario object is returned.
 
         :param trips_file_name: file name of the trips file. Has to be inside the test_input_file
             folder
@@ -106,7 +106,7 @@ class TestStationOptimization:
                 assert "Station-3" in opt_sched.stations
 
     def test_critical_stations_optimization(self, caplog):
-        """ Test if station 2 and 3 are correctly recognized as critical stations
+        """ Test if station 2 and 3 are correctly recognized as critical stations.
 
         :param caplog: pytest fixture, which is automatically created,
             to have access to logging data
