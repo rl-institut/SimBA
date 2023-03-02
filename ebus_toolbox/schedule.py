@@ -2,6 +2,7 @@ import csv
 import random
 import datetime
 import warnings
+import shutil
 from pathlib import Path
 
 from ebus_toolbox import util
@@ -210,6 +211,20 @@ class Schedule:
                     'spiceEV simulation aborted, see above for details'
                 print('Sensitivity finished for variation ', ix)
                 # create report
+                args.output_directory_input = args.output_directory / "input_data"
+                args.output_directory_input.mkdir(parents=True, exist_ok=True)
+
+                # copy input files to output to ensure reproducibility
+                copy_list = [args.config, args.electrified_stations, args.vehicle_types]
+
+                # only copy cost params if they exist
+                if args.cost_parameters_file is not None:
+                    copy_list.append(args.cost_parameters_file)
+                for c_file in map(Path, copy_list):
+                    shutil.copy(c_file, args.output_directory_input / c_file.name)
+
+                util.save_version(args.output_directory_input / "program_version.txt")
+
                 args.save_timeseries = args.output_directory / "simulation_timeseries.csv"
                 args.save_results = args.output_directory / "simulation.json"
                 args.save_soc = args.output_directory / "vehicle_socs.csv"
