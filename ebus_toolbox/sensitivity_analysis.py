@@ -97,6 +97,9 @@ def get_temperature():
     day.rename(columns={'Date': 'hour', 'TT_TU': 'temperature'}, inplace=True)
     day = day.reset_index(drop=True)
 
+    day['hour'] = pd.date_range(start='1/1/2023 00:00:00', end='1/1/2023 23:00:00', periods=24)
+    day['hour'] = pd.to_datetime(day['hour'], format).apply(lambda x: x.time())
+
     return day
 
 # 3. reduced power
