@@ -127,7 +127,6 @@ def bus_type_distribution_consumption_rotation(args, schedule):
         # something more efficient than for loop
         for i in range(max_con_up//step):
             bar_bottom[i] += bins[v_type][i]
-        print(bar_bottom)
     ax.set_xlabel('Energieverbrauch in kWh')
     ax.set_ylabel('Anzahl der Umläufe')
     ax.set_title('Verteilung der Bustypen über den Energieverbrauch und den Umläufen')
@@ -149,20 +148,22 @@ def charge_type_proportion(args, schedule):
     charging_types = {'oppb': 0, 'depb': 0, 'rest': 0}
     for rot in schedule.rotations:
         if schedule.rotations[rot].charging_type == 'oppb':
-            charging_types['oppb'] += schedule.rotations[rot].consumption
+            charging_types['oppb'] += 1
         elif schedule.rotations[rot].charging_type == 'depb':
-            charging_types['depb'] += schedule.rotations[rot].consumption
+            charging_types['depb'] += 1
         else:
-            charging_types['rest'] += schedule.rotations[rot].consumption
-    bins = [round(v/sum(charging_types.values()) * 100, 1) for v in charging_types.values()]
-
+            charging_types['rest'] += 1
     # plot
     fig, ax = plt.subplots()
-    ax.barh([k for k in charging_types.keys()], bins, color=['#6495ED', '#66CDAA', 'grey'])
-    ax.set_xlabel('Umläufe')
-    ax.set_ylabel('Ladetyp')
-    ax.set_title('Verteilung von Gelegenheitslader, Depotlader und nicht elektrifizierbaren')
-    ax.bar_label(ax.containers[0], [f"{v}%" for v in bins])
+    ax.bar(
+        [k for k in charging_types.keys()],
+        [v for v in charging_types.values()],
+        color=['#6495ED', '#66CDAA', 'grey']
+    )
+    ax.set_xlabel("Ladetyp")
+    ax.set_ylabel("Umläufe")
+    ax.set_title("Verteilung von Gelegenheitslader, Depotlader und nicht elektrifizierbaren")
+    ax.bar_label(ax.containers[0], [v for v in [v for v in charging_types.values()]])
     ax.yaxis.grid(True)
     plt.savefig(args.output_directory / "charge_type_proportion")
 
@@ -195,30 +196,17 @@ def gc_power_time_overview(args, schedule, scenario):
 
     gc_list = list(scenario.constants.grid_connectors.keys())
     for gc in gc_list:
-        # data
-        ts = [scenario.start_time if i == 0 else scenario.start_time+scenario.interval*i for i in range(scenario.n_intervals)]
-        total = scenario.totalLoad[gc]
-        feed_in = scenario.feedInPower[gc]
-        ext_load = [sum(v.values()) for v in scenario.extLoads[gc]]
-
-        print(ext_load)
-
-        #cs = [sum(int(j) for j in i) for i in scenario.connChargeByTS[gc]]
-        """for i in scenario.connChargeByTS[gc]:
-            for j in i:
-                print(j)
-            print()"""
-
-        # plot
-        plt.plot(ts, total, label="total")
-        plt.plot(ts, feed_in, label="feed_in")
-        plt.plot(ts, ext_load, label="ext_load")
-        #plt.plot(ts, cs, label="CS")
+        ts = [
+            scenario.start_time if i == 0 else
+            scenario.start_time+scenario.interval*i for i in range(scenario.n_intervals)
+        ]
+        plt.plot(ts, scenario.totalLoad[gc], label="total")
+        plt.plot(ts, scenario.feedInPower[gc], label="feed_in")
+        plt.plot(ts, [sum(v.values()) for v in scenario.extLoads[gc]], label="ext_load")
         plt.legend()
         plt.xticks(rotation=45)
 
-        gc = gc.replace("/", "")
-        gc = gc.replace(".", "")
+        gc = gc.replace("/", "").replace(".", "")
         plt.savefig(args.output_directory / f"{gc}_power_time_overview")
         plt.clf()
         plt.cla()
@@ -240,10 +228,9 @@ def generate(schedule, scenario, args, extended_plots=False):
     # generate if needed extended output plots
     extended_plots = True
     if extended_plots:
-        # bus_type_distribution_consumption_rotation(args, schedule)
-        # charge_type_proportion(args, schedule)
+        bus_type_distribution_consumption_rotation(args, schedule)
+        charge_type_proportion(args, schedule)
         gc_power_time_overview(args, schedule, scenario)
-    exit(0)
 
     # generate simulation_timeseries.csv, simulation.json and vehicle_socs.csv in spiceEV
     with warnings.catch_warnings():
