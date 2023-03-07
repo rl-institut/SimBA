@@ -2,7 +2,7 @@
     "Station-0": {
         "type": "deps",
         "n_charging_stations": null,
-        "distance_transformer": 150,
+        "distance_to_grid": 150,
         "energy_feed_in": {
             "csv_file": "data/examples/example_pv_feedin.csv",
             "start_time": "2022-03-07T00:00:00",
@@ -26,7 +26,9 @@
             "soc": 0, // initial state of charge [0-1], optional
             "efficiency": 0.95, // optional
             "discharge_curve": null // optional, same as charging curve
-        }
+        },
+        "cs_power_deps_oppb" : 50,  // optional: maximum cs power can be defined per station
+        "cs_power_deps_depb" : 120  // optional: maximum cs power can be defined per station
     },
     "Station-3": {
         "type": "opps",
@@ -45,8 +47,9 @@
         "type": "opps",
         "n_charging_stations": 1,
         "voltage_level" : "MV",
-        "gc_power": 60  // optional: maximum gc power can be defined per station
-    },
+        "gc_power": 250,  // optional: maximum gc power can be defined per station
+        "cs_power_opps" : 140  // optional: maximum cs power can be defined per station
+        },
     "Station-21": {
         "type": "opps",
         "n_charging_stations": 2,
