@@ -93,7 +93,7 @@ def generate_gc_overview(schedule, scenario, args):
 
 
 def bus_type_distribution_consumption_rotation(args, schedule):
-    """Plots distribution of bus types in consumption brackets as a stacked bar chart.
+    """Plots the distribution of bus types in consumption brackets as a stacked bar chart.
 
     :param args: Configuration arguments from cfg file. args.output_directory is used
     :type args: argparse.Namespace
@@ -137,7 +137,7 @@ def bus_type_distribution_consumption_rotation(args, schedule):
 
 
 def charge_type_proportion(args, schedule):
-    """Plots percentages of charging types in a horizontal bar chart.
+    """Plots the absolute number of rotations distributed by charging types on a bar chart.
 
     :param args: Configuration arguments from cfg file. args.output_directory is used
     :type args: argparse.Namespace
@@ -192,8 +192,14 @@ def gc_power_time_overview_example(args, schedule, scenario):
         plt.clf()
 
 
-def gc_power_time_overview(args, schedule, scenario):
+def gc_power_time_overview(args, scenario):
+    """Plots the different loads (total, feedin, external) of all grid connectors.
 
+    :param args: Configuration arguments from cfg file. args.output_directory is used
+    :type args: argparse.Namespace
+    :param scenario: Provides the data for the grid connectors over time.
+    :type scenario: spice_ev.Scenario
+    """
     gc_list = list(scenario.constants.grid_connectors.keys())
     for gc in gc_list:
         ts = [
@@ -204,12 +210,11 @@ def gc_power_time_overview(args, schedule, scenario):
         plt.plot(ts, scenario.feedInPower[gc], label="feed_in")
         plt.plot(ts, [sum(v.values()) for v in scenario.extLoads[gc]], label="ext_load")
         plt.legend()
-        plt.xticks(rotation=45)
+        plt.xticks(rotation=30)
 
         gc = gc.replace("/", "").replace(".", "")
         plt.savefig(args.output_directory / f"{gc}_power_time_overview")
-        plt.clf()
-        plt.cla()
+        plt.close()
 
 
 def generate(schedule, scenario, args, extended_plots=False):
@@ -226,11 +231,10 @@ def generate(schedule, scenario, args, extended_plots=False):
     """
 
     # generate if needed extended output plots
-    extended_plots = True
     if extended_plots:
         bus_type_distribution_consumption_rotation(args, schedule)
         charge_type_proportion(args, schedule)
-        gc_power_time_overview(args, schedule, scenario)
+        gc_power_time_overview(args, scenario)
 
     # generate simulation_timeseries.csv, simulation.json and vehicle_socs.csv in spiceEV
     with warnings.catch_warnings():
