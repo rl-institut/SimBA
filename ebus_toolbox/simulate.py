@@ -65,7 +65,7 @@ def simulate(args):
     schedule.calculate_consumption()
     # scenario simulated once
     scenario = schedule.run(args)
-    
+
     # filter rotations
     schedule.rotation_filter(args)
 
