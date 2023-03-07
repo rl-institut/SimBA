@@ -1,8 +1,8 @@
-import argparse
-import shutil
-from ebus_toolbox import simulate, util
-from pathlib import Path
 from datetime import datetime
+from pathlib import Path
+import shutil
+
+from ebus_toolbox import simulate, util
 
 if __name__ == '__main__':
 
@@ -28,11 +28,5 @@ if __name__ == '__main__':
         shutil.copy(c_file, args.output_directory_input / c_file.name)
 
     util.save_version(args.output_directory_input / "program_version.txt")
-
-    # rename special options
-    args.timing = args.eta
-
-    if args.input_schedule is None:
-        raise SystemExit("The following argument is required: input_schedule")
 
     simulate.simulate(args)

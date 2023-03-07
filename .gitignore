@@ -13,4 +13,5 @@ data/private_examples
 data/sim_outputs
 data/preprocessing_scripts
 src/
+spice_ev/
 *.bak

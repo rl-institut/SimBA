@@ -1,4 +1,4 @@
 [flake8]
-exclude = docs,src,data
+exclude = docs,src,spice_ev,data
 max-line-length=100
 docstring_style=sphinx

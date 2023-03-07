@@ -3,6 +3,8 @@ import json
 import warnings
 import subprocess
 
+from spice_ev.util import set_options_from_config
+
 
 def get_git_revision_hash() -> str:
     return subprocess.check_output(['git', 'rev-parse', 'HEAD']).decode('ascii').strip()
@@ -11,50 +13,6 @@ def get_git_revision_hash() -> str:
 def save_version(file_path):
     with open(file_path, "w", encoding='utf-8') as f:
         f.write("Git Hash eBus-Toolbox:" + get_git_revision_hash())
-
-
-def set_options_from_config(args, check=False, verbose=True):
-    """Read options from config file, update given args, try to parse options
-    , ignore comment lines (begin with #)
-
-    :param args: input arguments
-    :type args: argparse.Namespace
-    :param check: raise ValueError on unknown options
-    :type check: bool
-    :param verbose: gives final overview of arguments
-    :type bool
-
-    :raises ValueError: Raised if unknown options are given.
-    """
-
-    if "config" in args and args.config is not None:
-        # read options from config file
-        with open(args.config, 'r', encoding='utf-8') as f:
-            for line in f:
-                line = line.strip()
-                if line.startswith('#'):
-                    # comment
-                    continue
-                if len(line) == 0:
-                    # empty line
-                    continue
-                k, v = line.split('=')
-                k = k.strip()
-                v = v.strip()
-                try:
-                    # option may be special: number, array, etc.
-                    v = json.loads(v)
-                except ValueError:
-                    # or not
-                    pass
-                # known option?
-                if (k not in args) and check:
-                    raise ValueError("Unknown option {}".format(k))
-                # set option
-                vars(args)[k] = v
-        # Give overview of options
-        if verbose:
-            print("Options: {}".format(vars(args)))
 
 
 def get_buffer_time(trip, default=0):
@@ -274,28 +232,26 @@ def get_args():
                         help='location of vehicle type definitions')
     parser.add_argument('--station_data_path', default=None,
                         help='Use station data to back calculation of consumption with height\
-                             information of stations')
+                         information of stations')
     parser.add_argument('--outside_temperature_over_day_path', default=None,
                         help="Use csv. data with 'hour' and temperature' columns to set \
-                            temperatures in case they are not in trips.csv")
+                        temperatures in case they are not in trips.csv")
     parser.add_argument('--level_of_loading_over_day_path', default=None,
                         help="Use csv. data with 'hour' and level_of_loading' columns to set \
-                            level of loading in case they are not in trips.csv")
+                        level of loading in case they are not in trips.csv")
     parser.add_argument('--cost-parameters-file', default=None,
                         help='include cost parameters json, needed if cost_calculation==True')
-    parser.add_argument('--rotation-filter', default=None,
-                        help='Use json data with rotation ids')
 
     # #### Modes #####
     mode_choices = ['sim', 'neg_depb_to_oppb', 'neg_oppb_to_depb', 'service_optimization', 'report']
     parser.add_argument('--mode', default=['sim', 'report'], nargs='*', choices=mode_choices,
                         help=f"Specify what you want to do. Choose one or more from \
-                            {', '.join(mode_choices)}. \
-                            sim runs a single simulation with the given inputs. \
-                            neg_depb_to_oppb changes charging type of negative depb rotations. \
-                            neg_oppb_to_depb changes charging type of negative oppb rotations. \
-                            service optimization finds the largest set of electrified rotations. \
-                            report generates simulation output files.")
+                        {', '.join(mode_choices)}. \
+                        sim runs a single simulation with the given inputs. \
+                        neg_depb_to_oppb changes charging type of negative depb rotations. \
+                        neg_oppb_to_depb changes charging type of negative oppb rotations. \
+                        service optimization finds the largest set of electrified rotations. \
+                        report generates simulation output files.")
 
     # #### Flags #####
     parser.add_argument('--cost-calculation', '-cc', action='store_true',
@@ -310,7 +266,7 @@ def get_args():
     # #### Physical setup of environment #####
     parser.add_argument('--preferred-charging-type', '-pct', default='depb',
                         choices=['depb', 'oppb'], help="Preferred charging type. Choose one\
-                            from {depb, oppb}. opp stands for opportunity.")
+                        from {depb, oppb}. opp stands for opportunity.")
     parser.add_argument('--gc-power-opps', metavar='POPP', type=float, default=100000,
                         help='max power of grid connector at opp stations')
     parser.add_argument('--gc-power-deps', metavar='PDEP', type=float, default=100000,
@@ -332,7 +288,7 @@ def get_args():
     parser.add_argument('--min-charging-time', help='define minimum time of charging',
                         default=0)
     parser.add_argument('--default-buffer-time-opps', help='time to subtract off of standing time '
-                                                           'at opp station to simulate docking procedure.', default=0)
+                        'at opp station to simulate docking procedure.', default=0)
 
     # #### SIMULATION PARAMETERS #####
     parser.add_argument('--days', metavar='N', type=int, default=None,
@@ -345,14 +301,12 @@ def get_args():
     parser.add_argument('--eta', action='store_true',
                         help='Show estimated time to finish simulation after each step, '
                              'instead of progress bar. Not recommended for fast computations.')
-    parser.add_argument('--rotation-filter-variable', default=None, choices=['include', 'exclude', None],
-                        help='set mode for filtering schedule rotations')
 
     # #### SPICE EV PARAMETERS ONLY DEFAULT VALUES NOT IN eBus-Toolbox CONFIG #####
     parser.add_argument('--seed', default=1, type=int, help='set random seed')
     parser.add_argument('--include-price-csv',
                         help='include CSV for energy price. \
-                                You may define custom options with --include-price-csv-option')
+                            You may define custom options with --include-price-csv-option')
     parser.add_argument('--include-price-csv-option', '-po', metavar=('KEY', 'VALUE'),
                         nargs=2, default=[], action='append',
                         help='append additional argument to price signals')
