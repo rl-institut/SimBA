@@ -384,7 +384,8 @@ class Schedule:
         :param rf_list: rotation filter list with strings of rotation ids (default is None)
         :type rf_list: list
         """
-        rf_list = [str(i) for i in rf_list] or []
+        rf_list = rf_list or []
+        rf_list = [str(i) for i in rf_list]
         if not args.rotation_filter_variable:
             return
         if args.rotation_filter_variable and not args.rotation_filter and not rf_list:
