@@ -544,11 +544,10 @@ class StationOptimizer:
         """
         parent_name = opt_util.stations_hash(self.electrified_station_set)
         for child in self.current_tree[parent_name]["children"]:
-            if not self.current_tree[child]["viable"]:
-                continue
-            # if one viable node is found  return True
-            return True
-        # not a single viable node was found, return False
+            if self.current_tree[child]["viable"]:
+                # at least one viable node is found --> return True
+                return True
+        # not a single viable node was found --> return False
         return False
 
     @opt_util.time_it
