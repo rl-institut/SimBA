@@ -497,9 +497,7 @@ def join_subsets(subsets: typing.Iterable[set]):
     """
     subsets = [s.copy() for s in subsets]
     for i in range(len(subsets)):
-        for ii in range(len(subsets)):
-            if i == ii:
-                continue
+        for ii in range(i+1, len(subsets)):
             intersec = subsets[i].intersection(subsets[ii])
             if len(intersec) > 0:
                 subsets[i] = subsets[i].union(subsets[ii])
