@@ -880,18 +880,20 @@ class StationOptimizer:
     def replace_socs_from_none_to_value(self):
         """ Removes soc values of None by filling them with the last value which is not None.
 
+        The function only changes None values which are at the end of soc time series. Data type
+        is switched to np.array for easier handling at later stages.
         """
-        # make sure no None values exists in SOCs. Fill later values with last value
+        # make sure no None values exist in SOCs. Fill later values with last value
         # which was not None, eg, [1,5,4,None,None] becomes [1,5,4,4,4]
         for v_id, soc in self.scenario.vehicle_socs.items():
             soc = np.array(soc)
-            last_not_none = "not found"
-            if None in soc:
-                for ii in range(len(soc) - 1, -1, -1):
-                    if soc[ii] is not None:
-                        last_not_none = soc[ii]
+            if soc[-1] is None:
+                for i in range(len(soc) - 1, -1, -1):
+                    if soc[i] is not None:
+                        # value is the last value which is not None. Overwrite the None values until
+                        # the end of the list with this value
+                        soc[i+1:] = soc[i]
                         break
-                soc[soc == np.array(None)] = last_not_none
             self.scenario.vehicle_socs[v_id] = soc
 
     def get_rotation_soc(self, rot_id, soc_data: dict = None):
