@@ -1,5 +1,5 @@
-""" Module for the class LowSocEvent which gathers functionality around
-LowSocEvents, like evaluating them, gathering them and so on"""
+""" Module for the minor classes LowSocEvent, ChargingEvent, OptimizerConfig
+and utility functionality used by the StationOptimizer and station_optimization"""
 import logging
 import math
 import os
