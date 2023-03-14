@@ -745,10 +745,9 @@ def preprocess_schedule(sched, args, electrified_stations=None):
     :return: schedule and scenario to be simulated
     :rtype: (ebus_toolbox.schedule.Schedule, spice_ev.Scenario)
     """
-    Trip.consumption = \
-        Consumption(sched.vehicle_types,
-                    outside_temperatures=args.outside_temperature_over_day_path,
-                    level_of_loading_over_day=args.level_of_loading_over_day_path)
+    Trip.consumption = Consumption(
+        sched.vehicle_types, outside_temperatures=args.outside_temperature_over_day_path,
+        level_of_loading_over_day=args.level_of_loading_over_day_path)
 
     sched.stations = electrified_stations
     sched.calculate_consumption()
