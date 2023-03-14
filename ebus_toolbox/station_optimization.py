@@ -49,20 +49,6 @@ def setup_logger(conf):
     return this_logger
 
 
-def main():
-    """ Main call"""
-    print(opt_util.get_time())
-    config_path = "./data/examples/default_optimizer.cfg"
-    conf = opt_util.read_config(config_path)
-    opt_sched, opt_scen = run_optimization(conf)
-    print(opt_util.get_time())
-    import pickle
-    with open("schedule_opt.pickle", "wb") as f:
-        pickle.dump(opt_sched, f)
-    with open("scenario_opt.pickle", "wb") as f:
-        pickle.dump(opt_scen, f)
-
-
 def prepare_filesystem(args, conf):
     """ Prepare files and folders in the optimization results folder.
 
@@ -202,7 +188,3 @@ def run_optimization(conf, sched=None, scen=None, args=None):
     logger.warning("Station optimization finished after %s", opt_util.get_time())
 
     return optimizer.schedule, optimizer.scenario
-
-
-if __name__ == "__main__":
-    main()
