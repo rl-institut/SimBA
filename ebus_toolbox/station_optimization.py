@@ -99,8 +99,8 @@ def run_optimization(conf, sched=None, scen=None, args=None):
     # setup folders, paths and copy config
     prepare_filesystem(args, conf)
 
-    if args.save_soc:
-        args.save_soc = args.output_directory / "simulation_soc_spiceEV.csv"
+    # if args.save_soc:
+    #     args.save_soc = args.output_directory / "simulation_soc_spiceEV.csv"
     new_ele_stations_path = conf.optimizer_output_dir / "optimized_stations.json"
 
     logger = setup_logger(conf)

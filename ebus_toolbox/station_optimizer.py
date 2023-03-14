@@ -1070,8 +1070,7 @@ class StationOptimizer:
                 # the stations which have potential should be filtered by the not_possible_stations,
                 # which are stations which for some reason should not be electrified.
                 possible_stations = possible_stations.difference(self.not_possible_stations)
-                cht = rot.vehicle_id.find("depb")
-                ch_type = (cht > 0) * "depb" + (cht <= 0) * "oppb"
+                ch_type = "depb" if "depb" in rot.vehicle_id else "oppb"
                 v_type = rot.vehicle_id.split("_" + ch_type)[0]
 
                 # with the gathered data create the event object

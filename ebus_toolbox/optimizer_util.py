@@ -22,7 +22,7 @@ if typing.TYPE_CHECKING:
 from ebus_toolbox.consumption import Consumption
 from ebus_toolbox.trip import Trip
 from ebus_toolbox.util import get_buffer_time as get_buffer_time_util
-
+from spice_ev.report import generate_soc_timeseries
 
 class ChargingEvent:
     """ Class to gather information about a charging event"""
@@ -707,17 +707,6 @@ def run_schedule(sched, args, electrified_stations=None):
     this_sched2, new_scen = preprocess_schedule(this_sched2, args,
                                                 electrified_stations=electrified_stations)
 
-    # parse strategy options for SpiceEV
-    if args.strategy_option is not None:
-        for opt_key, opt_val in args.strategy_option:
-            try:
-                # option may be number
-                opt_val = float(opt_val)
-            except ValueError:
-                # or not
-                pass
-            setattr(args, opt_key, opt_val)
-
     with warnings.catch_warnings():
         warnings.simplefilter('ignore', UserWarning)
         if "pytest" not in sys.modules:
@@ -727,6 +716,7 @@ def run_schedule(sched, args, electrified_stations=None):
         new_scen.run('distributed', vars(args).copy())
         if "pytest" not in sys.modules:
             sys.stdout = sys.__stdout__
+    generate_soc_timeseries(new_scen)
     return this_sched2, new_scen
 
 

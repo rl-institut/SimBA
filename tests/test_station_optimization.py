@@ -1,13 +1,16 @@
 import json
+import sys
 
 import ebus_toolbox.optimizer_util as opt_util
 import ebus_toolbox.util as util
+import spice_ev.report
+import tests.test_station_optimization
 from ebus_toolbox.station_optimization import run_optimization
 import pathlib
 from ebus_toolbox.trip import Trip
 from ebus_toolbox.consumption import Consumption
 from ebus_toolbox.schedule import Schedule
-from spice_ev.util import set_options_from_config
+from spice_ev.report import generate_soc_timeseries
 
 test_root = pathlib.Path(__file__).parent
 file_root = test_root / "test_input_files"
@@ -36,28 +39,24 @@ class TestStationOptimization:
             folder
         :type trips_file_name: str
         :return: schedule, scenario"""
-
         path_to_trips = file_root / trips_file_name
-        parser = util.create_ArgumentParser_with_arguments()
-        args = parser.parse_args(args="")
-        args.config = file_root / "ebus_toolbox.cfg"
-        args.days = None
-        args.seed = 5
+        sys.argv=["foo", "--config", str(file_root / "ebus_toolbox.cfg")]
+        args = util.get_args()
+        # args.config = file_root / "ebus_toolbox.cfg"
+
 
         Trip.consumption = Consumption(self.vehicle_types,
                                        outside_temperatures=None,
                                        level_of_loading_over_day=None)
 
-        path_to_all_station_data = file_root / "all_stations_example.csv"
+        path_to_all_station_data = file_root / "all_stations.csv"
         generated_schedule = Schedule.from_csv(path_to_trips, self.vehicle_types,
                                                self.electrified_stations,
                                                **self.mandatory_args,
                                                station_data_path=path_to_all_station_data)
 
-        set_options_from_config(args, check=parser, verbose=False)
-        args.ALLOW_NEGATIVE_SOC = True
-        args.attach_vehicle_soc = True
         scen = generated_schedule.run(args)
+        generate_soc_timeseries(scen)
         return generated_schedule, scen, args
 
     def test_basic_optimization(self):
@@ -66,6 +65,7 @@ class TestStationOptimization:
         sched, scen, args = self.test_basic_run(trips_file_name)
         config_path = file_root / "optimizer.cfg"
         conf = opt_util.read_config(config_path)
+
         opt_sched, opt_scen = run_optimization(conf, sched=sched, scen=scen, args=args)
         conf.solver = "spiceev"
         opt_sched, opt_scen = run_optimization(conf, sched=sched, scen=scen, args=args)
@@ -122,3 +122,4 @@ class TestStationOptimization:
         opt_sched, opt_scen = run_optimization(conf, sched=sched, scen=scen, args=args)
         assert ("must stations {'Station-3', 'Station-2'}" in caplog.text or
                 "must stations {'Station-2', 'Station-3'}" in caplog.text)
+

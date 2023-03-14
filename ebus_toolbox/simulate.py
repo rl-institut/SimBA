@@ -44,17 +44,6 @@ def simulate(args):
             raise SystemExit(f"Path to cost parameters ({args.cost_parameters_file}) "
                              "does not exist. Exiting...")
 
-    # parse strategy options for Spice EV
-    if args.strategy_option is not None:
-        for opt_key, opt_val in args.strategy_option:
-            try:
-                # option may be number
-                opt_val = float(opt_val)
-            except ValueError:
-                # or not
-                pass
-            setattr(args, opt_key, opt_val)
-
     # setup consumption calculator that can be accessed by all trips
     Trip.consumption = Consumption(
         vehicle_types,
