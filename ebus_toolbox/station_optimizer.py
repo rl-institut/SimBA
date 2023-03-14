@@ -679,8 +679,7 @@ class StationOptimizer:
         min_nr_visited = float('inf')
         # find the lowest amount of visits in the possible stations /  children
         # not viable stations are skipped
-        for stat_tuple in station_eval:
-            station, _ = stat_tuple
+        for station, _ in station_eval:
             # create a station combination from already electrified
             # stations and possible new stations
             stats = self.electrified_station_set.union([station])
