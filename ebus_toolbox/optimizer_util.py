@@ -206,6 +206,7 @@ def read_config(config_path):
     special = section_dict["SPECIAL"]
     conf.decision_tree_path = special.get("decision_tree_path", None)
     if conf.decision_tree_path in ["", '""', "''"]:
+        # path should not be empty or "empty like"
         conf.decision_tree_path = None
     conf.save_decision_tree = special.getboolean("save_decision_tree", False)
     conf.reduce_rotations = special.getboolean("reduce_rotations", False)
