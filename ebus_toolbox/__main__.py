@@ -120,8 +120,8 @@ if __name__ == '__main__':
 
     parser.add_argument(
         '--optimizer_config', default=None,
-        help="For station_optimization a optimizer_config is needed. Input "
-             "a path to an .cfg file or use the default_optimizer.cfg")
+        help="For station_optimization a optimizer_config is needed. \
+        Input a path to an .cfg file or use the default_optimizer.cfg")
 
     args = parser.parse_args()
     # arguments relevant to SpiceEV, setting automatically to reduce clutter in config
