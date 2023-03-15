@@ -3,8 +3,6 @@ import sys
 
 import ebus_toolbox.optimizer_util as opt_util
 import ebus_toolbox.util as util
-import spice_ev.report
-import tests.test_station_optimization
 from ebus_toolbox.station_optimization import run_optimization
 import pathlib
 from ebus_toolbox.trip import Trip
@@ -40,10 +38,8 @@ class TestStationOptimization:
         :type trips_file_name: str
         :return: schedule, scenario"""
         path_to_trips = file_root / trips_file_name
-        sys.argv=["foo", "--config", str(file_root / "ebus_toolbox.cfg")]
+        sys.argv = ["foo", "--config", str(file_root / "ebus_toolbox.cfg")]
         args = util.get_args()
-        # args.config = file_root / "ebus_toolbox.cfg"
-
 
         Trip.consumption = Consumption(self.vehicle_types,
                                        outside_temperatures=None,
@@ -56,6 +52,7 @@ class TestStationOptimization:
                                                station_data_path=path_to_all_station_data)
 
         scen = generated_schedule.run(args)
+        # optimization depends on vehicle_socs, therefore they need to be generated
         generate_soc_timeseries(scen)
         return generated_schedule, scen, args
 
@@ -122,4 +119,3 @@ class TestStationOptimization:
         opt_sched, opt_scen = run_optimization(conf, sched=sched, scen=scen, args=args)
         assert ("must stations {'Station-3', 'Station-2'}" in caplog.text or
                 "must stations {'Station-2', 'Station-3'}" in caplog.text)
-

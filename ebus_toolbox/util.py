@@ -2,7 +2,6 @@ import argparse
 import json
 import warnings
 import subprocess
-import argparse
 
 from spice_ev.util import set_options_from_config
 
@@ -245,8 +244,7 @@ def get_args():
 
     # #### Modes #####
     mode_choices = ['sim', 'neg_depb_to_oppb', 'neg_oppb_to_depb', 'service_optimization',
-                    'station_optimization', 'report',
-                    ]
+                    'station_optimization', 'report']
     parser.add_argument('--mode', default=['sim', 'report'], nargs='*', choices=mode_choices,
                         help=f"Specify what you want to do. Choose one or more from \
                         {', '.join(mode_choices)}. \

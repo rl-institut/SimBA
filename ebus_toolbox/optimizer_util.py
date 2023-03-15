@@ -24,6 +24,7 @@ from ebus_toolbox.trip import Trip
 from ebus_toolbox.util import get_buffer_time as get_buffer_time_util
 from spice_ev.report import generate_soc_timeseries
 
+
 class ChargingEvent:
     """ Class to gather information about a charging event"""
     def __init__(self, start_idx, end_idx, arrival_time, start_time, end_time, buffer_time,
