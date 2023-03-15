@@ -289,6 +289,8 @@ def get_args():
                         default=0)
     parser.add_argument('--default-buffer-time-opps', help='time to subtract off of standing time '
                         'at opp station to simulate docking procedure.', default=0)
+    parser.add_argument('--default_voltage_level', help='Default voltage level for charging stations'
+                        ' if not set in electrified_stations file', type=str, default=None)
 
     # #### SIMULATION PARAMETERS #####
     parser.add_argument('--days', metavar='N', type=int, default=None,

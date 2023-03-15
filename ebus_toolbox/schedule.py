@@ -494,15 +494,11 @@ class Schedule:
                         }
                     if gc_name not in grid_connectors:
                         # add one grid connector for each bus station
-                        # if attribute "voltage_level" is not set, use default parameter
-                        if "voltage_level" not in station:
-                            station["voltage_level"] = getattr(args, "default_voltage_level")
-
                         grid_connectors[gc_name] = {
                             "max_power": gc_power,
                             "cost": {"type": "fixed", "value": 0.3},
                             "number_cs": station["n_charging_stations"],
-                            "voltage_level": station.get("voltage_level")
+                            "voltage_level": station.get("voltage_level", args.default_voltage_level)
                         }
                         # check for stationary battery
                         battery = station.get("battery")
