@@ -703,10 +703,10 @@ def run_schedule(sched, args, electrified_stations=None):
     :return: schedule and scenario after SpiceEV simulation
     :rtype: ebus_toolbox.schedule.Schedule, spice_ev.Scenario
     """
-    this_sched2 = copy(sched)
-    this_sched2.stations = electrified_stations
-    this_sched2, new_scen = preprocess_schedule(this_sched2, args,
-                                                electrified_stations=electrified_stations)
+    sched_copy = copy(sched)
+    sched_copy.stations = electrified_stations
+    sched_copy, new_scen = preprocess_schedule(sched_copy, args,
+                                               electrified_stations=electrified_stations)
 
     with warnings.catch_warnings():
         warnings.simplefilter('ignore', UserWarning)
@@ -718,7 +718,7 @@ def run_schedule(sched, args, electrified_stations=None):
         if "pytest" not in sys.modules:
             sys.stdout = sys.__stdout__
     generate_soc_timeseries(new_scen)
-    return this_sched2, new_scen
+    return sched_copy, new_scen
 
 
 def preprocess_schedule(sched, args, electrified_stations=None):
