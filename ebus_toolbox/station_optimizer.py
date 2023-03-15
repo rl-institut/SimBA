@@ -378,9 +378,9 @@ class StationOptimizer:
             if pre_optimized_set is None:
                 continue
             # if there is a pre optimized set check if the pre optimized set leads to pruning
-            # i.e. if if following branch makes sense. Since the prognosis is not very accurate
-            # over many station electrification pruning is very unlikely early on. The pruning
-            # threshold should be set not to high, since checking for pruning is likely to be
+            # i.e. if following branch makes sense. Since the prognosis is not very accurate
+            # over electrifying many stations, pruning is very unlikely early on. The pruning
+            # threshold should be set not to high, since checking for pruning is likely to be an
             # unnecessary calculation
             thresh = self.config.pruning_threshold
             if len(pre_optimized_set) - len(self.electrified_station_set) < thresh:
