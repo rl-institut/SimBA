@@ -102,30 +102,30 @@ def bus_type_distribution_consumption_rotation(args, schedule):
     """
 
     step = 50
+    # get bin_number
     max_con = int(max([schedule.rotations[rot].consumption for rot in schedule.rotations]))
-    if max_con % step < step / 2:
-        max_con_up = ((max_con // step) * step)
+    if max_con % step < step/2:
+        bin_number = ((max_con // step) * step)
     else:
-        max_con_up = (max_con // step) * step + step
-    labels = [f"{i - step} - {i}" for i in range(step, int(max_con), step) if i > 0]
-    bins = {v_types: [0 for _ in range(int(max_con / step))] for v_types in schedule.vehicle_types}
+        bin_number = (max_con // step) * step + step
+    labels = [f"{i - step} - {i}" for i in range(step, bin_number+step, step) if i > 0]
+    bins = {v_types: [0 for _ in range(bin_number // step)] for v_types in schedule.vehicle_types}
 
     # fill bins with rotations
     for rot in schedule.rotations:
         for v_type in schedule.vehicle_types:
             if schedule.rotations[rot].vehicle_type == v_type:
                 position = int(schedule.rotations[rot].consumption // step)
-                if position >= max_con_up / step:
-                    position -= 1
-                bins[v_type][position] += 1
+                if position >= bin_number/step:
+                    position -= bin_number // step - 1
+                bins[v_type][position] += 1     # index out of range
                 break
     # plot
     fig, ax = plt.subplots()
-    bar_bottom = [0 for _ in range(max_con_up//step)]
+    bar_bottom = [0 for _ in range(bin_number//step)]
     for v_type in schedule.vehicle_types:
         ax.bar(labels, bins[v_type], width=0.9, label=v_type, bottom=bar_bottom)
-        # something more efficient than for loop
-        for i in range(max_con_up//step):
+        for i in range(bin_number//step):
             bar_bottom[i] += bins[v_type][i]
     ax.set_xlabel('Energieverbrauch in kWh')
     ax.set_ylabel('Anzahl der Umläufe')
@@ -134,6 +134,7 @@ def bus_type_distribution_consumption_rotation(args, schedule):
     fig.autofmt_xdate()
     ax.yaxis.grid(True)
     plt.savefig(args.output_directory / "distribution_bustypes_consumption_rotations")
+    plt.close()
 
 
 def charge_type_proportion(args, schedule):
@@ -166,6 +167,7 @@ def charge_type_proportion(args, schedule):
     ax.bar_label(ax.containers[0], [v for v in [v for v in charging_types.values()]])
     ax.yaxis.grid(True)
     plt.savefig(args.output_directory / "charge_type_proportion")
+    plt.close()
 
 
 def gc_power_time_overview_example(args, schedule, scenario):
@@ -211,6 +213,8 @@ def gc_power_time_overview(args, scenario):
         plt.plot(ts, [sum(v.values()) for v in scenario.extLoads[gc]], label="ext_load")
         plt.legend()
         plt.xticks(rotation=30)
+        plt.ylabel("Power in kW")
+        plt.title(f"Power: {gc}")
 
         gc = gc.replace("/", "").replace(".", "")
         plt.savefig(args.output_directory / f"{gc}_power_time_overview")
