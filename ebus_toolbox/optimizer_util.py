@@ -282,8 +282,7 @@ def get_index_by_time(scenario, search_time):
     :return: index
     :rtype: int
     """
-    idx = (search_time - scenario.start_time) // scenario.interval
-    return idx
+    return (search_time - scenario.start_time) // scenario.interval
 
 
 def get_rotation_soc_util(rot_id, schedule, scenario, soc_data: dict = None):
@@ -457,7 +456,7 @@ def get_groups_from_events(events, impossible_stations=None, could_not_be_electr
     # created as station subsets
     for event in events:
         for i, subset in enumerate(station_subsets):
-            # every station from an event must share the same station sub_set. Therefore its enough
+            # every station from an event must share the same station subset. Therefore its enough
             # to check only the first element
             if len(event.stations) > 0:
                 if next(iter(event.stations)) in subset:

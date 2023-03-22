@@ -116,7 +116,7 @@ class StationOptimizer:
                     self.electrify_station(stat, self.electrified_station_set)
             return self.electrified_stations, self.electrified_station_set
         self.logger.warning("Starting deep analysis with mode: %s", self.config.node_choice)
-        print(opt_util.get_time())
+        self.logger.debug(opt_util.get_time())
         # from here on only for deep analysis
         for group_nr, group in enumerate(groups[:]):
             events, stations = group
