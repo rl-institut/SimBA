@@ -148,7 +148,13 @@ def read_config(config_path):
 
     assert Path(config_path).is_file(), f"Path to optimizer_config: {config_path} " \
                                         f"does not lead to file"
-    config_parser.read(config_path, encoding="utf-8")
+    try:
+        config_parser.read(config_path, encoding="utf-8")
+    except configparser.MissingSectionHeaderError:
+        # make sure there is always a DEFAULT section.
+        with open(config_path, 'r') as f:
+            config_string = '[DEFAULT]\n' + f.read()
+        config_parser.read_string(config_string)
     conf = OptimizerConfig()
     conf.path = config_path
 
@@ -162,7 +168,7 @@ def read_config(config_path):
     default = section_dict["DEFAULT"]
     conf.debug_level = default.getint("debug_level", 0)
     conf.console_level = default.getint("console_level", 99)
-    sce = config_parser["SCENARIO"]
+    sce = section_dict["SCENARIO"]
     conf.exclusion_rots = set(json.loads(sce.get("exclusion_rots", "[]")))
     conf.exclusion_stations = set(json.loads(sce.get("exclusion_stations", "[]")))
     conf.inclusion_stations = set(json.loads(sce.get("inclusion_stations", "[]")))
