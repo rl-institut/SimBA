@@ -208,7 +208,6 @@ def read_config(config_path):
     conf.estimation_threshold = optimizer.getfloat("estimation_threshold", 0.8)
     conf.check_for_must_stations = optimizer.getboolean("check_for_must_stations", True)
     conf.pruning_threshold = optimizer.getint("pruning_threshold", 3)
-    conf.save_all_results = optimizer.getboolean("save_all_results", False)
 
     special = section_dict["SPECIAL"]
     conf.decision_tree_path = special.get("decision_tree_path", None)

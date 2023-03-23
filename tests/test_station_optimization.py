@@ -1,3 +1,4 @@
+import pytest
 import json
 import sys
 
@@ -15,6 +16,12 @@ file_root = test_root / "test_input_files"
 
 
 class TestStationOptimization:
+
+    # Using the pytest fixture tmp_path to have access to a temporary directory as class attribute
+    @pytest.fixture(autouse=True)
+    def initialize_tmp_path(self, tmp_path):
+        self.tmp_path = tmp_path
+
     mandatory_args = {
         "min_recharge_deps_oppb": 0,
         "min_recharge_deps_depb": 0,
@@ -54,6 +61,8 @@ class TestStationOptimization:
         scen = generated_schedule.run(args)
         # optimization depends on vehicle_socs, therefore they need to be generated
         generate_soc_timeseries(scen)
+        args.output_directory = self.tmp_path
+        assert self.tmp_path
         return generated_schedule, scen, args
 
     def test_basic_optimization(self):
@@ -113,6 +122,7 @@ class TestStationOptimization:
         args.input_schedule = file_root / trips_file_name
         config_path = file_root / "optimizer.cfg"
         conf = opt_util.read_config(config_path)
+
         conf.check_for_must_stations = True
         conf.solver = "quick"
         conf.node_choice = "step-by-step"
