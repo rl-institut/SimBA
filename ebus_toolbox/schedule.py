@@ -131,11 +131,11 @@ class Schedule:
     def check_consistency(cls, schedule):
         """
         Check rotation expectations, such as
-        - each rotation has one "Einsetzfahrt"
-        - each rotation has one "Aussetzfahrt"
-        - the "Einsatzfahrt" starts where the "Aussetzfahrt" ends
-        - the rotation name is unique
+        - the rotation starts and ends at the same station
         - every trip within a rotation starts where the previous trip ended
+        - trips are chronologically sorted
+        - trips have positive breaks in between
+        - trips have positive times between departure and arrival
 
         :param schedule: the schedule to check
         :type schedule: dict
@@ -145,32 +145,28 @@ class Schedule:
         ignored_rotations = {}
         for rot_id, rotation in schedule.rotations.items():
             # iterate over trips, looking for initial and final stations
-            dep_name = None
-            arr_name = None
-            prev_station_name = None
+            prev_trip = None
             try:
                 for trip in rotation.trips:
-                    if trip.line == "Einsetzfahrt":
-                        # must have exactly one "Einsetzfahrt"
-                        assert dep_name is None, "Einsetzfahrt encountered mutliple times"
-                        dep_name = trip.departure_name
-                    if trip.line == "Aussetzfahrt":
-                        # must have exactly one "Aussetzfahrt"
-                        assert arr_name is None, "Aussetzfahrt encountered multiple times"
-                        arr_name = trip.arrival_name
-                    if prev_station_name is not None:
-                        # must depart from the previous station
-                        assert trip.departure_name == prev_station_name, "Wrong departure station"
-                        prev_station_name = trip.arrival_name
-                # must have exactly one "Einsetzfahrt" and "Aussetzfahrt"
-                assert dep_name is not None and arr_name is not None, "No Ein- or Aussetzfahrt"
-                # rotation must end where it started
+                    # positive duration for a trip
+                    assert trip.arrival_time >= trip.departure_time, "Trip time is negative"
+                    if not prev_trip:
+                        prev_trip = trip
+                        continue
+                    # chronologically sorted
+                    assert trip.departure_time > prev_trip.departure_time, "Trips are not sorted"
+                    # positive break time in between trips
+                    assert trip.departure_time >= prev_trip.arrival_time, "Break time is negative"
+                    assert trip.departure_name == prev_trip.arrival_name, "Trips are not sequential"
+
+                assert len(rotation.trips) > 1, "Rotation has only one trip"
+                dep_name = list(rotation.trips)[0].departure_name
+                arr_name = list(rotation.trips)[-1].departure_name
                 assert dep_name == arr_name, "Start and end of rotation differ"
             except AssertionError as e:
                 # some assumption is violated
                 # save error text
                 ignored_rotations[rot_id] = e
-
         return ignored_rotations
 
     def run(self, args):
