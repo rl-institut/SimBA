@@ -154,15 +154,23 @@ class Schedule:
                         prev_trip = trip
                         continue
                     # chronologically sorted
-                    assert trip.departure_time > prev_trip.departure_time, "Trips are not sorted"
+                    assert trip.departure_time >= prev_trip.departure_time, "Trips are not sorted"
                     # positive break time in between trips
                     assert trip.departure_time >= prev_trip.arrival_time, "Break time is negative"
                     assert trip.departure_name == prev_trip.arrival_name, "Trips are not sequential"
 
+                    prev_trip = trip
+
                 assert len(rotation.trips) > 1, "Rotation has only one trip"
-                dep_name = list(rotation.trips)[0].departure_name
-                arr_name = list(rotation.trips)[-1].departure_name
+                rot_departure_trip = list(rotation.trips)[0]
+                rot_arrival_trip = list(rotation.trips)[-1]
+                dep_name = rot_departure_trip.departure_name
+                arr_name = rot_arrival_trip.arrival_name
                 assert dep_name == arr_name, "Start and end of rotation differ"
+                assert dep_name == rotation.departure_name, "Rotation data differs from trips"
+                assert arr_name == rotation.arrival_name, "Rotation data differs from trips"
+                assert rot_arrival_trip.arrival_time == rotation.arrival_time
+                assert rot_departure_trip.departure_name == rotation.departure_name
             except AssertionError as e:
                 # some assumption is violated
                 # save error text
