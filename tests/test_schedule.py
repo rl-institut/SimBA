@@ -30,12 +30,6 @@ def test_consistency():
     faulty_trip.arrival_time -= timedelta(days=365)
     assert Schedule.check_consistency(sched)["1"] == error
 
-    error = 'Rotation has only one trip'
-    sched = generate_basic_schedule()
-    faulty_rot = list(sched.rotations.values())[0]
-    faulty_rot.trips = faulty_rot.trips[:1]
-    assert Schedule.check_consistency(sched)["1"] == error
-
     error = 'Start and end of rotation differ'
     sched = generate_basic_schedule()
     faulty_rot = list(sched.rotations.values())[0]

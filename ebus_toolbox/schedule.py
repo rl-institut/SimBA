@@ -159,7 +159,6 @@ class Schedule:
 
                     prev_trip = trip
 
-                assert len(rotation.trips) > 1, "Rotation has only one trip"
                 rot_departure_trip = list(rotation.trips)[0]
                 rot_arrival_trip = list(rotation.trips)[-1]
                 dep_name = rot_departure_trip.departure_name
