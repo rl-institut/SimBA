@@ -22,7 +22,7 @@ def test_consistency():
     # check if no error is thrown in the basic case
     assert len(Schedule.check_consistency(sched)) == 0
 
-    error = 'Trip time is negative'
+    error = "Trip time is negative"
     sched = generate_basic_schedule()
     faulty_rot = list(sched.rotations.values())[0]
     faulty_trip = faulty_rot.trips[0]
@@ -30,7 +30,22 @@ def test_consistency():
     faulty_trip.arrival_time -= timedelta(days=365)
     assert Schedule.check_consistency(sched)["1"] == error
 
-    error = 'Start and end of rotation differ'
+    error = "Break time is negative"
+    sched = generate_basic_schedule()
+    faulty_rot = list(sched.rotations.values())[0]
+    faulty_trip = faulty_rot.trips[1]
+    # create error through moving trip departure before last arrival
+    faulty_trip.departure_time = faulty_rot.trips[0].arrival_time-timedelta(minutes=1)
+    assert Schedule.check_consistency(sched)["1"] == error
+
+    error = "Trips are not sequential"
+    sched = generate_basic_schedule()
+    faulty_rot = list(sched.rotations.values())[0]
+    faulty_rot.trips[1].arrival_name = "foo"
+    faulty_rot.trips[0].departure_name = "bar"
+    assert Schedule.check_consistency(sched)["1"] == error
+
+    error = "Start and end of rotation differ"
     sched = generate_basic_schedule()
     faulty_rot = list(sched.rotations.values())[0]
     departure_trip = list(faulty_rot.trips)[0]
