@@ -111,19 +111,19 @@ class Schedule:
 
         if kwargs.get("check_rotation_consistency"):
             # check rotation expectations
-            ignored_rotations = cls.check_consistency(schedule)
-            if ignored_rotations:
+            inconsistent_rotations = cls.check_consistency(schedule)
+            if inconsistent_rotations:
                 # write errors to file
                 with open(kwargs["output_directory"] / "inconsistent_rotations.csv", "w") as f:
-                    for rot_id, e in ignored_rotations.items():
+                    for rot_id, e in inconsistent_rotations.items():
                         f.write(f"Rotation {rot_id}: {e}\n")
                         print(f"Rotation {rot_id}: {e}")
-                        if kwargs.get("ignore_inconsistent_rotations"):
+                        if kwargs.get("skip_inconsistent_rotations"):
                             # remove this rotation from schedule
                             del schedule.rotations[rot_id]
-        elif kwargs.get("ignore_inconsistent_rotations"):
-            warnings.warn("Option ignore_inconsistent_rotations ignored, "
-                          "as check_rotation_consistency is not set")
+        elif kwargs.get("skip_inconsistent_rotations"):
+            warnings.warn("Option skip_inconsistent_rotations ignored, "
+                          "as check_rotation_consistency is not set to 'true'")
 
         return schedule
 
@@ -139,10 +139,10 @@ class Schedule:
 
         :param schedule: the schedule to check
         :type schedule: dict
-        :return: faulty rotations. Dict of rotation ID -> error message
+        :return: inconsistent_rotations. Dict of rotation ID -> error message
         :rtype: dict
         """
-        ignored_rotations = {}
+        inconsistent_rotations = {}
         for rot_id, rotation in schedule.rotations.items():
             # iterate over trips, looking for initial and final stations
             prev_trip = None
@@ -174,8 +174,8 @@ class Schedule:
             except AssertionError as e:
                 # some assumption is violated
                 # save error text
-                ignored_rotations[rot_id] = e.args[0]
-        return ignored_rotations
+                inconsistent_rotations[rot_id] = e.args[0]
+        return inconsistent_rotations
 
     def run(self, args):
         # each rotation is assigned a vehicle ID
