@@ -27,7 +27,7 @@ def test_consistency():
     faulty_rot = list(sched.rotations.values())[0]
     faulty_trip = faulty_rot.trips[0]
     # create error through moving trip arrival 1 day before departure
-    faulty_trip.arrival_time -= faulty_trip.departure_time - timedelta(days=1)
+    faulty_trip.arrival_time = faulty_trip.departure_time - timedelta(days=1)
     assert Schedule.check_consistency(sched)["1"] == error
 
     error = "Break time is negative"
