@@ -190,7 +190,8 @@ class StationOptimizer:
             self.logger.debug("Optimized with %s stations out of %s", len(pre_optimized_set),
                               len(stations))
 
-        print(opt_util.get_time())
+        # make sure it gets printed in the console through high level
+        self.logger.log(msg=opt_util.get_time(), level=100)
         # saving decision tree only in case of deep analysis
         if self.config.save_decision_tree:
             with open(self.config.optimizer_output_dir / Path("decision_tree.pickle"), "wb") as f:
@@ -202,7 +203,7 @@ class StationOptimizer:
             for stat in single_set:
                 self.electrify_station(stat, self.electrified_station_set)
         # dump the measured running times of the functions
-        print(opt_util.time_it(None))
+        self.logger.debug(opt_util.time_it(None))
         return self.electrified_stations, self.electrified_station_set
 
     def get_negative_rotations_all_electrified(self, rel_soc=False):
