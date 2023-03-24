@@ -139,7 +139,7 @@ class Schedule:
 
         :param schedule: the schedule to check
         :type schedule: dict
-        :return: inconsistent_rotations. Dict of rotation ID -> error message
+        :return: inconsistent rotations. Dict of rotation ID -> error message
         :rtype: dict
         """
         inconsistent_rotations = {}
@@ -173,7 +173,7 @@ class Schedule:
             except AssertionError as e:
                 # some assumption is violated
                 # save error text
-                inconsistent_rotations[rot_id] = e.args[0]
+                inconsistent_rotations[rot_id] = str(e)
         return inconsistent_rotations
 
     def run(self, args):
