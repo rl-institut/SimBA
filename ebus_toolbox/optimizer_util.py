@@ -145,8 +145,8 @@ def read_config(config_path):
     """
     config_parser = configparser.ConfigParser()
 
-    assert Path(config_path).is_file(), f"Path to optimizer_config: {config_path} " \
-                                        f"does not lead to file"
+    assert Path(config_path).is_file(), (f"Path to optimizer_config: {config_path} "
+                                         "does not lead to file")
     try:
         config_parser.read(config_path, encoding="utf-8")
     except configparser.MissingSectionHeaderError:
@@ -433,9 +433,9 @@ def get_groups_from_events(events, impossible_stations=None, could_not_be_electr
     if could_not_be_electrified is None:
         could_not_be_electrified = set()
 
-    possible_stations = \
-        [{station for station in event.stations if station not in impossible_stations}
-            for event in events]
+    possible_stations = [
+        {station for station in event.stations if station not in impossible_stations}
+        for event in events]
     # if station sets have intersections they are returned as single set
     station_subsets = join_all_subsets(possible_stations)
     event_groups = [[] for __ in range(len(station_subsets))]
@@ -463,7 +463,7 @@ def get_groups_from_events(events, impossible_stations=None, could_not_be_electr
 
 
 def join_all_subsets(subsets):
-    """ Return sets which are joined together if they have any intersections.
+    """Return sets which are joined together if they have any intersections.
 
     :param subsets: sets to be joined
     :type subsets: iterable
@@ -580,7 +580,7 @@ def charging_curve_to_soc_over_time(charging_curve, capacity, args,
         if power/starting_power < eps:
             if logger:
                 warnings.warn("charging_curve_to_soc_over_time stopped early")
-                logger.warning("charging_curve_to_soc_over_time stopped early,"
+                logger.warning("charging_curve_to_soc_over_time stopped early, "
                                "because the charging power of %s was to low for eps: %s"
                                "at an soc of %s an a desired soc of %s",
                                power, eps, soc, args.desired_soc_opps)
@@ -593,7 +593,7 @@ def charging_curve_to_soc_over_time(charging_curve, capacity, args,
 
 
 def get_missing_energy(events):
-    """ Sum up all the missing energies of the given events.
+    """Sum up all the missing energies of the given events.
 
     :param events: events to be checked
     :type events: list(ebus_toolbox.optimizer_util.LowSocEvent)
@@ -767,7 +767,7 @@ def plot_(data):
 
 
 def plot_rot(rot_id, sched, scen, axis=None, rot_only=True):
-    """Simple plot of data without having to create subplots.
+    """ Simple plot of data without having to create subplots.
 
     :param rot_id: id of the rotation
     :type rot_id: str

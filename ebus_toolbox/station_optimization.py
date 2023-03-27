@@ -95,8 +95,8 @@ def run_optimization(conf, sched=None, scen=None, args=None):
     # load pickle files if they are not given as arguments
     if sched is None or scen is None or args is None:
         # either all optional arguments are given or none are
-        assert sched == scen == args is None, "To optimize from .pickle files, schedule," \
-                                              "scenario and arguments need to be provided together"
+        assert sched == scen == args is None, ("To optimize from .pickle files, schedule, scenario "
+                                               "and arguments need to be provided together")
         sched, scen, args = opt_util.toolbox_from_pickle(conf.schedule, conf.scenario, conf.args)
 
     # setup folders, paths and copy config
@@ -118,8 +118,7 @@ def run_optimization(conf, sched=None, scen=None, args=None):
     if conf.run_only_oppb:
         sched.rotations = {r: sched.rotations[r] for r in sched.rotations
                            if "oppb" in sched.rotations[r].vehicle_id}
-        assert len(sched.rotations) > 0, "Removing depot chargers led to a schedule without any " \
-                                         "rotations."
+        assert len(sched.rotations) > 0, "No rotations left after removing depot chargers"
 
     # rebasing the scenario meaning simulating it again with SpiceEV and the given conditions of
     # included stations, excluded stations, filtered rotations and changed battery sizes
@@ -147,8 +146,8 @@ def run_optimization(conf, sched=None, scen=None, args=None):
 
         logger.warning("%s negative rotations %s were removed from schedule",
                        len(neg_rots), neg_rots)
-        assert len(optimizer.schedule.rotations) > 0, "Schedule cant be optimized, since" \
-                                                      "rotations cant be electrified."
+        assert len(optimizer.schedule.rotations) > 0, ("Schedule can not be optimized, since "
+                                                       "rotations can not be electrified.")
 
     # if the whole network can not be fully electrified if even just a single station is not
     # electrified, this station must be included in a fully electrified network

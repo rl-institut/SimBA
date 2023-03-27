@@ -91,6 +91,33 @@ def uncomment_json_file(f, char='//'):
     return json.loads(uncommented_data)
 
 
+def recursive_dict_updater(dict_to_change, filter_function, modify_function):
+    """ Change nested dictionary in place given a filter and modify function
+
+    Goes through all values of a dictionary and modifies the value when filter criteria are met.
+    The filter criteria are checked by the filter_function which gets the arguments key and value.
+    The values are updated by the modify_function which gets the arguments key and value and returns
+    the updated value.
+    :param dict_to_change: nested dictionary that needs to be updated
+    :type dict_to_change: dict
+    :param filter_function: function that returns True if the value should be changed with key and
+        value as arguments
+    :type filter_function: function
+    :param modify_function: function that returns the dictionary value with key and value as
+        arguments
+    :type modify_function: function
+    """
+    # iterate over all items. For every item, try iterating over it as well until an AttributeError
+    for key, value in dict_to_change.items():
+        try:
+            recursive_dict_updater(value, filter_function, modify_function)
+        except AttributeError:
+            # could not iterate, therefore its a "final" value. check for filter condition
+            # and apply the modify function
+            if filter_function(key, value):
+                dict_to_change[key] = modify_function(key, value)
+
+
 def get_csv_delim(path, other_delims=set()):
     """ Get the delimiter of a character separated file.
      Checks the file for ",", "tabulator" and ";" as well as optional other characters
