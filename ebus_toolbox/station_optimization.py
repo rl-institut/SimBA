@@ -158,8 +158,7 @@ def run_optimization(conf, sched=None, scen=None, args=None):
         must_stations = optimizer.get_critical_stations_and_rebase(relative_soc=False)
         logger.warning("%s must stations %s", len(must_stations), must_stations)
 
-    logger.debug("Starting greedy station optimization")
-    print("Starting greedy station optimization")
+    logger.log(msg="Starting greedy station optimization", level=100)
     ele_stations, ele_station_set = optimizer.loop()
     ele_station_set = ele_station_set.union(must_include_set)
     logger.debug("%s electrified stations : %s", len(ele_station_set), ele_station_set)
@@ -191,7 +190,7 @@ def run_optimization(conf, sched=None, scen=None, args=None):
 
     logger.warning("Still negative rotations: %s", optimizer.schedule.
                    get_negative_rotations(optimizer.scenario))
-    print("Station optimization finished after " + opt_util.get_time())
+    logger.log(msg="Station optimization finished after " + opt_util.get_time(), level=100)
     logger.warning("Station optimization finished after %s", opt_util.get_time())
 
     return optimizer.schedule, optimizer.scenario

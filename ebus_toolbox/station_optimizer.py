@@ -141,8 +141,9 @@ class StationOptimizer:
             pre_optimized_set = list_greedy_sets[group_nr]
             for i in range(self.config.max_brute_loop):
                 if i % 10 == 0:
-                    print(len(self.current_tree), " nodes checked")
-                    print(f"Optimal solution has length {len(pre_optimized_set)}")
+                    self.logger.log(msg=f"{len(self.current_tree)} nodes checked", level=100)
+                    self.logger.log(msg=f"Optimal solution has length {len(pre_optimized_set)}",
+                                    level=100)
 
                 self.electrified_stations = self.base_stations.copy()
                 self.electrified_station_set = self.base_electrified_station_set.copy()
@@ -861,7 +862,8 @@ class StationOptimizer:
         electrified_station_set_all = set(stats)
         critical_stations = set()
         nr_of_all_stations = len(electrified_station_set_all)
-        print(f"Electrifying {nr_of_all_stations-1}/{nr_of_all_stations} stations", )
+        self.logger.log(msg=f"Electrifying {nr_of_all_stations-1}/{nr_of_all_stations} stations",
+                        level=100)
         for station in sorted(electrified_station_set_all):
             electrified_station_set = electrified_station_set_all.difference([station])
 
