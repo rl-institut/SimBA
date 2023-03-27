@@ -111,8 +111,29 @@ class TestStationOptimization:
                 assert "Station-2" in opt_sched.stations
                 assert "Station-3" in opt_sched.stations
 
+        trips_file_name = "trips_extended.csv"
+        sched, scen, args = self.test_basic_run(trips_file_name=trips_file_name)
+        args.input_schedule = file_root / trips_file_name
+        config_path = file_root / "optimizer.cfg"
+        conf = opt_util.read_config(config_path)
+
+        solvers = ["quick", "spiceev"]
+        node_choices = ["step-by-step", "brute"]
+        conf.opt_type = "deep"
+        opt_stat = None
+        for solver in solvers:
+            for node_choice in node_choices:
+                conf.solver = solver
+                conf.node_choice = node_choice
+                opt_sched, opt_scen = run_optimization(conf, sched=sched, scen=scen, args=args)
+                if opt_stat is None:
+                    opt_stat = {stat for stat in opt_sched.stations}
+                    assert len(opt_stat) > 0
+                else:
+                    assert opt_stat == set(opt_sched.stations)
+
     def test_critical_stations_optimization(self, caplog):
-        """ Test if station 2 and 3 are correctly recognized as critical stations.
+        """Test if station 2 and 3 are correctly recognized as critical stations.
 
         :param caplog: pytest fixture, which is automatically created,
             to have access to logging data

@@ -58,7 +58,7 @@ class StationOptimizer:
         opt_type = kwargs.get("opt_type", self.config.opt_type)
 
         self.scenario.vehicle_socs = self.timeseries_calc(electrify_stations=self.must_include_set)
-        self.base_scenario = copy(self.scenario)
+        self.base_scenario = deepcopy(self.scenario)
         self.base_schedule = copy(self.schedule)
 
         self.base_stations = self.electrified_stations.copy()
@@ -85,7 +85,7 @@ class StationOptimizer:
 
         # baseline greedy optimization
         # base line is created simply by not having a decision tree and not a pre optimized_set yet
-        print(opt_util.get_time())
+        self.logger.debug(opt_util.get_time())
         for group_nr, group in enumerate(groups[:]):
             # unpack the group
             events, stations = group
@@ -96,6 +96,11 @@ class StationOptimizer:
                                 len(groups))
             self.logger.warning(lines)
             self.logger.warning("%s events with %s stations", (len(events)), len(stations))
+
+            if self.config.solver == "spiceev":
+                # running SpiceEV changes the scenario and vehicle ids. Since the low soc events
+                # point to the base vehicle ids, these have to be used in the group optimization
+                self.scenario = deepcopy(self.base_scenario)
 
             # first run is always step by step
             self.group_optimization(group, self.choose_station_step_by_step,
@@ -314,7 +319,7 @@ class StationOptimizer:
         # copy scen and sched from base scenario and base schedule. This way we can be sure
         # to have the correct original basis for simulation. If we would not copy, there can be
         # unintended, changes in scenario start times for example, since some values do no stay the
-        # same if we mutate the rotation dictionary and run the scenario.
+        # same if we mutate the rotation dictionary and run the scenario (e.g changing vehicle ids)
         # This led to problems in the past
         self.copy_scen_sched()
 

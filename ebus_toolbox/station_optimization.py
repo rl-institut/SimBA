@@ -5,11 +5,14 @@ electrification.
 
 from datetime import datetime
 import json
-from pathlib import Path
+from pathlib import Path, WindowsPath
 import logging
 import shutil
 import ebus_toolbox.station_optimizer
 from ebus_toolbox.station_optimizer import opt_util
+from ebus_toolbox.util import recursive_dict_updater
+from spice_ev.report import generate_soc_timeseries
+
 config = opt_util.OptimizerConfig()
 
 
@@ -125,6 +128,8 @@ def run_optimization(conf, sched=None, scen=None, args=None):
     else:
         # no new SpiceEV simulation will take place, but some variables need to be adjusted
         must_include_set, ele_stations = optimizer.rebase_simple()
+        # make sure vehicle socs exist
+        generate_soc_timeseries(scen)
 
     # create charging dicts which contain soc over time, which is numerically calculated
     optimizer.create_charging_curves()
@@ -172,8 +177,12 @@ def run_optimization(conf, sched=None, scen=None, args=None):
         logger.debug("Estimation of network still shows negative rotations")
         for event in new_events:
             logger.debug(event.rotation.id)
+
     with open(new_ele_stations_path, "w", encoding="utf-8") as file:
-        json.dump(ele_stations, file, ensure_ascii=False, indent=2)
+        output_dict = {key: value for key, value in ele_stations.items()}
+        recursive_dict_updater(output_dict, lambda key, value: type(value) == WindowsPath,
+                               lambda key, value: str(value))
+        json.dump(output_dict, file, ensure_ascii=False, indent=2)
 
     # Calculation with SpiceEV is more accurate and will show if the optimization is viable or not
     logger.debug("Detailed calculation of optimized case as a complete scenario")
