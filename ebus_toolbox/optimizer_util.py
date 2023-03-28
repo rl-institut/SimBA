@@ -679,7 +679,7 @@ def combs_unordered_no_putting_back(n: int, k: int):
     try:
         return math.factorial(n) / ((math.factorial(n - k)) * math.factorial(k))
     except ValueError:
-        warnings.warn("Value Error")
+        warnings.warn(f"Value Error. n={n}, k={k}")
         return 0
 
 

@@ -94,7 +94,7 @@ def simulate(args):
                     print(f'Rotations {", ".join(neg_rot)} remain negative.')
         elif mode == "station_optimization":
             if not args.optimizer_config:
-                warnings.warn("Station optimization needs an optimization config file."
+                warnings.warn("Station optimization needs an optimization config file. "
                               "Since no path was given, station optimization is skipped")
                 continue
             conf = read_optimizer_config(args.optimizer_config)
@@ -102,7 +102,7 @@ def simulate(args):
                 schedule, scenario = run_optimization(conf, sched=schedule, scen=scenario,
                                                       args=args)
             except Exception as err:
-                warnings.warn('During Station optimization an error occurred {0}.'
+                warnings.warn('During Station optimization an error occurred {0}. '
                               'Optimization was skipped'.format(err))
         elif mode == 'report':
             # create report based on all previous modes
