@@ -97,6 +97,12 @@ class StationOptimizer:
             self.logger.warning(lines)
             self.logger.warning("%s events with %s stations", (len(events)), len(stations))
 
+            # the electrified_station_set get mutated by the group optimization
+            # the results are stored in the list of greedy sets, but before each group optimization
+            # the base stations are restored, so the resulting sets do not stack on top of each
+            # other
+            self.electrified_station_set = self.base_electrified_station_set.copy()
+
             if self.config.solver == "spiceev":
                 # running SpiceEV changes the scenario and vehicle ids. Since the low soc events
                 # point to the base vehicle ids, these have to be used in the group optimization
