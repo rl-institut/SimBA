@@ -5,12 +5,11 @@ electrification.
 
 from datetime import datetime
 import json
-from pathlib import Path, WindowsPath
+from pathlib import Path
 import logging
 import shutil
 import ebus_toolbox.station_optimizer
 from ebus_toolbox.station_optimizer import opt_util
-from ebus_toolbox.util import recursive_dict_updater
 from spice_ev.report import generate_soc_timeseries
 
 config = opt_util.OptimizerConfig()
@@ -179,8 +178,8 @@ def run_optimization(conf, sched=None, scen=None, args=None):
     # Change Paths to datatype String, since Paths are not json serializable
     with open(new_ele_stations_path, "w", encoding="utf-8") as file:
         output_dict = {key: value for key, value in ele_stations.items()}
-        recursive_dict_updater(output_dict, lambda key, value: isinstance(value, Path),
-                               lambda key, value: str(value))
+        opt_util.recursive_dict_updater(
+            output_dict, lambda key, value: isinstance(value, Path), lambda key, value: str(value))
         json.dump(output_dict, file, ensure_ascii=False, indent=2)
 
     # Calculation with SpiceEV is more accurate and will show if the optimization is viable or not
