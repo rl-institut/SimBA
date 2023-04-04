@@ -176,10 +176,10 @@ def run_optimization(conf, sched=None, scen=None, args=None):
         for event in new_events:
             logger.debug(event.rotation.id)
 
-    # Change WindowsPaths to datatype String, since WindowsPath is not json serializable
+    # Change Paths to datatype String, since Paths are not json serializable
     with open(new_ele_stations_path, "w", encoding="utf-8") as file:
         output_dict = {key: value for key, value in ele_stations.items()}
-        recursive_dict_updater(output_dict, lambda key, value: type(value) == WindowsPath,
+        recursive_dict_updater(output_dict, lambda key, value: isinstance(value, Path),
                                lambda key, value: str(value))
         json.dump(output_dict, file, ensure_ascii=False, indent=2)
 
