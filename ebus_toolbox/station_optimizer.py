@@ -67,8 +67,8 @@ class StationOptimizer:
         # get events where soc fell below the minimal
         # soc. The events contain info about the problematic
         # time span, which includes stations which could provide a soc lift
-        base_events = self.get_low_soc_events(rel_soc=False,
-                                              soc_data=self.base_scenario.vehicle_socs)
+        base_events = self.get_low_soc_events(
+            rel_soc=False, soc_data=self.base_scenario.vehicle_socs)
 
         # check if the events can be divided into subgroups which are independent
         # this makes optimization in smaller groups possible
@@ -92,8 +92,8 @@ class StationOptimizer:
             # define the current tree from the decision trees
             self.current_tree = self.decision_trees[group_nr]
             lines = {lne for e in events for lne in e.rotation.lines}
-            self.logger.warning("Optimizing %s out of %s. This includes these Lines", group_nr + 1,
-                                len(groups))
+            self.logger.warning(
+                "Optimizing %s out of %s. This includes these Lines", group_nr + 1, len(groups))
             self.logger.warning(lines)
             self.logger.warning("%s events with %s stations", (len(events)), len(stations))
 
@@ -109,12 +109,11 @@ class StationOptimizer:
                 self.scenario = deepcopy(self.base_scenario)
 
             # first run is always step by step
-            self.group_optimization(group, self.choose_station_step_by_step,
-                                    events_remaining=[len(events)], **kwargs)
+            self.group_optimization(
+                group, self.choose_station_step_by_step, events_remaining=[len(events)], **kwargs)
 
             self.logger.warning("Greedy Result ++++++++ %s stations out of %s",
-                                len(self.electrified_station_set),
-                                len(stations))
+                                len(self.electrified_station_set), len(stations))
             self.logger.warning(self.electrified_station_set)
 
             list_greedy_sets[group_nr] = self.electrified_station_set.copy()
@@ -140,16 +139,16 @@ class StationOptimizer:
 
             combinations = opt_util.combs_unordered_no_putting_back(
                 len(stations), len(list_greedy_sets[group_nr]) - 1)
-            self.logger.debug("There are %s combinations with 1 station less than "
-                              "the current solution with %s stations out of %s", combinations,
-                              len(list_greedy_sets[group_nr]), len(stations))
+            self.logger.debug(
+                "There are %s combinations with 1 station less than the current solution with %s "
+                "stations out of %s", combinations, len(list_greedy_sets[group_nr]), len(stations))
 
             pre_optimized_set = list_greedy_sets[group_nr]
             for i in range(self.config.max_brute_loop):
                 if i % 10 == 0:
                     self.logger.log(msg=f"{len(self.current_tree)} nodes checked", level=100)
-                    self.logger.log(msg=f"Optimal solution has length {len(pre_optimized_set)}",
-                                    level=100)
+                    self.logger.log(
+                        msg=f"Optimal solution has length {len(pre_optimized_set)}", level=100)
 
                 self.electrified_stations = self.base_stations.copy()
                 self.electrified_station_set = self.base_electrified_station_set.copy()
@@ -186,9 +185,9 @@ class StationOptimizer:
                 new_electrified_set = self.electrified_station_set
                 # if a new set was found, print it and save it in solutions
                 if new_electrified_set != pre_optimized_set and new_stats is not None:
-                    self.logger.warning("Optimized with %s  stations %s %s",
-                                        len(new_electrified_set), str('#' * 20),
-                                        opt_util.stations_hash(new_electrified_set))
+                    self.logger.warning(
+                        "Optimized with %s  stations %s %s", len(new_electrified_set),
+                        str('#' * 20), opt_util.stations_hash(new_electrified_set))
                     solutions.append(new_electrified_set)
                     if len(new_electrified_set) < len(pre_optimized_set):
                         list_greedy_sets[group_nr] = new_electrified_set.copy()
@@ -199,8 +198,8 @@ class StationOptimizer:
             # print all solutions
             self.logger.debug("All solutions for this group: %s", solutions)
             # how many stations do these solutions need in comparison to the available stations?
-            self.logger.debug("Optimized with %s stations out of %s", len(pre_optimized_set),
-                              len(stations))
+            self.logger.debug(
+                "Optimized with %s stations out of %s", len(pre_optimized_set), len(stations))
 
         # make sure it gets printed in the console through high level
         self.logger.log(msg=opt_util.get_time(), level=100)
@@ -268,9 +267,9 @@ class StationOptimizer:
         tree_position = kwargs.get("tree_position", [1])
 
         # give tree position
-        self.logger.debug("%s with length of %s and a total of %s "
-                          "stations", tree_position, len(tree_position),
-                          len(self.electrified_station_set))
+        self.logger.debug(
+            "%s with length of %s and a total of %s stations", tree_position, len(tree_position),
+            len(self.electrified_station_set))
 
         # unpack events and possible stations
         event_group, _ = group
@@ -308,9 +307,8 @@ class StationOptimizer:
             raise opt_util.SuboptimalSimulationException
 
         # get the best stations, brute or step_by_step
-        best_station_ids, recursive = choose_station_function(station_eval,
-                                                              pre_optimized_set=pre_optimized_set,
-                                                              missing_energy=missing_energy)
+        best_station_ids, recursive = choose_station_function(
+            station_eval, pre_optimized_set=pre_optimized_set, missing_energy=missing_energy)
 
         stat_eval_dict = {stat_id[0]: stat_id[1] for stat_id in station_eval}
 
@@ -338,8 +336,8 @@ class StationOptimizer:
             # current electrification would show to much charge, since charging curves decrease over
             # soc.
             self.deepcopy_socs()
-            self.scenario.vehicle_socs = self.timeseries_calc(event_rotations,
-                                                              electrify_stations=best_station_ids)
+            self.scenario.vehicle_socs = self.timeseries_calc(
+                event_rotations, electrify_stations=best_station_ids)
         else:
             self.schedule.rotations = rotation_dict
             self.schedule, self.scenario = opt_util.run_schedule(
@@ -355,9 +353,9 @@ class StationOptimizer:
 
         delta_energy = opt_util.get_missing_energy(new_events)
         events_remaining[0] -= len(event_group) - len(new_events)
-        self.logger.debug("Last electrification electrified %s/%s."
-                          " %s remaining events in the base group.",
-                          len(event_group) - len(new_events), len(event_group), events_remaining[0])
+        self.logger.debug(
+            "Last electrification electrified %s/%s. %s remaining events in the base group.",
+            len(event_group) - len(new_events), len(event_group), events_remaining[0])
         delta_base_energy = delta_energy
 
         # put this node into the decision tree including the missing energy
@@ -372,9 +370,8 @@ class StationOptimizer:
             raise opt_util.SuboptimalSimulationException
 
         # check if the events can be divided into subgroups which are independent
-        groups = opt_util.get_groups_from_events(new_events, self.not_possible_stations,
-                                                 could_not_be_electrified,
-                                                 optimizer=self)
+        groups = opt_util.get_groups_from_events(
+            new_events, self.not_possible_stations, could_not_be_electrified, optimizer=self)
 
         for k, this_group in enumerate(groups):
             this_tree = tree_position + [k + 1]
@@ -399,8 +396,8 @@ class StationOptimizer:
             if len(pre_optimized_set) - len(self.electrified_station_set) < thresh:
                 self.scenario.vehicle_socs = self.timeseries_calc(
                     event_rotations, electrify_stations=best_station_ids)
-                prune_events = self.get_low_soc_events(rotations=event_rotations_ids,
-                                                       rel_soc=True, **kwargs)
+                prune_events = self.get_low_soc_events(
+                    rotations=event_rotations_ids, rel_soc=True, **kwargs)
                 station_eval = opt_util.evaluate(prune_events, self)
                 prune_missing_energy = opt_util.get_missing_energy(prune_events)
                 if not self.is_branch_promising(station_eval, self.electrified_station_set,
@@ -434,8 +431,9 @@ class StationOptimizer:
         return sorted(charge_events_single_station, key=lambda x: x.arrival_time)
 
     @opt_util.time_it
-    def timeseries_calc(self, rotations=None, soc_dict=None, ele_station_set=None,
-                        soc_upper_threshold=None, electrify_stations=None) -> object:
+    def timeseries_calc(
+            self, rotations=None, soc_dict=None, ele_station_set=None, soc_upper_threshold=None,
+            electrify_stations=None) -> object:
         """ A quick estimation of socs for after electrifying stations.
 
         The function assumes unlimited charging points per electrified station.
@@ -589,9 +587,9 @@ class StationOptimizer:
         for i in range(0, min(delta, len(station_eval))):
             pot += station_eval[i][1]
         if pot < -missing_energy * self.config.estimation_threshold:
-            self.logger.debug("Not enough potential: %s  after: %s ",
-                              round(pot / -missing_energy, 0),
-                              opt_util.stations_hash(electrified_station_set))
+            self.logger.debug(
+                "Not enough potential: %s  after: %s ", round(pot / -missing_energy, 0),
+                opt_util.stations_hash(electrified_station_set))
             return False
         return True
 
@@ -648,8 +646,9 @@ class StationOptimizer:
                     self.current_tree[node_name] = get_init_node()
                     return comb, False
                 else:
-                    self.logger.debug("skipped %s since potential is too low %s %%", comb,
-                                      round(potential / -missing_energy * 100, 0))
+                    self.logger.debug(
+                        "skipped %s since potential is too low %s %%", comb,
+                        round(potential / -missing_energy * 100, 0))
                     try:
                         self.current_tree[node_name]["viable"] = False
                     except KeyError:
@@ -682,8 +681,8 @@ class StationOptimizer:
         # filter function to stop simulating cases which have no hope of being optimal.
         # potentials have to be at least as promising as the pre-optimized case.
         if pre_optimized_set is not None:
-            if not self.is_branch_promising(station_eval, self.electrified_station_set,
-                                            pre_optimized_set, missing_energy):
+            if not self.is_branch_promising(
+                    station_eval, self.electrified_station_set, pre_optimized_set, missing_energy):
                 # best station id is none and do not go deeper in recursion
                 node_name = opt_util.stations_hash(self.electrified_station_set)
                 self.current_tree[node_name]["viable"] = False
@@ -776,8 +775,8 @@ class StationOptimizer:
         # electrify inclusion stations
         for stat in self.config.inclusion_stations:
             self.electrify_station(stat, must_include_set)
-        self.schedule.rotations = {r: self.schedule.rotations[r] for r in self.schedule.rotations if
-                                   r not in self.config.exclusion_rots}
+        self.schedule.rotations = {r: self.schedule.rotations[r] for r in self.schedule.rotations
+                                   if r not in self.config.exclusion_rots}
         self.must_include_set = must_include_set
         self.base_stations = self.electrified_stations.copy()
         return must_include_set, self.electrified_stations
@@ -803,16 +802,16 @@ class StationOptimizer:
         # calc new but only prev. negative rotations
         if run_only_neg:
             rots = self.schedule.get_negative_rotations(self.scenario)
-            rots = {r: self.schedule.rotations[r] for r in rots if r not in
-                    self.config.exclusion_rots}
+            rots = {r: self.schedule.rotations[r] for r in rots
+                    if r not in self.config.exclusion_rots}
             self.schedule.rotations = rots
         else:
-            rots = {r: self.schedule.rotations[r] for r in self.schedule.rotations if
-                    r not in self.config.exclusion_rots}
+            rots = {r: self.schedule.rotations[r] for r in self.schedule.rotations
+                    if r not in self.config.exclusion_rots}
             self.schedule.rotations = rots
 
-        new_sched, new_scen = opt_util.run_schedule(self.schedule, self.args,
-                                                    electrified_stations)
+        new_sched, new_scen = opt_util.run_schedule(
+            self.schedule, self.args, electrified_stations)
         self.schedule = new_sched
         self.scenario = new_scen
         self.must_include_set = must_include_set
@@ -1073,8 +1072,8 @@ class StationOptimizer:
                 else:
                     for ii, trip in enumerate(trips):
                         try:
-                            standing_time_min = opt_util.get_charging_time(trip, trips[ii + 1],
-                                                                           self.args)
+                            standing_time_min = opt_util.get_charging_time(
+                                trip, trips[ii + 1], self.args)
                         except IndexError:
                             standing_time_min = 0
                         if standing_time_min > 0:

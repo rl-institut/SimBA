@@ -186,8 +186,8 @@ def read_config(config_path):
     conf.solver = default.get("solver", "spiceev")
     conf.rebase_scenario = default.getboolean("rebase_scenario", True)
     conf.pickle_rebased = default.getboolean("pickle_rebased", False)
-    conf.pickle_rebased_name = default.get("pickle_rebased_name", "rebased_" +
-                                           datetime.now().isoformat(sep='-', timespec='seconds'))
+    conf.pickle_rebased_name = default.get(
+        "pickle_rebased_name", "rebased_" + datetime.now().isoformat(sep='-', timespec='seconds'))
     conf.opt_type = default.get("opt_type", "greedy")
     conf.eps = default.getfloat("eps", 0.0001)
     conf.remove_impossible_rotations = default.getboolean("remove_impossible_rotations", False)
@@ -452,8 +452,9 @@ def get_groups_from_events(events, impossible_stations=None, could_not_be_electr
                     break
         else:
             if optimizer:
-                optimizer.logger.warning('Did not find rotation %s in any subset'
-                                         'of possible electrifiable stations', event.rotation.id)
+                optimizer.logger.warning(
+                    'Did not find rotation %s in any subset of possible electrifiable stations',
+                    event.rotation.id)
                 # this event will not show up in an event_group.
                 # therefore it needs to be put into this set
             could_not_be_electrified.update([event.rotation.id])
@@ -525,10 +526,9 @@ def toolbox_to_pickle(name, sched, scen, args):
     return sched_name, scen_name, args_name
 
 
-def charging_curve_to_soc_over_time(charging_curve, capacity, args,
-                                    max_charge_from_grid=float('inf'),
-                                    time_step=0.1, efficiency=1, eps=0.001,
-                                    logger: logging.Logger = None):
+def charging_curve_to_soc_over_time(
+        charging_curve, capacity, args, max_charge_from_grid=float('inf'), time_step=0.1,
+        efficiency=1, eps=0.001, logger: logging.Logger = None):
     """Create charging curve as np.array with soc and time as two columns of an np.array.
 
     :param logger: logger
@@ -558,8 +558,9 @@ def charging_curve_to_soc_over_time(charging_curve, capacity, args,
     times = []
     final_value = args.desired_soc_opps
 
-    starting_power = min(np.interp(soc, normalized_curve[:, 0], normalized_curve[:, 1]),
-                         max_charge_from_grid / capacity)
+    starting_power = min(
+        np.interp(soc, normalized_curve[:, 0], normalized_curve[:, 1]),
+        max_charge_from_grid / capacity)
     if starting_power <= 0:
         times.append(charge_time)
         socs.append(soc)
@@ -568,11 +569,13 @@ def charging_curve_to_soc_over_time(charging_curve, capacity, args,
     while soc < args.desired_soc_opps:
         times.append(charge_time)
         socs.append(soc)
-        power1 = min(np.interp(soc, normalized_curve[:, 0], normalized_curve[:, 1]),
-                     max_charge_from_grid / capacity)
+        power1 = min(
+            np.interp(soc, normalized_curve[:, 0], normalized_curve[:, 1]),
+            max_charge_from_grid / capacity)
         soc2 = soc + time_step / 60 * power1
-        power2 = min(np.interp(soc2, normalized_curve[:, 0], normalized_curve[:, 1]),
-                     max_charge_from_grid / capacity)
+        power2 = min(
+            np.interp(soc2, normalized_curve[:, 0], normalized_curve[:, 1]),
+            max_charge_from_grid / capacity)
         power = (power1 + power2) / 2 * efficiency
         delta_soc = time_step / 60 * power
         soc += delta_soc
@@ -580,10 +583,10 @@ def charging_curve_to_soc_over_time(charging_curve, capacity, args,
         if power/starting_power < eps:
             if logger:
                 warnings.warn("charging_curve_to_soc_over_time stopped early")
-                logger.warning("charging_curve_to_soc_over_time stopped early, "
-                               "because the charging power of %s was to low for eps: %s"
-                               "at an soc of %s an a desired soc of %s",
-                               power, eps, soc, args.desired_soc_opps)
+                logger.warning(
+                    "charging_curve_to_soc_over_time stopped early, because the charging power of "
+                    "%s was to low for eps: %s at an soc of %s an a desired soc of %s", power, eps,
+                    soc, args.desired_soc_opps)
             final_value = soc
             break
     # fill the soc completely in last time step

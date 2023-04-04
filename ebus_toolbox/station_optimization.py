@@ -143,8 +143,8 @@ def run_optimization(conf, sched=None, scen=None, args=None):
             r: optimizer.schedule.rotations[r] for r in optimizer.schedule.rotations if
             r not in optimizer.config.exclusion_rots}
 
-        logger.warning("%s negative rotations %s were removed from schedule",
-                       len(neg_rots), neg_rots)
+        logger.warning(
+            "%s negative rotations %s were removed from schedule", len(neg_rots), neg_rots)
         assert len(optimizer.schedule.rotations) > 0, ("Schedule can not be optimized, since "
                                                        "rotations can not be electrified.")
 
@@ -187,8 +187,8 @@ def run_optimization(conf, sched=None, scen=None, args=None):
     _, __ = optimizer.preprocessing_scenario(
         electrified_stations=ele_stations, run_only_neg=False)
 
-    logger.warning("Still negative rotations: %s", optimizer.schedule.
-                   get_negative_rotations(optimizer.scenario))
+    logger.warning("Still negative rotations: %s",
+                   optimizer.schedule.get_negative_rotations(optimizer.scenario))
     logger.log(msg="Station optimization finished after " + opt_util.get_time(), level=100)
     logger.warning("Station optimization finished after %s", opt_util.get_time())
 
