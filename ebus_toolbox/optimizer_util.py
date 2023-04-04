@@ -380,10 +380,11 @@ def evaluate(events: typing.Iterable[LowSocEvent],
             # - useful lift can only occur in between the current soc and the
             # - the highest useful lift is the amount between a "full" and "empty" battery, where
             # "full" and "empty" are described by the upper and lower thresholds
-            delta_soc_pot = min(soc_upper_thresh - soc,
-                                soc_lower_thresh - e.min_soc,
-                                soc - e.min_soc,
-                                soc_upper_thresh - soc_lower_thresh)
+            delta_soc_pot = min(
+                soc_upper_thresh - soc,
+                soc_lower_thresh - e.min_soc,
+                soc - e.min_soc,
+                soc_upper_thresh - soc_lower_thresh)
 
             try:
                 standing_time_min = get_charging_time(trip, e.trip[i + 1], optimizer.args)
