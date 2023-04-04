@@ -397,8 +397,8 @@ class StationOptimizer:
             # unnecessary calculation
             thresh = self.config.pruning_threshold
             if len(pre_optimized_set) - len(self.electrified_station_set) < thresh:
-                self.scenario.vehicle_socs = \
-                    self.timeseries_calc(event_rotations, electrify_stations=best_station_ids)
+                self.scenario.vehicle_socs = self.timeseries_calc(
+                    event_rotations, electrify_stations=best_station_ids)
                 prune_events = self.get_low_soc_events(rotations=event_rotations_ids,
                                                        rel_soc=True, **kwargs)
                 station_eval = opt_util.evaluate(prune_events, self)
