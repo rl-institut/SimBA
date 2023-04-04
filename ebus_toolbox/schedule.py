@@ -498,7 +498,8 @@ class Schedule:
                             "max_power": gc_power,
                             "cost": {"type": "fixed", "value": 0.3},
                             "number_cs": station["n_charging_stations"],
-                            "voltage_level": station.get("voltage_level")
+                            "voltage_level":
+                                station.get("voltage_level", args.default_voltage_level)
                         }
                         # check for stationary battery
                         battery = station.get("battery")
