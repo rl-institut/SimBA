@@ -150,6 +150,7 @@ def calculate_costs(c_params, scenario, schedule, args):
     costs["c_maint_annual"] = (costs["c_maint_infrastructure_annual"] +
                                costs["c_maint_vehicles_annual"])
     costs["c_invest"] = costs["c_vehicles"] + costs["c_cs"] + costs["c_gcs"] + costs["c_garage"]
+    # ToDo: add stat storages to investment costs (also annual)?
     costs["c_invest_annual"] = (costs["c_vehicles_annual"] + costs["c_cs_annual"] +
                                 costs["c_gcs_annual"] + costs["c_garage_annual"])
 
