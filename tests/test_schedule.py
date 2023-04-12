@@ -74,10 +74,11 @@ class TestSchedule:
         """ Check if running a basic example works and if a scenario object is returned
         :return: schedule, scenario"""
 
-        path_to_trips = example_root / "trips.csv"
+        path_to_trips = example_root / "trips_example.csv"
         parser = util.create_ArgumentParser_with_arguments()
         args = parser.parse_args(args="")
-        args.config = example_root / "ebus_toolbox.cfg"
+        # ToDo: Change to example root if current ebus toolbox is merged
+        args.config = file_root / "ebus_toolbox.cfg"
         args.days = None
         args.seed = 5
 
@@ -85,7 +86,7 @@ class TestSchedule:
             self.vehicle_types,outside_temperatures=self.temperature_path,
             level_of_loading_over_day=self.lol_path)
 
-        path_to_all_station_data = example_root / "all_stations_example.csv"
+        path_to_all_station_data = example_root / "all_stations.csv"
         generated_schedule = schedule.Schedule.from_csv(
             path_to_trips, self.vehicle_types,self.electrified_stations, **mandatory_args,
             station_data_path=path_to_all_station_data)
@@ -173,9 +174,10 @@ class TestSchedule:
         """ Check if running a example with an extended electrified stations file
          with feed in, external load and battery works and if a scenario object is returned"""
 
-        path_to_trips = file_root / "trips.csv"
+        path_to_trips = example_root / "trips_example.csv"
         parser = util.create_ArgumentParser_with_arguments()
         args = parser.parse_args(args="")
+        # Todo change to example root after merge
         args.config = file_root / "ebus_toolbox.cfg"
         electrified_stations_path = file_root / "electrified_stations_with_feeds.json"
         args.electrified_stations = electrified_stations_path
@@ -189,7 +191,7 @@ class TestSchedule:
                                                         outside_temperatures=self.temperature_path,
                                                         level_of_loading_over_day=self.lol_path)
 
-        path_to_all_station_data = file_root / "all_stations_example.csv"
+        path_to_all_station_data = example_root / "all_stations.csv"
         generated_schedule = schedule.Schedule.from_csv(path_to_trips, self.vehicle_types,
                                                         electrified_stations, **mandatory_args,
                                                         station_data_path=path_to_all_station_data)
