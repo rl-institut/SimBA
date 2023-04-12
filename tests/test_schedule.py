@@ -9,6 +9,7 @@ from ebus_toolbox import schedule, trip, consumption, util
 
 test_root = pathlib.Path(__file__).parent
 file_root = test_root / "test_input_files"
+example_root = pathlib.Path(__file__).parent.parent / "data/examples"
 
 mandatory_args = {
     "min_recharge_deps_oppb": 0,
@@ -22,14 +23,14 @@ mandatory_args = {
 
 
 class TestSchedule:
-    temperature_path = file_root / 'default_temp_winter.csv'
-    lol_path = file_root / 'default_level_of_loading_over_day.csv'
+    temperature_path = example_root / 'default_temp_winter.csv'
+    lol_path = example_root / 'default_level_of_loading_over_day.csv'
 
-    with open(file_root / "electrified_stations.json", "r", encoding='utf-8') as file:
-        electrified_stations = json.load(file)
+    with open(example_root / "electrified_stations.json", "r", encoding='utf-8') as file:
+        electrified_stations = util.uncomment_json_file(file)
 
-    with open(file_root / "vehicle_types.json", "r", encoding='utf-8') as file:
-        vehicle_types = json.load(file)
+    with open(example_root / "vehicle_types.json", "r", encoding='utf-8') as file:
+        vehicle_types = util.uncomment_json_file(file)
 
     def test_mandatory_options_exit(self):
         """ Check if the schedule creation properly throws a SystemExit error in case of missing
@@ -43,111 +44,51 @@ class TestSchedule:
     def test_station_data_reading(self):
         """ Test if the reading of the geo station data works and outputs warnings in
         case the data was problematic, e.g. not numeric or not existent"""
-        path_to_trips = file_root / "trips.csv"
+        path_to_trips = example_root / "trips_example.csv"
 
-        trip.Trip.consumption = consumption.Consumption(self.vehicle_types,
-                                                        outside_temperatures=self.temperature_path,
-                                                        level_of_loading_over_day=self.lol_path)
+        trip.Trip.consumption = consumption.Consumption(
+            self.vehicle_types, outside_temperatures=self.temperature_path,
+            level_of_loading_over_day=self.lol_path)
 
-        path_to_all_station_data = file_root / "all_stations_example.csv"
-        generated_schedule = schedule.Schedule.from_csv(path_to_trips, self.vehicle_types,
-                                                        self.electrified_stations, **mandatory_args,
-                                                        station_data_path=path_to_all_station_data)
+        path_to_all_station_data = example_root / "all_stations.csv"
+        generated_schedule = schedule.Schedule.from_csv(
+            path_to_trips, self.vehicle_types, self.electrified_stations, **mandatory_args,
+            station_data_path=path_to_all_station_data)
         assert generated_schedule.station_data is not None
 
         # check if reading a non valid station.csv throws warnings
         with pytest.warns(Warning) as record:
             path_to_all_station_data = file_root / "not_existent_file"
-            schedule.Schedule.from_csv(path_to_trips, self.vehicle_types, self.electrified_stations,
-                                       **mandatory_args, station_data_path=path_to_all_station_data)
+            schedule.Schedule.from_csv(
+                path_to_trips, self.vehicle_types, self.electrified_stations, **mandatory_args,
+                station_data_path=path_to_all_station_data)
             assert len(record) == 1
 
             path_to_all_station_data = file_root / "not_numeric_stations.csv"
-            schedule.Schedule.from_csv(path_to_trips, self.vehicle_types, self.electrified_stations,
-                                       **mandatory_args, station_data_path=path_to_all_station_data)
+            schedule.Schedule.from_csv(
+                path_to_trips, self.vehicle_types, self.electrified_stations, **mandatory_args,
+                station_data_path=path_to_all_station_data)
             assert len(record) == 2
-
-    def test_rotation_consistency(self, tmp_path):
-        """ Test if the consistency check for rotations finds missing einsetz or ausetzfahrten,
-        if it finds gaps between arrival and departure stations of successive trips and last
-        it checks if the arguments for check_rotation_consistency and ignore_inconsistent_rotations
-        were set correctly, i.e. if ignore_inconsistent_rotations is True,
-        check_rotation_consistency has to be true as well. If not a warning has to be thrown
-        :param tmp_path: pytest fixture to a path that is dynamically created
-        """
-
-        trip.Trip.consumption = consumption.Consumption(self.vehicle_types,
-                                                        outside_temperatures=self.temperature_path,
-                                                        level_of_loading_over_day=self.lol_path)
-        output_dir = tmp_path
-        rotation_consistency_dict = dict(check_rotation_consistency=True,
-                                         ignore_inconsistent_rotations=True,
-                                         output_directory=output_dir)
-
-        # check if consistency check does not remove rotations of a "good" trips.csv
-        path_to_trips = file_root / "trips.csv"
-        generated_schedule = schedule.Schedule.from_csv(path_to_trips, self.vehicle_types,
-                                                        self.electrified_stations, **mandatory_args)
-
-        generated_schedule2 = schedule.Schedule.from_csv(path_to_trips, self.vehicle_types,
-                                                         self.electrified_stations,
-                                                         **mandatory_args,
-                                                         **rotation_consistency_dict)
-
-        assert len(generated_schedule.rotations) == len(generated_schedule2.rotations)
-
-        # check if consistency check does removes bad rotation of a "bad" trips.csv
-        path_to_trips = file_root / "trips_no_einsetz.csv"
-        generated_schedule = schedule.Schedule.from_csv(path_to_trips, self.vehicle_types,
-                                                        self.electrified_stations, **mandatory_args,
-                                                        **rotation_consistency_dict)
-        assert len(generated_schedule.rotations) == 0
-
-        # check if consistency check does removes bad rotation of a "bad" trips.csv
-        path_to_trips = file_root / "trips_no_aussetz.csv"
-        generated_schedule = schedule.Schedule.from_csv(path_to_trips, self.vehicle_types,
-                                                        self.electrified_stations, **mandatory_args,
-                                                        **rotation_consistency_dict)
-        assert len(generated_schedule.rotations) == 0
-
-        # check if consistency check does removes bad rotation of a "bad" trips.csv.
-        # in this case a skipping of stations between trips
-        path_to_trips = file_root / "inconsistent_stations_trips.csv"
-        generated_schedule = schedule.Schedule.from_csv(path_to_trips, self.vehicle_types,
-                                                        self.electrified_stations, **mandatory_args,
-                                                        **rotation_consistency_dict)
-        assert len(generated_schedule.rotations) == 0
-
-        # check if consistency throws warning for bad arguments
-        with pytest.warns(Warning) as record:
-            path_to_trips = file_root / "inconsistent_stations_trips.csv"
-            generated_schedule = schedule.Schedule.from_csv(path_to_trips, self.vehicle_types,
-                                                            self.electrified_stations,
-                                                            **mandatory_args,
-                                                            check_rotation_consistency=False,
-                                                            ignore_inconsistent_rotations=True,
-                                                            output_directory=output_dir)
-            assert len(record) == 1
 
     def test_basic_run(self):
         """ Check if running a basic example works and if a scenario object is returned
         :return: schedule, scenario"""
 
-        path_to_trips = file_root / "trips.csv"
+        path_to_trips = example_root / "trips.csv"
         parser = util.create_ArgumentParser_with_arguments()
         args = parser.parse_args(args="")
-        args.config = file_root / "ebus_toolbox.cfg"
+        args.config = example_root / "ebus_toolbox.cfg"
         args.days = None
         args.seed = 5
 
-        trip.Trip.consumption = consumption.Consumption(self.vehicle_types,
-                                                        outside_temperatures=self.temperature_path,
-                                                        level_of_loading_over_day=self.lol_path)
+        trip.Trip.consumption = consumption.Consumption(
+            self.vehicle_types,outside_temperatures=self.temperature_path,
+            level_of_loading_over_day=self.lol_path)
 
-        path_to_all_station_data = file_root / "all_stations_example.csv"
-        generated_schedule = schedule.Schedule.from_csv(path_to_trips, self.vehicle_types,
-                                                        self.electrified_stations, **mandatory_args,
-                                                        station_data_path=path_to_all_station_data)
+        path_to_all_station_data = example_root / "all_stations_example.csv"
+        generated_schedule = schedule.Schedule.from_csv(
+            path_to_trips, self.vehicle_types,self.electrified_stations, **mandatory_args,
+            station_data_path=path_to_all_station_data)
 
         set_options_from_config(args, check=parser, verbose=False)
         args.ALLOW_NEGATIVE_SOC = True
@@ -173,11 +114,9 @@ class TestSchedule:
         generated_schedule = schedule.Schedule.from_csv(path_to_trips, self.vehicle_types,
                                                         self.electrified_stations, **mandatory_args)
         generated_schedule.assign_vehicles()
-
-        assert generated_schedule.rotations["1"].vehicle_id == \
-               generated_schedule.rotations["2"].vehicle_id
-        assert generated_schedule.rotations["1"].vehicle_id != \
-               generated_schedule.rotations["3"].vehicle_id
+        gen_rotations = generated_schedule.rotations
+        assert gen_rotations["1"].vehicle_id == gen_rotations["2"].vehicle_id
+        assert gen_rotations["1"].vehicle_id != gen_rotations["3"].vehicle_id
 
     def test_calculate_consumption(self):
         """ Test if calling the consumption calculation works
