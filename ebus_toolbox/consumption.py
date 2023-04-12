@@ -101,7 +101,7 @@ class Consumption:
                 raise KeyError
 
         # load consumption csv
-        consumption_path = vehicle_info["mileage"]
+        consumption_path = str(vehicle_info["mileage"])
 
         # consumption_files holds interpol functions of csv files which are called directly
 
