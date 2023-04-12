@@ -85,14 +85,15 @@ class TestConsumption:
         consumption.temperatures_by_hour = {hour: hour * 2 - 15 for hour in range(0, last_hour)}
         time = datetime(year=2023, month=1, day=1, hour=last_hour + 2)
         with pytest.raises(KeyError):
-            consumption.calculate_consumption(time, dist, vehicle_type, charging_type,
-                                                  temp=None, height_diff=0, level_of_loading=0,
-                                                  mean_speed=18)[0]
+            consumption.calculate_consumption(
+                time, dist, vehicle_type, charging_type, temp=None, height_diff=0,
+                level_of_loading=0, mean_speed=18)[0]
+
         del consumption.temperatures_by_hour
         with pytest.raises(AttributeError):
-            _ = consumption.calculate_consumption(time, dist, vehicle_type, charging_type,
-                                                  temp=None, height_diff=0, level_of_loading=0,
-                                                  mean_speed=18)[0]
+            consumption.calculate_consumption(
+                time, dist, vehicle_type, charging_type, temp=None, height_diff=0,
+                level_of_loading=0, mean_speed=18)[0]
 
         # reset temperature_by_hour
         consumption.temperatures_by_hour = {hour: hour * 2 - 15 for hour in range(0, 24)}
@@ -102,11 +103,11 @@ class TestConsumption:
         consumption.lol_by_hour = {hour: hour * 2 - 15 for hour in range(0, last_hour)}
         time = datetime(year=2023, month=1, day=1, hour=last_hour + 2)
         with pytest.raises(KeyError):
-            consumption.calculate_consumption(time, dist, vehicle_type, charging_type,
-                                                  temp=20, height_diff=0, level_of_loading=None,
-                                                  mean_speed=18)[0]
+            consumption.calculate_consumption(
+                time, dist, vehicle_type, charging_type, temp=20, height_diff=0,
+                level_of_loading=None, mean_speed=18)[0]
         del consumption.lol_by_hour
         with pytest.raises(AttributeError):
-            consumption.calculate_consumption(time, dist, vehicle_type, charging_type,
-                                                  temp=20, height_diff=0, level_of_loading=None,
-                                                  mean_speed=18)[0]
+            consumption.calculate_consumption(
+                time, dist, vehicle_type, charging_type, temp=20, height_diff=0,
+                level_of_loading=None, mean_speed=18)[0]
