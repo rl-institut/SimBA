@@ -69,12 +69,14 @@ class Schedule:
         station_data = dict()
         station_path = kwargs.get("station_data_path")
 
+        # find the temperature and elevation of the stations by reading the .csv file.
+        # this data is stored in the schedule and passed to the trips, which use the information
+        # for consumption calculation. Missing station data is handled with default values.
         if station_path is not None:
             try:
-                with open(str(station_path), "r", encoding='utf-8') as f:
+                with open(station_path, "r", encoding='utf-8') as f:
                     delim = util.get_csv_delim(station_path)
                     reader = csv.DictReader(f, delimiter=delim)
-                    station_data = dict()
                     for row in reader:
                         station_data.update({str(row['Endhaltestelle']):
                                             {"elevation": float(row['elevation'])}})
@@ -88,8 +90,7 @@ class Schedule:
                               "values in the column 'elevation'. Station data is discarded.".
                               format(station_path),
                               stacklevel=100)
-            else:
-                schedule.station_data = station_data
+            schedule.station_data = station_data
 
         with open(path_to_csv, 'r', encoding='utf-8') as trips_file:
             trip_reader = csv.DictReader(trips_file)
