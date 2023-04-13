@@ -516,7 +516,7 @@ class Schedule:
                         feed_in = station.get("energy_feed_in")
                         if feed_in:
                             feed_in_path = Path(feed_in["csv_file"])
-                            if not feed_in_path.exists():
+                            if not feed_in_path.exists() or not feed_in_path.is_file():
                                 warnings.warn("feed-in csv file '{}' does not exist".format(
                                     feed_in_path))
                             feed_in["grid_connector_id"] = gc_name
@@ -532,7 +532,7 @@ class Schedule:
                         ext_load = station.get("external_load")
                         if ext_load:
                             ext_load_path = Path(ext_load["csv_file"])
-                            if not ext_load_path.exists():
+                            if not ext_load_path.exists() or not ext_load_path.is_file():
                                 warnings.warn("external load csv file '{}' does not exist".format(
                                     ext_load_path))
                             ext_load["grid_connector_id"] = gc_name

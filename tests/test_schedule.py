@@ -229,9 +229,7 @@ class TestHelper(HelperForTesting):
         # check that 2 user warnings are put out for missing files and an error is thrown
         with pytest.warns(Warning) as record:
             try:
-                print("before problem")
                 scen = generated_schedule.generate_scenario(args)
-                print("no problem")
             except FileNotFoundError:
                 user_warning_count = sum([1 for warning in record.list
                                           if warning.category == UserWarning])
