@@ -230,11 +230,11 @@ class TestHelper(HelperForTesting):
         with pytest.warns(Warning) as record:
             try:
                 scen = generated_schedule.generate_scenario(args)
+                assert 0
             except FileNotFoundError:
                 user_warning_count = sum([1 for warning in record.list
                                           if warning.category == UserWarning])
                 assert user_warning_count == 2
-                assert 0
             else:
                 assert 0, "No error despite wrong file paths"
 
