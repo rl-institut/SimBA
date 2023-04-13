@@ -223,7 +223,7 @@ class TestSchedule:
 
         set_options_from_config(args, verbose=False)
 
-        # check that 2 user warnings are put put for missing files and an error is thrown
+        # check that 2 user warnings are put out for missing files and an error is thrown
         with pytest.warns(Warning) as record:
             try:
                 scen = generated_schedule.generate_scenario(args)
@@ -234,8 +234,6 @@ class TestSchedule:
             else:
                 assert 0, "No error despite wrong file paths"
 
-    def test_set_charging_type(self):
-        pass
 
     def test_schedule_from_csv(self):
         generated_schedule = generate_basic_schedule()
