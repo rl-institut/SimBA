@@ -23,7 +23,7 @@ mandatory_args = {
 }
 
 
-class TestSchedule:
+class HelperForTesting:
     temperature_path = example_root / 'default_temp_winter.csv'
     lol_path = example_root / 'default_level_of_loading_over_day.csv'
 
@@ -33,6 +33,33 @@ class TestSchedule:
     with open(example_root / "vehicle_types.json", "r", encoding='utf-8') as file:
         vehicle_types = util.uncomment_json_file(file)
 
+    def basic_run(self):
+        path_to_trips = example_root / "trips_example.csv"
+        # set the system variables to imitate the console call with the config argument.
+        # first element has to be set to something or error is thrown
+        sys.argv = ["foo", "--config", str(example_root / "ebus_toolbox.cfg")]
+        args = util.get_args()
+        args.config = example_root / "ebus_toolbox.cfg"
+        args.days = None
+        args.seed = 5
+
+        trip.Trip.consumption = consumption.Consumption(
+            self.vehicle_types, outside_temperatures=self.temperature_path,
+            level_of_loading_over_day=self.lol_path)
+
+        path_to_all_station_data = example_root / "all_stations.csv"
+        generated_schedule = schedule.Schedule.from_csv(
+            path_to_trips, self.vehicle_types, self.electrified_stations, **mandatory_args,
+            station_data_path=path_to_all_station_data)
+
+        set_options_from_config(args, verbose=False)
+        args.ALLOW_NEGATIVE_SOC = True
+        args.attach_vehicle_soc = True
+
+        scen = generated_schedule.run(args)
+        return generated_schedule, scen
+
+class TestHelper(HelperForTesting):
     def test_mandatory_options_exit(self):
         """ Check if the schedule creation properly throws a SystemExit error in case of missing
         mandatory options"""
@@ -75,32 +102,11 @@ class TestSchedule:
         """ Check if running a basic example works and if a scenario object is returned
         :return: schedule, scenario"""
 
-        path_to_trips = example_root / "trips_example.csv"
-        # set the system variables to imitate the console call with the config argument.
-        # first element has to be set to something or error is thrown
-        sys.argv = ["foo", "--config", str(example_root / "ebus_toolbox.cfg")]
-        args = util.get_args()
-        args.config = example_root / "ebus_toolbox.cfg"
-        args.days = None
-        args.seed = 5
+        schedule, scen = self.basic_run()
 
-        trip.Trip.consumption = consumption.Consumption(
-            self.vehicle_types, outside_temperatures=self.temperature_path,
-            level_of_loading_over_day=self.lol_path)
-
-        path_to_all_station_data = example_root / "all_stations.csv"
-        generated_schedule = schedule.Schedule.from_csv(
-            path_to_trips, self.vehicle_types, self.electrified_stations, **mandatory_args,
-            station_data_path=path_to_all_station_data)
-
-        set_options_from_config(args, verbose=False)
-        args.ALLOW_NEGATIVE_SOC = True
-        args.attach_vehicle_soc = True
-
-        scen = generated_schedule.run(args)
         assert type(scen) == scenario.Scenario
 
-        return generated_schedule, scen
+
 
     def test_assign_vehicles(self):
         """ Test if assigning vehicles works as intended.
@@ -168,7 +174,7 @@ class TestSchedule:
         """Check if the single rotation '1' with a negative soc is found """
 
         # make use of the test_run() which has to return schedule and scenario object
-        sched, scen = self.test_basic_run()
+        sched, scen = self.basic_run()
 
         neg_rots = sched.get_negative_rotations(scen)
         assert '1' in neg_rots
@@ -180,7 +186,6 @@ class TestSchedule:
         path_to_trips = example_root / "trips_example.csv"
         sys.argv = ["foo", "--config", str(example_root / "ebus_toolbox.cfg")]
         args = util.get_args()
-        # Todo change to example root after merge
         args.config = example_root / "ebus_toolbox.cfg"
         electrified_stations_path = example_root / "electrified_stations_with_feeds.json"
         args.electrified_stations = electrified_stations_path
@@ -226,7 +231,9 @@ class TestSchedule:
         # check that 2 user warnings are put out for missing files and an error is thrown
         with pytest.warns(Warning) as record:
             try:
+                print("before problem")
                 scen = generated_schedule.generate_scenario(args)
+                print("no problem")
             except FileNotFoundError:
                 user_warning_count = sum([1 for warning in record.list
                                           if warning.category == UserWarning])

@@ -1,7 +1,7 @@
 from datetime import datetime
 import json
 from ebus_toolbox import util
-from tests.test_schedule import TestSchedule
+from tests.test_schedule import HelperForTesting
 
 
 class TestUtil:
@@ -49,7 +49,7 @@ class TestUtil:
         assert type(git_hash) == str
 
     def test_get_buffer_time(self):
-        schedule, scenario = TestSchedule().test_basic_run()
+        schedule, scenario = HelperForTesting().basic_run()
         trip = next(iter(schedule.rotations.values())).trips.pop(0)
         util.get_buffer_time(trip)
         buffer_time = {"10-22": 2,
