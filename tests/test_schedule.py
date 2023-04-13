@@ -239,5 +239,5 @@ class TestSchedule:
 
     def test_schedule_from_csv(self):
         generated_schedule = generate_basic_schedule()
-        assert len(generated_schedule.rotations) == 1
+        assert len(generated_schedule.rotations) == 4
         assert type(generated_schedule) == schedule.Schedule

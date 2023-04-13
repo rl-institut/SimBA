@@ -5,11 +5,11 @@ from ebus_toolbox import schedule, trip, consumption
 
 
 def generate_basic_schedule():
-    schedule_path = 'tests/test_input_files/trips.csv'
-    station_path = 'tests/test_input_files/electrified_stations.json'
-    temperature_path = 'tests/test_input_files/default_temp_winter.csv'
-    lol_path = 'tests/test_input_files/default_level_of_loading_over_day.csv'
-    with open("tests/test_input_files/vehicle_types.json", 'r', encoding='utf-8') as f:
+    schedule_path = 'data/examples/trips_example.csv'
+    station_path = 'data/examples/electrified_stations.json'
+    temperature_path = 'data/examples/default_temp_winter.csv'
+    lol_path = 'data/examples/default_level_of_loading_over_day.csv'
+    with open("data/examples/vehicle_types.json", 'r', encoding='utf-8') as f:
         vehicle_types = json.load(f)
     trip.Trip.consumption = consumption.Consumption(vehicle_types,
                                                     outside_temperatures=temperature_path,
