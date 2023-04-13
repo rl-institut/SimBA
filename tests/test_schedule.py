@@ -112,8 +112,8 @@ class TestSchedule:
                                                         level_of_loading_over_day=self.lol_path)
 
         path_to_trips = file_root / "trips_assign_vehicles.csv"
-        generated_schedule = schedule.Schedule.from_csv(path_to_trips, self.vehicle_types,
-                                                        self.electrified_stations, **mandatory_args)
+        generated_schedule = schedule.Schedule.from_csv(
+            path_to_trips, self.vehicle_types, self.electrified_stations, **mandatory_args)
         generated_schedule.assign_vehicles()
         gen_rotations = generated_schedule.rotations
         assert gen_rotations["1"].vehicle_id == gen_rotations["2"].vehicle_id
@@ -122,13 +122,14 @@ class TestSchedule:
     def test_calculate_consumption(self):
         """ Test if calling the consumption calculation works
         """
-        trip.Trip.consumption = consumption.Consumption(self.vehicle_types,
-                                                        outside_temperatures=self.temperature_path,
-                                                        level_of_loading_over_day=self.lol_path)
+        trip.Trip.consumption = consumption.Consumption(
+            self.vehicle_types, outside_temperatures=self.temperature_path,
+            level_of_loading_over_day=self.lol_path)
 
         path_to_trips = file_root / "trips_assign_vehicles.csv"
-        generated_schedule = schedule.Schedule.from_csv(path_to_trips, self.vehicle_types,
-                                                        self.electrified_stations, **mandatory_args)
+        generated_schedule = schedule.Schedule.from_csv(
+            path_to_trips, self.vehicle_types, self.electrified_stations, **mandatory_args)
+
         # set mileage constant
         mileage = 10
         for v_typ in generated_schedule.vehicle_types.values():
@@ -146,13 +147,13 @@ class TestSchedule:
         on the second day. rotation 1 should not share any stations with other rotations and
         2 and 3 are basically simulati
         """
-        trip.Trip.consumption = consumption.Consumption(self.vehicle_types,
-                                                        outside_temperatures=self.temperature_path,
-                                                        level_of_loading_over_day=self.lol_path)
+        trip.Trip.consumption = consumption.Consumption(
+            self.vehicle_types, outside_temperatures=self.temperature_path,
+            level_of_loading_over_day=self.lol_path)
 
         path_to_trips = file_root / "trips_assign_vehicles.csv"
-        generated_schedule = schedule.Schedule.from_csv(path_to_trips, self.vehicle_types,
-                                                        self.electrified_stations, **mandatory_args)
+        generated_schedule = schedule.Schedule.from_csv(
+            path_to_trips, self.vehicle_types, self.electrified_stations, **mandatory_args)
 
         common_stations = generated_schedule.get_common_stations(only_opps=False)
         assert len(common_stations["1"]) == 0
@@ -187,14 +188,14 @@ class TestSchedule:
         args.days = None
         args.seed = 5
 
-        trip.Trip.consumption = consumption.Consumption(self.vehicle_types,
-                                                        outside_temperatures=self.temperature_path,
-                                                        level_of_loading_over_day=self.lol_path)
+        trip.Trip.consumption = consumption.Consumption(
+            self.vehicle_types, outside_temperatures=self.temperature_path,
+            level_of_loading_over_day=self.lol_path)
 
         path_to_all_station_data = example_root / "all_stations.csv"
-        generated_schedule = schedule.Schedule.from_csv(path_to_trips, self.vehicle_types,
-                                                        electrified_stations, **mandatory_args,
-                                                        station_data_path=path_to_all_station_data)
+        generated_schedule = schedule.Schedule.from_csv(
+            path_to_trips, self.vehicle_types, electrified_stations, **mandatory_args,
+            station_data_path=path_to_all_station_data)
 
         set_options_from_config(args, check=parser, verbose=False)
         args.ALLOW_NEGATIVE_SOC = True
@@ -214,9 +215,9 @@ class TestSchedule:
 
         electrified_stations["Station-0"]["energy_feed_in"]["csv_file"] = file_root / "not_a_file"
         electrified_stations["Station-0"]["external_load"]["csv_file"] = file_root / "not_a_file"
-        generated_schedule = schedule.Schedule.from_csv(path_to_trips, self.vehicle_types,
-                                                        electrified_stations, **mandatory_args,
-                                                        station_data_path=path_to_all_station_data)
+        generated_schedule = schedule.Schedule.from_csv(
+            path_to_trips, self.vehicle_types, electrified_stations, **mandatory_args,
+            station_data_path=path_to_all_station_data)
 
         set_options_from_config(args, check=parser, verbose=False)
 
