@@ -40,7 +40,7 @@ class TestConsumption:
 
         # apply the formula on the consumption file
         consumption_df = pd.read_csv(self.consumption_path)
-        consumption_col = consumption_df["consumption_kwh_per_km"]
+        consumption_col = consumption_df["consumption_kwh_per_km"].view()
         lol_col = consumption_df["level_of_loading"]
         incline_col = consumption_df["incline"]
         speed_col = consumption_df["mean_speed_kmh"]

@@ -1,9 +1,10 @@
+import sys
+
 import pytest
 import spice_ev.scenario as scenario
 from spice_ev.util import set_options_from_config
 
 from tests.helpers import generate_basic_schedule
-import json
 import pathlib
 from ebus_toolbox import schedule, trip, consumption, util
 
@@ -75,10 +76,11 @@ class TestSchedule:
         :return: schedule, scenario"""
 
         path_to_trips = example_root / "trips_example.csv"
-        parser = util.create_ArgumentParser_with_arguments()
-        args = parser.parse_args(args="")
-        # ToDo: Change to example root if current ebus toolbox is merged
-        args.config = file_root / "ebus_toolbox.cfg"
+        # set the system variables to imitate the console call with the config argument.
+        # first element has to be set to something or error is thrown
+        sys.argv = ["foo", "--config", str(example_root / "ebus_toolbox.cfg")]
+        args = util.get_args()
+        args.config = example_root / "ebus_toolbox.cfg"
         args.days = None
         args.seed = 5
 
@@ -91,7 +93,7 @@ class TestSchedule:
             path_to_trips, self.vehicle_types,self.electrified_stations, **mandatory_args,
             station_data_path=path_to_all_station_data)
 
-        set_options_from_config(args, check=parser, verbose=False)
+        set_options_from_config(args, verbose=False)
         args.ALLOW_NEGATIVE_SOC = True
         args.attach_vehicle_soc = True
 
@@ -176,11 +178,11 @@ class TestSchedule:
          with feed in, external load and battery works and if a scenario object is returned"""
 
         path_to_trips = example_root / "trips_example.csv"
-        parser = util.create_ArgumentParser_with_arguments()
-        args = parser.parse_args(args="")
+        sys.argv = ["foo", "--config", str(example_root / "ebus_toolbox.cfg")]
+        args = util.get_args()
         # Todo change to example root after merge
-        args.config = file_root / "ebus_toolbox.cfg"
-        electrified_stations_path = file_root / "electrified_stations_with_feeds.json"
+        args.config = example_root / "ebus_toolbox.cfg"
+        electrified_stations_path = example_root / "electrified_stations_with_feeds.json"
         args.electrified_stations = electrified_stations_path
         with open(electrified_stations_path, "r", encoding='utf-8') as file:
             electrified_stations = util.uncomment_json_file(file)
@@ -197,7 +199,7 @@ class TestSchedule:
             path_to_trips, self.vehicle_types, electrified_stations, **mandatory_args,
             station_data_path=path_to_all_station_data)
 
-        set_options_from_config(args, check=parser, verbose=False)
+        set_options_from_config(args, verbose=False)
         args.ALLOW_NEGATIVE_SOC = True
         args.attach_vehicle_soc = True
         scen = generated_schedule.generate_scenario(args)
@@ -219,7 +221,7 @@ class TestSchedule:
             path_to_trips, self.vehicle_types, electrified_stations, **mandatory_args,
             station_data_path=path_to_all_station_data)
 
-        set_options_from_config(args, check=parser, verbose=False)
+        set_options_from_config(args, verbose=False)
 
         # check that 2 user warnings are put put for missing files and an error is thrown
         with pytest.warns(Warning) as record:
