@@ -2,16 +2,17 @@ import pytest
 import pathlib
 from tests.test_schedule import TestSchedule
 from datetime import datetime
+import pandas as pd
 
 test_root = pathlib.Path(__file__).parent
 file_root = test_root / "test_input_files"
-
+example_root = pathlib.Path(__file__).parent.parent / "data/examples"
 
 class TestConsumption:
     """Class to test Consumption functionality"""
-    consumption_path = file_root / "testing_energy_consumption.csv"
+    consumption_path = example_root / "energy_consumption_example.csv"
 
-    def test_calculate_consumption(self):
+    def test_calculate_consumption(self, tmp_path):
         """ Various tests to trigger errors and check if behaviour is as expected"""
         schedule, scenario = TestSchedule().test_basic_run()
         trip = next(iter(schedule.rotations.values())).trips.pop(0)
@@ -32,12 +33,26 @@ class TestConsumption:
         assert calc_c(dist) * 2 == calc_c(dist * 2)
         assert calc_c(dist) / 2 == calc_c(dist / 2)
 
-        vehicle[1][charging_type]["mileage"] = self.consumption_path
+        # create a custom and well defined consumption file based on this formula
 
-        # consumption is based on this formula
         def true_cons(lol, incline, speed, t_amb):
-            return lol + incline + speed / 10 + abs(t_amb - 20) / 10
+            return lol + incline + speed / 10 + (t_amb - 20) / 10
 
+        # apply the formula on the consumption file
+        consumption_df = pd.read_csv(self.consumption_path)
+        consumption_col = consumption_df["consumption_kwh_per_km"]
+        lol_col = consumption_df["level_of_loading"]
+        incline_col = consumption_df["incline"]
+        speed_col = consumption_df["mean_speed_kmh"]
+        temp_col = consumption_df["t_amb"]
+
+        consumption_col[:] = true_cons(lol_col, incline_col, speed_col, temp_col)
+
+        # save the file in a temp folder and use from now on
+        consumption_df.to_csv(tmp_path / "consumption.csv")
+        consumption_path = tmp_path / "consumption.csv"
+
+        vehicle[1][charging_type]["mileage"] = consumption_path
         consumption.vehicle_types[vehicle_type][charging_type] = vehicle[1][charging_type]
 
         lol = 0.5
@@ -46,12 +61,13 @@ class TestConsumption:
         t_amb = 20
         distance = 1000  # 1000m =1km, since true_cons give the consumption per 1000 m
 
-        # Check various inputs, which need interpolation
+        # Check various inputs, which need interpolation. Inputs have to be inside of the data, i.e.
+        # not out of bounds
         assert true_cons(lol, incline, speed, t_amb) == consumption.calculate_consumption(
             time, distance, vehicle_type, charging_type, temp=t_amb, height_diff=incline * distance,
             level_of_loading=lol, mean_speed=speed)[0]
 
-        incline = 0.05
+        incline = 0.02
         assert true_cons(lol, incline, speed, t_amb) == consumption.calculate_consumption(
             time, distance, vehicle_type, charging_type, temp=t_amb, height_diff=incline * distance,
             level_of_loading=lol, mean_speed=speed)[0]
@@ -67,7 +83,7 @@ class TestConsumption:
             level_of_loading=lol, mean_speed=speed)[0]
 
         # check for out of bounds consumption. Max consumption in the table is 6.6.
-        t_amb = -99999
+        t_amb = 99999
         incline = 99999
         lol = 99999
         speed = 99999
