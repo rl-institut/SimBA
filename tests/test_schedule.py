@@ -59,6 +59,7 @@ class HelperForTesting:
         scen = generated_schedule.run(args)
         return generated_schedule, scen
 
+
 class TestHelper(HelperForTesting):
     def test_mandatory_options_exit(self):
         """ Check if the schedule creation properly throws a SystemExit error in case of missing
@@ -100,13 +101,10 @@ class TestHelper(HelperForTesting):
 
     def test_basic_run(self):
         """ Check if running a basic example works and if a scenario object is returned
-        :return: schedule, scenario"""
-
+        """
         schedule, scen = self.basic_run()
 
         assert type(scen) == scenario.Scenario
-
-
 
     def test_assign_vehicles(self):
         """ Test if assigning vehicles works as intended.
@@ -240,7 +238,6 @@ class TestHelper(HelperForTesting):
                 assert user_warning_count == 2
             else:
                 assert 0, "No error despite wrong file paths"
-
 
     def test_schedule_from_csv(self):
         generated_schedule = generate_basic_schedule()
