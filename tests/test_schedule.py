@@ -234,6 +234,7 @@ class TestHelper(HelperForTesting):
                 user_warning_count = sum([1 for warning in record.list
                                           if warning.category == UserWarning])
                 assert user_warning_count == 2
+                assert 0
             else:
                 assert 0, "No error despite wrong file paths"
 
