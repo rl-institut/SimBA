@@ -517,6 +517,8 @@ class Schedule:
                         if feed_in:
                             feed_in_path = Path(feed_in["csv_file"])
                             if not feed_in_path.exists() or not feed_in_path.is_file():
+                                # todo check if this is executed
+                                assert 0, "Feed in path"
                                 warnings.warn("feed-in csv file '{}' does not exist".format(
                                     feed_in_path))
                             feed_in["grid_connector_id"] = gc_name
@@ -533,6 +535,8 @@ class Schedule:
                         if ext_load:
                             ext_load_path = Path(ext_load["csv_file"])
                             if not ext_load_path.exists() or not ext_load_path.is_file():
+                                # todo check if this is executed
+                                assert 0, "ext load"
                                 warnings.warn("external load csv file '{}' does not exist".format(
                                     ext_load_path))
                             ext_load["grid_connector_id"] = gc_name
