@@ -21,7 +21,6 @@ def test_set_charging_type():
     # save the consumption of this type of charger
     consumption_oppb = rot.consumption
 
-
     # set charging type to depb
     rot.set_charging_type('depb')
     assert rot.charging_type == 'depb'

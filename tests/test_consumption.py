@@ -8,12 +8,16 @@ test_root = pathlib.Path(__file__).parent
 file_root = test_root / "test_input_files"
 example_root = pathlib.Path(__file__).parent.parent / "data/examples"
 
+
 class TestConsumption:
     """Class to test Consumption functionality"""
     consumption_path = example_root / "energy_consumption_example.csv"
 
     def test_calculate_consumption(self, tmp_path):
-        """ Various tests to trigger errors and check if behaviour is as expected"""
+        """Various tests to trigger errors and check if behaviour is as expected
+
+        :param tmp_path: pytest fixture to create a temporary path
+        """
         schedule, scenario = TestSchedule().test_basic_run()
         trip = next(iter(schedule.rotations.values())).trips.pop(0)
         consumption = trip.__class__.consumption

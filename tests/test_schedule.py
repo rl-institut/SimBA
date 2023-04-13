@@ -85,12 +85,12 @@ class TestSchedule:
         args.seed = 5
 
         trip.Trip.consumption = consumption.Consumption(
-            self.vehicle_types,outside_temperatures=self.temperature_path,
+            self.vehicle_types, outside_temperatures=self.temperature_path,
             level_of_loading_over_day=self.lol_path)
 
         path_to_all_station_data = example_root / "all_stations.csv"
         generated_schedule = schedule.Schedule.from_csv(
-            path_to_trips, self.vehicle_types,self.electrified_stations, **mandatory_args,
+            path_to_trips, self.vehicle_types, self.electrified_stations, **mandatory_args,
             station_data_path=path_to_all_station_data)
 
         set_options_from_config(args, verbose=False)
