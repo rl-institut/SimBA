@@ -34,7 +34,9 @@ class TestSchedule:
         vehicle_types = util.uncomment_json_file(file)
 
     def basic_run(self):
-        """Returns a schedule and scenario after running the Ebus-Toolbox."""
+        """Returns a schedule and scenario after running the Ebus-Toolbox.
+        :return: schedule, scenario
+        """
         path_to_trips = example_root / "trips_example.csv"
         # set the system variables to imitate the console call with the config argument.
         # first element has to be set to something or error is thrown
