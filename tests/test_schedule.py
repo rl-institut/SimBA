@@ -22,8 +22,7 @@ mandatory_args = {
     "cs_power_deps_oppb": 150
 }
 
-
-class HelperForTesting:
+class TestSchedule:
     temperature_path = example_root / 'default_temp_winter.csv'
     lol_path = example_root / 'default_level_of_loading_over_day.csv'
 
@@ -59,8 +58,6 @@ class HelperForTesting:
         scen = generated_schedule.run(args)
         return generated_schedule, scen
 
-
-class TestHelper(HelperForTesting):
     def test_mandatory_options_exit(self):
         """ Check if the schedule creation properly throws a SystemExit error in case of missing
         mandatory options"""
@@ -149,9 +146,9 @@ class TestHelper(HelperForTesting):
         assert calc_consumption == generated_schedule.calculate_consumption() * 2
 
     def test_get_common_stations(self):
-        """ Test if getting common_stations works. Rotation 1 is on the first day, rotation 2 and 3
+        """Test if getting common_stations works. Rotation 1 is on the first day, rotation 2 and 3
         on the second day. rotation 1 should not share any stations with other rotations and
-        2 and 3 are basically simulati
+        2 and 3 are almost simultaneous.
         """
         trip.Trip.consumption = consumption.Consumption(
             self.vehicle_types, outside_temperatures=self.temperature_path,
@@ -218,8 +215,8 @@ class TestHelper(HelperForTesting):
         with open(electrified_stations_path, "r", encoding='utf-8') as file:
             electrified_stations = util.uncomment_json_file(file)
 
-        electrified_stations["Station-0"]["energy_feed_in"]["csv_file"] = file_root / "not_a_file"
-        electrified_stations["Station-0"]["external_load"]["csv_file"] = file_root / "not_a_file"
+        electrified_stations["Station-0"]["energy_feed_in"]["csv_file"] = file_root / "notafile"
+        electrified_stations["Station-0"]["external_load"]["csv_file"] = file_root / "notafile"
         generated_schedule = schedule.Schedule.from_csv(
             path_to_trips, self.vehicle_types, electrified_stations, **mandatory_args,
             station_data_path=path_to_all_station_data)
@@ -230,7 +227,6 @@ class TestHelper(HelperForTesting):
         with pytest.warns(Warning) as record:
             try:
                 scen = generated_schedule.generate_scenario(args)
-                assert 0
             except FileNotFoundError:
                 user_warning_count = sum([1 for warning in record.list
                                           if warning.category == UserWarning])
