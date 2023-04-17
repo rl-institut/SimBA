@@ -22,6 +22,7 @@ mandatory_args = {
     "cs_power_deps_oppb": 150
 }
 
+
 class TestSchedule:
     temperature_path = example_root / 'default_temp_winter.csv'
     lol_path = example_root / 'default_level_of_loading_over_day.csv'
@@ -33,6 +34,7 @@ class TestSchedule:
         vehicle_types = util.uncomment_json_file(file)
 
     def basic_run(self):
+        """Returns a schedule and scenario after running the Ebus-Toolbox."""
         path_to_trips = example_root / "trips_example.csv"
         # set the system variables to imitate the console call with the config argument.
         # first element has to be set to something or error is thrown
@@ -100,7 +102,6 @@ class TestSchedule:
         """ Check if running a basic example works and if a scenario object is returned
         """
         schedule, scen = self.basic_run()
-
         assert type(scen) == scenario.Scenario
 
     def test_assign_vehicles(self):
@@ -133,13 +134,13 @@ class TestSchedule:
         generated_schedule = schedule.Schedule.from_csv(
             path_to_trips, self.vehicle_types, self.electrified_stations, **mandatory_args)
 
-        # set mileage constant
+        # set mileage to a constant
         mileage = 10
         for v_typ in generated_schedule.vehicle_types.values():
             for charge_typ in v_typ.values():
                 charge_typ['mileage'] = mileage
         calc_consumption = generated_schedule.calculate_consumption()
-        # set mileage to half of the prev constant
+        # set mileage to half of the previous constant
         for v_typ in generated_schedule.vehicle_types.values():
             for charge_typ in v_typ.values():
                 charge_typ['mileage'] = mileage / 2
