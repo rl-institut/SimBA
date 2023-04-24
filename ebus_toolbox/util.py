@@ -304,6 +304,10 @@ def get_args():
     parser.add_argument('--eta', action='store_true',
                         help='Show estimated time to finish simulation after each step, '
                              'instead of progress bar. Not recommended for fast computations.')
+    parser.add_argument('--rotation-filter', default=None,
+                        help='Use json data with rotation ids')
+    parser.add_argument('--rotation-filter-variable', default=None, choices=['include', 'exclude'],
+                        help='set mode for filtering schedule rotations')
 
     # #### SPICE EV PARAMETERS ONLY DEFAULT VALUES NOT IN eBus-Toolbox CONFIG #####
     parser.add_argument('--seed', default=1, type=int, help='set random seed')
