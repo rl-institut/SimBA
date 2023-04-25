@@ -82,11 +82,13 @@ def run_optimization(conf, sched=None, scen=None, args=None):
     :rtype: tuple(ebus_toolbox.schedule.Schedule, spice_ev.Scenario)
     """
 
-    # load pickle files if they are not given as arguments
-    if sched is None or scen is None or args is None:
+    # load pickle files if they are given in the optimizer.config
+    if conf.schedule:
         # either all optional arguments are given or none are
-        assert sched == scen == args is None, ("To optimize from .pickle files, schedule, scenario "
-                                               "and arguments need to be provided together")
+        error_message = ("To optimize from .pickle files, schedule, scenario and arguments need to "
+                         "be provided together")
+        assert conf.scenario, error_message
+        assert conf.args, error_message
         sched, scen, args = opt_util.toolbox_from_pickle(conf.schedule, conf.scenario, conf.args)
 
     # setup folders, paths and copy config
