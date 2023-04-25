@@ -4,6 +4,7 @@ electrification.
 """
 
 import json
+import sys
 from pathlib import Path
 import logging
 import ebus_toolbox.station_optimizer
@@ -25,7 +26,16 @@ def setup_logger(conf):
     this_logger.setLevel(logging.DEBUG)
 
     # logging to one file which keeps track of optimization over many runs
-    file_handler_all_opts = logging.FileHandler('optimizer.log')
+
+    # use the temporary folder in case of testing. In the use case the general log file with logging
+    # for all optimizations is located 2 folders above the opt folder, e.g. data/sim_outputs for the
+    # directory data/sim_outputs/XXX_eBus_results/sim__station_optimization/
+    if "pytest" in sys.modules:
+        general_logger_path = Path(conf.optimizer_output_dir) / "optimizer.log"
+    else:
+        general_logger_path = Path(conf.optimizer_output_dir) / "../../optimizer.log"
+    file_handler_all_opts = logging.FileHandler(general_logger_path)
+
     file_handler_all_opts.setLevel(conf.debug_level)
 
     # and logging to a file which is put in the folder with the other optimizer results
