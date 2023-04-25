@@ -3,7 +3,6 @@ electrification.
 
 """
 
-from datetime import datetime
 import json
 from pathlib import Path
 import logging
@@ -59,9 +58,7 @@ def prepare_filesystem(args, conf):
     :param args: Arguments for ebus toolbox
     :type args: Namespace
     """
-    now = datetime.now().strftime("%Y-%m-%d-%H-%M-%S")
-    args.output_directory = Path(args.output_directory)
-    conf.optimizer_output_dir = Path(args.output_directory) / (now + "_optimizer")
+    conf.optimizer_output_dir = Path(args.results_directory)
     # create sub folder for specific sim results with timestamp.
     # if folder doesnt exists, create folder.
     conf.optimizer_output_dir.mkdir(parents=True, exist_ok=True)

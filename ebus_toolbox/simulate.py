@@ -99,6 +99,7 @@ def simulate(args):
                 continue
             conf = read_optimizer_config(args.optimizer_config)
             try:
+                create_results_directory(args, i+1)
                 schedule, scenario = run_optimization(conf, sched=schedule, scen=scenario,
                                                       args=args)
             except Exception as err:
@@ -110,10 +111,7 @@ def simulate(args):
                 # cost calculation part of report
                 calculate_costs(cost_parameters_file, scenario, schedule, args)
             # name: always start with sim, append all prior optimization modes
-            prior_modes = ['sim'] + [m for m in args.mode[:i] if m not in ['sim', 'report']]
-            report_name = '__'.join(prior_modes)
-            args.results_directory = args.output_directory.joinpath(report_name)
-            args.results_directory.mkdir(parents=True, exist_ok=True)
+            create_results_directory(args, i)
             report.generate(schedule, scenario, args)
         elif mode == 'sim':
             if i > 0:
@@ -121,3 +119,17 @@ def simulate(args):
                 warn('Intermediate sim ignored')
         else:
             warn(f'Unknown mode {mode} ignored')
+
+
+def create_results_directory(args, i):
+    """ Create directory for results.
+
+    :param args: arguments
+    :type args: Namespace
+    :param i: iteration number of loop
+    :type i: int
+    """
+    prior_modes = ['sim'] + [m for m in args.mode[:i] if m not in ['sim', 'report']]
+    report_name = '__'.join(prior_modes)
+    args.results_directory = args.output_directory.joinpath(report_name)
+    args.results_directory.mkdir(parents=True, exist_ok=True)

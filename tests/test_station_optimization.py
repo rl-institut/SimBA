@@ -62,6 +62,7 @@ class TestStationOptimization:
         # optimization depends on vehicle_socs, therefore they need to be generated
         generate_soc_timeseries(scen)
         args.output_directory = self.tmp_path
+        args.results_directory = self.tmp_path
         assert self.tmp_path
         return generated_schedule, scen, args
 
