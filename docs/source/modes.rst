@@ -1,4 +1,5 @@
-# Without creating links like in the line below, subpages go missing from the sidebar
+..
+    # Without creating links like in the line below, subpages go missing from the sidebar
 
 .. _sim_modes:
 
@@ -15,64 +16,88 @@ different modes support the user in finding optimal solutions for their eBus-Sys
 * station optimization
 * report
 
-chained modes
+Chained Modes
 -------------
 While the default mode of the ebus-toolbox is the simple simulation together with a report, modes can be chained together differently to achieve the desired results. The chain of modes is defined in the config file (default: ebus_toolbox.cfg) under the keyword *mode*:
+
 ::
+
         mode = ["sim", "report"]
 
-This results in a simple simulation with a following report. To run a simulation the ebus-toolbox creates a schedule which contains all information about how the bus system is supposed to run. Some modes are allowed to mutate the schedule in some way, which makes chaining of modes especially useful. Their output describes the simulation outcome of this mutated schedule. An extended simple use case would be
+This results in a simple simulation with a following report. To run a simulation the ebus-toolbox creates a schedule which contains all information about how the bus system is supposed to run. Some modes are allowed to mutate the schedule in some way, which makes chaining of modes especially useful. Their output describes the simulation outcome of this mutated schedule. An extended simple use case would be:
+
 ::
+
     mode = ["sim", "report" ,"neg_depb_to_oppb", "report]
 
 Where the scenario is run as is, a report is generated, the schedule is changed and simulated again and a second report is generated. The description what the modes do
 can be found below.
 
-simple simulation
+Simple Simulation
 -----------------
-The simple simulation case is the default mode. Its usage is explained in :ref:`Getting Started`. Every chain of modes starts with a simple simulation, even if it is not explicitly called. The simulation takes the scenario as is. No parameters will be adjusted, optimized or changed in any way. The charging type for each rotation is read from the trips.csv if this data is included. If not the *preferred_charging_type* from the config file is used, as long as the provided vehicles data provides the preferred_charging_type for the specified vehicle type.
+The simple simulation case is the default mode. Its usage is explained in :ref:`Getting Started`. Every chain of modes starts with a simple simulation, even if it is not explicitly listed in the modes. The simulation takes the scenario as is. No parameters will be adjusted, optimized or changed in any way. The charging type for each vehicle is read from the rotation information from the trips.csv if this data is included. If the data is not included *preferred_charging_type* from the config file is used, as long as the provided vehicles data provides the preferred_charging_type for the specified vehicle type.
 
 
-negative depot to opportunity charger
+Negative Depot to Opportunity Charger
 -------------------------------------
+This mode is the first kind of optimization provided by the eBus-Toolbox and is called by:
 
-This mode is the first kind of optimization provided by the eBus-Toolbox and is called by
 ::
+
     mode = ["neg_depb_to_oppb"]
-It takes the results of the previous simulation, attains all rotations which had a negative soc, and changes their vehicle type to depot chargers. | NOTE: Charging types are only switched by the eBus-Toolbox if the corresponding vehicle type as depot charger exists in the provided vehicles_data.json.
+
+It takes the results of the previous simulation, attains all rotations which had a negative soc, and changes their vehicle type to depot chargers.
+
+.. note:: Charging types are only switched by the eBus-Toolbox if the corresponding vehicle type as depot charger exists in the provided vehicles_data.json.
 
 
 
-negative opportunity to depot charger
+Negative Opportunity to Depot Charger
 -------------------------------------
-|This mode is analogous to *neg_depb_to_oppb*
+This mode is analogous to *neg_depb_to_oppb*.
 This mode is the second kind of optimization provided by the eBus-Toolbox and is called by
+
 ::
+
     mode = ["neg_oppb_to_depb"]
+
 It takes the results of the previous simulation, attains all rotations which had a negative soc, and changes their vehicle type to opportunity chargers.
-| NOTE: Charging types are only switched by the eBus-Toolbox if the corresponding vehicle type as opportunity charger exists in the provided vehicles_data.json.
 
+.. note:: Charging types are only switched by the eBus-Toolbox if the corresponding vehicle type as opportunity charger exists in the provided vehicles_data.json.
 
-service optimization
+Service Optimization
 --------------------
 This mode optimizes a scenario by creating sub-scenarios, so the given sub-scenario runs without socs falling below 0. The sub-scenario has the same input has the scenario but only consists of a sub-sets of rotations. These sub-sets are are optimized to be as big as possible. Previous negative rotations can become positive since effects like blocked charging points by other rotations can be reduced.
 
-station optimization
+Station Optimization
 --------------------
+This mode optimizes a scenario by electrifying as few opportunity stations as possible using a greedy approach. The network with no opportunity charging station is first analyzed to find rotations which fail at the current stage and to estimate the potential of electrifying each station by its own. *Step-by-step* new opportunity stations are electrified until full electrification is reached. The optimization assumes that at every electrified station unlimited charging points exist, i.e. the number of simultaneously charging buses is not limited. In between each electrification a simulation is run and the network is analyzed again. The first run called the **base optimization** leads to a scenario which often times is better than extensively optimizing the scenario by hand. Since a greedy approach can not guarantee a global optimum a second extensive optimization can be chained to this base optimization. This *deep* optimization can make use of a *step-by-step* decision tree expansion which evaluates new combinations of electrified stations starting with the most promising combinations **OR** use a *brute* force approach trying to reduce the amount of electrified stations by one in comparison the the base optimization. The step-by-step process of the optimization follows :numref:`optimization_loop`
+
 .. _optimization_loop:
 .. figure:: https://user-images.githubusercontent.com/104760879/217225177-66201146-d31a-4127-9ca0-4d6e6e5a3cc4.png
     :width: 600
     :alt: optimization_loop
 
-    Caption
+    Steps of the optimization loop until full electrification is reached.
 
-:numref:`optimization_loop` shows xxxxxxxxxxxxxxxxxxx
+To speed up the optimization process the scenario is divided into groups of independent systems. Each system is solved on its own and further divided whenever possible.
+
+The functionality of the optimizer is controlled through the optimizer.config
+
+
+
+
 
 .. figure:: https://user-images.githubusercontent.com/104760879/217225588-abfad83d-9d2a-463a-8597-584e29f5f885.png
     :width: 600
     :alt: below_0_soc_event
 
     Caption
+
+
+At the current stage the scenario to be optimized needs depot charging stations at the start and end of each rotation. The scenario should not contain any opportunity charging stations. If for a given scenario opportunity charging stations are predefined, i.e. the scenario should contain a specific electrification and is set in the *electrified_station.json* the solver type *spice_ev* should be used in the *optimizer.cfg*. If the *quick* solver is supposed to be used the station can be listed in *must_stations* while the *electrified_stations.json* should only contain depot stations
+
+
 
 
 Report
