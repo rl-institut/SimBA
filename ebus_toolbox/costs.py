@@ -59,9 +59,9 @@ def calculate_costs(c_params, scenario, schedule, args):
     for gcID in gcs.keys():
         # get max. power of grid connector
         gc_timeseries = getattr(scenario, f"{gcID}_timeseries")
-        gc_max_power = -min(gc_timeseries["grid power [kW]"])
+        gc_max_power = -min(gc_timeseries["grid supply [kW]"])
         # get voltage_level
-        voltage_level = schedule.stations[gcID]["voltage_level"]
+        voltage_level = schedule.stations[gcID].get("voltage_level", args.default_voltage_level)
         # get distance between grid and grid connector
         distance_to_grid = schedule.stations[gcID].get(
             "distance_to_grid", c_params["gc"][voltage_level]["default_distance"])
@@ -112,7 +112,7 @@ def calculate_costs(c_params, scenario, schedule, args):
                 # get cs power of this opps
                 schedule.stations[gcID].get("cs_power_opps", vars(args)["cs_power_opps"]) *
                 # get max. nr of occupied CS per grid connector
-                max(gc_timeseries["CS in use"]))
+                max(gc_timeseries["# CS in use [-]"]))
 
     # calculate annual cost of charging stations, depending on their lifetime
     costs["c_cs_annual"] = costs["c_cs"] / c_params["cs"]["lifetime_cs"]
@@ -166,9 +166,9 @@ def calculate_costs(c_params, scenario, schedule, args):
             voltage_level=gc.voltage_level,
             interval=scenario.interval,
             timestamps_list=timeseries.get("time"),
-            power_grid_supply_list=timeseries.get("grid power [kW]"),
+            power_grid_supply_list=timeseries.get("grid supply [kW]"),
             price_list=timeseries.get("price [EUR/kWh]"),
-            power_fix_load_list=timeseries.get("ext.load [kW]"),
+            power_fix_load_list=timeseries.get("fixed load [kW]"),
             charging_signal_list=timeseries.get("window"),
             core_standing_time_dict=scenario.core_standing_time,
             price_sheet_json=args.cost_parameters_file,
