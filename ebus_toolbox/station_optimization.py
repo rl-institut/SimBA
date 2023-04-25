@@ -75,7 +75,7 @@ def run_optimization(conf, sched=None, scen=None, args=None):
     :param scen: Simulation scenario containing simulation results
                      including the SoC of all vehicles over time
     :type scen: spice_ev.Scenario
-    :param args: Simulation arguments for manipulation or generated outputs
+    :param args: Simulation arguments for manipulation of generated outputs
     :type args: Namespace
 
     :return: optimized schedule and Scenario
