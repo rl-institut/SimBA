@@ -6,7 +6,6 @@ electrification.
 import json
 from pathlib import Path
 import logging
-import shutil
 import ebus_toolbox.station_optimizer
 from ebus_toolbox.station_optimizer import opt_util
 from spice_ev.report import generate_soc_timeseries
@@ -62,11 +61,6 @@ def prepare_filesystem(args, conf):
     # create sub folder for specific sim results with timestamp.
     # if folder doesnt exists, create folder.
     conf.optimizer_output_dir.mkdir(parents=True, exist_ok=True)
-
-    # copy paste the config file
-    copy_file = Path(conf.path)
-    destination = conf.optimizer_output_dir / Path("optimizer_config.cfg")
-    shutil.copy(copy_file, destination)
 
 
 def run_optimization(conf, sched=None, scen=None, args=None):
