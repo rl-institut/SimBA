@@ -36,14 +36,6 @@ ebus\_toolbox.optimizer\_util module
    :undoc-members:
    :show-inheritance:
 
-ebus\_toolbox.plot\_geoposition module
---------------------------------------
-
-.. automodule:: ebus_toolbox.plot_geoposition
-   :members:
-   :undoc-members:
-   :show-inheritance:
-
 ebus\_toolbox.report module
 ---------------------------
 

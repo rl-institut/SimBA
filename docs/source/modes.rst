@@ -19,7 +19,7 @@ chained modes
 -------------
 While the default mode of the ebus-toolbox is the simple simulation together with a report, modes can be chained together differently to achieve the desired results. The chain of modes is defined in the config file (default: ebus_toolbox.cfg) under the keyword *mode*:
 ::
-    mode = ["sim", "report"]
+        mode = ["sim", "report"]
 
 This results in a simple simulation with a following report. To run a simulation the ebus-toolbox creates a schedule which contains all information about how the bus system is supposed to run. Some modes are allowed to mutate the schedule in some way, which makes chaining of modes especially useful. Their output describes the simulation outcome of this mutated schedule. An extended simple use case would be
 ::
@@ -39,8 +39,7 @@ negative depot to opportunity charger
 This mode is the first kind of optimization provided by the eBus-Toolbox and is called by
 ::
     mode = ["neg_depb_to_oppb"]
-It takes the results of the previous simulation, attains all rotations which had a negative soc, and changes their vehicle type to depot chargers.
-| NOTE: Charging types are only switched by the eBus-Toolbox if the corresponding vehicle type as depot charger exists in the provided vehicles_data.json.
+It takes the results of the previous simulation, attains all rotations which had a negative soc, and changes their vehicle type to depot chargers. | NOTE: Charging types are only switched by the eBus-Toolbox if the corresponding vehicle type as depot charger exists in the provided vehicles_data.json.
 
 
 
@@ -76,29 +75,9 @@ station optimization
     Caption
 
 
-report
------------------
-The  The report will include information about the expected socs, power loads at the charging stations or depots, default plots for the scenario and other useful data.
-
-
-chained modes
--------------
-While the default mode of the ebus-toolbox is the simple simulation, modes can be chained together to achieve the desired results. The chain of modes is defined in the config file (default: ebus_toolbox.cfg) under the keyword *mode*:
-::
-    mode = ["sim", "report"]
-
-This results in a simple simulation with a following report. To run a simulation the ebus-toolbox creates a schedule which contains all information about how the bus system is supposed to run. Some modes are allowed to mutate the schedule in some way, which makes chaining of modes especially useful. An extended simple use case would be
-::
-    mode = ["sim", "report" ,"neg_depb_to_oppb", "report]
-
-Where the scenario is run as is, a report is generated, the schedule is changed and simulated again and a second report is generated. The description what the modes do
-can be found below.
-=======
-Lorem ipsum ...
-
-
 Report
 -------------
+The report will include information about the expected socs, power loads at the charging stations or depots, default plots for the scenario and other useful data.
 Cost calculation
 ~~~~~~~~~~~~~
 

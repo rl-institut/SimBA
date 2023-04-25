@@ -33,6 +33,7 @@ class Consumption:
     def calculate_consumption(self, time, distance, vehicle_type, charging_type, temp=None,
                               height_diff=0, level_of_loading=None, mean_speed=18):
         """ Calculates consumed amount of energy for a given distance.
+
         :param time: The date and time at which the trip ends
         :type time: datetime.datetime
         :param distance: Distance travelled [m]

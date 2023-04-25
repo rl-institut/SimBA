@@ -17,8 +17,9 @@ def save_version(file_path):
 
 def get_buffer_time(trip, default=0):
     """ Get buffer time at arrival station of a trip.
-        Buffer_time is an abstraction of delays like docking procedures and
-        is added to the planned arrival time
+
+    Buffer_time is an abstraction of delays like docking procedures and is added to the planned
+    arrival time.
 
     :param trip: The of buffer time of this trips arrival is returned.
     :type trip: ebus_toolbox.Trip
@@ -39,6 +40,7 @@ def get_buffer_time(trip, default=0):
             "else": 1
         }
     """
+
     schedule = trip.rotation.schedule
     buffer_time = schedule.stations.get(trip.arrival_name, {}).get('buffer_time', default)
 

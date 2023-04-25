@@ -584,7 +584,8 @@ def combs_unordered_no_putting_back(n: int, k: int):
 
 
 def run_schedule(this_sched, this_args, electrified_stations=None, cost_calc=False):
-    """Run a given schedule and electrify stations if need be
+    """Run a given schedule and electrify stations if need be.
+
     :param this_sched: schedule object
     :param this_args: args namespace object
     :param electrified_stations: dict of electrified stations. Default value None means no further
@@ -593,6 +594,7 @@ def run_schedule(this_sched, this_args, electrified_stations=None, cost_calc=Fal
     :raises SystemExit: in case of wrong cost calculation file
     :return: schedule and scenario objects after spiceev simulation
     """
+
     this_sched2 = copy(this_sched)
     this_sched2.stations = electrified_stations
     this_sched2, new_scen = preprocess_schedule(this_sched2, this_args,
