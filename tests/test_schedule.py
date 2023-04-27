@@ -63,11 +63,10 @@ class TestSchedule:
         return generated_schedule, scen
 
     def test_mandatory_options_exit(self):
-        """ Check if the schedule creation properly throws a SystemExit error in case of missing
-        mandatory options"""
-
-        # check if System exit is properly thrown when mandatory options are not given
-        with pytest.raises(SystemExit):
+        """
+        Check if the schedule creation properly throws an error in case of missing mandatory options
+        """
+        with pytest.raises(Exception):
             # schedule creation without mandatory args
             schedule.Schedule(self.vehicle_types, self.electrified_stations)
 

@@ -19,7 +19,7 @@ class Schedule:
         :param stations: electrified stations
         :type stations: dict
 
-        :raises SystemExit: In case not all mandatory options are provided
+        :raises Exception: In case not all mandatory options are provided
 
         :param kwargs: Command line arguments
         :type kwargs: dict
@@ -44,7 +44,7 @@ class Schedule:
         ]
         missing = [opt for opt in mandatory_options if kwargs.get(opt) is None]
         if missing:
-            raise SystemExit("The following arguments are required: {}".format(", ".join(missing)))
+            raise Exception("The following arguments are required: {}".format(", ".join(missing)))
         else:
             for opt in mandatory_options:
                 setattr(self, opt, kwargs.get(opt))
@@ -388,8 +388,6 @@ class Schedule:
         :rtype:  spice_ev.Scenario
         """
 
-        random.seed(args.seed)
-
         interval = datetime.timedelta(minutes=args.interval)
 
         vehicles = {}
@@ -583,8 +581,9 @@ class Schedule:
 
         daily = datetime.timedelta(days=1)
         # price events
-        for key in grid_connectors.keys():
-            if not args.include_price_csv:
+        if not args.include_price_csv:
+            random.seed(args.seed)
+            for key in grid_connectors.keys():
                 now = start_simulation - daily
                 while now < stop_simulation + 2 * daily:
                     now += daily
