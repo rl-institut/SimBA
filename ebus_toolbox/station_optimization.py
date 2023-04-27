@@ -193,6 +193,5 @@ def run_optimization(conf, sched=None, scen=None, args=None):
     logger.warning("Still negative rotations: %s",
                    optimizer.schedule.get_negative_rotations(optimizer.scenario))
     logger.log(msg="Station optimization finished after " + opt_util.get_time(), level=100)
-    logger.warning("Station optimization finished after %s", opt_util.get_time())
 
     return optimizer.schedule, optimizer.scenario
