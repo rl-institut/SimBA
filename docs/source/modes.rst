@@ -314,9 +314,35 @@ The functionality of the optimizer is controlled through the optimizer.cfg speci
 
 Report
 -------------
-The report will include information about the expected socs, power loads at the charging stations or depots, default plots for the scenario and other useful data.
+The report will include information about the expected socs, power loads at the charging stations or depots, default plots for the scenario and other useful data. Default outputs are
+
+| **Grid Connector Overview (gc_overview.csv)**
+| Contains information about charging stations, including their names, types, maximum power, maximum number of charging stations, total energy usage, and use factors for the least, second least, and third least utilized charging stations.
+
+| **Grid Connector Time Series (gc_power_overview_timeseries.csv)**
+| Time series of power flow in kW for every grid connector
+
+| **Rotation SoC Data (rotation_socs.csv)**
+| Time series of soc for each rotation.
+
+| **Vehicle SoC Data (vehicle_socs.csv)**
+| Time series of soc for each vehicle.
+
+| **Rotation Summary (rotation_summary.csv)**
+| Contains data related to the rotation of vehicles, including the start and end times of each rotation, the type and ID of the vehicle, the depot name, the lines the vehicle traveled, total energy consumption in kWh, distance traveled in m, and various charging-related metrics such as charging type and soc at arrival, minimum soc and if the rotation had negative soc values.
+
+| **Overview Plots (run_overview.pdf and run_overview.png)**
+| Contains plots for socs for every vehicle, power at each charging station, batteries, external loads and feed-ins as well as price time series for each station.
+
+| **Station Data Summary (simulation_station_xy.json)**
+| Contains information about the simulation interval, grid connector, photovoltaics, charging strategy, average flexible power range per time window, total drawn energy from the grid, average duration of standing events, maximum drawn power, total energy fed into the grid, maximum stored energy in each battery, number of load cycles for stationary batteries and vehicles, and number of times vehicle soc was below the desired soc on departure.
+
+| **Station Data Time Series (simulation_timeseries_station_xy.csv)**
+| Contains station specific time series including price of electricity, grid supply, fixed loads, battery power, energy stored in battery, flex band boundaries, battery feed, charging station power use, occupied charging stations and charging stations in use as well as vehicles which are at the station.
+
+
 Cost calculation
-~~~~~~~~~~~~~
+~~~~~~~~~~~~~~~~~~
 
 This mode calculates investment and maintenance costs of the infrastructure as well as energy costs in the scenario. The costs are calculated based on the price sheet, given as input in the ``costs_params.json``.
 The following costs are calculated as both total and annual, depending on the lifetime of each component. See `SpiceEV <https://spice-ev.readthedocs.io/en/latest/charging_strategies_incentives.html#incentive-scheme>`_ for the calculation of electricity costs.
