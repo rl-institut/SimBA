@@ -314,7 +314,10 @@ The functionality of the optimizer is controlled through the optimizer.cfg speci
 
 Report
 -------------
-The report will include information about the expected socs, power loads at the charging stations or depots, default plots for the scenario and other useful data. Default outputs are
+The report will generate several files which include information about the expected socs, power loads at the charging stations or depots, default plots for the scenario and other useful data.
+
+Default outputs
+###################################
 
 | **Grid Connector Overview (gc_overview.csv)**
 | Contains information about charging stations, including their names, types, maximum power, maximum number of charging stations, total energy usage, and use factors for the least, second least, and third least utilized charging stations.
@@ -340,12 +343,12 @@ The report will include information about the expected socs, power loads at the 
 | **Station Data Time Series (simulation_timeseries_station_xy.csv)**
 | Contains station specific time series including price of electricity, grid supply, fixed loads, battery power, energy stored in battery, flex band boundaries, battery feed, charging station power use, occupied charging stations and charging stations in use as well as vehicles which are at the station.
 
-
+.. _cost_calculation:
 Cost calculation
-~~~~~~~~~~~~~~~~~~
-
-This mode calculates investment and maintenance costs of the infrastructure as well as energy costs in the scenario. The costs are calculated based on the price sheet, given as input in the ``costs_params.json``.
-The following costs are calculated as both total and annual, depending on the lifetime of each component. See `SpiceEV <https://spice-ev.readthedocs.io/en/latest/charging_strategies_incentives.html#incentive-scheme>`_ for the calculation of electricity costs.
+###################################
+| **Cost calculation (summary_vehicles_costs.csv)**
+| This is an optional output which calculates investment and maintenance costs of the infrastructure as well as energy costs in the scenario. The costs are calculated based on the price sheet, given as input in the ``costs_params.json``.
+| The following costs are calculated as both total and annual, depending on the lifetime of each component. See `SpiceEV <https://spice-ev.readthedocs.io/en/latest/charging_strategies_incentives.html#incentive-scheme>`_ for the calculation of electricity costs.
 
 * Investment
     * **Busses**: Costs for all busses used in the simulation. Costs include battery swaps, depending on the lifetime of both busses and batteries.
