@@ -13,6 +13,7 @@ if "pytest" not in sys.modules:
     sh.setLevel(logging.DEBUG)
     logger.addHandler(sh)
 
+
 def service_optimization(schedule, scenario, args):
     """ Optimize rotations based on feasability.
         Try to find sets of rotations that produce no negative SoC
@@ -25,7 +26,6 @@ def service_optimization(schedule, scenario, args):
     :type args: argparse.Namespace
     :return: original and most optimized scenario (highest electrification rate)
     :rtype: dict of tuple of schedule and spice_ev.Scenario
-    :raises Exception: if the charging type of a rotation with negative SoC is not oppb
     """
     common_stations = schedule.get_common_stations(only_opps=True)
 
@@ -38,9 +38,9 @@ def service_optimization(schedule, scenario, args):
 
     if not negative_rotations:
         return {
-        "original": original,
-        "optimized": original,
-    }
+            "original": original,
+            "optimized": original,
+        }
 
     negative_sets = {}
     for rot_key in negative_rotations:
@@ -49,7 +49,7 @@ def service_optimization(schedule, scenario, args):
         if rotation.charging_type != "oppb":
             # only oppb rotations are optimized -> skip others
             logger.warn(f"Rotation {rot_key} should be optimized, "
-                          f"but is of type {rotation.charging_type}.")
+                        f"but is of type {rotation.charging_type}.")
             continue
         # oppb: build non-interfering sets of negative rotations
         # (these include the dependent non-negative rotations)
