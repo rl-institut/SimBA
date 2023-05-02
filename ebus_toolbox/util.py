@@ -306,7 +306,7 @@ def get_args():
                              'instead of progress bar. Not recommended for fast computations.')
     parser.add_argument('--rotation-filter', default=None,
                         help='Use json data with rotation ids')
-    parser.add_argument('--rotation-filter-variable', default=None, choices=['include', 'exclude'],
+    parser.add_argument('--rotation-filter-variable', default=None, choices=[None, 'include', 'exclude'],
                         help='set mode for filtering schedule rotations')
 
     # #### SPICE EV PARAMETERS ONLY DEFAULT VALUES NOT IN eBus-Toolbox CONFIG #####
