@@ -112,19 +112,19 @@ class Schedule:
 
         if kwargs.get("check_rotation_consistency"):
             # check rotation expectations
-            ignored_rotations = cls.check_consistency(schedule)
-            if ignored_rotations:
+            inconsistent_rotations = cls.check_consistency(schedule)
+            if inconsistent_rotations:
                 # write errors to file
                 with open(kwargs["output_directory"] / "inconsistent_rotations.csv", "w") as f:
-                    for rot_id, e in ignored_rotations.items():
+                    for rot_id, e in inconsistent_rotations.items():
                         f.write(f"Rotation {rot_id}: {e}\n")
                         print(f"Rotation {rot_id}: {e}")
-                        if kwargs.get("ignore_inconsistent_rotations"):
+                        if kwargs.get("skip_inconsistent_rotations"):
                             # remove this rotation from schedule
                             del schedule.rotations[rot_id]
-        elif kwargs.get("ignore_inconsistent_rotations"):
-            warnings.warn("Option ignore_inconsistent_rotations ignored, "
-                          "as check_rotation_consistency is not set")
+        elif kwargs.get("skip_inconsistent_rotations"):
+            warnings.warn("Option skip_inconsistent_rotations ignored, "
+                          "as check_rotation_consistency is not set to 'true'")
 
         return schedule
 
@@ -132,47 +132,50 @@ class Schedule:
     def check_consistency(cls, schedule):
         """
         Check rotation expectations, such as
-        - each rotation has one "Einsetzfahrt"
-        - each rotation has one "Aussetzfahrt"
-        - the "Einsatzfahrt" starts where the "Aussetzfahrt" ends
-        - the rotation name is unique
+        - the rotation starts and ends at the same station
         - every trip within a rotation starts where the previous trip ended
+        - trips are chronologically sorted
+        - trips have positive breaks in between
+        - trips have positive times between departure and arrival
 
         :param schedule: the schedule to check
         :type schedule: dict
-        :return: faulty rotations. Dict of rotation ID -> error message
+        :return: inconsistent rotations. Dict of rotation ID -> error message
         :rtype: dict
         """
-        ignored_rotations = {}
+        inconsistent_rotations = {}
         for rot_id, rotation in schedule.rotations.items():
             # iterate over trips, looking for initial and final stations
-            dep_name = None
-            arr_name = None
-            prev_station_name = None
+            prev_trip = None
             try:
                 for trip in rotation.trips:
-                    if trip.line == "Einsetzfahrt":
-                        # must have exactly one "Einsetzfahrt"
-                        assert dep_name is None, "Einsetzfahrt encountered mutliple times"
-                        dep_name = trip.departure_name
-                    if trip.line == "Aussetzfahrt":
-                        # must have exactly one "Aussetzfahrt"
-                        assert arr_name is None, "Aussetzfahrt encountered multiple times"
-                        arr_name = trip.arrival_name
-                    if prev_station_name is not None:
-                        # must depart from the previous station
-                        assert trip.departure_name == prev_station_name, "Wrong departure station"
-                        prev_station_name = trip.arrival_name
-                # must have exactly one "Einsetzfahrt" and "Aussetzfahrt"
-                assert dep_name is not None and arr_name is not None, "No Ein- or Aussetzfahrt"
-                # rotation must end where it started
+                    # positive duration for a trip
+                    assert trip.arrival_time >= trip.departure_time, "Trip time is negative"
+                    if not prev_trip:
+                        prev_trip = trip
+                        continue
+                    # positive break time in between trips
+                    assert trip.departure_time >= prev_trip.arrival_time, "Break time is negative"
+                    assert trip.departure_name == prev_trip.arrival_name, "Trips are not sequential"
+
+                    prev_trip = trip
+
+                rot_departure_trip = list(rotation.trips)[0]
+                rot_arrival_trip = list(rotation.trips)[-1]
+                dep_name = rot_departure_trip.departure_name
+                arr_name = rot_arrival_trip.arrival_name
                 assert dep_name == arr_name, "Start and end of rotation differ"
+
+                error = "Rotation data differs from trips data"
+                assert dep_name == rotation.departure_name, error
+                assert arr_name == rotation.arrival_name, error
+                assert rot_arrival_trip.arrival_time == rotation.arrival_time, error
+                assert rot_departure_trip.departure_time == rotation.departure_time, error
             except AssertionError as e:
                 # some assumption is violated
                 # save error text
-                ignored_rotations[rot_id] = e
-
-        return ignored_rotations
+                inconsistent_rotations[rot_id] = str(e)
+        return inconsistent_rotations
 
     def run(self, args):
         # each rotation is assigned a vehicle ID
