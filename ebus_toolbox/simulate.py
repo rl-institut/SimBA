@@ -47,16 +47,17 @@ def simulate(args):
         outside_temperatures=args.outside_temperature_over_day_path,
         level_of_loading_over_day=args.level_of_loading_over_day_path)
 
-    schedule = Schedule.from_csv(args.input_schedule,
-                                 vehicle_types,
-                                 stations,
-                                 **vars(args))
-    schedule.calculate_consumption()
-    # scenario simulated once
-    scenario = schedule.run(args)
+    # generate schedule from csv
+    schedule = Schedule.from_csv(args.input_schedule, vehicle_types, stations, **vars(args))
 
     # filter rotations
     schedule.rotation_filter(args)
+
+    # calculate consumption of all trips
+    schedule.calculate_consumption()
+
+    # scenario simulated once
+    scenario = schedule.run(args)
 
     # run the mode(s) specified in config
     if type(args.mode) != list:
