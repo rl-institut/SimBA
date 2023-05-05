@@ -27,7 +27,7 @@ def generate_gc_power_overview_timeseries(scenario, args):
             time_col[i] = time_col[i].isoformat()
         stations.append(time_col)
         for gc in gc_list:
-            stations.append([-x for x in getattr(scenario, f"{gc}_timeseries")["grid power [kW]"]])
+            stations.append([-x for x in getattr(scenario, f"{gc}_timeseries")["grid supply [kW]"]])
         gc_power_overview = list(map(list, zip(*stations)))
         csv_writer.writerows(gc_power_overview)
 
@@ -63,16 +63,16 @@ def generate_gc_overview(schedule, scenario, args):
         for gc in all_gc_list:
             if gc in used_gc_list:
                 ts = getattr(scenario, f"{gc}_timeseries")
-                max_gc_power = -min(ts["grid power [kW]"])
-                max_nr_cs = max(ts["CS in use"])
-                sum_of_cs_energy = sum(ts["sum CS power"]) * args.interval/60
+                max_gc_power = -min(ts["grid supply [kW]"])
+                max_nr_cs = max(ts["# CS in use [-]"])
+                sum_of_cs_energy = sum(ts["sum CS power [kW]"]) * args.interval/60
 
                 # use factors: to which percentage of time are the three least used CS in use
                 num_ts = scenario.n_intervals  # number of timesteps
                 # three least used CS. Less if number of CS is lower.
                 least_used_num = min(3, max_nr_cs)
                 # count number of timesteps with this exact number of occupied CS
-                count_nr_cs = [ts["CS in use"].count(max_nr_cs - i) for i in range(
+                count_nr_cs = [ts["# CS in use [-]"].count(max_nr_cs - i) for i in range(
                     least_used_num)]
                 use_factors = [sum(count_nr_cs[:i + 1]) / num_ts for i in range(
                     least_used_num)]  # relative occupancy with at least this number of occupied CS
