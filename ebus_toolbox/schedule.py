@@ -2,7 +2,6 @@ import csv
 import random
 import datetime
 import warnings
-import json
 from pathlib import Path
 
 from ebus_toolbox import util
@@ -397,8 +396,8 @@ class Schedule:
         if args.rotation_filter:
             try:
                 with open(args.rotation_filter, encoding='utf-8') as f:
-                    # read rotation_ids from file into rf_list
-                    rf_list += json.load(f, parse_int=str)
+                    for line in f:
+                        rf_list.append(line.strip())
             except FileNotFoundError:
                 warnings.warn(f"Path to rotation filter {args.rotation_filter} is invalid.")
         # filter out rotations in self.rotations
