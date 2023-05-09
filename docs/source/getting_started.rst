@@ -46,7 +46,7 @@ Other modes can alter bus types from depot to opportunity chargers, optimize set
 :numref:`figure_ebus_toolbox_modules` shows how the different modules work together to calculate the scenario. Optionally different optimizations can be used or even chained together. The output of the simulation is locally saved and consists of the vehicle socs, summaries for each rotation, estimated costs for vehicles, infrastructure and operation as well as station specific electric loads, utilization rates and other key performance indicators. Some of them can be plotted automatically and can be seen in :numref:`ebus_toolbox_default_plot`
 
 .. _ebus_toolbox_default_plot:
-.. figure:: _files/run_overview.png
+.. figure:: _static/run_overview.png
     :alt:  ebus_toolbox_default_plot
     :width: 600
 
