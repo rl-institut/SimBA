@@ -96,7 +96,6 @@ class TestStationOptimization:
         """
         trips_file_name = "trips_for_optimizer_deep.csv"
         sched, scen, args = self.test_basic_run(trips_file_name=trips_file_name)
-
         args.input_schedule = file_root / trips_file_name
         config_path = file_root / "optimizer.cfg"
         conf = opt_util.read_config(config_path)
@@ -109,7 +108,6 @@ class TestStationOptimization:
                 conf.solver = solver
                 conf.node_choice = node_choice
                 opt_sched, opt_scen = run_optimization(conf, sched=sched, scen=scen, args=args)
-                print(solver, node_choice, opt_sched.stations)
                 assert "Station-1" not in opt_sched.stations
                 assert "Station-2" in opt_sched.stations
                 assert "Station-3" in opt_sched.stations
