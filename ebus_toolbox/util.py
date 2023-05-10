@@ -260,11 +260,10 @@ def get_args():
                         help='Calculate costs')
     parser.add_argument('--check-rotation-consistency', action='store_true',
                         help='Check rotation assumptions when building schedule.')
-    parser.add_argument('--ignore-inconsistent-rotations', action='store_true',
+    parser.add_argument('--skip_inconsistent_rotations', action='store_true',
                         help='Remove rotations from schedule that violate assumptions. ')
     parser.add_argument('--show-plots', action='store_true',
                         help='show plots for users to view in "report" mode')
-
     # #### Physical setup of environment #####
     parser.add_argument('--preferred-charging-type', '-pct', default='depb',
                         choices=['depb', 'oppb'], help="Preferred charging type. Choose one\
