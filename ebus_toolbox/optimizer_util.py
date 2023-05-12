@@ -171,7 +171,6 @@ def read_config(config_path):
     conf.scenario = default.get("scenario", "")
     conf.args = default.get("args", "")
 
-    conf.charge_eff = default.getfloat("charge_eff", 0.95)
     conf.battery_capacity = default.getfloat("battery_capacity", 0)
     if conf.battery_capacity == 0:
         conf.battery_capacity = None

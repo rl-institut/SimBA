@@ -838,9 +838,10 @@ class StationOptimizer:
             soc_charge_curve_dict[v_type_name] = {}
         for name, v_type in self.schedule.vehicle_types.items():
             for ch_type, data in v_type.items():
+                eff = self.scenario.components.vehicle_types[f"{name}_{ch_type}"].battery_efficiency
                 soc_charge_curve_dict[name][ch_type] = opt_util.charging_curve_to_soc_over_time(
                     data["charging_curve"], data["capacity"], self.args,
-                    self.schedule.cs_power_opps, efficiency=self.config.charge_eff,
+                    self.schedule.cs_power_opps, efficiency=eff,
                     time_step=0.1, eps=self.config.eps)
         self.soc_charge_curve_dict = soc_charge_curve_dict
 
