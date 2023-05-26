@@ -1,7 +1,6 @@
 """ Reusable functions that support tests
 """
-import json
-from ebus_toolbox import schedule, trip, consumption
+from ebus_toolbox import schedule, trip, consumption, util
 
 
 def generate_basic_schedule():
@@ -10,7 +9,7 @@ def generate_basic_schedule():
     temperature_path = 'data/examples/default_temp_winter.csv'
     lol_path = 'data/examples/default_level_of_loading_over_day.csv'
     with open("data/examples/vehicle_types.json", 'r', encoding='utf-8') as f:
-        vehicle_types = json.load(f)
+        vehicle_types = util.uncomment_json_file(f)
     trip.Trip.consumption = consumption.Consumption(vehicle_types,
                                                     outside_temperatures=temperature_path,
                                                     level_of_loading_over_day=lol_path)

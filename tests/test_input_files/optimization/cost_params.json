@@ -10,12 +10,12 @@
             "c_maint_per_km": 0.24,
             "lifetime": 14
         },
-        "AB_depb": {
+        "CKB_depb": {
             "capex": 600000,
             "c_maint_per_km": 0.3,
             "lifetime": 14
         },
-        "AB_oppb": {
+        "CKB_oppb": {
             "capex": 600000,
             "c_maint_per_km": 0.3,
             "lifetime": 14
@@ -189,7 +189,6 @@
             "remuneration": [6.24, 6.06, 4.74]
         },
         "V2G": 0,
-        "battery": 0,
         "unit": "ct/kWh",
         "info": "remuneration for power fed into the grid by PV power plants or electric vehicles"
     }

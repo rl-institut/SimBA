@@ -243,7 +243,9 @@ def get_args():
                         help='include cost parameters json, needed if cost_calculation==True')
 
     # #### Modes #####
-    mode_choices = ['sim', 'neg_depb_to_oppb', 'neg_oppb_to_depb', 'service_optimization', 'report']
+    mode_choices = [
+        'sim', 'neg_depb_to_oppb', 'neg_oppb_to_depb', 'service_optimization',
+        'station_optimization', 'remove_negative', 'report']
     parser.add_argument('--mode', default=['sim', 'report'], nargs='*', choices=mode_choices,
                         help=f"Specify what you want to do. Choose one or more from \
                         {', '.join(mode_choices)}. \
@@ -251,6 +253,8 @@ def get_args():
                         neg_depb_to_oppb changes charging type of negative depb rotations. \
                         neg_oppb_to_depb changes charging type of negative oppb rotations. \
                         service optimization finds the largest set of electrified rotations. \
+                        station_optimization finds the smallest set of electrified stations.\
+                        remove_negative removes all negative rotations.\
                         report generates simulation output files.")
 
     # #### Flags #####
@@ -258,11 +262,10 @@ def get_args():
                         help='Calculate costs')
     parser.add_argument('--check-rotation-consistency', action='store_true',
                         help='Check rotation assumptions when building schedule.')
-    parser.add_argument('--ignore-inconsistent-rotations', action='store_true',
+    parser.add_argument('--skip_inconsistent_rotations', action='store_true',
                         help='Remove rotations from schedule that violate assumptions. ')
     parser.add_argument('--show-plots', action='store_true',
                         help='show plots for users to view in "report" mode')
-
     # #### Physical setup of environment #####
     parser.add_argument('--preferred-charging-type', '-pct', default='depb',
                         choices=['depb', 'oppb'], help="Preferred charging type. Choose one\
@@ -313,6 +316,9 @@ def get_args():
     parser.add_argument('--include-price-csv-option', '-po', metavar=('KEY', 'VALUE'),
                         nargs=2, default=[], action='append',
                         help='append additional argument to price signals')
+    parser.add_argument('--optimizer_config', default=None,
+                        help="For station_optimization a optimizer_config is needed. \
+                        Input a path to an .cfg file or use the default_optimizer.cfg")
 
     parser.add_argument('--config', help='Use config file to set arguments')
 

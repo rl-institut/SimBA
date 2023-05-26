@@ -95,6 +95,14 @@ class TestSimulate:
         values["ALLOW_NEGATIVE_SOC"] = True
         simulate(Namespace(**values))
 
+    def test_mode_remove_negative(self):
+        values = self.DEFAULT_VALUES.copy()
+        values["mode"] = "remove_negative"
+        values["desired_soc_deps"] = 0
+        # values["desired_soc_opps"] = 0
+        values["ALLOW_NEGATIVE_SOC"] = True
+        simulate(Namespace(**values))
+
     def test_mode_report(self, tmp_path):
         # report with cost calculation, write to tmp
         values = self.DEFAULT_VALUES.copy()
@@ -105,6 +113,22 @@ class TestSimulate:
         values["show_plots"] = False
         # tuned so that some rotations don't complete
         values["days"] = .33
+        with warnings.catch_warnings():
+            warnings.simplefilter("ignore")
+            simulate(Namespace(**values))
+
+    def test_empty_report(self, tmp_path):
+        # report with no rotations
+        values = self.DEFAULT_VALUES.copy()
+        values.update({
+            "mode": ["remove_negative", "report"],
+            "desired_soc_deps": 0,
+            "ALLOW_NEGATIVE_SOC": True,
+            "cost_calculation": True,
+            "output_directory": tmp_path,
+            "strategy": "distributed",
+            "show_plots": False,
+        })
         with warnings.catch_warnings():
             warnings.simplefilter("ignore")
             simulate(Namespace(**values))
