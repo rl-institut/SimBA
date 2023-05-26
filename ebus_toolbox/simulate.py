@@ -105,6 +105,16 @@ def simulate(args):
             except Exception as err:
                 warnings.warn('During Station optimization an error occurred {0}. '
                               'Optimization was skipped'.format(err))
+        elif mode == 'remove_negative':
+            neg_rot = schedule.get_negative_rotations(scenario)
+            if neg_rot:
+                schedule.rotations = {
+                    k: v for k, v in schedule.rotations.items() if k not in neg_rot}
+                print('Rotations ' + ', '.join(neg_rot) + ' removed')
+                # re-run schedule
+                scenario = schedule.run(args)
+            else:
+                print('No negative rotations to remove')
         elif mode == 'report':
             # create report based on all previous modes
             if args.cost_calculation:
