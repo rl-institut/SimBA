@@ -1,4 +1,5 @@
 from pathlib import Path
+import re
 import subprocess
 
 ROOT_PATH = Path(__file__).parent.parent
@@ -16,8 +17,8 @@ class TestExampleConfigs:
         # write output to tmp
         src_text = src_text.replace("data/sim_outputs", str(tmp_path))
         dst = tmp_path / "ebus_toolbox.cfg"
-        # don't show plots
-        src_text = src_text.replace("show_plots = true", "show_plots = false")
+        # don't show plots. spaces are optional, so use regex
+        src_text = re.sub(r"show_plots\s*=\s*true", "show_plots = false", src_text)
         dst.write_text(src_text)
 
         # call toolbox from shell

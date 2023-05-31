@@ -1,12 +1,8 @@
 import pytest
-import pathlib
 from tests.test_schedule import TestSchedule
+from tests.conftest import example_root
 from datetime import datetime
 import pandas as pd
-
-test_root = pathlib.Path(__file__).parent
-file_root = test_root / "test_input_files"
-example_root = pathlib.Path(__file__).parent.parent / "data/examples"
 
 
 class TestConsumption:

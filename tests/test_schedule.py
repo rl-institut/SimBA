@@ -1,18 +1,13 @@
 from datetime import timedelta
-import pathlib
 import pytest
 import sys
 import spice_ev.scenario as scenario
 from spice_ev.util import set_options_from_config
 
+from tests.conftest import example_root, file_root
 from tests.helpers import generate_basic_schedule
 from ebus_toolbox import schedule, trip, consumption, util
-from ebus_toolbox.schedule import Schedule
 
-
-test_root = pathlib.Path(__file__).parent
-file_root = test_root / "test_input_files"
-example_root = pathlib.Path(__file__).parent.parent / "data/examples"
 
 mandatory_args = {
     "min_recharge_deps_oppb": 0,
@@ -246,7 +241,7 @@ class TestSchedule:
     def test_consistency(self):
         sched = generate_basic_schedule()
         # check if no error is thrown in the basic case
-        assert len(Schedule.check_consistency(sched)) == 0
+        assert len(schedule.Schedule.check_consistency(sched)) == 0
 
         error = "Trip time is negative"
         sched = generate_basic_schedule()
@@ -254,7 +249,7 @@ class TestSchedule:
         faulty_trip = faulty_rot.trips[0]
         # create error through moving trip arrival 1 day before departure
         faulty_trip.arrival_time = faulty_trip.departure_time - timedelta(days=1)
-        assert Schedule.check_consistency(sched)["1"] == error
+        assert schedule.Schedule.check_consistency(sched)["1"] == error
 
         error = "Break time is negative"
         sched = generate_basic_schedule()
@@ -262,14 +257,14 @@ class TestSchedule:
         faulty_trip = faulty_rot.trips[1]
         # create error through moving trip departure before last arrival
         faulty_trip.departure_time = faulty_rot.trips[0].arrival_time-timedelta(minutes=1)
-        assert Schedule.check_consistency(sched)["1"] == error
+        assert schedule.Schedule.check_consistency(sched)["1"] == error
 
         error = "Trips are not sequential"
         sched = generate_basic_schedule()
         faulty_rot = list(sched.rotations.values())[0]
         faulty_rot.trips[1].arrival_name = "foo"
         faulty_rot.trips[0].departure_name = "bar"
-        assert Schedule.check_consistency(sched)["1"] == error
+        assert schedule.Schedule.check_consistency(sched)["1"] == error
 
         error = "Start and end of rotation differ"
         sched = generate_basic_schedule()
@@ -277,7 +272,7 @@ class TestSchedule:
         departure_trip = list(faulty_rot.trips)[0]
         departure_trip.departure_name = "foo"
         faulty_rot.trips[-1].arrival_name = "bar"
-        assert Schedule.check_consistency(sched)["1"] == error
+        assert schedule.Schedule.check_consistency(sched)["1"] == error
 
         error = "Rotation data differs from trips data"
 
@@ -287,13 +282,13 @@ class TestSchedule:
         faulty_rot.trips[-1].arrival_name = "foo"
         faulty_rot.trips[0].departure_name = "foo"
         faulty_rot.arrival_name = "bar"
-        assert Schedule.check_consistency(sched)["1"] == error
+        assert schedule.Schedule.check_consistency(sched)["1"] == error
 
         sched = generate_basic_schedule()
         faulty_rot = list(sched.rotations.values())[0]
         arrival_trip = faulty_rot.trips[-1]
         faulty_rot.arrival_time = arrival_trip.arrival_time - timedelta(minutes=1)
-        assert Schedule.check_consistency(sched)["1"] == error
+        assert schedule.Schedule.check_consistency(sched)["1"] == error
 
         # check departure data in rotation
         sched = generate_basic_schedule()
@@ -301,10 +296,10 @@ class TestSchedule:
         faulty_rot.trips[-1].arrival_name = "foo"
         faulty_rot.trips[0].departure_name = "foo"
         faulty_rot.departure_name = "bar"
-        assert Schedule.check_consistency(sched)["1"] == error
+        assert schedule.Schedule.check_consistency(sched)["1"] == error
 
         sched = generate_basic_schedule()
         faulty_rot = list(sched.rotations.values())[0]
         departure_trip = faulty_rot.trips[0]
         faulty_rot.departure_time = departure_trip.departure_time - timedelta(minutes=1)
-        assert Schedule.check_consistency(sched)["1"] == error
+        assert schedule.Schedule.check_consistency(sched)["1"] == error

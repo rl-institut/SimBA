@@ -1,16 +1,15 @@
+import pathlib
 import pytest
 import sys
 
 import ebus_toolbox.optimizer_util as opt_util
 import ebus_toolbox.util as util
 from ebus_toolbox.station_optimization import run_optimization
-import pathlib
 from ebus_toolbox.trip import Trip
 from ebus_toolbox.consumption import Consumption
 from ebus_toolbox.schedule import Schedule
 from spice_ev.report import generate_soc_timeseries
 
-# test_root = pathlib.Path(__file__).parent
 file_root = pathlib.Path(__file__).parent / "test_input_files/optimization"
 
 
