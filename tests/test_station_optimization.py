@@ -26,7 +26,7 @@ class TestStationOptimization:
         self.tmp_path = tmp_path
 
         # Create a temporary config file as copy from the example configuration.
-        src = file_root / "ebus_toolbox.cfg"
+        src = example_root / "ebus_toolbox.cfg"
         src_text = src.read_text()
 
         # don't show plots. spaces are optional, so use regex
