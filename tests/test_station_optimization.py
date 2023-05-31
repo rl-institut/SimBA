@@ -1,7 +1,9 @@
 import pathlib
+import re
 import pytest
 import sys
-
+import json
+from tests.conftest import example_root
 import ebus_toolbox.optimizer_util as opt_util
 import ebus_toolbox.util as util
 from ebus_toolbox.station_optimization import run_optimization
@@ -14,11 +16,63 @@ file_root = pathlib.Path(__file__).parent / "test_input_files/optimization"
 
 
 class TestStationOptimization:
+    tmp_path = None
 
-    # Using the pytest fixture tmp_path to have access to a temporary directory as class attribute
     @pytest.fixture(autouse=True)
-    def initialize_tmp_path(self, tmp_path):
+    def setup_test(self, tmp_path):
+        # This will guarantee proper file setup before every test. Generates files and inputs
+        # by adjusting example files and storing them in a temporary directory
+
         self.tmp_path = tmp_path
+
+        # Create a temporary config file as copy from the example configuration.
+        src = file_root / "ebus_toolbox.cfg"
+        src_text = src.read_text()
+
+        # don't show plots. spaces are optional, so use regex
+        src_text = re.sub(r"show_plots\s*=\s*true", "show_plots = false", src_text)
+
+        # use the default vehicles from example folder but change some values
+        with open(example_root / "vehicle_types.json", "r", encoding='utf-8') as file:
+            self.vehicle_types = util.uncomment_json_file(file)
+        self.vehicle_types["AB"]["depb"]["mileage"] = 15
+        self.vehicle_types["AB"]["oppb"]["mileage"] = 10
+        self.vehicle_types["AB"]["oppb"]["capacity"] = 50
+        del self.vehicle_types["SB"]
+
+        # store the adjusted vehicles temporarily and use them in the config file
+        vehicles_dest = tmp_path / "vehicle_types.json"
+        with open(vehicles_dest, "w", encoding='utf-8') as file:
+            json.dump(self.vehicle_types, file)
+
+        # remove escape characters from string. \1 refers to the replacement of the first group
+        # in the regex expression, i.e. not replacing the newline characters
+        vehicles_dest_str = str(vehicles_dest).replace('\\', '/')
+        src_text = re.sub(
+            r"(vehicle_types\s=.*)(:=\r\n|\r|\n)",
+            "vehicle_types = " + vehicles_dest_str + r"\g<2>", src_text)
+
+        # Use the default electrified stations from example folder but change some values
+        with open(example_root / "electrified_stations.json", "r", encoding='utf-8') as file:
+            self.electrified_stations = util.uncomment_json_file(file)
+        # only keep Station-0 electrified and remove the other staitons
+        self.electrified_stations = {"Station-0": self.electrified_stations["Station-0"]}
+
+        # store the adjusted electrified_stations temporarily and use them in the config file
+        electrified_stations_dest = tmp_path / "electrified_stations.json"
+        with open(electrified_stations_dest, "w", encoding='utf-8') as file:
+            json.dump(self.electrified_stations, file)
+
+        # remove escape characters from string. \1 refers to the replacement of the first group
+        # in the regex expression, i.e. not replacing the newline characters
+        electrified_stations_dest_str = str(electrified_stations_dest).replace('\\', '/')
+        src_text = re.sub(
+            r"(electrified_stations\s=.*)(:=\r\n|\r|\n)",
+            "electrified_stations = " + electrified_stations_dest_str + r"\g<2>", src_text)
+
+        # change config file with adjusted temporary paths to vehicles and electrified stations
+        dst = tmp_path / "ebus_toolbox.cfg"
+        dst.write_text(src_text)
 
     mandatory_args = {
         "min_recharge_deps_oppb": 0,
@@ -29,11 +83,6 @@ class TestStationOptimization:
         "cs_power_deps_depb": 50,
         "cs_power_deps_oppb": 150
     }
-    with open(file_root / "vehicle_types.json", "r", encoding='utf-8') as file:
-        vehicle_types = util.uncomment_json_file(file)
-
-    with open(file_root / "electrified_stations.json", "r", encoding='utf-8') as file:
-        electrified_stations = util.uncomment_json_file(file)
 
     def test_basic_run(self, trips_file_name="trips.csv"):
         """ Check if running a basic example works and if a scenario object is returned.
@@ -43,9 +92,9 @@ class TestStationOptimization:
         :type trips_file_name: str
         :return: schedule, scenario"""
         path_to_trips = file_root / trips_file_name
-        sys.argv = ["foo", "--config", str(file_root / "ebus_toolbox.cfg")]
+        sys.argv = ["foo", "--config", str(self.tmp_path / "ebus_toolbox.cfg")]
         args = util.get_args()
-
+        args.input_schedule = path_to_trips
         Trip.consumption = Consumption(self.vehicle_types,
                                        outside_temperatures=None,
                                        level_of_loading_over_day=None)
