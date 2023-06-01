@@ -219,4 +219,4 @@ def generate(schedule, scenario, args):
                 else:
                     csv_writer.writerow([key, round(value, 2), "€"])
 
-    logging.info("Plots and output files saved in", args.results_directory)
+    logging.info(f"Plots and output files saved in {args.results_directory}")

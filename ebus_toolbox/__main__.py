@@ -37,13 +37,15 @@ if __name__ == '__main__':
     if args.logfile is not None:
         # optionally to file in output dir
         if args.logfile:
-            log_name = f"{time_str}_{[args.log_file]}.log"
+            log_name = args.logfile
         else:
             log_name = f"{time_str}.log"
-        log_handlers.append(logging.FileHandler(args.output_directory / log_name))
+        log_path = args.output_directory / log_name
+        print(f"Writing log to {log_path}")
+        log_handlers.append(logging.FileHandler(log_path))
     logging.basicConfig(
         level=vars(logging)[args.loglevel],
-        # format="%(asctime)s [%(levelname)s] %(message)s",
+        format="%(asctime)s [%(levelname)s] %(message)s",
         handlers=log_handlers
     )
     logging.captureWarnings(True)
