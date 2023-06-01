@@ -2,8 +2,9 @@
 """
 import csv
 import datetime
-import warnings
+import logging
 import matplotlib.pyplot as plt
+import warnings
 from spice_ev.report import aggregate_global_results, plot, generate_reports
 
 
@@ -187,10 +188,10 @@ def generate(schedule, scenario, args):
         rotation_socs[id][start_idx:end_idx] = rotation_soc_ts
 
     if incomplete_rotations:
-        warnings.warn("SpiceEV stopped before simulation of the these rotations were completed:\n"
-                      f"{', '.join(incomplete_rotations)}\n"
-                      "Omit parameter <days> to simulate entire schedule.",
-                      stacklevel=100)
+        logging.warn(
+            "SpiceEV stopped before simulation of the these rotations were completed:\n"
+            f"{', '.join(incomplete_rotations)}\n"
+            "Omit parameter <days> to simulate entire schedule.")
 
     with open(args.results_directory / "rotation_socs.csv", "w", newline='') as f:
         csv_writer = csv.writer(f)
@@ -218,4 +219,4 @@ def generate(schedule, scenario, args):
                 else:
                     csv_writer.writerow([key, round(value, 2), "€"])
 
-    print("Plots and output files saved in", args.results_directory)
+    logging.info("Plots and output files saved in", args.results_directory)

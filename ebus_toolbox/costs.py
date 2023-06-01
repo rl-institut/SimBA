@@ -1,3 +1,4 @@
+import logging
 import warnings
 
 from spice_ev.costs import calculate_costs as calc_costs_spice_ev
@@ -187,7 +188,7 @@ def calculate_costs(c_params, scenario, schedule, args):
     for key, v in costs.items():
         costs[key] = round(v, 2)
 
-    print("\n"
+    logging.info("\n"
           "Total costs: \n"
           f"Investment cost: {costs['c_invest']} €. \n"
           f"Annual investment costs: {costs['c_invest_annual']} €/a. \n"

@@ -1,5 +1,4 @@
-import warnings
-from warnings import warn
+import logging
 
 from ebus_toolbox.consumption import Consumption
 from ebus_toolbox.schedule import Schedule
@@ -72,7 +71,7 @@ def simulate(args):
             result = optimization.service_optimization(schedule, scenario, args)
             schedule, scenario = result['optimized']
             if scenario is None:
-                print('*'*49 + '\nNo optimization possible (all rotations negative), reverting')
+                logging.warn('*'*49 + '\nNo optimization possible (all rotations negative), reverting')
                 schedule, scenario = result['original']
         elif mode in ['neg_depb_to_oppb', 'neg_oppb_to_depb']:
             # simple optimization: change charging type, simulate again
@@ -84,17 +83,17 @@ def simulate(args):
             neg_rot = [r for r in neg_rot if schedule.rotations[r].charging_type == change_from
                        if change_to in vehicle_types[schedule.rotations[r].vehicle_type]]
             if neg_rot:
-                print(f'Changing charging type from {change_from} to {change_to} for rotations '
+                logging.info(f'Changing charging type from {change_from} to {change_to} for rotations '
                       + ', '.join(neg_rot))
                 schedule.set_charging_type(change_to, neg_rot)
                 # simulate again
                 scenario = schedule.run(args)
                 neg_rot = schedule.get_negative_rotations(scenario)
                 if neg_rot:
-                    print(f'Rotations {", ".join(neg_rot)} remain negative.')
+                    logging.info(f'Rotations {", ".join(neg_rot)} remain negative.')
         elif mode == "station_optimization":
             if not args.optimizer_config:
-                warnings.warn("Station optimization needs an optimization config file. "
+                logging.warn("Station optimization needs an optimization config file. "
                               "Since no path was given, station optimization is skipped")
                 continue
             conf = read_optimizer_config(args.optimizer_config)
@@ -103,18 +102,18 @@ def simulate(args):
                 schedule, scenario = run_optimization(conf, sched=schedule, scen=scenario,
                                                       args=args)
             except Exception as err:
-                warnings.warn('During Station optimization an error occurred {0}. '
+                logging.warn('During Station optimization an error occurred {0}. '
                               'Optimization was skipped'.format(err))
         elif mode == 'remove_negative':
             neg_rot = schedule.get_negative_rotations(scenario)
             if neg_rot:
                 schedule.rotations = {
                     k: v for k, v in schedule.rotations.items() if k not in neg_rot}
-                print('Rotations ' + ', '.join(neg_rot) + ' removed')
+                logging.info('Rotations ' + ', '.join(sorted(neg_rot)) + ' removed')
                 # re-run schedule
                 scenario = schedule.run(args)
             else:
-                print('No negative rotations to remove')
+                logging.info('No negative rotations to remove')
         elif mode == 'report':
             # create report based on all previous modes
             if args.cost_calculation:
@@ -126,9 +125,9 @@ def simulate(args):
         elif mode == 'sim':
             if i > 0:
                 # ignore anyway, but at least give feedback that this has no effect
-                warn('Intermediate sim ignored')
+                logging.info('Intermediate sim ignored')
         else:
-            warn(f'Unknown mode {mode} ignored')
+            logging.error(f'Unknown mode {mode} ignored')
 
 
 def create_results_directory(args, i):

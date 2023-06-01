@@ -1,15 +1,16 @@
 from datetime import datetime
+import logging
 from pathlib import Path
 import shutil
 
 from ebus_toolbox import simulate, util
 
+
 if __name__ == '__main__':
     args = util.get_args()
 
-    args.output_directory = Path(args.output_directory) / (
-        datetime.now().strftime("%Y-%m-%d-%H-%M-%S") + "_eBus_results")
-
+    time_str = datetime.now().strftime("%Y-%m-%d-%H-%M-%S")
+    args.output_directory = Path(args.output_directory) / (time_str + "_eBus_results")
     # create subfolder for specific sim results with timestamp.
     # if folder doesnt exists, create folder.
     # needs to happen after set_options_from_config since
@@ -30,4 +31,25 @@ if __name__ == '__main__':
 
     util.save_version(args.output_directory_input / "program_version.txt")
 
-    simulate.simulate(args)
+    # set up logging
+    # always to console
+    log_handlers = [logging.StreamHandler()]
+    if args.logfile is not None:
+        # optionally to file in output dir
+        if args.logfile:
+            log_name = f"{time_str}_{[args.log_file]}.log"
+        else:
+            log_name = f"{time_str}.log"
+        log_handlers.append(logging.FileHandler(args.output_directory / log_name))
+    logging.basicConfig(
+        level=vars(logging)[args.loglevel],
+        # format="%(asctime)s [%(levelname)s] %(message)s",
+        handlers=log_handlers
+    )
+    logging.captureWarnings(True)
+
+    try:
+        simulate.simulate(args)
+    except Exception as e:
+        logging.error(e)
+        raise

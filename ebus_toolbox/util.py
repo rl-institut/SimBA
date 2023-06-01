@@ -1,5 +1,6 @@
 import argparse
 import json
+import logging
 import warnings
 import subprocess
 
@@ -125,19 +126,19 @@ def get_csv_delim(path, other_delims=set()):
                 # delete the counter if it is different to the first row
                 if counters[delim] != amount:
                     del counters[delim]
-                # if only one delimiter is remaining
-                if len(counters) == 1:
-                    # take the last item and return the key
-                    return counters.popitem()[0]
-                # if not even a single delimiter is remaining
-                elif not counters:
-                    warnings.warn("Warning: Delimiter could not be found.\n"
-                                  "Returning standard Delimiter ','", stacklevel=100)
-                    return ","
+            # if only one delimiter is remaining
+            if len(counters) == 1:
+                # take the last item and return the key
+                return counters.popitem()[0]
+            # if not even a single delimiter is remaining
+            elif not counters:
+                logging.warn("Warning: Delimiter could not be found.\n"
+                             "Returning standard Delimiter ','")
+                return ","
     #  multiple delimiters are possible. Every row was checked but more than 1 delimiter
     # has the same amount of occurrences (>0) in every row.
-    warnings.warn("Warning: Delimiter could not be found.\n"
-                  "Returning standard delimiter ','", stacklevel=100)
+    logging.warn("Warning: Delimiter could not be found.\n"
+                 "Returning standard delimiter ','")
     return ","
 
 
@@ -307,6 +308,11 @@ def get_args():
     parser.add_argument('--eta', action='store_true',
                         help='Show estimated time to finish simulation after each step, '
                              'instead of progress bar. Not recommended for fast computations.')
+
+    # #### LOGGING PARAMETERS #### #
+    parser.add_argument('--loglevel', default='INFO',
+                        choices=logging._nameToLevel.keys(), help='Log level.')
+    parser.add_argument('--logfile', default='', help='Log file suffix. null: no log file.')
 
     # #### SPICE EV PARAMETERS ONLY DEFAULT VALUES NOT IN eBus-Toolbox CONFIG #####
     parser.add_argument('--seed', default=1, type=int, help='set random seed')
