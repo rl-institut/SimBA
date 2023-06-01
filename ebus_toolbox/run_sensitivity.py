@@ -4,6 +4,7 @@ from ebus_toolbox.sensitivity_analysis import get_default_hpc
 from ebus_toolbox.sensitivity_analysis import get_battery_aging
 from ebus_toolbox.sensitivity_analysis import get_depot_delay
 from ebus_toolbox.sensitivity_analysis import get_reduced_power
+import pandas as pd
 from pathlib import Path
 
 
@@ -23,6 +24,8 @@ def run_sensitivity (args, scenario_id):
 
     buffertimes = get_buffer_times()
     args.default_buffer_time_opps = buffertimes
+    pd.DataFrame(buffertimes.items(), columns=['hours', 'delay']).to_csv(args.output_directory /
+                                                                         'buffertimes_sensitivity.csv', index=True)
 
     default_hpc = get_default_hpc()
     args.electrified_stations = default_hpc
@@ -35,6 +38,11 @@ def run_sensitivity (args, scenario_id):
     args.cs_power_deps_depb = reduced_power_depb
     args.cs_power_deps_oppb = reduced_power_oppb
 
+    power_data = {'type': ['cs_power_opps', 'cs_power_deps_depb', 'cs_power_deps_oppb'],
+                  'max. charging power [kW]': [reduced_power_opps, reduced_power_depb, reduced_power_oppb]}
+
+    pd.DataFrame(power_data).to_csv(args.output_directory / 'power_sensitivity.csv')
+
     # depot_delay = get_depot_delay()
     # args.depot_delay = delay_dep
 
@@ -44,4 +52,5 @@ def run_sensitivity (args, scenario_id):
     export_file = open(args.output_directory / export_str, 'wt')
     export_file.write(str(export_args))
     export_file.close()
+
     return args

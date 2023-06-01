@@ -115,7 +115,7 @@ def get_reduced_power():
     reduced_power_depb = secrets.choice(power_deps_depb)
 
     power_deps_oppb = np.arange(start=30, stop=120, step=30)
-    reduced_power_oppb = secrets.choice(power_deps_depb)
+    reduced_power_oppb = secrets.choice(power_deps_oppb)
 
     return reduced_power_opps, reduced_power_depb, reduced_power_oppb
 
@@ -128,10 +128,11 @@ def get_default_hpc():
     Gets default hpc by choosing from a preset of electrified_stations.json
     :return: default_hpc
     """
-    list_json = ["data/bvg/electrified_stations_02.json",
-                 "data/bvg/electrified_stations_11.json",
-                 "data/bvg/electrified_stations_20.json",
-                 "data/bvg/electrified_stations_22.json"]
+    list_json = ["data/bvg/optimized_stations.json",
+                 "data/bvg/optimized_stations_1.json",
+                 "data/bvg/optimized_stations_2.json",
+                 "data/bvg/optimized_stations_3.json",
+                 "data/bvg/optimized_stations_4.json"]
 
     default_hpc = secrets.choice(list_json)
 

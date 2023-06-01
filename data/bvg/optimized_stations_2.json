@@ -1,0 +1,490 @@
+{
+    "BF I": {
+        "type": "deps",
+        "n_charging_stations": 200
+    },
+    "ALXM": {
+        "type": "opps",
+        "n_charging_stations": 2
+    },
+    "ZOOH": {
+        "type": "opps",
+        "n_charging_stations": 2
+    },
+    "MEMH": {
+        "type": "opps",
+        "n_charging_stations": 2
+    },
+    "ZOOJ": {
+        "type": "opps",
+        "n_charging_stations": 2
+    },
+    "URUH": {
+        "type": "opps",
+        "n_charging_stations": 2
+    },
+    "HADL": {
+        "type": "opps",
+        "n_charging_stations": 2
+    },
+    "ZOO0": {
+        "type": "opps",
+        "n_charging_stations": 2
+    },
+    "MICH": {
+        "type": "opps",
+        "n_charging_stations": 2
+    },
+    "UOSL": {
+        "type": "opps",
+        "n_charging_stations": 2
+    },
+    "INVA": {
+        "type": "opps",
+        "n_charging_stations": 2
+    },
+    "MAWI": {
+        "type": "opps",
+        "n_charging_stations": 2
+    },
+    "GBLP": {
+        "type": "opps",
+        "n_charging_stations": 2
+    },
+    "UMOH": {
+        "type": "opps",
+        "n_charging_stations": 2
+    },
+    "SOSB": {
+        "type": "opps",
+        "n_charging_stations": 2
+    },
+    "SUTF": {
+        "type": "opps",
+        "n_charging_stations": 2
+    },
+    "SUAG": {
+        "type": "opps",
+        "n_charging_stations": 2
+    },
+    "DILL": {
+        "type": "opps",
+        "n_charging_stations": 2
+    },
+    "SDKI": {
+        "type": "opps",
+        "n_charging_stations": 2
+    },
+    "HHWD": {
+        "type": "opps",
+        "n_charging_stations": 2
+    },
+    "HEKI": {
+        "type": "opps",
+        "n_charging_stations": 2
+    },
+    "FRUN": {
+        "type": "opps",
+        "n_charging_stations": 2
+    },
+    "SBU0": {
+        "type": "opps",
+        "n_charging_stations": 2
+    },
+    "HFZD": {
+        "type": "opps",
+        "n_charging_stations": 2
+    },
+    "SUHM": {
+        "type": "opps",
+        "n_charging_stations": 2
+    },
+    "STUT": {
+        "type": "opps",
+        "n_charging_stations": 2
+    },
+    "SUWI": {
+        "type": "opps",
+        "n_charging_stations": 2
+    },
+    "WIDA": {
+        "type": "opps",
+        "n_charging_stations": 2
+    },
+    "SUPA": {
+        "type": "opps",
+        "n_charging_stations": 2
+    },
+    "HIEL": {
+        "type": "opps",
+        "n_charging_stations": 2
+    },
+    "JAPE": {
+        "type": "opps",
+        "n_charging_stations": 2
+    },
+    "AUBT": {
+        "type": "opps",
+        "n_charging_stations": 2
+    },
+    "UEWP": {
+        "type": "opps",
+        "n_charging_stations": 2
+    },
+    "AZUM": {
+        "type": "opps",
+        "n_charging_stations": 2
+    },
+    "HBF0": {
+        "type": "opps",
+        "n_charging_stations": 2
+    },
+    "RIES": {
+        "type": "opps",
+        "n_charging_stations": 2
+    },
+    "PRPL": {
+        "type": "opps",
+        "n_charging_stations": 2
+    },
+    "DESS": {
+        "type": "opps",
+        "n_charging_stations": 2
+    },
+    "PAOS": {
+        "type": "opps",
+        "n_charging_stations": 2
+    },
+    "STBH": {
+        "type": "opps",
+        "n_charging_stations": 2
+    },
+    "PSDG": {
+        "type": "opps",
+        "n_charging_stations": 2
+    },
+    "SSS0": {
+        "type": "opps",
+        "n_charging_stations": 2
+    },
+    "SPRA": {
+        "type": "opps",
+        "n_charging_stations": 2
+    },
+    "MAST": {
+        "type": "opps",
+        "n_charging_stations": 2
+    },
+    "SMZ0": {
+        "type": "opps",
+        "n_charging_stations": 2
+    },
+    "NOSS": {
+        "type": "opps",
+        "n_charging_stations": 2
+    },
+    "NHGS": {
+        "type": "opps",
+        "n_charging_stations": 2
+    },
+    "AMWT": {
+        "type": "opps",
+        "n_charging_stations": 2
+    },
+    "ALBL": {
+        "type": "opps",
+        "n_charging_stations": 2
+    },
+    "PPAS": {
+        "type": "opps",
+        "n_charging_stations": 2
+    },
+    "SHOH": {
+        "type": "opps",
+        "n_charging_stations": 2
+    },
+    "SULS": {
+        "type": "opps",
+        "n_charging_stations": 2
+    },
+    "FKB0": {
+        "type": "opps",
+        "n_charging_stations": 2
+    },
+    "SIW5": {
+        "type": "opps",
+        "n_charging_stations": 2
+    },
+    "SMDF": {
+        "type": "opps",
+        "n_charging_stations": 2
+    },
+    "MAWS": {
+        "type": "opps",
+        "n_charging_stations": 2
+    },
+    "SKD0": {
+        "type": "opps",
+        "n_charging_stations": 2
+    },
+    "SWEL": {
+        "type": "opps",
+        "n_charging_stations": 2
+    },
+    "GOUN": {
+        "type": "opps",
+        "n_charging_stations": 2
+    },
+    "SUJH": {
+        "type": "opps",
+        "n_charging_stations": 2
+    },
+    "SABS": {
+        "type": "opps",
+        "n_charging_stations": 2
+    },
+    "UHAL": {
+        "type": "opps",
+        "n_charging_stations": 2
+    },
+    "BSKS": {
+        "type": "opps",
+        "n_charging_stations": 2
+    },
+    "UHP0": {
+        "type": "opps",
+        "n_charging_stations": 2
+    },
+    "WSTR": {
+        "type": "opps",
+        "n_charging_stations": 2
+    },
+    "PIET": {
+        "type": "opps",
+        "n_charging_stations": 2
+    },
+    "SSWS": {
+        "type": "opps",
+        "n_charging_stations": 2
+    },
+    "UHPS": {
+        "type": "opps",
+        "n_charging_stations": 2
+    },
+    "HLSG": {
+        "type": "opps",
+        "n_charging_stations": 2
+    },
+    "UWIT": {
+        "type": "opps",
+        "n_charging_stations": 2
+    },
+    "BUSS": {
+        "type": "opps",
+        "n_charging_stations": 2
+    },
+    "HBF1": {
+        "type": "opps",
+        "n_charging_stations": 2
+    },
+    "SLIS": {
+        "type": "opps",
+        "n_charging_stations": 2
+    },
+    "SURZ": {
+        "type": "opps",
+        "n_charging_stations": 2
+    },
+    "WFDA": {
+        "type": "opps",
+        "n_charging_stations": 2
+    },
+    "UOHH": {
+        "type": "opps",
+        "n_charging_stations": 2
+    },
+    "APPZ": {
+        "type": "opps",
+        "n_charging_stations": 2
+    },
+    "UHPU": {
+        "type": "opps",
+        "n_charging_stations": 2
+    },
+    "RSNE": {
+        "type": "opps",
+        "n_charging_stations": 2
+    },
+    "RPL0": {
+        "type": "opps",
+        "n_charging_stations": 2
+    },
+    "INPK": {
+        "type": "opps",
+        "n_charging_stations": 2
+    },
+    "RKCH": {
+        "type": "opps",
+        "n_charging_stations": 2
+    },
+    "FROK": {
+        "type": "opps",
+        "n_charging_stations": 2
+    },
+    "AMRH": {
+        "type": "opps",
+        "n_charging_stations": 2
+    },
+    "SUSP": {
+        "type": "opps",
+        "n_charging_stations": 2
+    },
+    "WKHS": {
+        "type": "opps",
+        "n_charging_stations": 2
+    },
+    "SSRW": {
+        "type": "opps",
+        "n_charging_stations": 2
+    },
+    "RILL": {
+        "type": "opps",
+        "n_charging_stations": 2
+    },
+    "MYKH": {
+        "type": "opps",
+        "n_charging_stations": 2
+    },
+    "SUWT": {
+        "type": "opps",
+        "n_charging_stations": 2
+    },
+    "ABUD": {
+        "type": "opps",
+        "n_charging_stations": 2
+    },
+    "BDGR": {
+        "type": "opps",
+        "n_charging_stations": 2
+    },
+    "BUKR": {
+        "type": "opps",
+        "n_charging_stations": 2
+    },
+    "BER5": {
+        "type": "opps",
+        "n_charging_stations": 2
+    },
+    "BER1": {
+        "type": "opps",
+        "n_charging_stations": 2
+    },
+    "BF M": {
+        "type": "deps",
+        "n_charging_stations": 200
+    },
+    "BF C": {
+        "type": "deps",
+        "n_charging_stations": 200
+    },
+    "PHIS": {
+        "type": "opps",
+        "n_charging_stations": 2
+    },
+    "UMED": {
+        "type": "opps",
+        "n_charging_stations": 2
+    },
+    "UKBT": {
+        "type": "opps",
+        "n_charging_stations": 2
+    },
+    "UATH": {
+        "type": "opps",
+        "n_charging_stations": 2
+    },
+    "KSTG": {
+        "type": "opps",
+        "n_charging_stations": 2
+    },
+    "GLIT": {
+        "type": "opps",
+        "n_charging_stations": 2
+    },
+    "SMEA": {
+        "type": "opps",
+        "n_charging_stations": 2
+    },
+    "BF L": {
+        "type": "deps",
+        "n_charging_stations": 2
+    },
+    "LABD": {
+        "type": "opps",
+        "n_charging_stations": 2
+    },
+    "BF F": {
+        "type": "opps",
+        "n_charging_stations": 2
+    },
+    "WELS": {
+        "type": "opps",
+        "n_charging_stations": 2
+    },
+    "UHD0": {
+        "type": "opps",
+        "n_charging_stations": 2
+    },
+    "ZFHF": {
+        "type": "opps",
+        "n_charging_stations": 2
+    },
+    "BHLI": {
+        "type": "opps",
+        "n_charging_stations": 2
+    },
+    "SKA0": {
+        "type": "opps",
+        "n_charging_stations": 2
+    },
+    "LSSB": {
+        "type": "opps",
+        "n_charging_stations": 2
+    },
+    "LWSG": {
+        "type": "opps",
+        "n_charging_stations": 2
+    },
+    "POEL": {
+        "type": "opps",
+        "n_charging_stations": 2
+    },
+    "CMPB": {
+        "type": "opps",
+        "n_charging_stations": 2
+    },
+    "TWSJ": {
+        "type": "opps",
+        "n_charging_stations": 2
+    },
+    "URDF": {
+        "type": "opps",
+        "n_charging_stations": 2
+    },
+    "UTM0": {
+        "type": "opps",
+        "n_charging_stations": 2
+    },
+    "SWOL": {
+        "type": "opps",
+        "n_charging_stations": 2
+    },
+    "BF B": {
+        "type": "deps",
+        "n_charging_stations": 200
+    },
+    "PIES": {
+        "type": "opps",
+        "n_charging_stations": 2
+    }
+}
