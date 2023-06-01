@@ -136,9 +136,7 @@ def simulate(args):
             logging.error('*'*len(msg))
             logging.error(e)
             logging.error('*'*len(msg))
-            # logging.error(str(e.__traceback__))
             logging.error(traceback.format_exc())
-            # logging.error(traceback.print_exception(type(e), e, e.__traceback__))
             if scenario is not None and scenario.step_i > 0:
                 # generate plot of failed scenario
                 args.mode = args.mode[:i] + ["ABORTED"]

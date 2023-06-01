@@ -5,7 +5,6 @@ import shutil
 
 from ebus_toolbox import simulate, util
 
-
 if __name__ == '__main__':
     args = util.get_args()
 
