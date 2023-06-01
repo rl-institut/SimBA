@@ -93,6 +93,25 @@ def generate_gc_overview(schedule, scenario, args):
                                  *use_factors])
 
 
+def generate_plots(scenario, args):
+    """Save plots as png and pdf.
+
+    :param scenario: Scenario to plot.
+    :type scenario: spice_ev.Scenario
+    :param args: Configuration. Uses results_directory and show_plots.
+    :type args: argparse.Namespace
+    """
+    aggregate_global_results(scenario)
+    with plt.ion():  # make plotting temporarily interactive, so plt.show does not block
+        plt.clf()
+        plot(scenario)
+        plt.gcf().set_size_inches(10, 10)
+        plt.savefig(args.results_directory / "run_overview.png")
+        plt.savefig(args.results_directory / "run_overview.pdf")
+    if args.show_plots:
+        plt.show()
+
+
 def generate(schedule, scenario, args):
     """Generates all output files/ plots and saves them in the output directory.
 
@@ -123,15 +142,7 @@ def generate(schedule, scenario, args):
     generate_gc_overview(schedule, scenario, args)
 
     # save plots as png and pdf
-    aggregate_global_results(scenario)
-    with plt.ion():     # make plotting temporarily interactive, so plt.show does not block
-        plt.clf()
-        plot(scenario)
-        plt.gcf().set_size_inches(10, 10)
-        plt.savefig(args.results_directory / "run_overview.png")
-        plt.savefig(args.results_directory / "run_overview.pdf")
-    if args.show_plots:
-        plt.show()
+    generate_plots(scenario, args)
 
     # calculate SOCs for each rotation
     rotation_infos = []

@@ -190,11 +190,11 @@ def calculate_costs(c_params, scenario, schedule, args):
     for key, v in costs.items():
         costs[key] = round(v, 2)
 
-    logging.info("\n"
-          "Total costs: \n"
-          f"Investment cost: {costs['c_invest']} €. \n"
-          f"Annual investment costs: {costs['c_invest_annual']} €/a. \n"
-          f"Annual maintenance costs: {costs['c_maint_annual']} €/a. \n"
-          f"Annual costs for electricity: {costs['c_el_annual']} €/a.\n")
+    logging.info(
+        "\nTotal costs:\n"
+        f"Investment cost: {costs['c_invest']} €. \n"
+        f"Annual investment costs: {costs['c_invest_annual']} €/a. \n"
+        f"Annual maintenance costs: {costs['c_maint_annual']} €/a. \n"
+        f"Annual costs for electricity: {costs['c_el_annual']} €/a.\n")
 
     setattr(scenario, "costs", costs)

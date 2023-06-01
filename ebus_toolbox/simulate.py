@@ -1,4 +1,5 @@
 import logging
+import traceback
 
 from ebus_toolbox.consumption import Consumption
 from ebus_toolbox.schedule import Schedule
@@ -66,68 +67,85 @@ def simulate(args):
         # scenario must be set from initial run / prior modes
         assert scenario is not None, f"Scenario became None after mode {args.mode[i-1]} (index {i})"
 
-        if mode == 'service_optimization':
-            # find largest set of rotations that produce no negative SoC
-            result = optimization.service_optimization(schedule, scenario, args)
-            schedule, scenario = result['optimized']
-            if scenario is None:
-                logging.warn('*'*49 + '\nNo optimization possible (all rotations negative), reverting')
-                schedule, scenario = result['original']
-        elif mode in ['neg_depb_to_oppb', 'neg_oppb_to_depb']:
-            # simple optimization: change charging type, simulate again
-            change_from = mode[4:8]
-            change_to = mode[-4:]
-            # get negative rotations
-            neg_rot = schedule.get_negative_rotations(scenario)
-            # check which rotations are relevant and if vehicle with other charging type exists
-            neg_rot = [r for r in neg_rot if schedule.rotations[r].charging_type == change_from
-                       if change_to in vehicle_types[schedule.rotations[r].vehicle_type]]
-            if neg_rot:
-                logging.info(f'Changing charging type from {change_from} to {change_to} for rotations '
-                      + ', '.join(neg_rot))
-                schedule.set_charging_type(change_to, neg_rot)
-                # simulate again
-                scenario = schedule.run(args)
+        try:
+            if mode == 'service_optimization':
+                # find largest set of rotations that produce no negative SoC
+                result = optimization.service_optimization(schedule, scenario, args)
+                schedule, scenario = result['optimized']
+                if scenario is None:
+                    logging.warn('No optimization possible (all rotations negative), reverting')
+                    schedule, scenario = result['original']
+            elif mode in ['neg_depb_to_oppb', 'neg_oppb_to_depb']:
+                # simple optimization: change charging type, simulate again
+                change_from = mode[4:8]
+                change_to = mode[-4:]
+                # get negative rotations
+                neg_rot = schedule.get_negative_rotations(scenario)
+                # check which rotations are relevant and if vehicle with other charging type exists
+                neg_rot = [r for r in neg_rot if schedule.rotations[r].charging_type == change_from
+                           if change_to in vehicle_types[schedule.rotations[r].vehicle_type]]
+                if neg_rot:
+                    logging.info(
+                        f'Changing charging type from {change_from} to {change_to} for rotations '
+                        + ', '.join(sorted(neg_rot)))
+                    schedule.set_charging_type(change_to, neg_rot)
+                    # simulate again
+                    scenario = schedule.run(args)
+                    neg_rot = schedule.get_negative_rotations(scenario)
+                    if neg_rot:
+                        logging.info(f'Rotations {", ".join(neg_rot)} remain negative.')
+            elif mode == "station_optimization":
+                if not args.optimizer_config:
+                    logging.warn("Station optimization needs an optimization config file. "
+                                 "Since no path was given, station optimization is skipped")
+                    continue
+                conf = read_optimizer_config(args.optimizer_config)
+                try:
+                    create_results_directory(args, i+1)
+                    schedule, scenario = run_optimization(conf, sched=schedule, scen=scenario,
+                                                          args=args)
+                except Exception as err:
+                    logging.warn('During Station optimization an error occurred {0}. '
+                                 'Optimization was skipped'.format(err))
+            elif mode == 'remove_negative':
                 neg_rot = schedule.get_negative_rotations(scenario)
                 if neg_rot:
-                    logging.info(f'Rotations {", ".join(neg_rot)} remain negative.')
-        elif mode == "station_optimization":
-            if not args.optimizer_config:
-                logging.warn("Station optimization needs an optimization config file. "
-                              "Since no path was given, station optimization is skipped")
-                continue
-            conf = read_optimizer_config(args.optimizer_config)
-            try:
-                create_results_directory(args, i+1)
-                schedule, scenario = run_optimization(conf, sched=schedule, scen=scenario,
-                                                      args=args)
-            except Exception as err:
-                logging.warn('During Station optimization an error occurred {0}. '
-                              'Optimization was skipped'.format(err))
-        elif mode == 'remove_negative':
-            neg_rot = schedule.get_negative_rotations(scenario)
-            if neg_rot:
-                schedule.rotations = {
-                    k: v for k, v in schedule.rotations.items() if k not in neg_rot}
-                logging.info('Rotations ' + ', '.join(sorted(neg_rot)) + ' removed')
-                # re-run schedule
-                scenario = schedule.run(args)
+                    schedule.rotations = {
+                        k: v for k, v in schedule.rotations.items() if k not in neg_rot}
+                    logging.info('Rotations ' + ', '.join(sorted(neg_rot)) + ' removed')
+                    # re-run schedule
+                    scenario = schedule.run(args)
+                else:
+                    logging.info('No negative rotations to remove')
+            elif mode == 'report':
+                # create report based on all previous modes
+                if args.cost_calculation:
+                    # cost calculation part of report
+                    calculate_costs(cost_parameters_file, scenario, schedule, args)
+                # name: always start with sim, append all prior optimization modes
+                create_results_directory(args, i)
+                report.generate(schedule, scenario, args)
+            elif mode == 'sim':
+                if i > 0:
+                    # ignore anyway, but at least give feedback that this has no effect
+                    logging.info('Intermediate sim ignored')
             else:
-                logging.info('No negative rotations to remove')
-        elif mode == 'report':
-            # create report based on all previous modes
-            if args.cost_calculation:
-                # cost calculation part of report
-                calculate_costs(cost_parameters_file, scenario, schedule, args)
-            # name: always start with sim, append all prior optimization modes
-            create_results_directory(args, i)
-            report.generate(schedule, scenario, args)
-        elif mode == 'sim':
-            if i > 0:
-                # ignore anyway, but at least give feedback that this has no effect
-                logging.info('Intermediate sim ignored')
-        else:
-            logging.error(f'Unknown mode {mode} ignored')
+                logging.error(f'Unknown mode {mode} ignored')
+        except Exception as e:
+            msg = f"{e.__class__.__name__} during {mode}: {e}"
+            logging.error('*'*len(msg))
+            logging.error(e)
+            logging.error('*'*len(msg))
+            # logging.error(str(e.__traceback__))
+            logging.error(traceback.format_exc())
+            # logging.error(traceback.print_exception(type(e), e, e.__traceback__))
+            if scenario is not None and scenario.step_i > 0:
+                # generate plot of failed scenario
+                args.mode = args.mode[:i] + ["ABORTED"]
+                create_results_directory(args, i+1)
+                report.generate_plots(scenario, args)
+                logging.info(f"Created plot of failed scenario in {args.results_directory}")
+            # continue with other modes after error
 
 
 def create_results_directory(args, i):

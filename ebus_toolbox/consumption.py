@@ -83,7 +83,7 @@ class Consumption:
                     f"{vehicle_info['mileage']} is provided."
                 ) from e
             except IndexError as e:
-                raise IndexError (f"No temperature data for the hour {time.hour} is provided") from e
+                raise IndexError(f"No temperature data for the hour {time.hour} is provided") from e
 
         # if no specific LoL is given, lookup temperature
         if level_of_loading is None:
@@ -97,7 +97,7 @@ class Consumption:
                     f"2. A constant mileage for the vehicle "
                     f"{vehicle_info['mileage']} is provided."
                 ) from e
-            except IndexError:
+            except IndexError as e:
                 raise IndexError(f"No level of loading for the hour {time.hour} is provided") from e
 
         # load consumption csv

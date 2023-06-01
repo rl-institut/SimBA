@@ -40,7 +40,7 @@ def service_optimization(schedule, scenario, args):
         if rotation.charging_type != "oppb":
             # only oppb rotations are optimized -> skip others
             logging.warn(f"Rotation {rot_key} should be optimized, "
-                        f"but is of type {rotation.charging_type}.")
+                         f"but is of type {rotation.charging_type}.")
             continue
         # oppb: build non-interfering sets of negative rotations
         # (these include the dependent non-negative rotations)

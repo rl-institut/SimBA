@@ -1,8 +1,9 @@
 import csv
-import random
 import datetime
-import warnings
+import logging
 from pathlib import Path
+import random
+import warnings
 
 from ebus_toolbox import util
 from ebus_toolbox.rotation import Rotation
@@ -120,7 +121,7 @@ class Schedule:
                 with open(kwargs["output_directory"] / "inconsistent_rotations.csv", "w") as f:
                     for rot_id, e in inconsistent_rotations.items():
                         f.write(f"Rotation {rot_id}: {e}\n")
-                        print(f"Rotation {rot_id}: {e}")
+                        logging.error(f"Rotation {rot_id}: {e}")
                         if kwargs.get("skip_inconsistent_rotations"):
                             # remove this rotation from schedule
                             del schedule.rotations[rot_id]
@@ -185,7 +186,7 @@ class Schedule:
 
         scenario = self.generate_scenario(args)
 
-        print("Running Spice EV...")
+        logging.info("Running Spice EV...")
         with warnings.catch_warnings():
             warnings.simplefilter('ignore', UserWarning)
             scenario.run('distributed', vars(args).copy())
@@ -639,7 +640,7 @@ class Schedule:
                 events['energy_price_from_csv'] = options
                 price_csv_path = args.output_directory / filename
                 if not price_csv_path.exists():
-                    print("Warning: price csv file '{}' does not exist yet".format(price_csv_path))
+                    logging.warn(f"Price csv file '{price_csv_path}' does not exist yet")
 
         # reformat vehicle types for spiceEV
         vehicle_types_spiceev = {

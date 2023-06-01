@@ -1,7 +1,6 @@
 import argparse
 import json
 import logging
-import warnings
 import subprocess
 
 from spice_ev.util import set_options_from_config

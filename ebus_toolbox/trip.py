@@ -55,6 +55,7 @@ class Trip:
 
         :return: Consumption of trip [kWh]
         :rtype: float
+        :raises with_traceback: if consumption cannot be constructed
         """
 
         try:
