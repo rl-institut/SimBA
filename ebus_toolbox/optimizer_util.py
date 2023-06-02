@@ -792,8 +792,11 @@ def get_time(start=[]):
 def plot_(data, axis=None):
     """ Simple plot of data without having to create subplots.
 
+    Checks if data is nested, e.g. dict(key, list), or list(list()), and plots the inner values.
+    If non-nested data is given, this data is plotted.
+
     :param data: data to be plotted
-    :type data: iterable
+    :type data: iterable or iterable of iterables
     :param axis: axis to be plotted to. Default None will create new figure and axis
     :type axis: matplotlib.axes.Axes
     :return: axis of the plot """
@@ -808,7 +811,6 @@ def plot_(data, axis=None):
             except Exception:
                 plot_data = dat
                 name = None
-            print(name)
             axis.plot(plot_data, label=name, linewidth=2.0)
             axis.legend()
     except Exception:
