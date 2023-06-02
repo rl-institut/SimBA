@@ -29,25 +29,7 @@ if __name__ == '__main__':
         shutil.copy(c_file, args.output_directory_input / c_file.name)
 
     util.save_version(args.output_directory_input / "program_version.txt")
-
-    # set up logging
-    # always to console
-    log_handlers = [logging.StreamHandler()]
-    if args.logfile is not None:
-        # optionally to file in output dir
-        if args.logfile:
-            log_name = args.logfile
-        else:
-            log_name = f"{time_str}.log"
-        log_path = args.output_directory / log_name
-        print(f"Writing log to {log_path}")
-        log_handlers.append(logging.FileHandler(log_path))
-    logging.basicConfig(
-        level=vars(logging)[args.loglevel],
-        format="%(asctime)s [%(levelname)s] %(message)s",
-        handlers=log_handlers
-    )
-    logging.captureWarnings(True)
+    util.setup_logging(args, time_str)
 
     try:
         simulate.simulate(args)

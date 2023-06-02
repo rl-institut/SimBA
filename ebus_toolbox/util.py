@@ -131,13 +131,13 @@ def get_csv_delim(path, other_delims=set()):
                 return counters.popitem()[0]
             # if not even a single delimiter is remaining
             elif not counters:
-                logging.warn("Warning: Delimiter could not be found.\n"
-                             "Returning standard Delimiter ','")
+                logging.warning("Warning: Delimiter could not be found.\n"
+                                "Returning standard Delimiter ','")
                 return ","
     #  multiple delimiters are possible. Every row was checked but more than 1 delimiter
     # has the same amount of occurrences (>0) in every row.
-    logging.warn("Warning: Delimiter could not be found.\n"
-                 "Returning standard delimiter ','")
+    logging.warning("Warning: Delimiter could not be found.\n"
+                    "Returning standard delimiter ','")
     return ","
 
 
@@ -216,6 +216,27 @@ def nd_interp(input_values, lookup_table):
         points = new_points
 
     return points[0][-1]
+
+
+def setup_logging(args, time_str):
+    # set up logging
+    # always to console
+    log_handlers = [logging.StreamHandler()]
+    if args.logfile is not None:
+        # optionally to file in output dir
+        if args.logfile:
+            log_name = args.logfile
+        else:
+            log_name = f"{time_str}.log"
+        log_path = args.output_directory / log_name
+        print(f"Writing log to {log_path}")
+        log_handlers.append(logging.FileHandler(log_path))
+    logging.basicConfig(
+        level=vars(logging)[args.loglevel],
+        format="%(asctime)s [%(levelname)s] %(message)s",
+        handlers=log_handlers
+    )
+    logging.captureWarnings(True)
 
 
 def get_args():
@@ -313,7 +334,7 @@ def get_args():
                         choices=logging._nameToLevel.keys(), help='Log level.')
     parser.add_argument('--logfile', default='', help='Log file suffix. null: no log file.')
 
-    # #### SPICE EV PARAMETERS ONLY DEFAULT VALUES NOT IN eBus-Toolbox CONFIG #####
+    # #### SpiceEV PARAMETERS ONLY DEFAULT VALUES NOT IN eBus-Toolbox CONFIG #####
     parser.add_argument('--seed', default=1, type=int, help='set random seed')
     parser.add_argument('--include-price-csv',
                         help='include CSV for energy price. \

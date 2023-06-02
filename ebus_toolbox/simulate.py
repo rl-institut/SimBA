@@ -73,7 +73,7 @@ def simulate(args):
                 result = optimization.service_optimization(schedule, scenario, args)
                 schedule, scenario = result['optimized']
                 if scenario is None:
-                    logging.warn('No optimization possible (all rotations negative), reverting')
+                    logging.warning('No optimization possible (all rotations negative), reverting')
                     schedule, scenario = result['original']
             elif mode in ['neg_depb_to_oppb', 'neg_oppb_to_depb']:
                 # simple optimization: change charging type, simulate again
@@ -96,8 +96,8 @@ def simulate(args):
                         logging.info(f'Rotations {", ".join(neg_rot)} remain negative.')
             elif mode == "station_optimization":
                 if not args.optimizer_config:
-                    logging.warn("Station optimization needs an optimization config file. "
-                                 "Since no path was given, station optimization is skipped")
+                    logging.warning("Station optimization needs an optimization config file. "
+                                    "Since no path was given, station optimization is skipped")
                     continue
                 conf = read_optimizer_config(args.optimizer_config)
                 try:
@@ -105,8 +105,8 @@ def simulate(args):
                     schedule, scenario = run_optimization(conf, sched=schedule, scen=scenario,
                                                           args=args)
                 except Exception as err:
-                    logging.warn('During Station optimization an error occurred {0}. '
-                                 'Optimization was skipped'.format(err))
+                    logging.warning('During Station optimization an error occurred {0}. '
+                                    'Optimization was skipped'.format(err))
             elif mode == 'remove_negative':
                 neg_rot = schedule.get_negative_rotations(scenario)
                 if neg_rot:

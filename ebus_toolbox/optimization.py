@@ -39,8 +39,8 @@ def service_optimization(schedule, scenario, args):
         rotation = schedule.rotations.pop(rot_key)
         if rotation.charging_type != "oppb":
             # only oppb rotations are optimized -> skip others
-            logging.warn(f"Rotation {rot_key} should be optimized, "
-                         f"but is of type {rotation.charging_type}.")
+            logging.warning(f"Rotation {rot_key} should be optimized, "
+                            f"but is of type {rotation.charging_type}.")
             continue
         # oppb: build non-interfering sets of negative rotations
         # (these include the dependent non-negative rotations)
@@ -58,7 +58,7 @@ def service_optimization(schedule, scenario, args):
                 dependent_station.update({r2: t2 for r2, t2
                                           in common_stations[r].items() if t2 <= t})
             elif r.charging_type != "obbp":
-                logging.warn(f"Rotation {rot_key} depends on negative non-oppb rotation")
+                logging.warning(f"Rotation {rot_key} depends on negative non-oppb rotation")
 
         negative_sets[rot_key] = s
 

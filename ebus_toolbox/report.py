@@ -102,6 +102,8 @@ def generate_plots(scenario, args):
     :type args: argparse.Namespace
     """
     aggregate_global_results(scenario)
+    # disable DEBUG logging from matplotlib
+    logging.disable(logging.INFO)
     with plt.ion():  # make plotting temporarily interactive, so plt.show does not block
         plt.clf()
         plot(scenario)
@@ -110,6 +112,8 @@ def generate_plots(scenario, args):
         plt.savefig(args.results_directory / "run_overview.pdf")
     if args.show_plots:
         plt.show()
+    # revert logging override
+    logging.disable(logging.NOTSET)
 
 
 def generate(schedule, scenario, args):
@@ -199,7 +203,7 @@ def generate(schedule, scenario, args):
         rotation_socs[id][start_idx:end_idx] = rotation_soc_ts
 
     if incomplete_rotations:
-        logging.warn(
+        logging.warning(
             "SpiceEV stopped before simulation of the these rotations were completed:\n"
             f"{', '.join(incomplete_rotations)}\n"
             "Omit parameter <days> to simulate entire schedule.")
