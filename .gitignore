@@ -15,4 +15,3 @@ data/*
 src/
 spice_ev/
 *.bak
-/tests/test_output_files/

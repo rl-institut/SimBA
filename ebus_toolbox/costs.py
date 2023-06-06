@@ -175,6 +175,7 @@ def calculate_costs(c_params, scenario, schedule, args):
             price_sheet_json=args.cost_parameters_file,
             power_pv_nominal=pv,
         )
+
         # ToDo: Decide if gc-specific costs should be added to scenario object to use in report.py
         # setattr(scenario.components.grid_connectors[gcID], "costs_electricity", costs_electricity)
         costs["c_el_procurement_annual"] += costs_electricity['power_procurement_costs_per_year']
