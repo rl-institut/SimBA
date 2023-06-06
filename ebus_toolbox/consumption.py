@@ -55,7 +55,7 @@ class Consumption:
         :return: Consumed energy [kWh] and delta SOC as tuple
         :rtype: (float, float)
 
-        :raises IndexError: if there is missing data for temperature or lol data
+        :raises KeyError: if there is missing data for temperature or lol data
         :raises AttributeError: if there is no path to temperature or lol data provided
         """
 
@@ -82,8 +82,8 @@ class Consumption:
                     f"2. A constant mileage for the vehicle "
                     f"{vehicle_info['mileage']} is provided."
                 ) from e
-            except IndexError as e:
-                raise IndexError(f"No temperature data for the hour {time.hour} is provided") from e
+            except KeyError as e:
+                raise KeyError(f"No temperature data for the hour {time.hour} is provided") from e
 
         # if no specific LoL is given, lookup temperature
         if level_of_loading is None:
@@ -97,11 +97,11 @@ class Consumption:
                     f"2. A constant mileage for the vehicle "
                     f"{vehicle_info['mileage']} is provided."
                 ) from e
-            except IndexError as e:
-                raise IndexError(f"No level of loading for the hour {time.hour} is provided") from e
+            except KeyError as e:
+                raise KeyError(f"No level of loading for the hour {time.hour} is provided") from e
 
         # load consumption csv
-        consumption_path = vehicle_info["mileage"]
+        consumption_path = str(vehicle_info["mileage"])
 
         # consumption_files holds interpol functions of csv files which are called directly
 

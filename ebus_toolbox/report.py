@@ -19,6 +19,9 @@ def generate_gc_power_overview_timeseries(scenario, args):
 
     gc_list = list(scenario.components.grid_connectors.keys())
 
+    if not gc_list:
+        return
+
     with open(args.results_directory / "gc_power_overview_timeseries.csv", "w", newline='') as f:
         csv_writer = csv.writer(f)
         csv_writer.writerow(["time"] + gc_list)
@@ -154,8 +157,12 @@ def generate(schedule, scenario, args):
     negative_rotations = schedule.get_negative_rotations(scenario)
 
     interval = datetime.timedelta(minutes=args.interval)
-    sim_start_time = \
-        schedule.get_departure_of_first_trip() - datetime.timedelta(minutes=args.signal_time_dif)
+    sim_start_time = schedule.get_departure_of_first_trip()
+    # rotations might be empty, start_time is None
+    if sim_start_time:
+        sim_start_time -= datetime.timedelta(minutes=args.signal_time_dif)
+    else:
+        sim_start_time = datetime.datetime.fromtimestamp(0)
 
     incomplete_rotations = []
     rotation_socs = {}
@@ -208,17 +215,18 @@ def generate(schedule, scenario, args):
             f"{', '.join(incomplete_rotations)}\n"
             "Omit parameter <days> to simulate entire schedule.")
 
-    with open(args.results_directory / "rotation_socs.csv", "w", newline='') as f:
-        csv_writer = csv.writer(f)
-        csv_writer.writerow(("time",) + tuple(rotation_socs.keys()))
-        for i, row in enumerate(zip(*rotation_socs.values())):
-            t = sim_start_time + i * scenario.interval
-            csv_writer.writerow((t,) + row)
+    if rotation_infos:
+        with open(args.results_directory / "rotation_socs.csv", "w", newline='') as f:
+            csv_writer = csv.writer(f)
+            csv_writer.writerow(("time",) + tuple(rotation_socs.keys()))
+            for i, row in enumerate(zip(*rotation_socs.values())):
+                t = sim_start_time + i * scenario.interval
+                csv_writer.writerow((t,) + row)
 
-    with open(args.results_directory / "rotation_summary.csv", "w", newline='') as f:
-        csv_writer = csv.DictWriter(f, list(rotation_infos[0].keys()))
-        csv_writer.writeheader()
-        csv_writer.writerows(rotation_infos)
+        with open(args.results_directory / "rotation_summary.csv", "w", newline='') as f:
+            csv_writer = csv.DictWriter(f, list(rotation_infos[0].keys()))
+            csv_writer.writeheader()
+            csv_writer.writerows(rotation_infos)
 
     # summary of used vehicle types and all costs
     if args.cost_calculation:

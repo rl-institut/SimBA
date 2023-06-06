@@ -363,6 +363,6 @@ def get_args():
 
     missing = [a for a in ["input_schedule", "electrified_stations"] if vars(args).get(a) is None]
     if missing:
-        raise SystemExit("The following arguments are required: {}".format(", ".join(missing)))
+        raise Exception("The following arguments are required: {}".format(", ".join(missing)))
 
     return args
