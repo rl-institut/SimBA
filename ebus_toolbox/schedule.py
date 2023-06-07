@@ -385,6 +385,35 @@ class Schedule:
 
         return list(negative_rotations)
 
+    def rotation_filter(self, args, rf_list=None):
+        """Edits rotations according to args.rotation_filter_variable.
+
+        :param args: used arguments are rotation_filter, path to rotation ids,
+                     and rotation_filter_variable that sets mode (options: include, exclude)
+        :type args: argparse.Namespace
+        :param rf_list: rotation filter list with strings of rotation ids (default is None)
+        :type rf_list: list
+        """
+        rf_list = rf_list or []
+        rf_list = [str(i) for i in rf_list]
+        if not args.rotation_filter_variable:
+            return
+        if args.rotation_filter_variable and not args.rotation_filter and not rf_list:
+            warnings.warn("Rotation filter variable is enabled but json and list are not used.")
+            return
+        if args.rotation_filter:
+            try:
+                with open(args.rotation_filter, encoding='utf-8') as f:
+                    for line in f:
+                        rf_list.append(line.strip())
+            except FileNotFoundError:
+                warnings.warn(f"Path to rotation filter {args.rotation_filter} is invalid.")
+        # filter out rotations in self.rotations
+        if args.rotation_filter_variable == "exclude":
+            self.rotations = {k: v for k, v in self.rotations.items() if k not in rf_list}
+        elif args.rotation_filter_variable == "include":
+            self.rotations = {k: v for k, v in self.rotations.items() if k in rf_list}
+
     def generate_scenario(self, args):
         """ Generate scenario.json for spiceEV
 
