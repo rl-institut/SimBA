@@ -10,9 +10,9 @@ To try it out, first clone this repository and then install the required package
 
 `pip install -r requirements.txt` 
 
-Now you can start the eBus Toolbox module with all configurations stored at `data/configs/ebus_toolbox.cfg` via the command
+Now you can start the eBus Toolbox module with all configurations stored at `data/examples/ebus_toolbox.cfg` via the command
 
-``python -m ebus_toolbox --config data/configs/ebus_toolbox.cfg``
+``python -m ebus_toolbox --config data/examples/ebus_toolbox.cfg``
 
 The repo provides an example for each necessary input file, so the example case can be executed without the need for the user to provide any data themselves.
 
