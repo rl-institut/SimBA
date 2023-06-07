@@ -9,9 +9,9 @@ __pycache__
 docs/_build
 docs/source/temp
 
-data/private_examples
-data/sim_outputs
-data/preprocessing_scripts
+data/*
+!data/examples
+
 src/
 spice_ev/
 *.bak

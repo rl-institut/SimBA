@@ -19,6 +19,8 @@ if __name__ == '__main__':
 
     # copy input files to output to ensure reproducibility
     copy_list = [args.config, args.electrified_stations, args.vehicle_types]
+    if "station_optimization" in args.mode:
+        copy_list.append(args.optimizer_config)
 
     # only copy cost params if they exist
     if args.cost_parameters_file is not None:

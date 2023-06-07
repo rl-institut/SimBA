@@ -1,0 +1,16 @@
+line,departure_name,departure_time,arrival_time,arrival_name,distance,rotation_id,vehicle_type
+Einsetzfahrt,Station-0,2022-03-07 21:31:00,2022-03-07 21:31:00,Station-1,7000,1,AB
+LINE_0,Station-1,2022-03-07 21:31:00,2022-03-07 22:04:00,Station-2,10000,1,AB
+LINE_0,Station-2,2022-03-07 22:08:00,2022-03-07 22:43:00,Station-3,12000,1,AB
+LINE_0,Station-3,2022-03-07 22:51:00,2022-03-07 23:24:00,Station-4,8000,1,AB
+Aussetzfahrt,Station-4,2022-03-07 23:28:00,2022-03-08 00:03:00,Station-0,5000,1,AB
+Einsetzfahrt,Station-0,2022-03-08 21:31:00,2022-03-08 21:31:00,Station-1,7000,2,AB
+LINE_0,Station-1,2022-03-08 21:31:00,2022-03-08 22:04:00,Station-2,10000,2,AB
+LINE_0,Station-2,2022-03-08 22:08:00,2022-03-08 22:43:00,Station-3,12000,2,AB
+LINE_0,Station-3,2022-03-08 22:51:00,2022-03-08 23:24:00,Station-4,8000,2,AB
+Aussetzfahrt,Station-4,2022-03-08 23:28:00,2022-03-08 00:03:00,Station-0,5000,2,AB
+Einsetzfahrt,Station-0,2022-03-08 21:32:00,2022-03-08 21:33:00,Station-1,7000,3,AB
+LINE_0,Station-1,2022-03-08 21:33:00,2022-03-08 22:04:00,Station-2,10000,3,AB
+LINE_0,Station-2,2022-03-08 22:08:00,2022-03-08 22:43:00,Station-3,12000,3,AB
+LINE_0,Station-3,2022-03-08 22:51:00,2022-03-08 23:24:00,Station-4,8000,3,AB
+Aussetzfahrt,Station-4,2022-03-08 23:28:00,2022-03-08 00:03:00,Station-0,5000,3,AB
