@@ -69,7 +69,7 @@ It takes the results of the previous simulation, attains all rotations which had
 Service Optimization
 --------------------
 This mode finds the largest set of rotations that results in no negative SoC. This is done by first taking all rotations that do become negative and finding their dependent rotations, i.e., ones that can have an influence by sharing a station earlier with the negative rotation. Next, all rotations are filtered out that stay negative when running with just their dependent rotations.
-Now, only rotations are left that are non-negative when viewed alone, but might beome negative when run together. To find the largest subset of non-negative rotations, all possible set combinations are generated and tried out. When a union of two rotation-sets is non-negative, it is taken as the basis for new possible combinations.
+Now, only rotations are left that are non-negative when viewed alone, but might become negative when run together. To find the largest subset of non-negative rotations, all possible set combinations are generated and tried out. When a union of two rotation-sets is non-negative, it is taken as the basis for new possible combinations.
 In the end, the largest number of rotations that produce a non-negative result when taken together is returned as the optimized scenario.
 
 Station Optimization
