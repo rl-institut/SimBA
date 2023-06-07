@@ -595,17 +595,21 @@ def charging_curve_to_soc_over_time(
     return np.array((times, socs)).T
 
 
-def get_missing_energy(events):
+def get_missing_energy(events, min_soc=0):
     """Sum up all the missing energies of the given events.
 
     :param events: events to be checked
     :type events: list(ebus_toolbox.optimizer_util.LowSocEvent)
+    :param min_soc: minimal soc as desired value
+    :type min_soc: float
     :return: missing energy
     :rtype: float
     """
     missing_energy = 0
     for event in events:
-        missing_energy += event.min_soc * event.capacity
+        # events should be by definition below the min_soc defined by the config
+        assert event.min_soc < min_soc
+        missing_energy += (event.min_soc-min_soc) * event.capacity
     return missing_energy
 
 
@@ -785,14 +789,32 @@ def get_time(start=[]):
         return str(delta) + " seconds since start"
 
 
-def plot_(data):
+def plot_(data, axis=None):
     """ Simple plot of data without having to create subplots.
 
+    Checks if data is nested, e.g. dict(key, list), or list(list()), and plots the inner values.
+    If non-nested data is given, this data is plotted.
+
     :param data: data to be plotted
-    :type data: iterable
+    :type data: iterable or iterable of iterables
+    :param axis: axis to be plotted to. Default None will create new figure and axis
+    :type axis: matplotlib.axes.Axes
     :return: axis of the plot """
-    fig, axis = plt.subplots()
-    axis.plot(data, linewidth=2.0)
+    if axis is None:
+        fig, axis = plt.subplots()
+    try:
+        # if the data is iterable, use the lower dimension
+        _ = iter(next(iter(data)))
+        for dat in data:
+            try:
+                name, plot_data = dat, data[dat]
+            except Exception:
+                plot_data = dat
+                name = None
+            axis.plot(plot_data, label=name, linewidth=2.0)
+            axis.legend()
+    except Exception:
+        axis.plot(data, linewidth=2.0)
     return axis
 
 

@@ -16,7 +16,7 @@ def simulate(args):
     :param args: Configuration arguments specified in config files contained in configs directory.
     :type args: argparse.Namespace
 
-    :raises SystemExit: If an input file does not exist, exit the program.
+    :raises Exception: If an input file does not exist, exit the program.
     """
     # load vehicle types
     try:
@@ -24,16 +24,16 @@ def simulate(args):
             vehicle_types = util.uncomment_json_file(f)
             del args.vehicle_types
     except FileNotFoundError:
-        raise SystemExit(f"Path to vehicle types ({args.vehicle_types}) "
-                         "does not exist. Exiting...")
+        raise Exception(f"Path to vehicle types ({args.vehicle_types}) "
+                        "does not exist. Exiting...")
 
     # load stations file
     try:
         with open(args.electrified_stations, encoding='utf-8') as f:
             stations = util.uncomment_json_file(f)
     except FileNotFoundError:
-        raise SystemExit(f"Path to electrified stations ({args.electrified_stations}) "
-                         "does not exist. Exiting...")
+        raise Exception(f"Path to electrified stations ({args.electrified_stations}) "
+                        "does not exist. Exiting...")
 
     # load cost parameters
     if args.cost_parameters_file is not None:
@@ -41,8 +41,8 @@ def simulate(args):
             with open(args.cost_parameters_file, encoding='utf-8') as f:
                 cost_parameters_file = util.uncomment_json_file(f)
         except FileNotFoundError:
-            raise SystemExit(f"Path to cost parameters ({args.cost_parameters_file}) "
-                             "does not exist. Exiting...")
+            raise Exception(f"Path to cost parameters ({args.cost_parameters_file}) "
+                            "does not exist. Exiting...")
 
     # setup consumption calculator that can be accessed by all trips
     Trip.consumption = Consumption(
@@ -50,15 +50,11 @@ def simulate(args):
         outside_temperatures=args.outside_temperature_over_day_path,
         level_of_loading_over_day=args.level_of_loading_over_day_path)
 
-    # generate schedule from csv
-    schedule = Schedule.from_csv(args.input_schedule, vehicle_types, stations, **vars(args))
-
-    # filter rotations
-    schedule.rotation_filter(args)
-
-    # calculate consumption of all trips
+    schedule = Schedule.from_csv(args.input_schedule,
+                                 vehicle_types,
+                                 stations,
+                                 **vars(args))
     schedule.calculate_consumption()
-
     # scenario simulated once
     scenario = schedule.run(args)
 
@@ -114,7 +110,7 @@ def simulate(args):
             if neg_rot:
                 schedule.rotations = {
                     k: v for k, v in schedule.rotations.items() if k not in neg_rot}
-                print('Rotations ' + ', '.join(neg_rot) + ' removed')
+                print('Rotations ' + ', '.join(sorted(neg_rot)) + ' removed')
                 # re-run schedule
                 scenario = schedule.run(args)
             else:
