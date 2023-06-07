@@ -168,11 +168,14 @@ def calculate_costs(c_params, scenario, schedule, args):
             power_grid_supply_list=timeseries.get("grid supply [kW]"),
             price_list=timeseries.get("price [EUR/kWh]"),
             power_fix_load_list=timeseries.get("fixed load [kW]"),
+            power_generation_feed_in_list=timeseries.get("generation feed-in [kW]"),
+            power_v2g_feed_in_list=timeseries.get("V2G feed-in [kW]"),
+            power_battery_feed_in_list=timeseries.get("battery feed-in [kW]"),
             charging_signal_list=timeseries.get("window"),
-            core_standing_time_dict=scenario.core_standing_time,
             price_sheet_json=args.cost_parameters_file,
             power_pv_nominal=pv,
         )
+
         # ToDo: Decide if gc-specific costs should be added to scenario object to use in report.py
         # setattr(scenario.components.grid_connectors[gcID], "costs_electricity", costs_electricity)
         costs["c_el_procurement_annual"] += costs_electricity['power_procurement_costs_per_year']

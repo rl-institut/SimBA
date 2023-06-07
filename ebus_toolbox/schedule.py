@@ -19,7 +19,7 @@ class Schedule:
         :param stations: electrified stations
         :type stations: dict
 
-        :raises SystemExit: In case not all mandatory options are provided
+        :raises Exception: In case not all mandatory options are provided
 
         :param kwargs: Command line arguments
         :type kwargs: dict
@@ -44,7 +44,7 @@ class Schedule:
         ]
         missing = [opt for opt in mandatory_options if kwargs.get(opt) is None]
         if missing:
-            raise SystemExit("The following arguments are required: {}".format(", ".join(missing)))
+            raise Exception("The following arguments are required: {}".format(", ".join(missing)))
         else:
             for opt in mandatory_options:
                 setattr(self, opt, kwargs.get(opt))
@@ -69,12 +69,14 @@ class Schedule:
         station_data = dict()
         station_path = kwargs.get("station_data_path")
 
+        # find the temperature and elevation of the stations by reading the .csv file.
+        # this data is stored in the schedule and passed to the trips, which use the information
+        # for consumption calculation. Missing station data is handled with default values.
         if station_path is not None:
             try:
-                with open(str(station_path), "r", encoding='utf-8') as f:
+                with open(station_path, "r", encoding='utf-8') as f:
                     delim = util.get_csv_delim(station_path)
                     reader = csv.DictReader(f, delimiter=delim)
-                    station_data = dict()
                     for row in reader:
                         station_data.update({str(row['Endhaltestelle']):
                                             {"elevation": float(row['elevation'])}})
@@ -88,8 +90,7 @@ class Schedule:
                               "values in the column 'elevation'. Station data is discarded.".
                               format(station_path),
                               stacklevel=100)
-            else:
-                schedule.station_data = station_data
+            schedule.station_data = station_data
 
         with open(path_to_csv, 'r', encoding='utf-8') as trips_file:
             trip_reader = csv.DictReader(trips_file)
@@ -280,18 +281,22 @@ class Schedule:
     def get_departure_of_first_trip(self):
         """ Finds earliest departure time among all rotations.
 
-        :return: Date and time of earliest departure of schedule.
+        :return: Date and time of earliest departure of schedule. None if rotations are empty.
         :rtype: datetime.datetime
         """
+        if not self.rotations:
+            return None
         sorted_rotations = sorted(self.rotations.values(), key=lambda rot: rot.departure_time)
         return sorted_rotations[0].departure_time
 
     def get_arrival_of_last_trip(self):
         """Finds latest arrival time among all rotations.
 
-        :return: Date and time of latest arrival of schedule.
+        :return: Date and time of latest arrival of schedule. None if rotations are empty.
         :rtype: datetime.datetime
         """
+        if not self.rotations:
+            return None
         sorted_rotations = sorted(self.rotations.values(), key=lambda rot: rot.arrival_time)
         return sorted_rotations[-1].arrival_time
 
@@ -380,35 +385,6 @@ class Schedule:
 
         return list(negative_rotations)
 
-    def rotation_filter(self, args, rf_list=None):
-        """Edits rotations according to args.rotation_filter_variable.
-
-        :param args: used arguments are rotation_filter, path to rotation ids,
-                     and rotation_filter_variable that sets mode (options: include, exclude)
-        :type args: argparse.Namespace
-        :param rf_list: rotation filter list with strings of rotation ids (default is None)
-        :type rf_list: list
-        """
-        rf_list = rf_list or []
-        rf_list = [str(i) for i in rf_list]
-        if not args.rotation_filter_variable:
-            return
-        if args.rotation_filter_variable and not args.rotation_filter and not rf_list:
-            warnings.warn("Rotation filter variable is enabled but json and list are not used.")
-            return
-        if args.rotation_filter:
-            try:
-                with open(args.rotation_filter, encoding='utf-8') as f:
-                    for line in f:
-                        rf_list.append(line.strip())
-            except FileNotFoundError:
-                warnings.warn(f"Path to rotation filter {args.rotation_filter} is invalid.")
-        # filter out rotations in self.rotations
-        if args.rotation_filter_variable == "exclude":
-            self.rotations = {k: v for k, v in self.rotations.items() if k not in rf_list}
-        elif args.rotation_filter_variable == "include":
-            self.rotations = {k: v for k, v in self.rotations.items() if k in rf_list}
-
     def generate_scenario(self, args):
         """ Generate scenario.json for spiceEV
 
@@ -418,8 +394,6 @@ class Schedule:
                  simulation outputs.
         :rtype:  spice_ev.Scenario
         """
-
-        random.seed(args.seed)
 
         interval = datetime.timedelta(minutes=args.interval)
 
@@ -436,12 +410,17 @@ class Schedule:
         }
 
         # define start and stop times
-        start_simulation = \
-            self.get_departure_of_first_trip() - datetime.timedelta(minutes=args.signal_time_dif)
-        stop_simulation = self.get_arrival_of_last_trip() + interval
-        if args.days is not None:
-            stop_simulation = min(
-                stop_simulation, start_simulation + datetime.timedelta(days=args.days))
+        if self.rotations:
+            start_simulation = self.get_departure_of_first_trip()
+            start_simulation -= datetime.timedelta(minutes=args.signal_time_dif)
+            stop_simulation = self.get_arrival_of_last_trip() + interval
+            if args.days is not None:
+                stop_simulation = min(
+                    stop_simulation, start_simulation + datetime.timedelta(days=args.days))
+        else:
+            # no rotations to base times off: use any datetime
+            start_simulation = datetime.datetime.fromtimestamp(0)
+            stop_simulation = datetime.datetime.fromtimestamp(0)
 
         # add vehicle events
         for vehicle_id in sorted({rot.vehicle_id for rot in self.rotations.values()}):
@@ -549,7 +528,7 @@ class Schedule:
                             feed_in_path = Path(feed_in["csv_file"])
                             if not feed_in_path.exists():
                                 warnings.warn("feed-in csv file '{}' does not exist".format(
-                                    feed_in_path))
+                                    feed_in_path), category=UserWarning)
                             feed_in["grid_connector_id"] = gc_name
                             feed_in["csv_file"] = feed_in_path
                             events["energy_feed_in"][gc_name + " feed-in"] = feed_in
@@ -565,7 +544,7 @@ class Schedule:
                             ext_load_path = Path(ext_load["csv_file"])
                             if not ext_load_path.exists():
                                 warnings.warn("external load csv file '{}' does not exist".format(
-                                    ext_load_path))
+                                    ext_load_path), category=UserWarning)
                             ext_load["grid_connector_id"] = gc_name
                             ext_load["csv_file"] = ext_load_path
                             events["external_load"][gc_name + " ext. load"] = ext_load
@@ -614,8 +593,9 @@ class Schedule:
 
         daily = datetime.timedelta(days=1)
         # price events
-        for key in grid_connectors.keys():
-            if not args.include_price_csv:
+        if not args.include_price_csv:
+            random.seed(args.seed)
+            for key in grid_connectors.keys():
                 now = start_simulation - daily
                 while now < stop_simulation + 2 * daily:
                     now += daily
