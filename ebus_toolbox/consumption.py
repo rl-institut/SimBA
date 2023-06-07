@@ -109,10 +109,8 @@ class Consumption:
         consumption_function = vehicle_type+"_from_"+consumption_path
         try:
             mileage = self.consumption_files[consumption_function](
-                                                               this_incline=height_diff / distance,
-                                                               this_temp=temp,
-                                                               this_lol=level_of_loading,
-                                                               this_speed=mean_speed)
+                this_incline=height_diff / distance, this_temp=temp,
+                this_lol=level_of_loading, this_speed=mean_speed)
         except KeyError:
             # creating the interpol function from csv file.
             delim = util.get_csv_delim(consumption_path)
@@ -135,10 +133,8 @@ class Consumption:
             self.consumption_files.update({consumption_function: interpol_function})
 
             mileage = self.consumption_files[consumption_function](
-                                                               this_incline=height_diff / distance,
-                                                               this_temp=temp,
-                                                               this_lol=level_of_loading,
-                                                               this_speed=mean_speed)
+               this_incline=height_diff / distance, this_temp=temp,
+               this_lol=level_of_loading, this_speed=mean_speed)
 
         consumed_energy = mileage * distance / 1000  # kWh
         delta_soc = -1 * (consumed_energy / vehicle_info["capacity"])
