@@ -32,6 +32,7 @@ class TestSimulate:
         "days": None,
         "signal_time_dif": 10,
         "include_price_csv": None,
+        "rotation_filter_variable": None,
         "seed": None,
         "default_buffer_time_opps": 0,
         "desired_soc_opps": 1,

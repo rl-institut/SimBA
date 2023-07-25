@@ -1,3 +1,5 @@
+from argparse import Namespace
+from copy import deepcopy
 from datetime import timedelta
 import pytest
 import sys
@@ -6,7 +8,7 @@ from spice_ev.util import set_options_from_config
 
 from tests.conftest import example_root, file_root
 from tests.helpers import generate_basic_schedule
-from ebus_toolbox import schedule, trip, consumption, util
+from ebus_toolbox import consumption, rotation, schedule, trip, util
 
 
 mandatory_args = {
@@ -63,9 +65,13 @@ class TestSchedule:
         """
         Check if the schedule creation properly throws an error in case of missing mandatory options
         """
-        with pytest.raises(Exception):
-            # schedule creation without mandatory args
-            schedule.Schedule(self.vehicle_types, self.electrified_stations)
+        args = mandatory_args.copy()
+        for key in mandatory_args.keys():
+            value = args.pop(key)
+            with pytest.raises(Exception):
+                # schedule creation without mandatory arg
+                schedule.Schedule(self.vehicle_types, self.electrified_stations, **args)
+            args[key] = value
 
     def test_station_data_reading(self):
         """ Test if the reading of the geo station data works and outputs warnings in
@@ -172,6 +178,67 @@ class TestSchedule:
 
         neg_rots = sched.get_negative_rotations(scen)
         assert '1' in neg_rots
+
+    def test_rotation_filter(self, tmp_path):
+        s = schedule.Schedule(self.vehicle_types, self.electrified_stations, **mandatory_args)
+        args = Namespace(**{
+            "rotation_filter_variable": None,
+            "rotation_filter": None,
+        })
+        # add dummy rotations
+        s.rotations = {
+            str(i): rotation.Rotation(id=str(i), vehicle_type="", schedule=None)
+            for i in range(6)
+        }
+        s.original_rotations = deepcopy(s.rotations)
+        # filtering disabled
+        args.rotation_filter_variable = None
+        s.rotation_filter(args)
+        assert s.rotations.keys() == s.original_rotations.keys()
+
+        # filtering not disabled, but neither file nor list given -> warning
+        args.rotation_filter_variable = "include"
+        args.rotation_filter = None
+        with pytest.warns(UserWarning):
+            s.rotation_filter(args)
+        assert s.rotations.keys() == s.original_rotations.keys()
+
+        # filter file not found -> warning
+        args.rotation_filter = tmp_path / "filter.txt"
+        with pytest.warns(UserWarning):
+            s.rotation_filter(args)
+        assert s.rotations.keys() == s.original_rotations.keys()
+
+        # filter (include) from JSON file
+        args.rotation_filter.write_text("3 \n 4\n16")
+        s.rotation_filter(args)
+        assert sorted(s.rotations.keys()) == ['3', '4']
+
+        # filter (exclude) from given list
+        args.rotation_filter_variable = "exclude"
+        args.rotation_filter = None
+        s.rotations = deepcopy(s.original_rotations)
+        s.rotation_filter(args, rf_list=['3', '4'])
+        assert sorted(s.rotations.keys()) == ['0', '1', '2', '5']
+
+        # filter (include) from integer list
+        s.rotations = deepcopy(s.original_rotations)
+        args.rotation_filter_variable = "include"
+        s.rotation_filter(args, rf_list=[3, 4])
+        assert sorted(s.rotations.keys()) == ['3', '4']
+
+        # filter nothing
+        s.rotations = deepcopy(s.original_rotations)
+        args.rotation_filter = tmp_path / "filter.txt"
+        args.rotation_filter.write_text('')
+        args.rotation_filter_variable = "exclude"
+        s.rotation_filter(args, rf_list=[])
+        assert s.rotations.keys() == s.original_rotations.keys()
+
+        # filter all (is this intended?)
+        args.rotation_filter_variable = "include"
+        s.rotation_filter(args, rf_list=[])
+        assert not s.rotations
 
     def test_scenario_with_feed_in(self):
         """ Check if running a example with an extended electrified stations file
