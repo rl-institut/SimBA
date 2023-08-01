@@ -85,7 +85,7 @@ class TestStationOptimization:
         dst = tmp_path / "ebus_toolbox.cfg"
         dst.write_text(src_text)
 
-    def test_basic_run(self, trips_file_name="trips.csv"):
+    def basic_run(self, trips_file_name="trips.csv"):
         """ Check if running a basic example works and if a scenario object is returned.
 
         :param trips_file_name: file name of the trips file. Has to be inside the test_input_file
@@ -116,7 +116,7 @@ class TestStationOptimization:
     def test_basic_optimization(self):
         """ Test if the base optimization finishes without raising errors"""
         trips_file_name = "trips_for_optimizer.csv"
-        sched, scen, args = self.test_basic_run(trips_file_name)
+        sched, scen, args = self.basic_run(trips_file_name)
         config_path = example_root / "default_optimizer.cfg"
         conf = opt_util.read_config(config_path)
 
@@ -142,7 +142,7 @@ class TestStationOptimization:
 
         """
         trips_file_name = "trips_for_optimizer_deep.csv"
-        sched, scen, args = self.test_basic_run(trips_file_name=trips_file_name)
+        sched, scen, args = self.basic_run(trips_file_name=trips_file_name)
         args.input_schedule = file_root / trips_file_name
         config_path = example_root / "default_optimizer.cfg"
         conf = opt_util.read_config(config_path)
@@ -163,7 +163,7 @@ class TestStationOptimization:
         trips_file_name = "trips_extended.csv"
         # adjust mileage so scenario is not possible without adding electrification
         self.vehicle_types = adjust_vehicle_file(args.vehicle_types, mileage=2, capacity=150)
-        sched, scen, args = self.test_basic_run(trips_file_name=trips_file_name)
+        sched, scen, args = self.basic_run(trips_file_name=trips_file_name)
         # optimization can only be properly tested if negative rotations exist
         assert len(sched.get_negative_rotations(scen)) > 0
         args.input_schedule = file_root / trips_file_name
@@ -189,7 +189,7 @@ class TestStationOptimization:
             to have access to logging data
         """
         trips_file_name = "trips_for_optimizer_deep.csv"
-        sched, scen, args = self.test_basic_run(trips_file_name=trips_file_name)
+        sched, scen, args = self.basic_run(trips_file_name=trips_file_name)
         args.input_schedule = file_root / trips_file_name
         config_path = example_root / "default_optimizer.cfg"
         conf = opt_util.read_config(config_path)
