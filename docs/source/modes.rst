@@ -4,10 +4,10 @@
 
 .. _sim_modes:
 
-Modes of the eBus-Toolbox
-=========================
+Modes of SimBA
+==============
 
-The eBus-Toolbox assists the user in analyzing and optimising electrified bus fleets and schedules. Besides a simple simulation run, several
+SimBA assists the user in analyzing and optimising electrified bus fleets and schedules. Besides a simple simulation run, several
 different modes support the user in finding optimal solutions for their eBus-System. Supported Modes are
 
 * simple simulation
@@ -19,13 +19,13 @@ different modes support the user in finding optimal solutions for their eBus-Sys
 
 Chained Modes
 -------------
-While the default mode of the ebus-toolbox is the simple simulation together with a report, modes can be chained together differently to achieve the desired results. The chain of modes is defined in the config file (default: ebus_toolbox.cfg) under the keyword *mode*:
+While the default mode of the SimBA is the simple simulation together with a report, modes can be chained together differently to achieve the desired results. The chain of modes is defined in the config file (default: ebus_toolbox.cfg) under the keyword *mode*:
 
 ::
 
         mode = ["sim", "report"]
 
-This results in a simple simulation with a following report. To run a simulation the ebus-toolbox creates a schedule which contains all information about how the bus system is supposed to run. Some modes are allowed to mutate the schedule in some way, which makes chaining of modes especially useful. Their output describes the simulation outcome of this mutated schedule. An extended simple use case would be:
+This results in a simple simulation with a following report. To run a simulation SimBA creates a schedule which contains all information about how the bus system is supposed to run. Some modes are allowed to mutate the schedule in some way, which makes chaining of modes especially useful. Their output describes the simulation outcome of this mutated schedule. An extended simple use case would be:
 
 ::
 
@@ -41,7 +41,7 @@ The simple simulation case is the default mode. Its usage is explained in :ref:`
 
 Negative Depot to Opportunity Charger
 -------------------------------------
-This mode is the first kind of optimization provided by the eBus-Toolbox and is called by:
+This mode is the first kind of optimization provided by SimBA and is called by:
 
 ::
 
@@ -49,14 +49,14 @@ This mode is the first kind of optimization provided by the eBus-Toolbox and is 
 
 It takes the results of the previous simulation, attains all rotations which had a negative soc, and changes their vehicle type to depot chargers.
 
-.. note:: Charging types are only switched by the eBus-Toolbox if the corresponding vehicle type as depot charger exists in the provided vehicles_data.json.
+.. note:: Charging types are only switched by SimBA if the corresponding vehicle type as depot charger exists in the provided vehicles_data.json.
 
 
 
 Negative Opportunity to Depot Charger
 -------------------------------------
 This mode is analogous to *neg_depb_to_oppb*.
-This mode is the second kind of optimization provided by the eBus-Toolbox and is called by
+This mode is the second kind of optimization provided by SimBA and is called by
 
 ::
 
@@ -64,7 +64,7 @@ This mode is the second kind of optimization provided by the eBus-Toolbox and is
 
 It takes the results of the previous simulation, attains all rotations which had a negative soc, and changes their vehicle type to opportunity chargers.
 
-.. note:: Charging types are only switched by the eBus-Toolbox if the corresponding vehicle type as opportunity charger exists in the provided vehicles_data.json.
+.. note:: Charging types are only switched by SimBA if the corresponding vehicle type as opportunity charger exists in the provided vehicles_data.json.
 
 Service Optimization
 --------------------
@@ -172,7 +172,7 @@ Instead of using the regular SpiceEV solver for optimization the user can also c
 
 At the end of each optimization the optimized scenario will run using SpiceEV. This guarantees that the proposed solution works. If this is not the case, using SpicEV as solver is recommended
 
-**Continuing optimizations** can be useful in cases where simulation of the base case is slow or considerable effort was put into optimization before. The user might want to continue the optimization from the state where they left off. To speed up multiple optimizations or split up a big optimization in multiple smaller calculations two features are in early development. Experienced users can use these features on their own accord with a few minor implementation steps. To skip a potentially long simulation, with the simulation of the scenario being the first step of every ebus-toolbox run, the optimizer.config allows for using pickle files for the three major objects args, schedule and scenario. After pickling the resulting objects, the optimizer can be prompted to use them instead of using whatever other input is fed into the optimizer. This is done by giving the paths to the pickle files in the optimizer.cfg.
+**Continuing optimizations** can be useful in cases where simulation of the base case is slow or considerable effort was put into optimization before. The user might want to continue the optimization from the state where they left off. To speed up multiple optimizations or split up a big optimization in multiple smaller calculations two features are in early development. Experienced users can use these features on their own accord with a few minor implementation steps. To skip a potentially long simulation, with the simulation of the scenario being the first step of every SimBA run, the optimizer.config allows for using pickle files for the three major objects args, schedule and scenario. After pickling the resulting objects, the optimizer can be prompted to use them instead of using whatever other input is fed into the optimizer. This is done by giving the paths to the pickle files in the optimizer.cfg.
 
 ::
 

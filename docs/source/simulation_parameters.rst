@@ -4,8 +4,8 @@ Simulation Parameters
 =====================
 
 The simulation of an eBus-System relies on a variety of simulation parameters.
-The eBus-Toolbox provides most of them as default values. Depending on specific needs adjusting
-these values can increase the accuracy of the simulation outputs. The eBus-Toolbox input files are described
+SimBA provides most of them as default values. Depending on specific needs adjusting
+these values can increase the accuracy of the simulation outputs. The SimBA input files are described
 in detail in the following subsections as well as their default parameters.
 When providing the user defined input files, the user should make sure the files are either 'utf-8'
 encoded or not contain regional characters.
@@ -131,4 +131,4 @@ TBC
 
 Consumption table
 -----------------
-The consumption table can be referenced in the :ref:`vehicle_types` file. Instead of constant consumption the eBus-Toolbox uses provided temperatures, level of loadings, mean speeds, average inclines and the vehicle type to interpolate the consumption value from this data table. Level of loading and temperatures are read from the :ref:`schedule` if the trips provide them. If they are missing from the schedule, they are looked up from the files :ref:`level_of_loading` and :ref:`temperature_data`. The average incline is calculated from :ref:`station_geo_data` and the mean speed is calculated by using the departure and arrival time and distance provided by the schedule.
+The consumption table can be referenced in the :ref:`vehicle_types` file. Instead of constant consumption SimBA uses provided temperatures, level of loadings, mean speeds, average inclines and the vehicle type to interpolate the consumption value from this data table. Level of loading and temperatures are read from the :ref:`schedule` if the trips provide them. If they are missing from the schedule, they are looked up from the files :ref:`level_of_loading` and :ref:`temperature_data`. The average incline is calculated from :ref:`station_geo_data` and the mean speed is calculated by using the departure and arrival time and distance provided by the schedule.
