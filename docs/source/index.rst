@@ -18,6 +18,7 @@ SimBa - the Simulation toolbox for Bus Applications - was designed to analyze an
    :caption: Contents:
 
    getting_started
+   simba_modules
    modes
    simulation_parameters
    modindex

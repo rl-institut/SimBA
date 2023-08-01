@@ -67,34 +67,3 @@ In case an optimization is carried out, the results are then analyzed, the optim
     :width: 600
 
     Default output plot for a single simulation.
-
-Specific modules
-----------------
-
-Consumption analysis
-####################
-
-.. _vehicle_dispatch:
-
-Vehicle Dispatch
-################
-
-Charging simulation
-###################
-
-Generate report
-###############
-
-Optimization
-############
-
-.. _consistency_check:
-
-Consistency check
-#################
-
-
-.. _rotation_filter:
-
-Rotation filter
-###############

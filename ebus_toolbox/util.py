@@ -16,17 +16,9 @@ def save_version(file_path):
 
 
 def get_buffer_time(trip, default=0):
-    """ Get buffer time at arrival station of a trip.
-
-    Buffer_time is an abstraction of delays like docking procedures and is added to the planned
-    arrival time.
-
-    :param trip: The of buffer time of this trips arrival is returned.
-    :type trip: ebus_toolbox.Trip
-    :param default: Default buffer time if no station specific buffer time is given. [minutes]
-    :type default: dict, numeric
-    :return: Buffer time
-    :rtype: numeric
+    """
+    Get buffer time at arrival station of a trip. Buffer_time is an abstraction of delays like
+    docking procedures and is added to the planned arrival time.
 
     NOTE: Buffertime dictionaries map hours of the day to a buffer time.
     Keys are ranges of hours and corresponding values provide buffer time in
@@ -34,11 +26,18 @@ def get_buffer_time(trip, default=0):
     An entry with key "else" is a must if not all
     hours of the day are covered.
     E.g.
-        buffer_time = {
-            "10-22": 2,
-            "22-6": 3,
-            "else": 1
-        }
+    buffer_time = {
+        "10-22": 2,
+        "22-6": 3,
+        "else": 1
+    }
+
+    :param trip: The of buffer time of this trips arrival is returned.
+    :type trip: ebus_toolbox.Trip
+    :param default: Default buffer time if no station specific buffer time is given. [minutes]
+    :type default: dict, numeric
+    :return: Buffer time
+    :rtype: numeric
     """
 
     schedule = trip.rotation.schedule
