@@ -4,7 +4,7 @@
 Getting Started
 ===============
 
-SimBA assists the user in analysing and optimising electrified bus fleets and schedules.
+This toolbox was designed to analyze and optimize electrified bus fleets.
 
 .. Without creating links like in the line below, subpages go missing from the sidebar
 
@@ -37,7 +37,7 @@ At the current stage several functionalities are implemented. The base simulatio
 Other modes can alter bus types from depot to opportunity chargers, optimize sets of rotations to increase electrification or suggest stations for electrification by minimizing the amount of stations needed. You can learn more about the modes  :ref:`here <sim_modes>`
 
 .. _figure_ebus_toolbox_modules:
-.. figure:: https://user-images.githubusercontent.com/104760879/217225545-5e6858c1-d056-4519-beea-6274d06533c7.png
+.. figure:: _static/methodology_overview.png
     :alt:  ebus_toolbox_modules
     :width: 600
 

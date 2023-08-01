@@ -9,8 +9,7 @@
 Welcome to SimBA's documentation!
 ============================================
 
-This toolbox extends the functionality of the Open Source simulation tool SpiceEV to facilitate eBus feasibility studies in Python.
-
+This toolbox was designed to analyze and optimize electrified bus fleets.
 
 .. toctree::
    :maxdepth: 3
