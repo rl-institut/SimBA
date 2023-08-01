@@ -324,6 +324,12 @@ def get_args():
     parser.add_argument('--optimizer_config', default=None,
                         help="For station_optimization a optimizer_config is needed. \
                         Input a path to an .cfg file or use the default_optimizer.cfg")
+    parser.add_argument('--strategy_deps', default='balanced', help='strategy to use in depot')
+    parser.add_argument('--strategy_opps', default='greedy', help='strategy to use at station')
+    parser.add_argument('--strategy_options_deps', default={},
+                        help='special strategy options to use in depot')
+    parser.add_argument('--strategy_options_opps', default={},
+                        help='special strategy options to use at electrified station')
 
     parser.add_argument('--config', help='Use config file to set arguments')
 
