@@ -3,8 +3,10 @@
    You can adapt this file completely to your liking, but it should at least
    contain the root `toctree` directive.
 
-.. image:: https://user-images.githubusercontent.com/104760879/217226792-4297d3c8-8a7c-45ad-894f-5efd03031f49.png
-    :alt: ebus_toolbox_logo
+.. _figure_SimBA_logo:
+.. figure:: _static/2023_06_08_eBus-Toolbox Logo.png
+    :alt:  ebus_toolbox_logo
+    :width: 600
 
 Welcome to SimBA's documentation!
 ============================================
