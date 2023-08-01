@@ -4,14 +4,14 @@
    contain the root `toctree` directive.
 
 .. _figure_SimBA_logo:
-.. figure:: _static/2023_06_08_eBus-Toolbox Logo.png
-    :alt:  ebus_toolbox_logo
-    :width: 600
+.. figure:: _static/SimBA_Logo.png
+    :alt:  SimBA_Logo
+    :width: 200
 
 Welcome to SimBA's documentation!
 ============================================
 
-This toolbox was designed to analyze and optimize electrified bus fleets.
+SimBa - the Simulation toolbox for Bus Applications - was designed to analyze and optimize electrified bus fleets.
 
 .. toctree::
    :maxdepth: 3

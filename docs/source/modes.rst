@@ -36,6 +36,11 @@ can be found below.
 
 Simple Simulation
 -----------------
+
+::
+
+    mode = ["sim"]
+
 The simple simulation case is the default mode. Its usage is explained in :ref:`Getting Started`. Every chain of modes starts with a simple simulation, even if it is not explicitly listed in the modes. The simulation takes the scenario as is. No parameters will be adjusted, optimized or changed in any way. The charging type for each vehicle is read from the rotation information from the trips.csv if this data is included. If the data is not included *preferred_charging_type* from the config file is used, as long as the provided vehicles data provides the preferred_charging_type for the specified vehicle type.
 
 
@@ -47,9 +52,9 @@ This mode is the first kind of optimization provided by SimBA and is called by:
 
     mode = ["neg_depb_to_oppb"]
 
-It takes the results of the previous simulation, attains all rotations which had a negative soc, and changes their vehicle type to depot chargers.
+It takes the results of the previous simulation, and changes the charging type of all rotations which had a negative SoC to opportunity chargers.
 
-.. note:: Charging types are only switched by SimBA if the corresponding vehicle type as depot charger exists in the provided vehicles_data.json.
+.. note:: Charging types are only switched by SimBA if the corresponding vehicle type as opportunity charging bus exists in the provided vehicles_data.json.
 
 
 
@@ -62,13 +67,13 @@ This mode is the second kind of optimization provided by SimBA and is called by
 
     mode = ["neg_oppb_to_depb"]
 
-It takes the results of the previous simulation, attains all rotations which had a negative soc, and changes their vehicle type to opportunity chargers.
+It takes the results of the previous simulation, and changes the charging type of all rotations which had a negative SoC to depot charging.
 
-.. note:: Charging types are only switched by SimBA if the corresponding vehicle type as opportunity charger exists in the provided vehicles_data.json.
+.. note:: Charging types are only switched by SimBA if the corresponding vehicle type as depot charging bus exists in the provided vehicles_data.json.
 
 Service Optimization
 --------------------
-This mode finds the largest set of rotations that results in no negative SoC. This is done by first taking all rotations that do become negative and finding their dependent rotations, i.e., ones that can have an influence by sharing a station earlier with the negative rotation. Next, all rotations are filtered out that stay negative when running with just their dependent rotations.
+It can happen that several busses influence each other while simulataiously charging at the same charging station, e.g. due to limited grid power or limited number of charging stations, which can lead to negative SoCs due to hindered charging. In this case, this mode finds the largest set of rotations that results in no negative SoC. This is done by first taking all rotations that do become negative and finding their dependent rotations, i.e., ones that can have an influence by sharing a station earlier with the negative rotation. Next, all rotations are filtered out that stay negative when running with just their dependent rotations.
 Now, only rotations are left that are non-negative when viewed alone, but might become negative when run together. To find the largest subset of non-negative rotations, all possible set combinations are generated and tried out. When a union of two rotation-sets is non-negative, it is taken as the basis for new possible combinations.
 In the end, the largest number of rotations that produce a non-negative result when taken together is returned as the optimized scenario.
 
@@ -99,18 +104,18 @@ The network with no opportunity charging station is first analyzed to find rotat
 
     Steps of the optimization loop until full electrification is reached.
 
-After a single simulation is run the rotations are analyzed. Any time a vehicle goes below an soc of zero (or a self defined value) a low soc event is triggered. This event saves information about when the soc reached its minimal value and the history before that up to a point of an upper soc threshold, with the default value being 1. Stations inside of this time span are potentially able to mitigate the low soc and are stored with other information about the event. :numref:`low_soc_event` shows a possible soc history with a low soc event.
+After a single simulation is run the rotations are analyzed. Any time a vehicle goes below an SoC of zero (or a self defined value) a low SoC event is triggered. This event saves information about when the SoC reached its minimal value and the history before that up to a point of an upper SoC threshold, with the default value being 1. Stations inside of this time span are potentially able to mitigate the low SoC and are stored with other information about the event. :numref:`low_soc_event` shows a possible SoC history with a low SoC event.
 
 .. _low_soc_event:
 .. figure:: https://user-images.githubusercontent.com/104760879/217225588-abfad83d-9d2a-463a-8597-584e29f5f885.png
     :width: 600
     :alt: below_0_soc_event
 
-    Low soc event and classification of stations.
+    Low SoC event and classification of stations.
 
-The next step groups low soc events based on the stations which were found earlier. Events which share at least one station could possibly interact with each other, e.g. vehicles could share a charging station. Therefore groups are build which do not share any stations in between groups. This speeds up the optimization process since for every electrification and simulation only rotations are calculated which could be impacted by the change.
+The next step groups low SoC events based on the stations which were found earlier. Events which share at least one station could possibly interact with each other, e.g. vehicles could share a charging station. Therefore groups are build which do not share any stations in between groups. This speeds up the optimization process since for every electrification and simulation only rotations are calculated which could be impacted by the change.
 
-Since greedy approaches execute the step which seems most promising in the current situation an evaluation function is needed. One possible approach could be to simulate each scenario, meaning simulating every case in which one of all possible stations is electrified and continuing with the best case. The optimizer does not use this approach. Instead an approximation function is used to evaluate the potential of electrifying a station. This approximation function analyzes the duration at each stop, the possible charging time, the soc and resulting possible charging power (battery with high socs are charged at a lower rate) as well as the upper soc threshold and minimal soc of the event. While this methodology is not accurate in all cases, e.g. a station could exist multiple times inside of a low soc event, therefore charging the first time at this station would alter the soc and charging power the vehicle has the second time it reaches the station, it seems well suited as heuristic for choosing the most promising station. The objective function of choosing what the *best* station is, is the mitigation of missing charge, i.e. what is the minimal amount of energy that needs to be inserted into the battery, so that no soc is below 0.
+Since greedy approaches execute the step which seems most promising in the current situation an evaluation function is needed. One possible approach could be to simulate each scenario, meaning simulating every case in which one of all possible stations is electrified and continuing with the best case. The optimizer does not use this approach. Instead an approximation function is used to evaluate the potential of electrifying a station. This approximation function analyzes the duration at each stop, the possible charging time, the SoC and resulting possible charging power (battery with high SoCs are charged at a lower rate) as well as the upper SoC threshold and minimal SoC of the event. While this methodology is not accurate in all cases, e.g. a station could exist multiple times inside of a low SoC event, therefore charging the first time at this station would alter the SoC and charging power the vehicle has the second time it reaches the station, it seems well suited as heuristic for choosing the most promising station. The objective function of choosing what the *best* station is, is the mitigation of missing charge, i.e. what is the minimal amount of energy that needs to be inserted into the battery, so that no SoC is below 0.
 
 After the evaluation selected a station to be electrified the scenario input data is altered so that vehicles at this station are charged without limitation of charging points. This is followed up by a detailed simulation which can make use of a highly accurate solver for charging events called *SpiceEV* or a less accurate but faster solver. Now the resulting system has less missing charge and the potentials of stations might be decreased. Also a single group might have been split up into several smaller groups which can be analyzed even quicker. Therefore the loop repeats up until the point the missing charge in the system is zero or in other words the system is fully electrified.
 
@@ -118,7 +123,7 @@ At the current stage the scenario to be optimized needs depot charging stations 
 
 Deep Optimization
 ####################
-The greedy algorithm in the base optimization can not guarantee that the solution is the global optimum. This is why the use of the *deep* mode is recommended for systems with high requirements. After the first run, instead of electrifying the station with the highest potential the second best station is electrified. This is similar to a decision tree, where every node is a set of electrified stations, with the first node being zero stations electrified and the last node being all stations electrified. The nodes in between correlate with every possible state of electrification. Each branch therefore represents an additional electrification of a single station. . The algorithm continues electrifying the best station, as long as this node has not been evaluated yet. This way gradually all possible nodes are checked. The search stops whenever the number of stations surpasses the number of the current optimal solution. If several options with the same optimal number of stations arise, they can be found in the log file of the optimizer, but only one file with optimized stations is produced.
+The greedy algorithm in the base optimization can not guarantee that the solution is the global optimum. This is why the use of the *deep* mode is recommended for systems with high requirements. After the first run, instead of electrifying the station with the highest potential the second best station is electrified. This is similar to a decision tree, where every node is a set of electrified stations, with the first node being zero stations electrified and the last node being all stations electrified. The nodes in between correlate with every possible state of electrification. Each branch therefore represents an additional electrification of a single station. The algorithm continues electrifying the best station, as long as this node has not been evaluated yet. This way gradually all possible nodes are checked. The search stops whenever the number of stations surpasses the number of the current optimal solution. If several options with the same optimal number of stations arise, they can be found in the log file of the optimizer, but only one file with optimized stations is produced.
 
 **Pruning** is used to stop evaluation of branches, whenever foresight predicts that no better solution will be reached. This is done through the simple heuristic of checking the sum of potential of the n remaining stations with the highest potentials, with n being the number until the number of stations of the current optimal solution is reached.
 
@@ -158,14 +163,14 @@ This concept can reduce the amount of nodes which have to be checked.
 
 Other Optimization Functionality
 ###################################
-**Mandatory stations** can be attained to increase the optimization process. Mandatory stations are defined by being stations which are needed for a fully electrified system. To check if a station *Y* is a mandatory station can be easily attained by simulating the network with every station electrified except *Y*. If the system has vehicle socs which drop below the minimal soc (default value is 0) in this scenario, the station is mandatory. In the later exploration of best combinations of stations this station will be included in any case.
+**Mandatory stations** can be attained to increase the optimization process. Mandatory stations are defined by being stations which are needed for a fully electrified system. To check if a station *Y* is a mandatory station can be easily attained by simulating the network with every station electrified except *Y*. If the system has vehicle SoCs which drop below the minimal SoC (default value is 0) in this scenario, the station is mandatory. In the later exploration of best combinations of stations this station will be included in any case.
 
 **Impossible rotations** are rotations which given the settings are not possible to be run as opportunity chargers, given the vehicle properties, even when every station is electrified. Before starting an optimization it is recommended to remove these rotations from the optimization, since the optimizer will not reach the goal of full electrification.
 
 **Quick solver**
-Instead of using the regular SpiceEV solver for optimization the user can also choose the *quick* solver. This approximates the soc history of a vehicle by straight manipulation of the soc data and numeric approximations of the charged energy. Therefore small differences between solving a scenario with SpiceEV and the quick solver exist. For the quick solver to work, some assumptions have to be met as well
+Instead of using the regular SpiceEV solver for optimization the user can also choose the *quick* solver. This approximates the SoC history of a vehicle by straight manipulation of the SoC data and numeric approximations of the charged energy. Therefore small differences between solving a scenario with SpiceEV and the quick solver exist. For the quick solver to work, some assumptions have to be met as well
 
-* Depots charge the vehicles to 100% soc
+* Depots charge the vehicles to 100% SoC
 * Station electrification leads to unlimited charging points
 * Base scenario has no electrified opportunity stations
 * No grid connection power restrictions
@@ -235,7 +240,7 @@ The functionality of the optimizer is controlled through the optimizer.cfg speci
      - Optimizer overwrites vehicle battery capacities with this value. If the line is commented out or the value is 0, no overwriting takes place
    * - charging_curve
      - []
-     - [[soc1, power1], [soc2, power2] ….] with soc between 0-1 and power as positive float value
+     - [[soc1, power1], [soc2, power2] ….] with SoC between 0-1 and power as positive float value
      - Optimizer overwrites vehicle charging curve with this value. If the line is commented out or the value is [], no overwriting takes place
    * - charging_power
      - 0
@@ -244,7 +249,7 @@ The functionality of the optimizer is controlled through the optimizer.cfg speci
    * - min_soc
      - 0
      - 0 to 1
-     - Optimizer uses this value as lower SOC threshold, meaning vehicles with socs below this value need further electrification
+     - Optimizer uses this value as lower SoC threshold, meaning vehicles with SoCs below this value need further electrification
    * - solver
      - spiceev
      - [quick, spiceev]
@@ -264,7 +269,7 @@ The functionality of the optimizer is controlled through the optimizer.cfg speci
    * - run_only_neg
      - False
      - [True, False]
-     - Should all rotations be rebased or can rotations which stay above the soc threshold be skipped?
+     - Should all rotations be rebased or can rotations which stay above the SoC threshold be skipped?
    * - run_only_oppb
      - False
      - [True, False]
@@ -292,7 +297,7 @@ The functionality of the optimizer is controlled through the optimizer.cfg speci
    * - remove_impossible_rotations
      - False
      - [True, False]
-     - Discard rotations which have socs below the threshold, even when every station is electrified
+     - Discard rotations which have SoCs below the threshold, even when every station is electrified
    * - check_for_must_stations
      - True
      - [True, False]
@@ -315,11 +320,11 @@ The functionality of the optimizer is controlled through the optimizer.cfg speci
      - If reduce_rotations is True, only the list of these rotations is optimized.
 
 Report
--------------
-The report will generate several files which include information about the expected socs, power loads at the charging stations or depots, default plots for the scenario and other useful data.
+------
+The report will generate several files which include information about the expected SoCs, power loads at the charging stations or depots, default plots for the scenario and other useful data.
 
 Default outputs
-###################################
+###############
 
 | **Grid Connector Overview (gc_overview.csv)**
 | Contains information about charging stations, including their names, types, maximum power, maximum number of charging stations, total energy usage, and use factors for the least, second least, and third least utilized charging stations.
@@ -328,26 +333,27 @@ Default outputs
 | Time series of power flow in kW for every grid connector
 
 | **Rotation SoC Data (rotation_socs.csv)**
-| Time series of soc for each rotation.
+| Time series of SoC for each rotation.
 
 | **Vehicle SoC Data (vehicle_socs.csv)**
-| Time series of soc for each vehicle.
+| Time series of SoC for each vehicle.
 
 | **Rotation Summary (rotation_summary.csv)**
-| Contains data related to the rotation of vehicles, including the start and end times of each rotation, the type and ID of the vehicle, the depot name, the lines the vehicle traveled, total energy consumption in kWh, distance traveled in m, and various charging-related metrics such as charging type and soc at arrival, minimum soc and if the rotation had negative soc values.
+| Contains data related to the rotation of vehicles, including the start and end times of each rotation, the type and ID of the vehicle, the depot name, the lines the vehicle traveled, total energy consumption in kWh, distance traveled in m, and various charging-related metrics such as charging type and SoC at arrival, minimum SoC and if the rotation had negative SoC values.
 
 | **Overview Plots (run_overview.pdf and run_overview.png)**
-| Contains plots for socs for every vehicle, power at each charging station, batteries, external loads and feed-ins as well as price time series for each station.
+| Contains plots for SoCs for every vehicle, power at each charging station, batteries, external loads and feed-ins as well as price time series for each station.
 
 | **Station Data Summary (simulation_station_xy.json)**
-| Contains information about the simulation interval, grid connector, photovoltaics, charging strategy, average flexible power range per time window, total drawn energy from the grid, average duration of standing events, maximum drawn power, total energy fed into the grid, maximum stored energy in each battery, number of load cycles for stationary batteries and vehicles, and number of times vehicle soc was below the desired soc on departure.
+| Contains information about the simulation interval, grid connector, photovoltaics, charging strategy, average flexible power range per time window, total drawn energy from the grid, average duration of standing events, maximum drawn power, total energy fed into the grid, maximum stored energy in each battery, number of load cycles for stationary batteries and vehicles, and number of times vehicle SoC was below the desired SoC on departure.
 
 | **Station Data Time Series (simulation_timeseries_station_xy.csv)**
 | Contains station specific time series including price of electricity, grid supply, fixed loads, battery power, energy stored in battery, flex band boundaries, battery feed, charging station power use, occupied charging stations and charging stations in use as well as vehicles which are at the station.
 
 .. _cost_calculation:
+
 Cost calculation
-###################################
+################
 | **Cost calculation (summary_vehicles_costs.csv)**
 | This is an optional output which calculates investment and maintenance costs of the infrastructure as well as energy costs in the scenario. The costs are calculated based on the price sheet, given as input in the ``costs_params.json``.
 | The following costs are calculated as both total and annual, depending on the lifetime of each component. See `SpiceEV <https://spice-ev.readthedocs.io/en/latest/charging_strategies_incentives.html#incentive-scheme>`_ for the calculation of electricity costs.
