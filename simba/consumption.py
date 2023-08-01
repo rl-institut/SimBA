@@ -1,6 +1,6 @@
 import csv
 import pandas as pd
-from ebus_toolbox import util
+from simba import util
 
 
 class Consumption:

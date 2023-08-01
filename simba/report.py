@@ -42,7 +42,7 @@ def generate_gc_overview(schedule, scenario, args):
     charging stations, sum of charged energy and use factors of least used stations is saved.
 
     :param schedule: Driving schedule for the simulation.
-    :type schedule: eBus-Toolbox.Schedule
+    :type schedule: simba.Schedule
     :param scenario: Scenario for with to generate timeseries.
     :type scenario: spice_ev.Scenario
     :param args: Configuration arguments specified in config files contained in configs directory.
@@ -99,7 +99,7 @@ def generate(schedule, scenario, args):
     """Generates all output files/ plots and saves them in the output directory.
 
     :param schedule: Driving schedule for the simulation.
-    :type schedule: eBus-Toolbox.Schedule
+    :type schedule: simba.Schedule
     :param scenario: Scenario for with to generate timeseries.
     :type scenario: spice_ev.Scenario
     :param args: Configuration arguments specified in config files contained in configs directory.

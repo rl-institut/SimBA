@@ -3,7 +3,7 @@ from pathlib import Path
 import pytest
 import warnings
 
-from ebus_toolbox.simulate import simulate
+from simba.simulate import simulate
 
 
 root_path = Path(__file__).parent.parent

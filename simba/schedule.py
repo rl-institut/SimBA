@@ -4,8 +4,8 @@ import datetime
 import warnings
 from pathlib import Path
 
-from ebus_toolbox import util
-from ebus_toolbox.rotation import Rotation
+from simba import util
+from simba.rotation import Rotation
 from spice_ev.scenario import Scenario
 
 

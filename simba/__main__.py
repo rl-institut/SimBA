@@ -2,13 +2,13 @@ from datetime import datetime
 from pathlib import Path
 import shutil
 
-from ebus_toolbox import simulate, util
+from simba import simulate, util
 
 if __name__ == '__main__':
     args = util.get_args()
 
     args.output_directory = Path(args.output_directory) / (
-        datetime.now().strftime("%Y-%m-%d-%H-%M-%S") + "_eBus_results")
+        datetime.now().strftime("%Y-%m-%d-%H-%M-%S") + "_SimBA_results")
 
     # create subfolder for specific sim results with timestamp.
     # if folder doesnt exists, create folder.
