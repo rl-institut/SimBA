@@ -58,10 +58,10 @@ class Rotation:
         # set charging type if given
         charging_type = trip.get('charging_type')
         if charging_type in ['depb', 'oppb']:
-            assert self.charging_type is None or self.charging_type == charging_type,\
+            assert self.charging_type is None or self.charging_type == charging_type, \
                 f"Two trips of rotation {self.id} have distinct charging types"
             assert self.schedule.vehicle_types.get(
-                self.vehicle_type, {}).get(charging_type) is not None,\
+                self.vehicle_type, {}).get(charging_type) is not None, \
                 (f"The required vehicle type {self.vehicle_type}({charging_type}) "
                  "is not given in the vehicle_types.json file.")
             self.set_charging_type(charging_type)
@@ -93,7 +93,7 @@ class Rotation:
 
         if ct == self.charging_type:
             return
-        assert self.schedule.vehicle_types.get(self.vehicle_type, {}).get(ct),\
+        assert self.schedule.vehicle_types.get(self.vehicle_type, {}).get(ct), \
             f"Combination of vehicle type {self.vehicle_type} and {ct} not defined."
 
         old_consumption = self.consumption
