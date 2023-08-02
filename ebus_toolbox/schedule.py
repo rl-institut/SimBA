@@ -1,8 +1,9 @@
 import csv
-import random
 import datetime
-import warnings
+import logging
 from pathlib import Path
+import random
+import warnings
 
 from ebus_toolbox import util
 from ebus_toolbox.rotation import Rotation
@@ -122,7 +123,7 @@ class Schedule:
                 with open(kwargs["output_directory"] / "inconsistent_rotations.csv", "w") as f:
                     for rot_id, e in inconsistent_rotations.items():
                         f.write(f"Rotation {rot_id}: {e}\n")
-                        print(f"Rotation {rot_id}: {e}")
+                        logging.error(f"Rotation {rot_id}: {e}")
                         if kwargs.get("skip_inconsistent_rotations"):
                             # remove this rotation from schedule
                             del schedule.rotations[rot_id]
@@ -187,12 +188,12 @@ class Schedule:
 
         scenario = self.generate_scenario(args)
 
-        print("Running Spice EV...")
+        logging.info("Running SpiceEV...")
         with warnings.catch_warnings():
             warnings.simplefilter('ignore', UserWarning)
             scenario.run('distributed', vars(args).copy())
         assert scenario.step_i == scenario.n_intervals, \
-            'spiceEV simulation aborted, see above for details'
+            'SpiceEV simulation aborted, see above for details'
         return scenario
 
     def set_charging_type(self, ct, rotation_ids=None):
@@ -352,7 +353,7 @@ class Schedule:
 
     def get_negative_rotations(self, scenario):
         """
-        Get rotations with negative soc from spice_ev outputs
+        Get rotations with negative soc from SpiceEV outputs
 
         :param scenario: Simulation scenario containing simulation results
                          including the SoC of all vehicles over time
@@ -424,13 +425,13 @@ class Schedule:
             self.rotations = {k: v for k, v in self.rotations.items() if k in rf_list}
 
     def generate_scenario(self, args):
-        """ Generate scenario.json for spiceEV
+        """ Generate scenario.json for SpiceEV
 
         :param args: Command line arguments and/or arguments from config file.
         :type args: argparse.Namespace
-        :return: A spiceEV Scenario instance that can be run and also collects all
+        :return: A SpiceEV Scenario instance that can be run and also collects all
                  simulation outputs.
-        :rtype:  spice_ev.Scenario
+        :rtype:  SpiceEV.Scenario
         """
 
         interval = datetime.timedelta(minutes=args.interval)
@@ -686,9 +687,9 @@ class Schedule:
                 events['energy_price_from_csv'] = options
                 price_csv_path = args.output_directory / filename
                 if not price_csv_path.exists():
-                    print("Warning: price csv file '{}' does not exist yet".format(price_csv_path))
+                    logging.warning(f"Price csv file '{price_csv_path}' does not exist yet")
 
-        # reformat vehicle types for spiceEV
+        # reformat vehicle types for SpiceEV
         vehicle_types_spiceev = {
             f'{vehicle_type}_{charging_type}': body
             for vehicle_type, subtypes in self.vehicle_types.items()

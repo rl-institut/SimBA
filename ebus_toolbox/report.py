@@ -2,8 +2,9 @@
 """
 import csv
 import datetime
-import warnings
+import logging
 import matplotlib.pyplot as plt
+import warnings
 from spice_ev.report import aggregate_global_results, plot, generate_reports
 
 
@@ -95,6 +96,29 @@ def generate_gc_overview(schedule, scenario, args):
                                  *use_factors])
 
 
+def generate_plots(scenario, args):
+    """Save plots as png and pdf.
+
+    :param scenario: Scenario to plot.
+    :type scenario: spice_ev.Scenario
+    :param args: Configuration. Uses results_directory and show_plots.
+    :type args: argparse.Namespace
+    """
+    aggregate_global_results(scenario)
+    # disable DEBUG logging from matplotlib
+    logging.disable(logging.INFO)
+    with plt.ion():  # make plotting temporarily interactive, so plt.show does not block
+        plt.clf()
+        plot(scenario)
+        plt.gcf().set_size_inches(10, 10)
+        plt.savefig(args.results_directory / "run_overview.png")
+        plt.savefig(args.results_directory / "run_overview.pdf")
+    if args.show_plots:
+        plt.show()
+    # revert logging override
+    logging.disable(logging.NOTSET)
+
+
 def generate(schedule, scenario, args):
     """Generates all output files/ plots and saves them in the output directory.
 
@@ -125,15 +149,7 @@ def generate(schedule, scenario, args):
     generate_gc_overview(schedule, scenario, args)
 
     # save plots as png and pdf
-    aggregate_global_results(scenario)
-    with plt.ion():     # make plotting temporarily interactive, so plt.show does not block
-        plt.clf()
-        plot(scenario)
-        plt.gcf().set_size_inches(10, 10)
-        plt.savefig(args.results_directory / "run_overview.png")
-        plt.savefig(args.results_directory / "run_overview.pdf")
-    if args.show_plots:
-        plt.show()
+    generate_plots(scenario, args)
 
     # calculate SOCs for each rotation
     rotation_infos = []
@@ -194,10 +210,10 @@ def generate(schedule, scenario, args):
         rotation_socs[id][start_idx:end_idx] = rotation_soc_ts
 
     if incomplete_rotations:
-        warnings.warn("SpiceEV stopped before simulation of the these rotations were completed:\n"
-                      f"{', '.join(incomplete_rotations)}\n"
-                      "Omit parameter <days> to simulate entire schedule.",
-                      stacklevel=100)
+        logging.warning(
+            "SpiceEV stopped before simulation of the these rotations were completed:\n"
+            f"{', '.join(incomplete_rotations)}\n"
+            "Omit parameter <days> to simulate entire schedule.")
 
     if rotation_infos:
         with open(args.results_directory / "rotation_socs.csv", "w", newline='') as f:
@@ -226,4 +242,4 @@ def generate(schedule, scenario, args):
                 else:
                     csv_writer.writerow([key, round(value, 2), "€"])
 
-    print("Plots and output files saved in", args.results_directory)
+    logging.info(f"Plots and output files saved in {args.results_directory}")
