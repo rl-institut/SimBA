@@ -55,6 +55,7 @@ class Trip:
 
         :return: Consumption of trip [kWh]
         :rtype: float
+        :raises with_traceback: if consumption cannot be constructed
         """
 
         try:
@@ -67,8 +68,9 @@ class Trip:
                                                        height_diff=self.height_diff,
                                                        level_of_loading=self.level_of_loading,
                                                        mean_speed=self.mean_speed)
-        except AttributeError:
-            print("""To calculate consumption, a consumption object needs to be constructed
-                   and linked to Trip class.""")
+        except AttributeError as e:
+            raise Exception(
+                'To calculate consumption, a consumption object needs to be constructed \
+                and linked to Trip class.').with_traceback(e.__traceback__)
 
         return self.consumption
