@@ -1,6 +1,6 @@
 import datetime
 
-from ebus_toolbox.trip import Trip
+from simba.trip import Trip
 
 
 class Rotation:

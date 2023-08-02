@@ -1,6 +1,6 @@
 """ Reusable functions that support tests
 """
-from ebus_toolbox import schedule, trip, consumption, util
+from simba import schedule, trip, consumption, util
 
 
 def generate_basic_schedule():
