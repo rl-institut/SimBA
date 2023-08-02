@@ -1,4 +1,5 @@
 """ Optimizer class which implements the optimizer object and methods needed"""
+
 import logging
 import pickle
 from copy import deepcopy, copy
@@ -13,7 +14,7 @@ from ebus_toolbox.util import uncomment_json_file
 
 
 class StationOptimizer:
-    """ Class for station optimization"""
+    """Class for station optimization"""
 
     def __init__(self, sched: schedule.Schedule, scen: scenario.Scenario, args,
                  config: 'opt_util.OptimizerConfig', logger: logging.Logger):
