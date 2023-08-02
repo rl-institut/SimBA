@@ -4,10 +4,15 @@
 SimBA modules
 =============
 
-
-
 Consumption analysis
 --------------------
+
+The consumption can be calculated in two ways: Either with a constant average specific consumption or using a consumption table, where the consumption depends on the temperature, the incline, the level of loading and the speed profile/ average speed.
+
+To use a constant consumption, this value can be defined in the :ref:`vehicle_types` as "mileage" in the unit of [kWh/km]. To use the relative consumtion, a consumption table need to be created with data for each vehicle type and the path to the consumption table is assigned to the variable "mileage" in :ref:`vehicle_types`. The consumption table should have the columns "vehicle_type", "level_of_loading", "incline" ,"mean_speed_kmh", "t_amb", "consumption_kwh_per_km" and its creation is at ths point of development not part of SimBA.
+
+The level_of_loading describes the share between an empty vehicle (0) and a fully loaded vehicle (1) can be handed over in two ways: Either directcly as a column in :ref:`schedule` with specific values for each individual trip or as an input file "default_level_of_loading.csv" (path defined in :ref:`config`) containing values for each hour of the day. SimBA will first look into schedule and take this value and if it is not defined take the one from the .csv file. The temperature information is obtained in the same way as the level of loading and should be given in °C. In Order to calculate the consumption based on the in incline, an extra "all_stations.csv" file (path defined in :ref:`config`) has to be provided containing information on the elevation in m of each station. The incline is then calculated as the average incline between start and stop of the trip, which is an assumption that creates good results for vehicles with recuperation technology, as most electric vehicles have. The mean speed is calculated using the information provided in :ref:`schedule` about duration and length of each trip.
+
 
 .. _vehicle_dispatch:
 
@@ -17,11 +22,137 @@ Vehicle Dispatch
 Charging simulation
 -------------------
 
+The charging simulation is carried out in the open source software `SpiceEV <https://github.com/rl-institut/spice_ev>`_, that is included in SimBA as a package. SimBA therefore uses SpiceEVs carging strategy "distributed", that allows to sepatarte the charging strategy depending on the station type. The station types can be either depot charging station (deps) or opportunity charging station (opps). At depot charging stations vehicles are being charged using SpiceEVs strategy "balanced", which uses the whole standing time to charge with the minimal power to reach a desired SoC. At opportunity charging stations the strategy "greedy" is employed, that charges with the maximum available power due to restrictions from the grid connectoion, the charging curve of the vehicle and the charging station.
+
+.. _generate_report:
+
 Generate report
 ---------------
 
+The generation of the report is implemented as a mode, that can be activated with the keyword "report" in modes (:ref:`report`). The report generates most of the output files. These are saved in a subfolder of the output directory as defined in :ref:`config` named as a string with the modes executed up to the point when report is called. e.g. mode = ['sim', 'report', 'neg_oppb_to_depb', 'report'] will create two subfolders in the output directory named "sim" and "sim__neg_oppb_to_depb" containing the output files for the respective times in simulation.
+
+The generation of the report can be modified using the flag "cost_calculation" in :ref:`config`. If this flag is set to true, each report will also generate the file "summary_vehicles_costs.csv".
+
+Default outputs
+###############
+
+| **Grid Connector Overview (gc_overview.csv)**
+| Contains information about charging stations, including their names, types, maximum power, maximum number of charging stations, total energy usage, and use factors for the least, second least, and third least utilized charging stations.
+
+| **Grid Connector Time Series (gc_power_overview_timeseries.csv)**
+| Time series of power flow in kW for every grid connector
+
+| **Rotation SoC Data (rotation_socs.csv)**
+| Time series of SoC for each rotation.
+
+| **Vehicle SoC Data (vehicle_socs.csv)**
+| Time series of SoC for each vehicle.
+
+| **Rotation Summary (rotation_summary.csv)**
+| Contains data related to the rotation of vehicles, including the start and end times of each rotation, the type and ID of the vehicle, the depot name, the lines the vehicle traveled, total energy consumption in kWh, distance traveled in m, and various charging-related metrics such as charging type and SoC at arrival, minimum SoC and if the rotation had negative SoC values.
+
+| **Overview Plots (run_overview.pdf and run_overview.png)**
+| Contains plots for SoCs for every vehicle, power at each charging station, batteries, external loads and feed-ins as well as price time series for each station.
+
+| **Station Data Summary (simulation_station_xy.json)**
+| Contains information about the simulation interval, grid connector, photovoltaics, charging strategy, average flexible power range per time window, total drawn energy from the grid, average duration of standing events, maximum drawn power, total energy fed into the grid, maximum stored energy in each battery, number of load cycles for stationary batteries and vehicles, and number of times vehicle SoC was below the desired SoC on departure.
+
+| **Station Data Time Series (simulation_timeseries_station_xy.csv)**
+| Contains station specific time series including price of electricity, grid supply, fixed loads, battery power, energy stored in battery, flex band boundaries, battery feed, charging station power use, occupied charging stations and charging stations in use as well as vehicles which are at the station.
+
+| **Overview on costs and vehicles (summary_vehicles_costs.csv)**
+| If colst_caluclation is activated, this file contains the cost report as described below in :ref:`cost_calculation`.
+
+.. _cost_calculation:
+
+Cost calculation
+################
+| **Cost calculation (summary_vehicles_costs.csv)**
+| This is an optional output which calculates investment and maintenance costs of the infrastructure as well as energy costs in the scenario. The costs are calculated based on the price sheet, given as input in the ``costs_params.json``.
+| The following costs are calculated as both total and annual, depending on the lifetime of each component. See `SpiceEV documentation <https://spice-ev.readthedocs.io/en/latest/charging_strategies_incentives.html#incentive-scheme>`_ for the calculation of electricity costs.
+
+* Investment
+    * **Busses**: Costs for all busses used in the simulation. Costs include battery swaps, depending on the lifetime of both busses and batteries.
+    * **Charging infrastructure**: Costs for all depot and opportunity charging stations, depending on the number of actually used charging stations at each grid connector.
+    * **Grid connectors**: Costs for grid connectors and transformers, depending on the voltage level and the distance to the grid.
+    * **Garages**: Costs for workstations and charging infrastructure at garages.
+    * **Stationary storages**: Costs for stationary batteries at depot and opportunity stations, depending on its capacity.
+* Maintenance
+    * Depending on the lifetime of each component maintenance costs are calculated for busses, charging infrastructure, grid connectors and stationary storages.
+* Electricity
+    * **Power procurement**: Costs for the procurement of energy.
+    * **Grid fees**: Costs for power and energy price, depending on the voltage level and the utilization time per year.
+    * **Taxes**: Taxes like electricity taxes, depending on given taxes by price sheet.
+    * **Feed-in remuneration**: Remuneration for electricity fed into the grid.
+
+As result the following table is saved as CSV:
+
++---------------------------------+----------+-----------------------------------------------------------------------+
+|**parameter**                    | **unit** | **description**                                                       |
++=================================+==========+=======================================================================+
+|c_vehicles                       | EUR      | Investment costs of all busses                                        |
++---------------------------------+----------+-----------------------------------------------------------------------+
+|c_gcs                            | EUR      | Investment costs of all grid connectors                               |
++---------------------------------+----------+-----------------------------------------------------------------------+
+|c_cs                             | EUR      | Investment costs of all charging stations                             |
++---------------------------------+----------+-----------------------------------------------------------------------+
+|c_garage_cs                      | EUR      | Investment costs of charging stations at garages                      |
++---------------------------------+----------+-----------------------------------------------------------------------+
+|c_garage                         | EUR      | Investment costs of garages itself                                    |
++---------------------------------+----------+-----------------------------------------------------------------------+
+|c_garage_workstations            | EUR      | Investment costs of working stations at garages                       |
++---------------------------------+----------+-----------------------------------------------------------------------+
+|c_stat_storage                   | EUR      | Investment costs of stationary storages                               |
++---------------------------------+----------+-----------------------------------------------------------------------+
+|c_invest                         | EUR      | Sum of all investment costs                                           |
++---------------------------------+----------+-----------------------------------------------------------------------+
++---------------------------------+----------+-----------------------------------------------------------------------+
+|c_vehicles_annual                | EUR/year | Annual investment costs of all busses                                 |
++---------------------------------+----------+-----------------------------------------------------------------------+
+|c_gcs_annual                     | EUR/year | Annual investment costs of all grid connectors                        |
++---------------------------------+----------+-----------------------------------------------------------------------+
+|c_cs_annual                      | EUR/year | Annual investment costs of all charging stations                      |
++---------------------------------+----------+-----------------------------------------------------------------------+
+|c_garage_annual                  | EUR/year | Sum of annual investment costs of garages                             |
++---------------------------------+----------+-----------------------------------------------------------------------+
+|c_stat_storage_annual            | EUR/year | Annual investment costs of all stationary storages                    |
++---------------------------------+----------+-----------------------------------------------------------------------+
+|c_invest_annual                  | EUR/year | Sum of all annual investment costs                                    |
++---------------------------------+----------+-----------------------------------------------------------------------+
++---------------------------------+----------+-----------------------------------------------------------------------+
+|c_maint_gc_annual                | EUR/year | Annual maintenance costs of grid connectors                           |
++---------------------------------+----------+-----------------------------------------------------------------------+
+|c_maint_infrastructure_annual    | EUR/year | Annual maintenance costs of charging stations and stationary storages |
++---------------------------------+----------+-----------------------------------------------------------------------+
+|c_maint_vehicles_annual          | EUR/year | Annual maintenance costs of busses                                    |
++---------------------------------+----------+-----------------------------------------------------------------------+
+|c_maint_stat_storage_annual      | EUR/year | Annual maintenance costs of stationary storages                       |
++---------------------------------+----------+-----------------------------------------------------------------------+
+|c_maint_annual                   | EUR/year | Sum of annual maintenance costs                                       |
++---------------------------------+----------+-----------------------------------------------------------------------+
++---------------------------------+----------+-----------------------------------------------------------------------+
+|c_el_procurement_annual          | EUR/year | Annual costs of power procurement                                     |
++---------------------------------+----------+-----------------------------------------------------------------------+
+|c_el_power_price_annual          | EUR/year | Annual grid fee for highest load peak                                 |
++---------------------------------+----------+-----------------------------------------------------------------------+
+|c_el_energy_price_annual         | EUR/year | Annual grid fee for drawn energy                                      |
++---------------------------------+----------+-----------------------------------------------------------------------+
+|c_el_taxes_annual                | EUR/year | Annual costs for all electricity related taxes                        |
++---------------------------------+----------+-----------------------------------------------------------------------+
+|c_el_feed_in_remuneration_annual | EUR/year | Annual feed-in remuneration                                           |
++---------------------------------+----------+-----------------------------------------------------------------------+
+|c_el_annual                      | EUR/year | Sum of all annual electricity costs                                   |
++---------------------------------+----------+-----------------------------------------------------------------------+
+
 Optimization
 ------------
+
+There are several options for optimizations that are implemented as :ref:`sim_modes`. These options are currently:
+
+* :ref:`neg_depb_to_oppb`
+* :ref:`neg_oppb_to_depb`
+* :ref:`Service Optimization`
+* :ref:`Station Optimization`
 
 .. _consistency_check:
 
