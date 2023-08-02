@@ -1,8 +1,8 @@
-# eBus Toolbox
+# SimBA: Simulation tool for Bus Applications
 
 ## Idea
 
-This toolbox helps to do eBus feasibility studies and answer research questions
+This toolbox helps to do bus feasibility studies and answer research questions
 
 ## Tools
 

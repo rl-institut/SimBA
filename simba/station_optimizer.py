@@ -6,10 +6,10 @@ from datetime import datetime, timedelta
 from pathlib import Path
 import numpy as np
 
-import ebus_toolbox.optimizer_util as opt_util
+import simba.optimizer_util as opt_util
 from spice_ev import scenario
-from ebus_toolbox import rotation, schedule
-from ebus_toolbox.util import uncomment_json_file
+from simba import rotation, schedule
+from simba.util import uncomment_json_file
 
 
 class StationOptimizer:
@@ -240,7 +240,7 @@ class StationOptimizer:
         """Optimize a single group events and returns the electrified stations and a flag.
 
         :param group: tuple of events and station_ids to be optimized together
-        :type group: (list(ebus_toolbox.optimizer_util.LowSocEvent), list(str))
+        :type group: (list(simba.optimizer_util.LowSocEvent), list(str))
         :param choose_station_function: function to be used for choosing the next function
         :type choose_station_function: function
         :param track_not_possible_rots: not possible tracks need to be tracked in the first run
@@ -942,13 +942,13 @@ class StationOptimizer:
         the start and end idx
 
         :param rot: The rotation object containing the trips.
-        :type rot: ebus_toolbox.rotation.Rotation
+        :type rot: simba.rotation.Rotation
         :param start_idx: start index, representing the start time.
         :type start_idx: int
         :param end_idx: end index, representing the end time.
         :type end_idx: int
         :return: trips that arrive between the start and end time.
-        :rtype: list(ebus_toolbox.trip.Trip)
+        :rtype: list(simba.trip.Trip)
         """
 
         start_time_event = self.get_time_by_index(start_idx)
@@ -998,7 +998,7 @@ class StationOptimizer:
         :param kwargs: optional soc_lower_thresh or soc_upper_thresh if from optimizer differing
             values should be used
         :return: low soc events
-        :rtype: list(ebus_toolbox.optimizer_util.LowSocEvent)
+        :rtype: list(simba.optimizer_util.LowSocEvent)
         """
         if not rotations:
             rotations = self.schedule.rotations

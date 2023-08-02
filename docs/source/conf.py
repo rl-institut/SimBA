@@ -17,7 +17,7 @@ sys.path.insert(0, os.path.abspath('..'))
 
 # -- Project information -----------------------------------------------------
 
-project = 'eBus-Toolbox'
+project = 'SimBA'
 copyright = '2020, Reiner Lemoine Institut'
 author = 'Reiner Lemoine Institut'
 

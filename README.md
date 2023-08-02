@@ -1,6 +1,6 @@
-# eBus Toolbox
+# SimBA: Simulation toolbox for Bus Applications
 
-The eBus Toolbox assists the user in analysing and optimising electrified bus fleets and schedules.
+The SimBA toolbox assists the user in analysing and optimising electrified bus fleets and schedules.
 
 ### Usage
 
@@ -10,17 +10,17 @@ To try it out, first clone this repository and then install the required package
 
 `pip install -r requirements.txt` 
 
-Now you can start the eBus Toolbox module with all configurations stored at `data/examples/ebus_toolbox.cfg` via the command
+Now you can start the SimBA module with all configurations stored at `data/examples/simba.cfg` via the command
 
-``python -m ebus_toolbox --config data/examples/ebus_toolbox.cfg``
+``python -m simba --config data/examples/simba.cfg``
 
 The repo provides an example for each necessary input file, so the example case can be executed without the need for the user to provide any data themselves.
 
-To run the eBus Toolbox with your own `schedule.csv` (see details [below](#input-data)) file and default configurations run
+To run SimBA with your own `schedule.csv` (see details [below](#input-data)) file and default configurations run
 
-`python -m ebus_toolbox --input_schedule path/to/schedule.csv`
+`python -m simba --input_schedule path/to/schedule.csv`
 
-Default configurations are detailed at `data/configs/ebus_toolbox.cfg`.
+Default configurations are detailed at `data/configs/simba.cfg`.
 
 
 

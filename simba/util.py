@@ -1,6 +1,6 @@
 import argparse
 import json
-import warnings
+import logging
 import subprocess
 
 from spice_ev.util import set_options_from_config
@@ -12,7 +12,7 @@ def get_git_revision_hash() -> str:
 
 def save_version(file_path):
     with open(file_path, "w", encoding='utf-8') as f:
-        f.write("Git Hash eBus-Toolbox:" + get_git_revision_hash())
+        f.write("Git Hash SimBA:" + get_git_revision_hash())
 
 
 def get_buffer_time(trip, default=0):
@@ -21,7 +21,7 @@ def get_buffer_time(trip, default=0):
         is added to the planned arrival time
 
     :param trip: The of buffer time of this trips arrival is returned.
-    :type trip: ebus_toolbox.Trip
+    :type trip: simba.Trip
     :param default: Default buffer time if no station specific buffer time is given. [minutes]
     :type default: dict, numeric
     :return: Buffer time
@@ -125,19 +125,19 @@ def get_csv_delim(path, other_delims=set()):
                 # delete the counter if it is different to the first row
                 if counters[delim] != amount:
                     del counters[delim]
-                # if only one delimiter is remaining
-                if len(counters) == 1:
-                    # take the last item and return the key
-                    return counters.popitem()[0]
-                # if not even a single delimiter is remaining
-                elif not counters:
-                    warnings.warn("Warning: Delimiter could not be found.\n"
-                                  "Returning standard Delimiter ','", stacklevel=100)
-                    return ","
+            # if only one delimiter is remaining
+            if len(counters) == 1:
+                # take the last item and return the key
+                return counters.popitem()[0]
+            # if not even a single delimiter is remaining
+            elif not counters:
+                logging.warning("Warning: Delimiter could not be found.\n"
+                                "Returning standard Delimiter ','")
+                return ","
     #  multiple delimiters are possible. Every row was checked but more than 1 delimiter
     # has the same amount of occurrences (>0) in every row.
-    warnings.warn("Warning: Delimiter could not be found.\n"
-                  "Returning standard delimiter ','", stacklevel=100)
+    logging.warning("Warning: Delimiter could not be found.\n"
+                    "Returning standard delimiter ','")
     return ","
 
 
@@ -218,9 +218,30 @@ def nd_interp(input_values, lookup_table):
     return points[0][-1]
 
 
+def setup_logging(args, time_str):
+    # set up logging
+    # always to console
+    log_handlers = [logging.StreamHandler()]
+    if args.logfile is not None:
+        # optionally to file in output dir
+        if args.logfile:
+            log_name = args.logfile
+        else:
+            log_name = f"{time_str}.log"
+        log_path = args.output_directory / log_name
+        print(f"Writing log to {log_path}")
+        log_handlers.append(logging.FileHandler(log_path, encoding='utf-8'))
+    logging.basicConfig(
+        level=vars(logging)[args.loglevel],
+        format="%(asctime)s [%(levelname)s] %(message)s",
+        handlers=log_handlers
+    )
+    logging.captureWarnings(True)
+
+
 def get_args():
     parser = argparse.ArgumentParser(
-        description='eBus-Toolbox - simulation program for electric bus fleets.')
+        description='SimBA - Simulation toolbox for Bus Applications.')
 
     # #### Paths #####
     parser.add_argument('--input-schedule', nargs='?',
@@ -325,7 +346,12 @@ def get_args():
                         choices=[None, 'include', 'exclude'],
                         help='set mode for filtering schedule rotations')
 
-    # #### SPICE EV PARAMETERS ONLY DEFAULT VALUES NOT IN eBus-Toolbox CONFIG #####
+    # #### LOGGING PARAMETERS #### #
+    parser.add_argument('--loglevel', default='INFO',
+                        choices=logging._nameToLevel.keys(), help='Log level.')
+    parser.add_argument('--logfile', default='', help='Log file suffix. null: no log file.')
+
+    # #### SpiceEV PARAMETERS ONLY DEFAULT VALUES NOT IN SimBA CONFIG #####
     parser.add_argument('--seed', default=1, type=int, help='set random seed')
     parser.add_argument('--include-price-csv',
                         help='include CSV for energy price. \

@@ -1,9 +1,10 @@
 from argparse import Namespace
+import logging
 from pathlib import Path
 import pytest
 import warnings
 
-from ebus_toolbox.simulate import simulate
+from simba.simulate import simulate
 
 
 root_path = Path(__file__).parent.parent
@@ -62,19 +63,22 @@ class TestSimulate:
             # reset
             values[file_type] = self.DEFAULT_VALUES[file_type]
 
-    def test_unknown_mode(self):
+    def test_unknown_mode(self, caplog):
         # try to run a mode that does not exist
         args = Namespace(**(self.DEFAULT_VALUES))
         args.mode = "foo"
-        with pytest.warns(UserWarning, match="Unknown mode"):
+        with caplog.at_level(logging.ERROR):
             simulate(args)
+        assert caplog.record_tuples == [('root', logging.ERROR, 'Unknown mode foo ignored')]
 
-    def test_late_sim(self):
-        # sim mode has no function, just produces a warning later
+    def test_late_sim(self, caplog):
+        # sim mode has no function, just produces a log info later
         args = Namespace(**(self.DEFAULT_VALUES))
         args.mode = ["sim", "sim"]
-        with pytest.warns(UserWarning, match="Intermediate sim"):
+        with caplog.at_level(logging.INFO):
             simulate(args)
+        # also captures INFO about running SpiceEV, so only compare second element
+        assert caplog.record_tuples[1] == ('root', logging.INFO, 'Intermediate sim ignored')
 
     def test_mode_service_opt(self):
         # basic run
