@@ -230,7 +230,7 @@ def setup_logging(args, time_str):
             log_name = f"{time_str}.log"
         log_path = args.output_directory / log_name
         print(f"Writing log to {log_path}")
-        log_handlers.append(logging.FileHandler(log_path))
+        log_handlers.append(logging.FileHandler(log_path, encoding='utf-8'))
     logging.basicConfig(
         level=vars(logging)[args.loglevel],
         format="%(asctime)s [%(levelname)s] %(message)s",
