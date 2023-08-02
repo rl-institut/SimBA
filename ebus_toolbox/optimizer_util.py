@@ -1,7 +1,9 @@
-""" Module for the class LowSocEvent which gathers functionality around
-LowSocEvents, like evaluating them, gathering them and so on"""
+""" Module for the minor classes LowSocEvent, ChargingEvent, OptimizerConfig
+and utility functionality used by the StationOptimizer and station_optimization"""
+import logging
 import math
 import os
+from pathlib import Path
 import pickle
 import sys
 import typing
@@ -18,9 +20,9 @@ if typing.TYPE_CHECKING:
     from ebus_toolbox.station_optimizer import StationOptimizer
 
 from ebus_toolbox.consumption import Consumption
-from ebus_toolbox.costs import calculate_costs
 from ebus_toolbox.trip import Trip
-from ebus_toolbox.util import get_buffer_time as get_buffer_time_spice_ev, uncomment_json_file
+from ebus_toolbox.util import get_buffer_time as get_buffer_time_util
+from spice_ev.report import generate_soc_timeseries
 
 
 class ChargingEvent:
@@ -66,6 +68,7 @@ class OptimizerConfig:
 
     def __init__(self):
         self.debug_level = None
+        self.console_level = None
         self.exclusion_rots = None
         self.exclusion_stations = None
         self.inclusion_stations = None
@@ -83,25 +86,27 @@ class OptimizerConfig:
         self.pickle_rebased = None
         self.pickle_rebased_name = None
         self.opt_type = None
-        self.remove_impossible_rots = None
+        self.remove_impossible_rotations = None
         self.node_choice = None
         self.max_brute_loop = None
         self.run_only_neg = None
+        self.run_only_oppb = None
         self.estimation_threshold = None
-        self.output_path = None
         self.check_for_must_stations = None
         self.decision_tree_path = None
         self.save_decision_tree = None
-        self.reduce_rots = None
-        self.rots = None
+        self.optimizer_output_dir = None
+        self.reduce_rotations = None
+        self.rotations = None
         self.path = None
         self.pruning_threshold = None
         self.save_all_results = None
+        self.eps = None
 
 
 def time_it(function, timers={}):
-    """decorator function to time the duration function calls
-    take and count how often they happen
+    """Decorator function to time the duration and number of function calls.
+
     :param function: function do be decorated
     :type function: function
     :param timers: storage for cumulated time and call number
@@ -131,79 +136,90 @@ def time_it(function, timers={}):
 
 
 def read_config(config_path):
-    """ Read the config path to a config object
+    """ Read the config path to a config object.
+
     :param config_path: path to file
-    :return: config object
+    :type config_path: str
+    :return: configuration
+    :rtype: ebus_toolbox.optimizer_util.OptimizerConfig
     """
     config_parser = configparser.ConfigParser()
-    config_parser.sections()
-    config_parser.read(config_path, encoding="utf-8")
 
+    assert Path(config_path).is_file(), (f"Path to optimizer_config: {config_path} "
+                                         "does not lead to file")
+    try:
+        config_parser.read(config_path, encoding="utf-8")
+    except configparser.MissingSectionHeaderError:
+        # make sure there is always a DEFAULT section.
+        with open(config_path, 'r') as f:
+            config_string = '[DEFAULT]\n' + f.read()
+        config_parser.read_string(config_string)
     conf = OptimizerConfig()
     conf.path = config_path
+    assert len(config_parser.sections()) == 0, "Sections are not allowed for the optimizer config."
 
     default = config_parser["DEFAULT"]
-    conf.debug_level = int(default.get("debug_level", "0"))
-    sce = config_parser["SCENARIO"]
-    conf.exclusion_rots = set(json.loads(sce.get("exclusion_rots", "[]")))
-    conf.exclusion_stations = set(json.loads(sce.get("exclusion_stations", "[]")))
-    conf.inclusion_stations = set(json.loads(sce.get("inclusion_stations", "[]")))
-    conf.standard_opp_station = dict(json.loads(sce.get("standard_opp_station", "{}")))
+    conf.debug_level = default.getint("debug_level", 0)
+    conf.console_level = default.getint("console_level", 99)
 
-    pick = config_parser["PICKLE"]
-    conf.schedule = pick.get("schedule", "")
-    conf.scenario = pick.get("scenario", "")
-    conf.args = pick.get("args", "")
+    conf.exclusion_rots = set(json.loads(default.get("exclusion_rots", "[]")))
+    conf.exclusion_stations = set(json.loads(default.get("exclusion_stations", "[]")))
+    conf.inclusion_stations = set(json.loads(default.get("inclusion_stations", "[]")))
+    conf.standard_opp_station = dict(json.loads(default.get("standard_opp_station", "{}")))
 
-    vehicle = config_parser["VEHICLE"]
-    conf.charge_eff = float(vehicle.get("charge_eff", "0.95"))
-    conf.battery_capacity = float(vehicle.get("battery_capacity", "0"))
+    conf.schedule = default.get("schedule", "")
+    conf.scenario = default.get("scenario", "")
+    conf.args = default.get("args", "")
+
+    conf.battery_capacity = default.getfloat("battery_capacity", 0)
     if conf.battery_capacity == 0:
         conf.battery_capacity = None
-    conf.charging_curve = json.loads(vehicle.get("charging_curve", "[]"))
+    conf.charging_curve = json.loads(default.get("charging_curve", "[]"))
     if not conf.charging_curve:
         conf.charging_curve = None
-    conf.charging_power = float(vehicle.get("charging_power", "0"))
+    conf.charging_power = default.getfloat("charging_power", 0)
     if conf.charging_power == 0:
         conf.charging_power = None
-    conf.min_soc = float(vehicle.get("min_soc", "0.0"))
+    conf.min_soc = default.getfloat("min_soc", 0)
 
-    optimizer = config_parser["OPTIMIZER"]
-    conf.solver = optimizer.get("solver", "spiceev")
-    conf.rebase_scenario = optimizer.getboolean("rebase_scenario", True)
-    conf.pickle_rebased = optimizer.getboolean("pickle_rebased", False)
-    conf.pickle_rebased_name = optimizer.get("pickle_rebased_name",
-                                             "rebased_" + str(
-                                                 datetime.now().strftime("%Y-%m-%d-%H-%M-%S")))
-    conf.opt_type = optimizer.get("opt_type", "greedy")
-    conf.remove_impossible_rots = optimizer.getboolean("remove_impossible_rots", False)
-    conf.node_choice = optimizer.get("node_choice", "step-by-step")
-    conf.max_brute_loop = int(optimizer.get("max_brute_loop", "20"))
-    conf.run_only_neg = optimizer.getboolean("run_only_neg", False)
-    conf.estimation_threshold = float(optimizer.get("estimation_threshold", "0.8"))
-    conf.output_path = optimizer.get("output_path")
-    conf.check_for_must_stations = optimizer.getboolean("check_for_must_stations", True)
-    conf.pruning_threshold = int(optimizer.get("pruning_threshold", "3"))
-    conf.save_all_results = optimizer.getboolean("save_all_results", False)
+    conf.solver = default.get("solver", "spiceev")
+    conf.rebase_scenario = default.getboolean("rebase_scenario", True)
+    conf.pickle_rebased = default.getboolean("pickle_rebased", False)
+    conf.pickle_rebased_name = default.get(
+        "pickle_rebased_name", "rebased_" + datetime.now().isoformat(sep='-', timespec='seconds'))
+    conf.opt_type = default.get("opt_type", "greedy")
+    conf.eps = default.getfloat("eps", 0.0001)
+    conf.remove_impossible_rotations = default.getboolean("remove_impossible_rotations", False)
+    conf.node_choice = default.get("node_choice", "step-by-step")
+    conf.max_brute_loop = default.getint("max_brute_loop", 20)
+    conf.run_only_neg = default.getboolean("run_only_neg", False)
+    conf.run_only_oppb = default.getboolean("run_only_oppb", False)
+    conf.estimation_threshold = default.getfloat("estimation_threshold", 0.8)
+    conf.check_for_must_stations = default.getboolean("check_for_must_stations", True)
+    conf.pruning_threshold = default.getint("pruning_threshold", 3)
 
-    special = config_parser["SPECIAL"]
-    conf.decision_tree_path = special.get("decision_tree_path", None)
+    conf.decision_tree_path = default.get("decision_tree_path", None)
     if conf.decision_tree_path in ["", '""', "''"]:
+        # path should not be empty or "empty like"
         conf.decision_tree_path = None
-    conf.save_decision_tree = special.getboolean("save_decision_tree", False)
-    conf.reduce_rots = special.getboolean("reduce_rots", False)
-    conf.rots = json.loads(special.get("rots", []))
+    conf.save_decision_tree = default.getboolean("save_decision_tree", False)
+    conf.reduce_rotations = default.getboolean("reduce_rotations", False)
+    conf.rotations = json.loads(default.get("rotations", "[]"))
 
     return conf
 
 
 def get_charging_time(trip1, trip2, args):
-    """ Returns the charging time between trips as numeric value
+    """ Returns the charging time in minutes between trips as numeric value/float.
 
-    :param trip1: First trip
-    :param trip2: Following trip
-    :param args:  arguments Namespace with default buffer time
+    :param trip1: first trip
+    :type trip1: ebus_toolbox.trip.Trip
+    :param trip2: following trip
+    :type trip2: ebus_toolbox.trip.Trip
+    :param args:  arguments including default buffer time
+    :type args: Namespace
     :return: maximum possible charging time in minutes between trips
+    :rtype: float
     """
     standing_time_min = (trip2.departure_time - trip1.arrival_time) / timedelta(minutes=1)
     buffer_time = (get_buffer_time(trip1, args.default_buffer_time_opps) / timedelta(minutes=1))
@@ -215,9 +231,14 @@ def get_charging_time(trip1, trip2, args):
 
 
 def get_charging_start(trip1, args):
-    """ Returns the possible start of charging consindering buffer times
-    :param trip1: First trip
-    :param args:  arguments Namespace with default buffer time
+    """ Returns the possible start time of charging.
+
+    This function considers the buffer times before charging can take place
+
+    :param trip1: trip to be checked
+    :type trip1: ebus_toolbox.trip.Trip
+    :param args: arguments including default buffer time
+    :type args: Namespace
     :return: First possible charging time as datetime object
     """
     buffer_time = get_buffer_time(trip1, args.default_buffer_time_opps)
@@ -226,49 +247,66 @@ def get_charging_start(trip1, args):
 
 def get_buffer_time(trip, default_buffer_time_opps):
     """  Return the buffer time as timedelta object
-    :param trip: trip object
+
+    :param trip: trip to be checked
+    :type trip: ebus_toolbox.trip.Trip
     :param default_buffer_time_opps: the default buffer time at opps charging stations
-    :return: timedelta object for the buffer time
+    :return: buffer time
+    :rtype: datetime.timedelta
     """
-    return timedelta(minutes=get_buffer_time_spice_ev(trip, default_buffer_time_opps))
+    return timedelta(minutes=get_buffer_time_util(trip, default_buffer_time_opps))
 
 
 def get_index_by_time(scenario, search_time):
-    """ Get the index for a given time
-    :param scenario: scenario object
-    :param search_time: search time as datetime object
-    :return: index as int
+    """ Get the index for a given time.
+
+    In case the time does not coincide with a simulation index the lower index is returned.
+
+    :param scenario: scenario to be checked
+    :type scenario: spice_ev.Scenario
+    :param search_time: search time
+    :type search_time: datetime.datetime
+    :return: index
+    :rtype: int
     """
-    start_time = scenario.start_time
-    delta_time = timedelta(minutes=60 / scenario.stepsPerHour)
-    idx = (search_time - start_time) // delta_time
-    return idx
+    return (search_time - scenario.start_time) // scenario.interval
 
 
-def get_rotation_soc_util(rot_id, this_sched, this_scen, soc_data: dict = None):
-    """Gets you the soc object with start and end index for a given rotation id
+def get_rotation_soc_util(rot_id, schedule, scenario, soc_data: dict = None):
+    """Returns the soc time series with start and end index for a given rotation id.
+
     :param rot_id: rotation_id
-    :param this_sched: schedule object contain rotation information
-    :param this_scen: scenario object containing the soc data
-    :param soc_data: optional soc_data if not the scenario data should be used
-    :return: tuple with soc array, start index and end index
+    :type rot_id: str
+    :param schedule: schedule containing rotation information
+    :type schedule:ebus_toolbox.schedule.Schedule
+    :param scenario: scenario containing the soc data
+    :type scenario: spice_ev.Scenario
+    :param soc_data: optional soc_data if the scenario data should not be used
+    :type soc_data: dict
+    :return: soc time series, start index and end index
+    :rtype: (list, int, int)
     """
-    rot = this_sched.rotations[rot_id]
-    rot_start_idx = get_index_by_time(this_scen, rot.departure_time)
-    rot_end_idx = get_index_by_time(this_scen, rot.arrival_time)
+    rot = schedule.rotations[rot_id]
+    rot_start_idx = get_index_by_time(scenario, rot.departure_time)
+    rot_end_idx = get_index_by_time(scenario, rot.arrival_time)
     if soc_data:
         return soc_data[rot.vehicle_id], rot_start_idx, rot_end_idx
-    return this_scen.vehicle_socs[rot.vehicle_id], rot_start_idx, rot_end_idx
+    return scenario.vehicle_socs[rot.vehicle_id], rot_start_idx, rot_end_idx
 
 
 def get_delta_soc(soc_over_time_curve, soc, time_delta, optimizer: 'StationOptimizer'):
-    """get expected soc lift for a given start_soc and time_delta.
+    """Return expected soc lift for a given soc charging time series, start_soc and time_delta.
 
-    :param soc_over_time_curve: array with socs over time
+    :param soc_over_time_curve: Data with columns: time, soc and n rows
+    :type soc_over_time_curve: np.array() with shape(n, 2)
     :param soc: start socs
+    :type soc: float
     :param time_delta: time of charging
+    :type time_delta: float
     :param optimizer: optimizer object
-    :return: (float) the lift of the soc
+    :type optimizer: ebus_toolbox.station_optimizer.StationOptimizer
+    :return: positive delta of the soc
+    :rtype: float
     """
     # units for time_delta and time_curve are assumed to be the same, e.g. minutes
     # first element which is bigger than current soc
@@ -302,14 +340,18 @@ class AllCombinationsCheckedException(Exception):
 @time_it
 def evaluate(events: typing.Iterable[LowSocEvent],
              optimizer: 'StationOptimizer', **kwargs):
-    """Analyse stations for "helpful" energy supply. Energy supply is helpful if the minimal soc of
-    an event is raised (up to a minimal soc (probably zero)). The supplied energy is approximated
-    by  loading power, standing time at a station, soc at station and minimal soc of the event
+    """Analyse stations for useful energy supply.
+
+    Energy supply is helpful if the minimal soc of an event is raised (up to a minimal soc
+    (probably zero)). The supplied energy is approximated by  charging power, standing time at a
+    station, soc at station and minimal soc of the event.
 
     :param events: events to be evaluated
-    :param optimizer: StationOptimizer object with scenario and schedule data
+    :type events: list(ebus_toolbox.optimizer_util.LowSocEvent)
+    :param optimizer: optimizer with scenario and schedule data
+    :type optimizer: ebus_toolbox.station_optimizer.StationOptimizer
     :param kwargs: optional overwriting of soc_lower_thresh, soc_upper_thresh or soc_data
-    :return: sorted list with the best station and its potential on index 0
+    :return: sorted stations and potentials
     :rtype: list(str(station_id), float(potential))
     """
     soc_lower_thresh = kwargs.get("soc_lower_thresh", optimizer.config.min_soc)
@@ -317,23 +359,31 @@ def evaluate(events: typing.Iterable[LowSocEvent],
     soc_data = kwargs.get("soc_data", optimizer.scenario.vehicle_socs)
 
     station_eval = {}
+    # Note: Lift describes the positive delta in the soc time series through electrification.
     # cycle through events and determine how much lift can be provided by electrifying a station
     # the lift is determined by the soc position, standing time, power supply and charging curve
     for e in events:
         soc_over_time = optimizer.soc_charge_curve_dict[e.v_type][e.ch_type]
         for i, trip in enumerate(e.trip):
             # station is only evaluated if station name is part of event stations
-            # only these stations showed potential in electrification, e.g enough standing time
+            # only these stations showed potential in electrification, e.g. enough standing time
             if trip.arrival_name not in e.stations:
                 continue
             idx = get_index_by_time(optimizer.scenario, trip.arrival_time, )
             soc = soc_data[e.vehicle_id][idx]
 
-            # potential is the minimal amount of
-            delta_soc_pot = min(soc_upper_thresh - soc,
-                                soc_lower_thresh - e.min_soc,
-                                soc - e.min_soc,
-                                soc_upper_thresh - soc_lower_thresh)
+            # potential is the minimal amount of the following boundaries
+            # - soc can only be lifted to the upper threshold
+            # - useful lift is in between the minimal soc of the event and the
+            #      lower threshold of soc
+            # - useful lift can only occur in between the current soc and the
+            # - the highest useful lift is the amount between a "full" and "empty" battery, where
+            # "full" and "empty" are described by the upper and lower thresholds
+            delta_soc_pot = min(
+                soc_upper_thresh - soc,
+                soc_lower_thresh - e.min_soc,
+                soc - e.min_soc,
+                soc_upper_thresh - soc_lower_thresh)
 
             try:
                 standing_time_min = get_charging_time(trip, e.trip[i + 1], optimizer.args)
@@ -351,39 +401,42 @@ def evaluate(events: typing.Iterable[LowSocEvent],
                 station_eval[trip.arrival_name] = delta_e_pot
 
     # sort by pot_sum
-    station_eval = list(dict(sorted(station_eval.items(), key=lambda x: x[1])).items())
-    station_eval.reverse()
-    return station_eval
+    station_eval_list = sorted(station_eval.items(), key=lambda x: x[1], reverse=True)
+    return station_eval_list
 
 
-def get_groups_from_events(events, not_possible_stations=None, could_not_be_electrified=None,
+def get_groups_from_events(events, impossible_stations=None, could_not_be_electrified=None,
                            optimizer=None):
-    """ Create groups from events which need to be optimized together
+    """ Create groups from events which need to be optimized together.
 
     First it creates a simple list of station sets for single events. They are connected if they
     share possible stations.
-    Electrified and other not possible to electrify stations should not connect groups
+    Electrified and non-electrifiable stations are ignored, i.e. will not show up as possible
+    station
 
     :param events: events for a given state of a scenario
-    :param not_possible_stations: stations to be discarded
+    :type events: list(ebus_toolbox.optimizer_util.LowSocEvent)
+    :param impossible_stations: stations to be discarded
+    :type impossible_stations: set(str)
     :param could_not_be_electrified: rotations to be discarded
-    :param optimizer: StationOptimizer object
-    :return: list((events, stations)) which give you events to optimize together with the stations
-        which might help them
+    :type could_not_be_electrified: set(str)
+    :param optimizer: Optimizer
+    :type optimizer: ebus_toolbox.station_optimizer.StationOptimizer
+    :return: Groups of events and stations which have to be optimized together
+    :rtype: list((ebus_toolbox.optimizer_util.LowSocEvent, str))
     """
 
     # making sure default arguments are none and not mutable
-    if not_possible_stations is None:
-        not_possible_stations = set()
+    if impossible_stations is None:
+        impossible_stations = set()
 
     if could_not_be_electrified is None:
         could_not_be_electrified = set()
 
     possible_stations = [
-        {station for station in event.stations if station not in not_possible_stations}
-        for event
-        in events]
-    # if stations overlap join them
+        {station for station in event.stations if station not in impossible_stations}
+        for event in events]
+    # if station sets have intersections they are returned as single set
     station_subsets = join_all_subsets(possible_stations)
     event_groups = [[] for __ in range(len(station_subsets))]
 
@@ -391,7 +444,7 @@ def get_groups_from_events(events, not_possible_stations=None, could_not_be_elec
     # created as station subsets
     for event in events:
         for i, subset in enumerate(station_subsets):
-            # every station from an event must share the same station sub_set. Therefore its enough
+            # every station from an event must share the same station subset. Therefore its enough
             # to check only the first element
             if len(event.stations) > 0:
                 if next(iter(event.stations)) in subset:
@@ -399,9 +452,10 @@ def get_groups_from_events(events, not_possible_stations=None, could_not_be_elec
                     break
         else:
             if optimizer:
-                optimizer.logger.warning('Did not find rotation %s in any subset'
-                                         'of possible electrifiable stations', event.rotation.id)
-                # this event will no show up in an event_group.
+                optimizer.logger.warning(
+                    'Did not find rotation %s in any subset of possible electrifiable stations',
+                    event.rotation.id)
+                # this event will not show up in an event_group.
                 # therefore it needs to be put into this set
             could_not_be_electrified.update([event.rotation.id])
 
@@ -410,9 +464,12 @@ def get_groups_from_events(events, not_possible_stations=None, could_not_be_elec
 
 
 def join_all_subsets(subsets):
-    """ join sets for as long as needed until no elements share any intersections
-    :param subsets: iterable of sets
+    """Return sets which are joined together if they have any intersections.
+
+    :param subsets: sets to be joined
+    :type subsets: iterable
     :return: joined subsets if they connect with other subsets in some way
+    :rtype: list(set)
     """
     joined_subset = True
     while joined_subset:
@@ -421,20 +478,21 @@ def join_all_subsets(subsets):
 
 
 def join_subsets(subsets: typing.Iterable[set]):
-    """ Run through every subset and check with every other subset if there is an intersection
-    If an intersection is found. The subsets are joined and returned with a boolean of True.
-    If not intersection is found over all subsets False is returned which will cancel the outer
+    """ Run through subsets and return their union, if they have an intersection.
+
+    Run through every subset and check with every other subset if there is an intersection
+    If an intersection is found, the subsets are joined and returned with a boolean of True.
+    If no intersection is found over all subsets False is returned which will cancel the outer
     call in join_all_subsets
 
-    :param subsets: iterable of sets
-    :return: boolean if joining subsets is finished (i.e. False if all subsets are connected
-        and thus far connected subsets
+    :param subsets: sets to be joined
+    :type subsets: iterable
+    :return: status if joining subsets is finished and the current list of connected subsets
+    :rtype: (bool,list(set))
     """
     subsets = [s.copy() for s in subsets]
     for i in range(len(subsets)):
-        for ii in range(len(subsets)):
-            if i == ii:
-                continue
+        for ii in range(i+1, len(subsets)):
             intersec = subsets[i].intersection(subsets[ii])
             if len(intersec) > 0:
                 subsets[i] = subsets[i].union(subsets[ii])
@@ -443,18 +501,22 @@ def join_subsets(subsets: typing.Iterable[set]):
     return False, subsets
 
 
-def toolbox_to_pickle(name, sched, scen, this_args):
-    """ Dump the 3 files to pickle files
+def toolbox_to_pickle(name, sched, scen, args):
+    """ Dump the 3 files to pickle files.
 
     :param name: base name of the files
-    :param sched: schedule object
-    :param scen: scenario object
-    :param this_args: args Namespace object
-    :return: Names of the created files
+    :param sched: schedule
+    :type sched: ebus_toolbox.schedule.Schedule
+    :param scen: scenario
+    :type scen: spice_ev.Scenario
+    :param args: arguments
+    :type args: Namespace
+    :return: names of the created files
+    :rtype: str
     """
     args_name = "args_" + name + ".pickle"
     with open(args_name, "wb") as file:
-        pickle.dump(this_args, file)
+        pickle.dump(args, file)
     scen_name = "scenario_" + name + ".pickle"
     with open(scen_name, "wb") as file:
         pickle.dump(scen, file)
@@ -464,18 +526,29 @@ def toolbox_to_pickle(name, sched, scen, this_args):
     return sched_name, scen_name, args_name
 
 
-def charging_curve_to_soc_over_time(charging_curve, capacity, args,
-                                    max_charge_from_grid=float('inf'),
-                                    time_step=0.1, efficiency=1):
-    """ create charging curve as nested list of SOC, Power[kW] and capacity in [kWh]
+def charging_curve_to_soc_over_time(
+        charging_curve, capacity, args, max_charge_from_grid=float('inf'), time_step=0.1,
+        efficiency=1, eps=0.001, logger: logging.Logger = None):
+    """Create charging curve as np.array with soc and time as two columns of an np.array.
 
+    :param logger: logger
+    :type logger: logging.Logger
+    :param eps: smallest normalized power, where charging curve will stop
+    :type eps: float
     :param charging_curve: the charging curve with power over soc
+    :type charging_curve: list(float,float)
     :param capacity: capacity of the vehicle
-    :param args: args namespace object for simulation arguments
+    :type capacity: float
+    :param args: simulation arguments
+    :type args: Namespace
     :param max_charge_from_grid: maximum amount of charge from grid / connector
+    :type max_charge_from_grid: float
     :param time_step: time step for simulation
+    :type time_step: float
     :param efficiency: efficiency of charging
-    :return: np.array with soc over time
+    :type efficiency: float
+    :return: soc and time with n values each
+    :rtype: np.array of shape (n, 2)
     """
     # simple numeric creation of power over time --> to energy over time
     normalized_curve = np.array([[soc, power / capacity] for soc, power in charging_curve])
@@ -484,19 +557,36 @@ def charging_curve_to_soc_over_time(charging_curve, capacity, args,
     socs = []
     times = []
     final_value = args.desired_soc_opps
+
+    starting_power = min(
+        np.interp(soc, normalized_curve[:, 0], normalized_curve[:, 1]),
+        max_charge_from_grid / capacity)
+    if starting_power <= 0:
+        times.append(charge_time)
+        socs.append(soc)
+        return np.array((times, socs)).T
+
     while soc < args.desired_soc_opps:
         times.append(charge_time)
         socs.append(soc)
-        power1 = min(np.interp(soc, normalized_curve[:, 0], normalized_curve[:, 1]),
-                     max_charge_from_grid / capacity)
+        power1 = min(
+            np.interp(soc, normalized_curve[:, 0], normalized_curve[:, 1]),
+            max_charge_from_grid / capacity)
         soc2 = soc + time_step / 60 * power1
-        power2 = min(np.interp(soc2, normalized_curve[:, 0], normalized_curve[:, 1]),
-                     max_charge_from_grid / capacity)
+        power2 = min(
+            np.interp(soc2, normalized_curve[:, 0], normalized_curve[:, 1]),
+            max_charge_from_grid / capacity)
         power = (power1 + power2) / 2 * efficiency
         delta_soc = time_step / 60 * power
         soc += delta_soc
         charge_time += time_step
-        if args.desired_soc_opps-soc < 0.0001 and delta_soc < 1e-10:
+        if power/starting_power < eps:
+            if logger:
+                warnings.warn("charging_curve_to_soc_over_time stopped early")
+                logger.warning(
+                    "charging_curve_to_soc_over_time stopped early, because the charging power of "
+                    "%s was to low for eps: %s at an soc of %s an a desired soc of %s", power, eps,
+                    soc, args.desired_soc_opps)
             final_value = soc
             break
     # fill the soc completely in last time step
@@ -506,10 +596,12 @@ def charging_curve_to_soc_over_time(charging_curve, capacity, args,
 
 
 def get_missing_energy(events):
-    """ Sum up all the missing energies of the given events
+    """Sum up all the missing energies of the given events.
 
     :param events: events to be checked
-    :return: (float) missing energy
+    :type events: list(ebus_toolbox.optimizer_util.LowSocEvent)
+    :return: missing energy
+    :rtype: float
     """
     missing_energy = 0
     for event in events:
@@ -518,19 +610,51 @@ def get_missing_energy(events):
 
 
 def stations_hash(stations_set):
-    """ Create a simple str as hash for a set of stations
+    """ Create a simple str as hash for a set of stations.
 
-    :param stations_set: set of stations to be hashed
-    :return: hash string
+    :param stations_set: stations to be hashed
+    :type stations_set: set
+    :return: hash
+    :rtype: str
     """
-    return str(sorted(list(stations_set)))
+    return str(sorted(stations_set))
+
+
+def recursive_dict_updater(dict_to_change, filter_function, modify_function):
+    """ Change nested dictionary in place given a filter and modify function
+
+    Goes through all values of a dictionary and modifies the value when filter criteria are met.
+    The filter criteria are checked by the filter_function which gets the arguments key and value.
+    The values are updated by the modify_function which gets the arguments key and value and returns
+    the updated value.
+    :param dict_to_change: nested dictionary that needs to be updated
+    :type dict_to_change: dict
+    :param filter_function: function that returns True if the value should be changed with key and
+        value as arguments
+    :type filter_function: function
+    :param modify_function: function that returns the dictionary value with key and value as
+        arguments
+    :type modify_function: function
+    """
+    # iterate over all items. For every item, try iterating over it as well until an AttributeError
+    for key, value in dict_to_change.items():
+        try:
+            recursive_dict_updater(value, filter_function, modify_function)
+        except AttributeError:
+            # could not iterate, therefore its a "final" value. check for filter condition
+            # and apply the modify function
+            if filter_function(key, value):
+                dict_to_change[key] = modify_function(key, value)
 
 
 def combination_generator(iterable: typing.Iterable, amount: int):
-    """ Generator which yields all possible combinations of choosing
-    an amount out of an iterable without putting them back and without caring about the
-    order of elements
+    """ Yields all combinations of choosing an amount, without putting back and without order.
+
+    Generator which yields all possible combinations of choosing an amount out of an iterable
+    without putting them back and without caring about the order of elements
+
     :param iterable: Any collection which can be cast to a list
+    :rtype iterable: iterable
     :param amount: Number of elements which should be drawn from iterable
     :type amount: int
     :yields: list of items
@@ -550,26 +674,32 @@ def combination_generator(iterable: typing.Iterable, amount: int):
 
 
 def toolbox_from_pickle(sched_name, scen_name, args_name):
-    """ Load the 3 files from pickle
+    """Load the 3 files from pickle.
 
     :param sched_name: name of schedule file
+    :type sched_name: str
     :param scen_name: name of scenario file
+    :type scen_name: str
     :param args_name: name of args file
-    :return: schedule, scenario and args object
+    :type args_name: str
+    :return: schedule, scenario and arguments
+    :rtype: (ebus_toolbox.schedule.Schedule, spice_ev.Scenario, Namespace)
     """
     with open(args_name, "rb") as file:
-        this_args = pickle.load(file)
+        args = pickle.load(file)
     with open(scen_name, "rb") as file:
         scen = pickle.load(file)
     with open(sched_name, "rb") as file:
         sched = pickle.load(file)
-    return sched, scen, this_args
+    return sched, scen, args
 
 
 def combs_unordered_no_putting_back(n: int, k: int):
-    """ Returns amount of combinations for pulling k elements out of n, without putting elements
-    back or looking at the order. this is equal to n over k
-    :param n: number of elements in the base group
+    """ Return number of combinations of choosing an amount, without putting back and without order.
+
+    Returns amount of combinations for pulling k elements out of n, without putting elements
+    back or looking at the order. This is equal to n over k
+    :param n: number of elements to chose from
     :type n: int
     :param k: number of elements in the sub group of picked elements
     :type k: int
@@ -579,97 +709,110 @@ def combs_unordered_no_putting_back(n: int, k: int):
     try:
         return math.factorial(n) / ((math.factorial(n - k)) * math.factorial(k))
     except ValueError:
-        warnings.warn("Value Error")
+        warnings.warn(f"Value Error. n={n}, k={k}")
         return 0
 
 
-def run_schedule(this_sched, this_args, electrified_stations=None, cost_calc=False):
+def run_schedule(sched, args, electrified_stations=None):
     """Run a given schedule and electrify stations if need be.
 
-    :param this_sched: schedule object
-    :param this_args: args namespace object
-    :param electrified_stations: dict of electrified stations. Default value None means no further
+    :param sched: schedule object
+    :type sched: ebus_toolbox.schedule.Schedule
+    :param args: arguments
+    :type args: Namespace
+    :param electrified_stations: electrified stations. Default value None means no further
         stations are electrified
-    :param cost_calc: should the cost be calculated
-    :raises SystemExit: in case of wrong cost calculation file
-    :return: schedule and scenario objects after spiceev simulation
+    :type electrified_stations: dict or None
+    :return: schedule and scenario after SpiceEV simulation
+    :rtype: ebus_toolbox.schedule.Schedule, spice_ev.Scenario
     """
-
-    this_sched2 = copy(this_sched)
-    this_sched2.stations = electrified_stations
-    this_sched2, new_scen = preprocess_schedule(this_sched2, this_args,
-                                                electrified_stations=electrified_stations)
-    # do not print output from spice ev to reduce clutter
-    sys.stdout = open(os.devnull, 'w')
+    sched_copy = copy(sched)
+    sched_copy.stations = electrified_stations
+    sched_copy, new_scen = preprocess_schedule(sched_copy, args,
+                                               electrified_stations=electrified_stations)
 
     with warnings.catch_warnings():
         warnings.simplefilter('ignore', UserWarning)
-        new_scen.run('distributed', vars(this_args).copy())
-    sys.stdout = sys.__stdout__
-    if this_args.cost_calculation and cost_calc:
-        # cost calculation following directly after simulation
-        try:
-            with open(this_args.cost_parameters_file, encoding='utf-8') as file:
-                cost_parameters_file = uncomment_json_file(file)
-        except FileNotFoundError:
-            raise SystemExit(f"Path to cost parameters ({this_args.cost_parameters_file}) "
-                             "does not exist. Exiting...")
-        calculate_costs(cost_parameters_file, new_scen, this_sched2, this_args)
-    return this_sched2, new_scen
+        if "pytest" not in sys.modules:
+            # do not print output from SpiceEV to reduce clutter. Do not do it in testing
+            # since it produces errors
+            sys.stdout = open(os.devnull, 'w')
+        new_scen.run('distributed', vars(args).copy())
+        if "pytest" not in sys.modules:
+            sys.stdout = sys.__stdout__
+    generate_soc_timeseries(new_scen)
+    return sched_copy, new_scen
 
 
-def preprocess_schedule(this_sched, this_args, electrified_stations=None):
-    """ Prepare the schedule by calculating consumption, setting elctrified stations and assigning
+def preprocess_schedule(sched, args, electrified_stations=None):
+    """ Calculate consumption, set electrified stations and assign vehicles.
+
+    Prepare the schedule by calculating consumption, setting electrified stations and assigning
     vehicles
 
-    :param this_sched: schedule containing the rotations
-    :param this_args: arguments for simulation
-    :param electrified_stations: dict of stations to be electrified
+    :param sched: schedule containing the rotations
+    :type sched: ebus_toolbox.schedule.Schedule
+    :param args: arguments for simulation
+    :type args: Namespace
+    :param electrified_stations: stations to be electrified
+    :type electrified_stations: dict
     :return: schedule and scenario to be simulated
+    :rtype: (ebus_toolbox.schedule.Schedule, spice_ev.Scenario)
     """
-    Trip.consumption = \
-        Consumption(this_sched.vehicle_types,
-                    outside_temperatures=this_args.outside_temperature_over_day_path,
-                    level_of_loading_over_day=this_args.level_of_loading_over_day_path)
+    Trip.consumption = Consumption(
+        sched.vehicle_types, outside_temperatures=args.outside_temperature_over_day_path,
+        level_of_loading_over_day=args.level_of_loading_over_day_path)
 
-    this_sched.stations = electrified_stations
-    this_sched.calculate_consumption()
-    this_sched.assign_vehicles()
+    sched.stations = electrified_stations
+    sched.calculate_consumption()
+    sched.assign_vehicles()
 
-    return this_sched, this_sched.generate_scenario(this_args)
+    return sched, sched.generate_scenario(args)
 
 
-def print_time(start=[]):
-    """Print the time and automatically set start time to the first time the function getting
-    called
-    :param start: list for storing times
+def get_time(start=[]):
+    """Prints the time which passed since the first function call.
+
+    :param start: start time
+    :type start: list(float)
+    :return: String with seconds which passed since the first call.
+    :rtype: str
     """
     if not start:
         start.append(time())
     delta = round(time() - start[0], 2)
     if delta > 0:
-        print(delta, " seconds till start")
+        return str(delta) + " seconds since start"
 
 
 def plot_(data):
-    """ Simple plot of data without having to create subplots
+    """ Simple plot of data without having to create subplots.
+
     :param data: data to be plotted
+    :type data: iterable
     :return: axis of the plot """
     fig, axis = plt.subplots()
     axis.plot(data, linewidth=2.0)
     return axis
 
 
-def plot_rot(rot_id, this_sched, this_scen, axis=None, rot_only=True):
-    """Simple plot of data without having to create subplots
+def plot_rot(rot_id, sched, scen, axis=None, rot_only=True):
+    """ Simple plot of data without having to create subplots.
+
     :param rot_id: id of the rotation
-    :param this_sched: schedule object
-    :param this_scen: scenario object
+    :type rot_id: str
+    :param sched: schedule
+    :type sched: ebus_toolbox.schedule.Schedule
+    :param scen: scenario
+    :type scen: spice_ev.Scenario
     :param axis: axis to be plotted on
+    :type axis: int
     :param rot_only: show only the rot or the whole vehicle socs
+    :type rot_only: bool
     :return: axis of the plot
+    :rtype matplotlib.axes
     """
-    soc, start, end = get_rotation_soc_util(rot_id, this_sched, this_scen)
+    soc, start, end = get_rotation_soc_util(rot_id, sched, scen)
     if not rot_only:
         start = 0
         end = -1

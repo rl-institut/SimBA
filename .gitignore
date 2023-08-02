@@ -9,11 +9,10 @@ __pycache__
 docs/_build
 docs/source/temp
 
-data/private_examples
-data/sim_outputs
-data/private_examples
-data/gogs_buffered
+data/*
+!data/examples
 
 src/
 spice_ev/
 *.bak
+/tests/test_output_files/
