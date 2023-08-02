@@ -221,7 +221,10 @@ def nd_interp(input_values, lookup_table):
 def setup_logging(args, time_str):
     # set up logging
     # always to console
-    log_handlers = [logging.StreamHandler()]
+    log_level = vars(logging)[args.loglevel]
+    console = logging.StreamHandler()
+    console.setLevel(log_level)
+    log_handlers = [console]
     if args.logfile is not None:
         # optionally to file in output dir
         if args.logfile:
@@ -230,9 +233,13 @@ def setup_logging(args, time_str):
             log_name = f"{time_str}.log"
         log_path = args.output_directory / log_name
         print(f"Writing log to {log_path}")
-        log_handlers.append(logging.FileHandler(log_path, encoding='utf-8'))
+        file_logger = logging.FileHandler(log_path, encoding='utf-8')
+        log_level_file = vars(logging).get(args.loglevel_file or args.loglevel)
+        file_logger.setLevel(log_level_file)
+        log_handlers.append(file_logger)
+        log_level = min(log_level, log_level_file)
     logging.basicConfig(
-        level=vars(logging)[args.loglevel],
+        level=log_level,
         format="%(asctime)s [%(levelname)s] %(message)s",
         handlers=log_handlers
     )
@@ -338,6 +345,9 @@ def get_args():
     parser.add_argument('--loglevel', default='INFO',
                         choices=logging._nameToLevel.keys(), help='Log level.')
     parser.add_argument('--logfile', default='', help='Log file suffix. null: no log file.')
+    parser.add_argument('--loglevel_file', default='',
+                        choices=list(logging._nameToLevel.keys()) + [''],
+                        help='Log level for file logger.')
 
     # #### SpiceEV PARAMETERS ONLY DEFAULT VALUES NOT IN eBus-Toolbox CONFIG #####
     parser.add_argument('--seed', default=1, type=int, help='set random seed')
