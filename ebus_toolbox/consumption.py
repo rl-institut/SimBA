@@ -56,12 +56,13 @@ class Consumption:
         :return: Consumed energy [kWh] and delta SOC as tuple
         :rtype: (float, float)
 
-        :raises IndexError: if there is missing data for temperature or lol data
+        :raises KeyError: if there is missing data for temperature or lol data
         :raises AttributeError: if there is no path to temperature or lol data provided
         """
 
-        assert self.vehicle_types.get(vehicle_type, {}).get(charging_type), \
-            f"Combination of vehicle type {vehicle_type} and {charging_type} not defined."
+
+        assert self.vehicle_types.get(vehicle_type, {}).get(charging_type), (
+            f"Combination of vehicle type {vehicle_type} and {charging_type} not defined.")
 
         vehicle_info = self.vehicle_types[vehicle_type][charging_type]
 
@@ -79,12 +80,12 @@ class Consumption:
                 print("Neither of these conditions is met:\n"
                       "1. Temperature data is available for every trip through the trips file "
                       "or a temperature over day file.\n"
-                      f"2. A constant mileage for the vehicle "
-                      f"{vehicle_info['mileage']} is provided.")
+                      f"2. A constant mileage for the vehicle: "
+                      f"{vehicle_info['name']} - is provided.")
                 raise AttributeError
-            except IndexError:
+            except KeyError:
                 print(f"No temperature data for the hour {time.hour} is provided")
-                raise IndexError
+                raise KeyError
 
         # if no specific LoL is given, lookup temperature
         if level_of_loading is None:
@@ -94,15 +95,15 @@ class Consumption:
                 print("Neither of these conditions is met:\n"
                       "1. Level of loading data is available for every trip through the trips file "
                       "or a level of loading over day file.\n"
-                      f"2. A constant mileage for the vehicle "
-                      f"{vehicle_info['mileage']} is provided.")
+                      f"2. A constant mileage for the vehicle: "
+                      f"{vehicle_info['name']} - is provided.")
                 raise AttributeError
-            except IndexError:
+            except KeyError:
                 print(f"No level of loading data for the hour {time.hour} is provided")
-                raise IndexError
+                raise KeyError
 
         # load consumption csv
-        consumption_path = vehicle_info["mileage"]
+        consumption_path = str(vehicle_info["mileage"])
 
         # consumption_files holds interpol functions of csv files which are called directly
 
@@ -110,10 +111,8 @@ class Consumption:
         consumption_function = vehicle_type+"_from_"+consumption_path
         try:
             mileage = self.consumption_files[consumption_function](
-                                                               this_incline=height_diff / distance,
-                                                               this_temp=temp,
-                                                               this_lol=level_of_loading,
-                                                               this_speed=mean_speed)
+                this_incline=height_diff / distance, this_temp=temp,
+                this_lol=level_of_loading, this_speed=mean_speed)
         except KeyError:
             # creating the interpol function from csv file.
             delim = util.get_csv_delim(consumption_path)
@@ -136,10 +135,8 @@ class Consumption:
             self.consumption_files.update({consumption_function: interpol_function})
 
             mileage = self.consumption_files[consumption_function](
-                                                               this_incline=height_diff / distance,
-                                                               this_temp=temp,
-                                                               this_lol=level_of_loading,
-                                                               this_speed=mean_speed)
+               this_incline=height_diff / distance, this_temp=temp,
+               this_lol=level_of_loading, this_speed=mean_speed)
 
         consumed_energy = mileage * distance / 1000  # kWh
         delta_soc = -1 * (consumed_energy / vehicle_info["capacity"])

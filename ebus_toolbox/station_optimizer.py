@@ -286,7 +286,7 @@ class StationOptimizer:
         # when the recursive call goes on a higher level eg. level 0 - level 1 - level 2 - level 1
         station_eval = opt_util.evaluate(event_group, self, soc_data=kwargs["lifted_socs"])
 
-        missing_energy = opt_util.get_missing_energy(event_group)
+        missing_energy = opt_util.get_missing_energy(event_group, min_soc=self.config.min_soc)
         if missing_energy >= 0:
             self.logger.debug("Already electrified: Returning")
             return self.electrified_stations
@@ -352,7 +352,7 @@ class StationOptimizer:
         new_events = self.get_low_soc_events(rotations=event_rotations_ids,
                                              rel_soc=True, **kwargs)
 
-        delta_energy = opt_util.get_missing_energy(new_events)
+        delta_energy = opt_util.get_missing_energy(new_events, self.config.min_soc)
         events_remaining[0] -= len(event_group) - len(new_events)
         self.logger.debug(
             "Last electrification electrified %s/%s. %s remaining events in the base group.",
@@ -395,12 +395,15 @@ class StationOptimizer:
             # unnecessary calculation
             thresh = self.config.pruning_threshold
             if len(pre_optimized_set) - len(self.electrified_station_set) < thresh:
+                self.copy_scen_sched()
+                self.deepcopy_socs()
                 self.scenario.vehicle_socs = self.timeseries_calc(
                     event_rotations, electrify_stations=best_station_ids)
                 prune_events = self.get_low_soc_events(
                     rotations=event_rotations_ids, rel_soc=True, **kwargs)
                 station_eval = opt_util.evaluate(prune_events, self)
-                prune_missing_energy = opt_util.get_missing_energy(prune_events)
+                prune_missing_energy = \
+                    opt_util.get_missing_energy(prune_events, self.config.min_soc)
                 if not self.is_branch_promising(station_eval, self.electrified_station_set,
                                                 pre_optimized_set, prune_missing_energy):
                     self.logger.debug("Branch pruned early")
@@ -477,7 +480,7 @@ class StationOptimizer:
                     rot.vehicle_id.find("depb") > 0) * "depb"
             v_type = rot.vehicle_id.split("_" + ch_type)[0]
             soc_over_time_curve = self.soc_charge_curve_dict[v_type][ch_type]
-            soc = soc_dict[rot.vehicle_id]
+            soc = np.array(soc_dict[rot.vehicle_id])
             for i, trip in enumerate(rot.trips):
                 if trip.arrival_name not in ele_stations:
                     continue
