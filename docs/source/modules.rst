@@ -1,9 +1,9 @@
 :orphan:
 
-ebus_toolbox
-============
+simba
+=====
 
 .. toctree::
    :maxdepth: 4
 
-   ebus_toolbox
+   simba

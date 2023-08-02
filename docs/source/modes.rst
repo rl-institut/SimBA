@@ -19,7 +19,7 @@ different modes support the user in finding optimal solutions for their eBus-Sys
 
 Chained Modes
 -------------
-While the default mode of the SimBA is the simple simulation together with a report, modes can be chained together differently to achieve the desired results. The chain of modes is defined in the config file (default: ebus_toolbox.cfg) under the keyword *mode*:
+While the default mode of the SimBA is the simple simulation together with a report, modes can be chained together differently to achieve the desired results. The chain of modes is defined in the config file (default: simba.cfg) under the keyword *mode*:
 
 ::
 
@@ -82,7 +82,7 @@ Station Optimization
 --------------------
 Greedy Optimization
 ####################
-This mode optimizes a scenario by electrifying as few opportunity stations as possible using a greedy approach. Two basic approaches to use the optimization module are setting the mode in the ebus_toolbox configuration file to
+This mode optimizes a scenario by electrifying as few opportunity stations as possible using a greedy approach. Two basic approaches to use the optimization module are setting the mode in the simba configuration file to
 
 ::
 
@@ -198,7 +198,7 @@ To make use of this feature the parameters in the optimizer.cfg have to be set.
 
 Optimizer Configuration
 ###################################
-The functionality of the optimizer is controlled through the optimizer.cfg specified in the ebus_toolbox.cfg used for calling the eBus_Toolbox.
+The functionality of the optimizer is controlled through the optimizer.cfg specified in the simba.cfg used for calling the SimBA.
 
 .. list-table:: Optimizer.cfg parameters
    :header-rows: 1

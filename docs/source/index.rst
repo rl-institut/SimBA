@@ -9,7 +9,7 @@
     :width: 200
 
 Welcome to the SimBA documentation!
-========================================
+===================================
 
 SimBa - the Simulation toolbox for Bus Applications - was designed to analyze and optimize electrified bus fleets.
 

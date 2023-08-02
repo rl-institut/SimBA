@@ -1,101 +1,101 @@
-ebus\_toolbox package
+simba package
 =====================
 
 Submodules
 ----------
 
-ebus\_toolbox.consumption module
+simba.consumption module
 --------------------------------
 
-.. automodule:: ebus_toolbox.consumption
+.. automodule:: simba.consumption
    :members:
    :undoc-members:
    :show-inheritance:
 
-ebus\_toolbox.costs module
+simba.costs module
 --------------------------
 
-.. automodule:: ebus_toolbox.costs
+.. automodule:: simba.costs
    :members:
    :undoc-members:
    :show-inheritance:
 
-ebus\_toolbox.optimization module
+simba.optimization module
 ---------------------------------
 
-.. automodule:: ebus_toolbox.optimization
+.. automodule:: simba.optimization
    :members:
    :undoc-members:
    :show-inheritance:
 
-ebus\_toolbox.optimizer\_util module
+simba.optimizer\_util module
 ------------------------------------
 
-.. automodule:: ebus_toolbox.optimizer_util
+.. automodule:: simba.optimizer_util
    :members:
    :undoc-members:
    :show-inheritance:
 
-ebus\_toolbox.report module
+simba.report module
 ---------------------------
 
-.. automodule:: ebus_toolbox.report
+.. automodule:: simba.report
    :members:
    :undoc-members:
    :show-inheritance:
 
-ebus\_toolbox.rotation module
+simba.rotation module
 -----------------------------
 
-.. automodule:: ebus_toolbox.rotation
+.. automodule:: simba.rotation
    :members:
    :undoc-members:
    :show-inheritance:
 
-ebus\_toolbox.schedule module
+simba.schedule module
 -----------------------------
 
-.. automodule:: ebus_toolbox.schedule
+.. automodule:: simba.schedule
    :members:
    :undoc-members:
    :show-inheritance:
 
-ebus\_toolbox.simulate module
+simba.simulate module
 -----------------------------
 
-.. automodule:: ebus_toolbox.simulate
+.. automodule:: simba.simulate
    :members:
    :undoc-members:
    :show-inheritance:
 
-ebus\_toolbox.station\_optimization module
+simba.station\_optimization module
 ------------------------------------------
 
-.. automodule:: ebus_toolbox.station_optimization
+.. automodule:: simba.station_optimization
    :members:
    :undoc-members:
    :show-inheritance:
 
-ebus\_toolbox.station\_optimizer module
+simba.station\_optimizer module
 ---------------------------------------
 
-.. automodule:: ebus_toolbox.station_optimizer
+.. automodule:: simba.station_optimizer
    :members:
    :undoc-members:
    :show-inheritance:
 
-ebus\_toolbox.trip module
+simba.trip module
 -------------------------
 
-.. automodule:: ebus_toolbox.trip
+.. automodule:: simba.trip
    :members:
    :undoc-members:
    :show-inheritance:
 
-ebus\_toolbox.util module
+simba.util module
 -------------------------
 
-.. automodule:: ebus_toolbox.util
+.. automodule:: simba.util
    :members:
    :undoc-members:
    :show-inheritance:
@@ -103,7 +103,7 @@ ebus\_toolbox.util module
 Module contents
 ---------------
 
-.. automodule:: ebus_toolbox
+.. automodule:: simba
    :members:
    :undoc-members:
    :show-inheritance:
