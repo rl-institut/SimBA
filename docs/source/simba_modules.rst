@@ -19,6 +19,8 @@ The level_of_loading describes the share between an empty vehicle (0) and a full
 Vehicle Dispatch
 ----------------
 
+To allocate the rotations to vehicles, vehicles of the needed type to fulfil the rotation are used. If no suitable vehicle is available, a new vehicle is created. Available vehilces are defined as not currently serving a rotation, having the same depot and having had enough time after return to the depot to be fully charged, when returning with an empty battery. This "minimum standing time" at the depot is calculated using the variable min_recharge_deps_oppb or min_recharge_deps_depb from the config together with the respective battery capacity of the vehicle and assuming the maximum available power of the depot chargning stations.
+
 Charging simulation
 -------------------
 
