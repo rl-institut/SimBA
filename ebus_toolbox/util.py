@@ -266,10 +266,22 @@ def get_args():
                         help='Remove rotations from schedule that violate assumptions. ')
     parser.add_argument('--show-plots', action='store_true',
                         help='show plots for users to view in "report" mode')
-    # #### Physical setup of environment #####
+
+    # #### Charging strategy #####
+    valid_spice_ev_stategies = ['balanced', 'greedy', 'balanced_marked']
     parser.add_argument('--preferred-charging-type', '-pct', default='depb',
                         choices=['depb', 'oppb'], help="Preferred charging type. Choose one\
                         from {depb, oppb}. opp stands for opportunity.")
+    parser.add_argument('--strategy_deps', default='balanced', choices=valid_spice_ev_stategies,
+                        help='strategy to use in depot')
+    parser.add_argument('--strategy_opps', default='greedy', choices=valid_spice_ev_stategies,
+                        help='strategy to use at station')
+    parser.add_argument('--strategy_options_deps', default={}, type=dict,
+                        help='special strategy options to use in depot')
+    parser.add_argument('--strategy_options_opps', default={}, type=dict,
+                        help='special strategy options to use at electrified station')
+
+    # #### Physical setup of environment #####
     parser.add_argument('--gc-power-opps', metavar='POPP', type=float, default=100000,
                         help='max power of grid connector at opp stations')
     parser.add_argument('--gc-power-deps', metavar='PDEP', type=float, default=100000,
@@ -296,7 +308,7 @@ def get_args():
                         'charging stations if not set in electrified_stations file',
                         default='MV', choices=['HV', 'HV/MV', 'MV', 'MV/LV', 'LV'])
 
-    # #### SIMULATION PARAMETERS #####
+    # #### Simulation Parameters #####
     parser.add_argument('--days', metavar='N', type=int, default=None,
                         help='set duration of scenario as number of days')
     parser.add_argument('--interval', metavar='MIN', type=int, default=1,
@@ -324,12 +336,6 @@ def get_args():
     parser.add_argument('--optimizer_config', default=None,
                         help="For station_optimization a optimizer_config is needed. \
                         Input a path to an .cfg file or use the default_optimizer.cfg")
-    parser.add_argument('--strategy_deps', default='balanced', help='strategy to use in depot')
-    parser.add_argument('--strategy_opps', default='greedy', help='strategy to use at station')
-    parser.add_argument('--strategy_options_deps', default={},
-                        help='special strategy options to use in depot')
-    parser.add_argument('--strategy_options_opps', default={},
-                        help='special strategy options to use at electrified station')
 
     parser.add_argument('--config', help='Use config file to set arguments')
 
