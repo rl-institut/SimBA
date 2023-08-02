@@ -27,9 +27,9 @@ def get_buffer_time(trip, default=0):
     hours of the day are covered.
     E.g.
     buffer_time = {
-        "10-22": 2,
-        "22-6": 3,
-        "else": 1
+    "10-22": 2,
+    "22-6": 3,
+    "else": 1
     }
 
     :param trip: The of buffer time of this trips arrival is returned.
