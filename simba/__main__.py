@@ -3,13 +3,13 @@ import logging
 from pathlib import Path
 import shutil
 
-from ebus_toolbox import simulate, util
+from simba import simulate, util
 
 if __name__ == '__main__':
     args = util.get_args()
 
     time_str = datetime.now().strftime("%Y-%m-%d-%H-%M-%S")
-    args.output_directory = Path(args.output_directory) / (time_str + "_eBus_results")
+    args.output_directory = Path(args.output_directory) / (time_str + "_SimBA_results")
     # create subfolder for specific sim results with timestamp.
     # if folder doesnt exists, create folder.
     # needs to happen after set_options_from_config since

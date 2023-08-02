@@ -8,7 +8,7 @@ from spice_ev.util import set_options_from_config
 
 from tests.conftest import example_root, file_root
 from tests.helpers import generate_basic_schedule
-from ebus_toolbox import consumption, rotation, schedule, trip, util
+from simba import consumption, rotation, schedule, trip, util
 
 
 mandatory_args = {
@@ -33,15 +33,15 @@ class TestSchedule:
         vehicle_types = util.uncomment_json_file(file)
 
     def basic_run(self):
-        """Returns a schedule and scenario after running the Ebus-Toolbox.
+        """Returns a schedule and scenario after running SimBA.
         :return: schedule, scenario
         """
         path_to_trips = example_root / "trips_example.csv"
         # set the system variables to imitate the console call with the config argument.
         # first element has to be set to something or error is thrown
-        sys.argv = ["foo", "--config", str(example_root / "ebus_toolbox.cfg")]
+        sys.argv = ["foo", "--config", str(example_root / "simba.cfg")]
         args = util.get_args()
-        args.config = example_root / "ebus_toolbox.cfg"
+        args.config = example_root / "simba.cfg"
         args.days = None
         args.seed = 5
 
@@ -111,9 +111,10 @@ class TestSchedule:
     def test_assign_vehicles(self):
         """ Test if assigning vehicles works as intended.
 
-        Use a trips csv with two rotations ("1","2") a day apart. Ebus toolbox should assign
-        the same vehicle to both of them. rotation "3", starts shortly after "2" and should be
-        a new vehicle."""
+        Use a trips csv with two rotations ("1","2") a day apart.
+        SimBA should assign the same vehicle to both of them.
+        Rotation "3" starts shortly after "2" and should be a new vehicle.
+        """
 
         trip.Trip.consumption = consumption.Consumption(self.vehicle_types,
                                                         outside_temperatures=self.temperature_path,
@@ -245,9 +246,9 @@ class TestSchedule:
          with feed in, external load and battery works and if a scenario object is returned"""
 
         path_to_trips = example_root / "trips_example.csv"
-        sys.argv = ["foo", "--config", str(example_root / "ebus_toolbox.cfg")]
+        sys.argv = ["foo", "--config", str(example_root / "simba.cfg")]
         args = util.get_args()
-        args.config = example_root / "ebus_toolbox.cfg"
+        args.config = example_root / "simba.cfg"
         electrified_stations_path = example_root / "electrified_stations_with_feeds.json"
         args.electrified_stations = electrified_stations_path
         with open(electrified_stations_path, "r", encoding='utf-8') as file:

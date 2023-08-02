@@ -1,21 +1,21 @@
-import pathlib
-import re
-import shutil
 from copy import copy
-
-import pytest
-import sys
 import json
-from tests.conftest import example_root
-import ebus_toolbox.optimizer_util as opt_util
-import ebus_toolbox.util as util
-from ebus_toolbox.station_optimization import run_optimization
-from ebus_toolbox.trip import Trip
-from ebus_toolbox.consumption import Consumption
-from ebus_toolbox.schedule import Schedule
-from spice_ev.report import generate_soc_timeseries
+from pathlib import Path
+import pytest
+import re
+import sys
+import shutil
 
-file_root = pathlib.Path(__file__).parent / "test_input_files/optimization"
+from simba.consumption import Consumption
+import simba.optimizer_util as opt_util
+from simba.schedule import Schedule
+from simba.station_optimization import run_optimization
+from simba.trip import Trip
+import simba.util as util
+from spice_ev.report import generate_soc_timeseries
+from tests.conftest import example_root
+
+file_root = Path(__file__).parent / "test_input_files/optimization"
 
 
 class TestStationOptimization:
@@ -35,7 +35,7 @@ class TestStationOptimization:
         self.tmp_path = tmp_path
 
         # Create a temporary config file as copy from the example configuration.
-        src = example_root / "ebus_toolbox.cfg"
+        src = example_root / "simba.cfg"
         src_text = src.read_text()
 
         # don't show plots. spaces are optional, so use regex
@@ -82,7 +82,7 @@ class TestStationOptimization:
             "preferred_charging_type = oppb"r"\g<2>", src_text)
 
         # change config file with adjusted temporary paths to vehicles and electrified stations
-        dst = tmp_path / "ebus_toolbox.cfg"
+        dst = tmp_path / "simba.cfg"
         dst.write_text(src_text)
 
     def basic_run(self, trips_file_name="trips.csv"):
@@ -93,7 +93,7 @@ class TestStationOptimization:
         :type trips_file_name: str
         :return: schedule, scenario"""
         path_to_trips = file_root / trips_file_name
-        sys.argv = ["foo", "--config", str(self.tmp_path / "ebus_toolbox.cfg")]
+        sys.argv = ["foo", "--config", str(self.tmp_path / "simba.cfg")]
         args = util.get_args()
         args.input_schedule = path_to_trips
         Trip.consumption = Consumption(self.vehicle_types,

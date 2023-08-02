@@ -1,6 +1,6 @@
 from datetime import datetime
 import json
-from ebus_toolbox import util
+from simba import util
 from tests.test_schedule import TestSchedule
 
 

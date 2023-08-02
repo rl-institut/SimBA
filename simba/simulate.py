@@ -1,13 +1,13 @@
 import logging
 import traceback
 
-from ebus_toolbox.consumption import Consumption
-from ebus_toolbox.schedule import Schedule
-from ebus_toolbox.trip import Trip
-from ebus_toolbox.costs import calculate_costs
-from ebus_toolbox import report, optimization, util
-from ebus_toolbox.station_optimization import run_optimization
-from ebus_toolbox.optimizer_util import read_config as read_optimizer_config
+from simba import report, optimization, util
+from simba.consumption import Consumption
+from simba.costs import calculate_costs
+from simba.optimizer_util import read_config as read_optimizer_config
+from simba.schedule import Schedule
+from simba.station_optimization import run_optimization
+from simba.trip import Trip
 
 
 def simulate(args):
