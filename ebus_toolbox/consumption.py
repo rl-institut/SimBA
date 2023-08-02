@@ -60,7 +60,6 @@ class Consumption:
         :raises AttributeError: if there is no path to temperature or lol data provided
         """
 
-
         assert self.vehicle_types.get(vehicle_type, {}).get(charging_type), (
             f"Combination of vehicle type {vehicle_type} and {charging_type} not defined.")
 
