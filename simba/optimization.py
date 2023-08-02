@@ -1,17 +1,8 @@
 """ Collection of procedures optimizing arbitrary parameters of a bus schedule or infrastructure.
 """
-
 from copy import deepcopy
 import datetime
-
 import logging
-import sys
-logger = logging.getLogger(__name__)
-if "pytest" not in sys.modules:
-    logger.setLevel(logging.DEBUG)
-    sh = logging.StreamHandler(sys.stdout)
-    sh.setLevel(logging.DEBUG)
-    logger.addHandler(sh)
 
 
 def service_optimization(schedule, scenario, args):
@@ -34,7 +25,7 @@ def service_optimization(schedule, scenario, args):
 
     # single out negative rotations. Try to run these with common non-negative rotations
     negative_rotations = schedule.get_negative_rotations(scenario)
-    logger.info(f"Initially, rotations {sorted(negative_rotations)} have neg. SoC.")
+    logging.info(f"Initially, rotations {sorted(negative_rotations)} have neg. SoC.")
 
     if not negative_rotations:
         return {
@@ -48,8 +39,8 @@ def service_optimization(schedule, scenario, args):
         rotation = schedule.rotations.pop(rot_key)
         if rotation.charging_type != "oppb":
             # only oppb rotations are optimized -> skip others
-            logger.warn(f"Rotation {rot_key} should be optimized, "
-                        f"but is of type {rotation.charging_type}.")
+            logging.warning(f"Rotation {rot_key} should be optimized, "
+                            f"but is of type {rotation.charging_type}.")
             continue
         # oppb: build non-interfering sets of negative rotations
         # (these include the dependent non-negative rotations)
@@ -67,7 +58,7 @@ def service_optimization(schedule, scenario, args):
                 dependent_station.update({r2: t2 for r2, t2
                                           in common_stations[r].items() if t2 <= t})
             elif r.charging_type != "obbp":
-                logger.warn(f"Rotation {rot_key} depends on negative non-oppb rotation")
+                logging.warning(f"Rotation {rot_key} depends on negative non-oppb rotation")
 
         negative_sets[rot_key] = s
 
@@ -80,7 +71,7 @@ def service_optimization(schedule, scenario, args):
     ignored = []
     for i, (rot, s) in enumerate(negative_sets.items()):
         schedule.rotations = {r: original[0].rotations[r] for r in s}
-        logger.debug(f"{i+1} / {len(negative_sets)} negative schedules: {rot}")
+        logging.debug(f"{i+1} / {len(negative_sets)} negative schedules: {rot}")
         scenario = schedule.run(args)
         if scenario.negative_soc_tracker:
             # still fail: try just the negative rotation
@@ -88,10 +79,10 @@ def service_optimization(schedule, scenario, args):
             scenario = schedule.run(args)
             if scenario.negative_soc_tracker:
                 # no hope, this just won't work
-                logger.info(f"Rotation {rot} will stay negative")
+                logging.info(f"Rotation {rot} will stay negative")
             else:
                 # works alone with other non-negative rotations
-                logger.info(f"Rotation {rot} works alone")
+                logging.info(f"Rotation {rot} works alone")
             ignored.append(rot)
 
     negative_sets = {k: v for k, v in negative_sets.items() if k not in ignored}
@@ -100,7 +91,7 @@ def service_optimization(schedule, scenario, args):
     # try to combine them
     possible = [(a, b) for a in negative_sets for b in negative_sets if a != b]
     while possible:
-        logger.debug(f"{len(possible)} combinations remain")
+        logging.debug(f"{len(possible)} combinations remain")
         r1, r2 = possible.pop()
         combined = negative_sets[r1].union(negative_sets[r2])
         schedule.rotations = {r: original[0].rotations[r] for r in combined}
@@ -115,7 +106,7 @@ def service_optimization(schedule, scenario, args):
             if optimal is None or len(scenario[0].rotations) > len(optimal[0].rotations):
                 optimal = (deepcopy(schedule), deepcopy(scenario))
 
-    logger.info(negative_sets)
+    logging.info("Service optimization finished")
 
     return {
         "original": original,

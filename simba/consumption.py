@@ -74,31 +74,31 @@ class Consumption:
         if temp is None:
             try:
                 temp = self.temperatures_by_hour[time.hour]
-            except AttributeError:
-                print("Neither of these conditions is met:\n"
-                      "1. Temperature data is available for every trip through the trips file "
-                      "or a temperature over day file.\n"
-                      f"2. A constant mileage for the vehicle: "
-                      f"{vehicle_info['name']} - is provided.")
-                raise AttributeError
-            except KeyError:
-                print(f"No temperature data for the hour {time.hour} is provided")
-                raise KeyError
+            except AttributeError as e:
+                raise AttributeError(
+                    "Neither of these conditions is met:\n"
+                    "1. Temperature data is available for every trip through the trips file "
+                    "or a temperature over day file.\n"
+                    f"2. A constant mileage for the vehicle "
+                    f"{vehicle_info['mileage']} is provided."
+                ) from e
+            except KeyError as e:
+                raise KeyError(f"No temperature data for the hour {time.hour} is provided") from e
 
         # if no specific LoL is given, lookup temperature
         if level_of_loading is None:
             try:
                 level_of_loading = self.lol_by_hour[time.hour]
-            except AttributeError:
-                print("Neither of these conditions is met:\n"
-                      "1. Level of loading data is available for every trip through the trips file "
-                      "or a level of loading over day file.\n"
-                      f"2. A constant mileage for the vehicle: "
-                      f"{vehicle_info['name']} - is provided.")
-                raise AttributeError
-            except KeyError:
-                print(f"No level of loading data for the hour {time.hour} is provided")
-                raise KeyError
+            except AttributeError as e:
+                raise AttributeError(
+                    "Neither of these conditions is met:\n"
+                    "1. Level of loading data is available for every trip through the trips file "
+                    "or a level of loading over day file.\n"
+                    f"2. A constant mileage for the vehicle "
+                    f"{vehicle_info['mileage']} is provided."
+                ) from e
+            except KeyError as e:
+                raise KeyError(f"No level of loading for the hour {time.hour} is provided") from e
 
         # load consumption csv
         consumption_path = str(vehicle_info["mileage"])
