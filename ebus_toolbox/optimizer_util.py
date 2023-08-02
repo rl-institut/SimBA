@@ -246,12 +246,12 @@ def get_charging_start(trip1, args):
 
 
 def get_buffer_time(trip, default_buffer_time_opps):
-    """Return the buffer time as timedelta object
+    """  Return the buffer time as timedelta object
 
     :param trip: trip to be checked
     :type trip: ebus_toolbox.trip.Trip
     :param default_buffer_time_opps: the default buffer time at opps charging stations
-    :return: buffer ti
+    :return: buffer time
     :rtype: datetime.timedelta
     """
     return timedelta(minutes=get_buffer_time_util(trip, default_buffer_time_opps))

@@ -59,7 +59,7 @@ def simulate(args):
     scenario = schedule.run(args)
 
     # run the mode(s) specified in config
-    if not isinstance(args.mode, list):
+    if type(args.mode) != list:
         # backwards compatibility: run single mode
         args.mode = [args.mode]
 
