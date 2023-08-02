@@ -106,7 +106,7 @@ class TestSchedule:
         """ Check if running a basic example works and if a scenario object is returned
         """
         schedule, scen = self.basic_run()
-        assert type(scen) == scenario.Scenario
+        assert type(scen) is scenario.Scenario
 
     def test_assign_vehicles(self):
         """ Test if assigning vehicles works as intended.
@@ -276,7 +276,7 @@ class TestSchedule:
         assert scen.components.batteries["Station-0"].efficiency == 0.95
         assert scen.components.batteries["Station-0"].min_charging_power == 0
         scen = generated_schedule.run(args)
-        assert type(scen) == scenario.Scenario
+        assert type(scen) is scenario.Scenario
 
         with open(electrified_stations_path, "r", encoding='utf-8') as file:
             electrified_stations = util.uncomment_json_file(file)
@@ -303,7 +303,7 @@ class TestSchedule:
     def test_schedule_from_csv(self):
         generated_schedule = generate_basic_schedule()
         assert len(generated_schedule.rotations) == 4
-        assert type(generated_schedule) == schedule.Schedule
+        assert type(generated_schedule) is schedule.Schedule
 
     def test_consistency(self):
         sched = generate_basic_schedule()
