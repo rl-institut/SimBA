@@ -46,7 +46,7 @@ class TestUtil:
 
     def test_get_git_revision_hash(self):
         git_hash = util.get_git_revision_hash()
-        assert type(git_hash) == str
+        assert type(git_hash) is str
 
     def test_get_buffer_time(self):
         schedule, scenario = TestSchedule().basic_run()
