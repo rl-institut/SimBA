@@ -28,7 +28,7 @@ sys.path.insert(0, pathlib.Path(__file__).parents[2].resolve().as_posix())
 
 # -- Project information -----------------------------------------------------
 
-project = 'eBus-Toolbox'
+project = 'SimBA'
 copyright = '2020, Reiner Lemoine Institut'
 author = 'Reiner Lemoine Institut'
 

@@ -12,7 +12,7 @@ def get_git_revision_hash() -> str:
 
 def save_version(file_path):
     with open(file_path, "w", encoding='utf-8') as f:
-        f.write("Git Hash eBus-Toolbox:" + get_git_revision_hash())
+        f.write("Git Hash SimBA:" + get_git_revision_hash())
 
 
 def get_buffer_time(trip, default=0):
@@ -21,7 +21,7 @@ def get_buffer_time(trip, default=0):
     docking procedures and is added to the planned arrival time.
 
     :param trip: The of buffer time of this trips arrival is returned.
-    :type trip: ebus_toolbox.Trip
+    :type trip: simba.Trip
     :param default: Default buffer time if no station specific buffer time is given. [minutes]
     :type default: dict, numeric
     :return: Buffer time
@@ -242,7 +242,7 @@ def setup_logging(args, time_str):
 
 def get_args():
     parser = argparse.ArgumentParser(
-        description='eBus-Toolbox - simulation program for electric bus fleets.')
+        description='SimBA - Simulation toolbox for Bus Applications.')
 
     # #### Paths #####
     parser.add_argument('--input-schedule', nargs='?',
@@ -340,7 +340,7 @@ def get_args():
                         choices=logging._nameToLevel.keys(), help='Log level.')
     parser.add_argument('--logfile', default='', help='Log file suffix. null: no log file.')
 
-    # #### SpiceEV PARAMETERS ONLY DEFAULT VALUES NOT IN eBus-Toolbox CONFIG #####
+    # #### SpiceEV PARAMETERS ONLY DEFAULT VALUES NOT IN SimBA CONFIG #####
     parser.add_argument('--seed', default=1, type=int, help='set random seed')
     parser.add_argument('--include-price-csv',
                         help='include CSV for energy price. \

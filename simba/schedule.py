@@ -5,8 +5,8 @@ from pathlib import Path
 import random
 import warnings
 
-from ebus_toolbox import util
-from ebus_toolbox.rotation import Rotation
+from simba import util
+from simba.rotation import Rotation
 from spice_ev.scenario import Scenario
 
 

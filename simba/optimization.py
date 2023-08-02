@@ -10,7 +10,7 @@ def service_optimization(schedule, scenario, args):
         Try to find sets of rotations that produce no negative SoC
 
     :param schedule: Schedule to be optimized
-    :type schedule: ebus_toolbox.Schedule
+    :type schedule: simba.Schedule
     :param scenario: Simulated schedule
     :type scenario: spice_ev.Scenario
     :param args: Command line arguments

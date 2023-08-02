@@ -1,6 +1,6 @@
 import random
 import pytest
-from ebus_toolbox.util import nd_interp
+from simba.util import nd_interp
 
 TOLERANCE = 0.0001
 POINTS_TO_CHECK = 10

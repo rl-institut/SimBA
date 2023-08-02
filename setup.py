@@ -1,9 +1,9 @@
 from setuptools import setup, find_packages
 
 setup(
-    name="ebus_toolbox",
+    name="simba",
     version="0.0.1dev",
-    description="Assistent to analyse and optimise electrified bus fleets and schedules",
+    description="Simulation toolbox for Bus Applications",
     url="https://github.com/rl-institut/eBus-Toolbox",
     author="Reiner Lemoine Institut",
     author_email='info@rl-institut.de',

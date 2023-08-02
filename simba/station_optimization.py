@@ -7,8 +7,8 @@ import json
 import sys
 from pathlib import Path
 import logging
-import ebus_toolbox.station_optimizer
-from ebus_toolbox.station_optimizer import opt_util
+import simba.station_optimizer
+from simba.station_optimizer import opt_util
 from spice_ev.report import generate_soc_timeseries
 
 config = opt_util.OptimizerConfig()
@@ -18,7 +18,7 @@ def setup_logger(conf):
     """ Setup file and stream logging by config and args arguments.
 
     :param conf: configuration object
-    :type conf: ebus_toolbox.optimizer_util.OptimizerConfig
+    :type conf: simba.optimizer_util.OptimizerConfig
     :return: logger
     :rtype: Logger
     """
@@ -29,7 +29,7 @@ def setup_logger(conf):
 
     # use the temporary folder in case of testing. In the use case the general log file with logging
     # for all optimizations is located 2 folders above the opt folder, e.g. data/sim_outputs for the
-    # directory data/sim_outputs/XXX_eBus_results/sim__station_optimization/
+    # directory data/sim_outputs/XXX_SimBA_results/sim__station_optimization/
     if "pytest" in sys.modules:
         general_logger_path = Path(conf.optimizer_output_dir) / "optimizer.log"
     else:
@@ -63,8 +63,8 @@ def prepare_filesystem(args, conf):
     """ Prepare files and folders in the optimization results folder.
 
     :param conf: configuration
-    :type conf:  ebus_toolbox.optimizer_util.OptimizerConfig
-    :param args: Arguments for ebus toolbox
+    :type conf:  simba.optimizer_util.OptimizerConfig
+    :param args: arguments for SimBA toolbox
     :type args: Namespace
     """
     conf.optimizer_output_dir = Path(args.results_directory)
@@ -81,7 +81,7 @@ def run_optimization(conf, sched=None, scen=None, args=None):
     :param conf: Configuration object of optimization
     :type conf: OptimizerConfig
     :param sched: Simulation schedule containing buses, rotations etc.
-    :type sched: ebus_toolbox.schedule.Schedule
+    :type sched: simba.schedule.Schedule
     :param scen: Simulation scenario containing simulation results
                      including the SoC of all vehicles over time
     :type scen: spice_ev.Scenario
@@ -89,7 +89,7 @@ def run_optimization(conf, sched=None, scen=None, args=None):
     :type args: Namespace
 
     :return: optimized schedule and Scenario
-    :rtype: tuple(ebus_toolbox.schedule.Schedule, spice_ev.Scenario)
+    :rtype: tuple(simba.schedule.Schedule, spice_ev.Scenario)
     """
 
     # load pickle files if they are given in the optimizer.config
@@ -111,7 +111,7 @@ def run_optimization(conf, sched=None, scen=None, args=None):
     if args.desired_soc_deps != 1 and conf.solver == "quick":
         logger.error("Fast calculation is not yet optimized for desired socs different to 1")
 
-    optimizer = ebus_toolbox.station_optimizer.StationOptimizer(sched, scen, args, conf, logger)
+    optimizer = simba.station_optimizer.StationOptimizer(sched, scen, args, conf, logger)
 
     # set battery and charging curves through config file
     optimizer.set_battery_and_charging_curves()

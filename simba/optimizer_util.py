@@ -16,11 +16,11 @@ import numpy as np
 from matplotlib import pyplot as plt
 
 if typing.TYPE_CHECKING:
-    from ebus_toolbox.station_optimizer import StationOptimizer
+    from simba.station_optimizer import StationOptimizer
 
-from ebus_toolbox.consumption import Consumption
-from ebus_toolbox.trip import Trip
-from ebus_toolbox.util import get_buffer_time as get_buffer_time_util
+from simba.consumption import Consumption
+from simba.trip import Trip
+from simba.util import get_buffer_time as get_buffer_time_util
 from spice_ev.report import generate_soc_timeseries
 
 
@@ -141,7 +141,7 @@ def read_config(config_path):
     :param config_path: path to file
     :type config_path: str
     :return: configuration
-    :rtype: ebus_toolbox.optimizer_util.OptimizerConfig
+    :rtype: simba.optimizer_util.OptimizerConfig
     """
     config_parser = configparser.ConfigParser()
 
@@ -213,9 +213,9 @@ def get_charging_time(trip1, trip2, args):
     """ Returns the charging time in minutes between trips as numeric value/float.
 
     :param trip1: first trip
-    :type trip1: ebus_toolbox.trip.Trip
+    :type trip1: simba.trip.Trip
     :param trip2: following trip
-    :type trip2: ebus_toolbox.trip.Trip
+    :type trip2: simba.trip.Trip
     :param args:  arguments including default buffer time
     :type args: Namespace
     :return: maximum possible charging time in minutes between trips
@@ -236,7 +236,7 @@ def get_charging_start(trip1, args):
     This function considers the buffer times before charging can take place
 
     :param trip1: trip to be checked
-    :type trip1: ebus_toolbox.trip.Trip
+    :type trip1: simba.trip.Trip
     :param args: arguments including default buffer time
     :type args: Namespace
     :return: First possible charging time as datetime object
@@ -249,7 +249,7 @@ def get_buffer_time(trip, default_buffer_time_opps):
     """  Return the buffer time as timedelta object
 
     :param trip: trip to be checked
-    :type trip: ebus_toolbox.trip.Trip
+    :type trip: simba.trip.Trip
     :param default_buffer_time_opps: the default buffer time at opps charging stations
     :return: buffer time
     :rtype: datetime.timedelta
@@ -278,7 +278,7 @@ def get_rotation_soc_util(rot_id, schedule, scenario, soc_data: dict = None):
     :param rot_id: rotation_id
     :type rot_id: str
     :param schedule: schedule containing rotation information
-    :type schedule:ebus_toolbox.schedule.Schedule
+    :type schedule: simba.schedule.Schedule
     :param scenario: scenario containing the soc data
     :type scenario: spice_ev.Scenario
     :param soc_data: optional soc_data if the scenario data should not be used
@@ -304,7 +304,7 @@ def get_delta_soc(soc_over_time_curve, soc, time_delta, optimizer: 'StationOptim
     :param time_delta: time of charging
     :type time_delta: float
     :param optimizer: optimizer object
-    :type optimizer: ebus_toolbox.station_optimizer.StationOptimizer
+    :type optimizer: simba.station_optimizer.StationOptimizer
     :return: positive delta of the soc
     :rtype: float
     """
@@ -347,9 +347,9 @@ def evaluate(events: typing.Iterable[LowSocEvent],
     station, soc at station and minimal soc of the event.
 
     :param events: events to be evaluated
-    :type events: list(ebus_toolbox.optimizer_util.LowSocEvent)
+    :type events: list(simba.optimizer_util.LowSocEvent)
     :param optimizer: optimizer with scenario and schedule data
-    :type optimizer: ebus_toolbox.station_optimizer.StationOptimizer
+    :type optimizer: simba.station_optimizer.StationOptimizer
     :param kwargs: optional overwriting of soc_lower_thresh, soc_upper_thresh or soc_data
     :return: sorted stations and potentials
     :rtype: list(str(station_id), float(potential))
@@ -416,15 +416,15 @@ def get_groups_from_events(events, impossible_stations=None, could_not_be_electr
     station
 
     :param events: events for a given state of a scenario
-    :type events: list(ebus_toolbox.optimizer_util.LowSocEvent)
+    :type events: list(simba.optimizer_util.LowSocEvent)
     :param impossible_stations: stations to be discarded
     :type impossible_stations: set(str)
     :param could_not_be_electrified: rotations to be discarded
     :type could_not_be_electrified: set(str)
     :param optimizer: Optimizer
-    :type optimizer: ebus_toolbox.station_optimizer.StationOptimizer
+    :type optimizer: simba.station_optimizer.StationOptimizer
     :return: Groups of events and stations which have to be optimized together
-    :rtype: list((ebus_toolbox.optimizer_util.LowSocEvent, str))
+    :rtype: list((simba.optimizer_util.LowSocEvent, str))
     """
 
     # making sure default arguments are none and not mutable
@@ -507,7 +507,7 @@ def toolbox_to_pickle(name, sched, scen, args):
 
     :param name: base name of the files
     :param sched: schedule
-    :type sched: ebus_toolbox.schedule.Schedule
+    :type sched: simba.schedule.Schedule
     :param scen: scenario
     :type scen: spice_ev.Scenario
     :param args: arguments
@@ -600,7 +600,7 @@ def get_missing_energy(events, min_soc=0):
     """Sum up all the missing energies of the given events.
 
     :param events: events to be checked
-    :type events: list(ebus_toolbox.optimizer_util.LowSocEvent)
+    :type events: list(simba.optimizer_util.LowSocEvent)
     :param min_soc: minimal soc as desired value
     :type min_soc: float
     :return: missing energy
@@ -691,7 +691,7 @@ def toolbox_from_pickle(sched_name, scen_name, args_name):
     :param args_name: name of args file
     :type args_name: str
     :return: schedule, scenario and arguments
-    :rtype: (ebus_toolbox.schedule.Schedule, spice_ev.Scenario, Namespace)
+    :rtype: (simba.schedule.Schedule, spice_ev.Scenario, Namespace)
     """
     with open(args_name, "rb") as file:
         args = pickle.load(file)
@@ -725,14 +725,14 @@ def run_schedule(sched, args, electrified_stations=None):
     """Run a given schedule and electrify stations if need be.
 
     :param sched: schedule object
-    :type sched: ebus_toolbox.schedule.Schedule
+    :type sched: simba.schedule.Schedule
     :param args: arguments
     :type args: Namespace
     :param electrified_stations: electrified stations. Default value None means no further
         stations are electrified
     :type electrified_stations: dict or None
     :return: schedule and scenario after SpiceEV simulation
-    :rtype: ebus_toolbox.schedule.Schedule, spice_ev.Scenario
+    :rtype: simba.schedule.Schedule, spice_ev.Scenario
     """
     sched_copy = copy(sched)
     sched_copy.stations = electrified_stations
@@ -759,13 +759,13 @@ def preprocess_schedule(sched, args, electrified_stations=None):
     vehicles
 
     :param sched: schedule containing the rotations
-    :type sched: ebus_toolbox.schedule.Schedule
+    :type sched: simba.schedule.Schedule
     :param args: arguments for simulation
     :type args: Namespace
     :param electrified_stations: stations to be electrified
     :type electrified_stations: dict
     :return: schedule and scenario to be simulated
-    :rtype: (ebus_toolbox.schedule.Schedule, spice_ev.Scenario)
+    :rtype: (simba.schedule.Schedule, spice_ev.Scenario)
     """
     Trip.consumption = Consumption(
         sched.vehicle_types, outside_temperatures=args.outside_temperature_over_day_path,
@@ -828,7 +828,7 @@ def plot_rot(rot_id, sched, scen, axis=None, rot_only=True):
     :param rot_id: id of the rotation
     :type rot_id: str
     :param sched: schedule
-    :type sched: ebus_toolbox.schedule.Schedule
+    :type sched: simba.schedule.Schedule
     :param scen: scenario
     :type scen: spice_ev.Scenario
     :param axis: axis to be plotted on
