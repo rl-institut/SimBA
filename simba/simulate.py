@@ -22,9 +22,11 @@ def pre_simulation(args):
 
     Read in files, generate consumption info, create and filter schedule.
 
+    :param args: arguments
+    :type args: Namespace
     :raises Exception: If an input file does not exist, exit the program.
     :return: schedule
-    :rtype: simba.Schedule
+    :rtype: simba.schedule.Schedule
     """
     try:
         with open(args.vehicle_types, encoding='utf-8') as f:
@@ -76,7 +78,14 @@ def modes_simulation(schedule, scenario, args):
     Ignores unknown and "sim" modes.
     On error, create a report and continue with next mode.
 
-    Returns final schedule and scenario.
+    :param schedule: input schedule
+    :type schedule: simba.schedule.Schedule
+    :param scenario: corresponding scenario
+    :type scenario: spice_ev.scenario.Scenario
+    :param args: arguments
+    :type args: Namespace
+    :return: final schedule and scenario
+    :rtype: tuple
     """
     if type(args.mode) is not list:
         # backwards compatibility: run single mode
