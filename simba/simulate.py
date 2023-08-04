@@ -11,6 +11,18 @@ from simba.trip import Trip
 
 
 def simulate(args):
+    """
+    High-level function to create and run a scenario.
+
+    Use the parsed scenario arguments to prepare the schedule,
+    run the basic simulation and different modes of SimBA.
+    Returns final schedule and scenario after running all modes.
+
+    :param args: configuration
+    :type args: Namespace
+    :return: final schedule and scenario
+    :rtype: tuple
+    """
     schedule = pre_simulation(args)
     scenario = schedule.run(args)
     return modes_simulation(schedule, scenario, args)
