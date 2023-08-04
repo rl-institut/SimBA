@@ -2,43 +2,6 @@
 
 The SimBA toolbox assists the user in analysing and optimising electrified bus fleets and schedules.
 
-### Usage
+Please refer to the documentation for further instructions:
 
-At the current stage, only a single functionality is implemented, which is processing a bus schedule stored in a specific CSV format (see `data/examples/trips_examples.csv`) and run it through a module called SpiceEV for an in-depth SOC analysis.
-
-To try it out, first clone this repository and then install the required packages to your current environment by running
-
-`pip install -r requirements.txt` 
-
-Now you can start the SimBA module with all configurations stored at `data/examples/simba.cfg` via the command
-
-``python -m simba --config data/examples/simba.cfg``
-
-The repo provides an example for each necessary input file, so the example case can be executed without the need for the user to provide any data themselves.
-
-To run SimBA with your own `schedule.csv` (see details [below](#input-data)) file and default configurations run
-
-`python -m simba --input_schedule path/to/schedule.csv`
-
-Default configurations are detailed at `data/configs/simba.cfg`.
-
-
-
-### Input Data
-
-To analyze your own electric bus schedule, the data needs to be provided as a CSV file where each row contains the details of a single trip of that schedule. Find the details about the various columns in this file below. The first table lists the **mandatory** columns while the second one (tbd) lists optional parameters. Refer to `data/examples/trips.csv` for an example.
-
-| Column Name    | Description                                                  | Example           |
-| -------------- | ------------------------------------------------------------ | ----------------- |
-| rotation_id    | Unique alphanumeric ID to identify rotations                 | 27312             |
-| departure_name | Name of the station the trip starts at                       | Warschauer Straße |
-| departure_time | Date and Time at which bus starts trip                       | 2022-03-13T10:25  |
-| arrival_name   | Name of the station the trip ends at                         | Ostbahnhof Berlin |
-| arrival_time   | Date and Time at which bus completes trip (e.g. yyyy-mm-ddThh:mm[:ss]) | 2022-03-13T10:30  |
-| distance       | Distance traveled in **m**                                   | 1340              |
-| vehicle_type   | ID of vehicle type defined in vehicle types file. Set path of this file in config.<br />(see default for reference: `data/examples/vehicle_types.json`) | some_bus_type     |
-
-| Column Name   | Description                                                  | Example                      |
-| :------------ | :----------------------------------------------------------- | ---------------------------- |
-| line          | The bus line                                                 | 512, M10, X11 etc            |
-| charging_type | The preferred charging type for this trip.<br />NOTE: All trips of a rotation need to have the same charging type. If omitted, charging type is set according to preferred charging type provided in the config file. | Options: **depb**,  **oppb** |
+***LINK TO READ THE DOCS***
