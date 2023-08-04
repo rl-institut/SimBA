@@ -9,9 +9,9 @@ Consumption analysis
 
 The consumption can be calculated in two ways: Either with a constant average specific consumption or using a consumption table, where the consumption depends on the temperature, the incline, the level of loading and the speed profile/ average speed.
 
-To use a constant consumption, this value can be defined in the :ref:`vehicle_types` as "mileage" in the unit of [kWh/km]. To use the relative consumtion, a consumption table need to be created with data for each vehicle type and the path to the consumption table is assigned to the variable "mileage" in :ref:`vehicle_types`. The consumption table should have the columns "vehicle_type", "level_of_loading", "incline" ,"mean_speed_kmh", "t_amb", "consumption_kwh_per_km" and its creation is at ths point of development not part of SimBA.
+To use a constant consumption, this value can be defined in the :ref:`vehicle_types` as "mileage" in the unit of [kWh/km]. To use the relative consumption, a consumption table needs to be created with data for each vehicle type and the path to the consumption table is assigned to the variable "mileage" in :ref:`vehicle_types`. The consumption table should have the columns "vehicle_type", "level_of_loading", "incline" ,"mean_speed_kmh", "t_amb", "consumption_kwh_per_km" and its creation is at ths point of development not part of SimBA.
 
-The level_of_loading describes the share between an empty vehicle (0) and a fully loaded vehicle (1) can be handed over in two ways: Either directcly as a column in :ref:`schedule` with specific values for each individual trip or as an input file "default_level_of_loading.csv" (path defined in :ref:`config`) containing values for each hour of the day. SimBA will first look into schedule and take this value and if it is not defined take the one from the .csv file. The temperature information is obtained in the same way as the level of loading and should be given in °C. In Order to calculate the consumption based on the in incline, an extra "all_stations.csv" file (path defined in :ref:`config`) has to be provided containing information on the elevation in m of each station. The incline is then calculated as the average incline between start and stop of the trip, which is an assumption that creates good results for vehicles with recuperation technology, as most electric vehicles have. The mean speed is calculated using the information provided in :ref:`schedule` about duration and length of each trip.
+The level_of_loading describes the share between an empty vehicle (0) and a fully loaded vehicle (1) and can be handed over in two ways: Either directly as a column in :ref:`schedule` with specific values for each individual trip or as an input file "default_level_of_loading.csv" (path defined in :ref:`config`) containing values for each hour of the day. SimBA will first look into schedule and take this value and if it is not defined take the one from the .csv file. The temperature information is obtained in the same way as the level of loading and should be given in °C. In order to calculate the consumption based on the incline, an extra "all_stations.csv" file (path defined in :ref:`config`) has to be provided containing information on the elevation in m of each station. The incline is then calculated as the average incline between start and stop of the trip, which is an assumption that creates good results for vehicles with recuperation technology, as most electric vehicles have. The mean speed is calculated using the information provided in :ref:`schedule` about duration and length of each trip.
 
 
 .. _vehicle_dispatch:
@@ -19,19 +19,19 @@ The level_of_loading describes the share between an empty vehicle (0) and a full
 Vehicle Dispatch
 ----------------
 
-To allocate the rotations to vehicles, vehicles of the needed type to fulfil the rotation are used. If no suitable vehicle is available, a new vehicle is created. Available vehilces are defined as not currently serving a rotation, having the same depot and having had enough time after return to the depot to be fully charged, when returning with an empty battery. This "minimum standing time" at the depot is calculated using the variable min_recharge_deps_oppb or min_recharge_deps_depb from the config together with the respective battery capacity of the vehicle and assuming the maximum available power of the depot chargning stations.
+To allocate the rotations to vehicles, vehicles of the needed type to fulfil the rotation are used. If no suitable vehicle is available, a new vehicle is created. Available vehicles are defined as not currently serving a rotation, having the same depot and having had enough time after return to the depot to be fully charged, when returning with an empty battery. This "minimum standing time" at the depot is calculated using the variable min_recharge_deps_oppb or min_recharge_deps_depb from the config together with the respective battery capacity of the vehicle and assuming the maximum available power of the depot charging stations.
 
 Charging simulation
 -------------------
 
-The charging simulation is carried out in the open source software `SpiceEV <https://github.com/rl-institut/spice_ev>`_, that is included in SimBA as a package. SimBA therefore uses SpiceEVs carging strategy "distributed", that allows to sepatarte the charging strategy depending on the station type. The station types can be either depot charging station (deps) or opportunity charging station (opps). At depot charging stations vehicles are being charged using SpiceEVs strategy "balanced", which uses the whole standing time to charge with the minimal power to reach a desired SoC. At opportunity charging stations the strategy "greedy" is employed, that charges with the maximum available power due to restrictions from the grid connectoion, the charging curve of the vehicle and the charging station.
+The charging simulation is carried out in the open source software `SpiceEV <https://github.com/rl-institut/spice_ev>`_, that is included in SimBA as a package. SimBA therefore uses SpiceEVs charging strategy "distributed", that allows to separate the charging strategy depending on the station type. The station types can be either depot charging station (deps) or opportunity charging station (opps). At depot charging stations vehicles are being charged using SpiceEVs strategy "balanced", which uses the whole standing time to charge with the minimal power to reach a desired SoC. At opportunity charging stations the strategy "greedy" is employed, that charges with the maximum available power due to restrictions from the grid connection, the charging curve of the vehicle and the charging station.
 
 .. _generate_report:
 
 Generate report
 ---------------
 
-The generation of the report is implemented as a mode, that can be activated with the keyword "report" in modes (:ref:`report`). The report generates most of the output files. These are saved in a subfolder of the output directory as defined in :ref:`config` named as a string with the modes executed up to the point when report is called. e.g. mode = ['sim', 'report', 'neg_oppb_to_depb', 'report'] will create two subfolders in the output directory named "sim" and "sim__neg_oppb_to_depb" containing the output files for the respective times in simulation.
+The generation of the report is implemented as a mode, that can be activated with the keyword "report" in modes (:ref:`report`). The report generates most of the output files. These are saved in a sub-folder of the output directory as defined in :ref:`config` named as a string with the modes executed up to the point when report is called. e.g. mode = ['sim', 'report', 'neg_oppb_to_depb', 'report'] will create two sub-folders in the output directory named "sim" and "sim__neg_oppb_to_depb" containing the output files for the respective times in simulation.
 
 The generation of the report can be modified using the flag "cost_calculation" in :ref:`config`. If this flag is set to true, each report will also generate the file "summary_vehicles_costs.csv".
 
@@ -63,7 +63,7 @@ Default outputs
 | Contains station specific time series including price of electricity, grid supply, fixed loads, battery power, energy stored in battery, flex band boundaries, battery feed, charging station power use, occupied charging stations and charging stations in use as well as vehicles which are at the station.
 
 | **Overview on costs and vehicles (summary_vehicles_costs.csv)**
-| If colst_caluclation is activated, this file contains the cost report as described below in :ref:`cost_calculation`.
+| If cost_calculation is activated, this file contains the cost report as described below in :ref:`cost_calculation`.
 
 .. _cost_calculation:
 
@@ -74,13 +74,13 @@ Cost calculation
 | The following costs are calculated as both total and annual, depending on the lifetime of each component. See `SpiceEV documentation <https://spice-ev.readthedocs.io/en/latest/charging_strategies_incentives.html#incentive-scheme>`_ for the calculation of electricity costs.
 
 * Investment
-    * **Busses**: Costs for all busses used in the simulation. Costs include battery swaps, depending on the lifetime of both busses and batteries.
+    * **Buses**: Costs for all buses used in the simulation. Costs include battery swaps, depending on the lifetime of both buses and batteries.
     * **Charging infrastructure**: Costs for all depot and opportunity charging stations, depending on the number of actually used charging stations at each grid connector.
     * **Grid connectors**: Costs for grid connectors and transformers, depending on the voltage level and the distance to the grid.
     * **Garages**: Costs for workstations and charging infrastructure at garages.
     * **Stationary storages**: Costs for stationary batteries at depot and opportunity stations, depending on its capacity.
 * Maintenance
-    * Depending on the lifetime of each component maintenance costs are calculated for busses, charging infrastructure, grid connectors and stationary storages.
+    * Depending on the lifetime of each component maintenance costs are calculated for buses, charging infrastructure, grid connectors and stationary storages.
 * Electricity
     * **Power procurement**: Costs for the procurement of energy.
     * **Grid fees**: Costs for power and energy price, depending on the voltage level and the utilization time per year.
@@ -169,7 +169,7 @@ SimBA makes certain assumption, that have to be valid to trust the results. thes
 * Each rotation has a defined and fixed depot, so the rotation starts and ends at the same station
 * Every trip within a rotation starts where the previous trip ended
 
-In order to test these assumptions, the flag "check_rotation_consistency" can be activated in the :ref:`config`, which will result in the display of cases were assumptions are broken in the console and in the log file. Additionally the inconsistent totaions can be filtered out of the simulation by setting the "skip_inconsistent_rotations" flag to true.
+In order to test these assumptions, the flag "check_rotation_consistency" can be activated in the :ref:`config`, which will result in the display of cases where assumptions are broken in the console and in the log file. Additionally, the inconsistent rotations can be filtered out of the simulation by setting the "skip_inconsistent_rotations" flag to true.
 
 
 .. _rotation_filter:
@@ -177,9 +177,9 @@ In order to test these assumptions, the flag "check_rotation_consistency" can be
 Rotation filter
 ---------------
 
-Before all rotations specified in the :ref:`schedule` are simulated, there is the option to filter only the ones relevant to for the actual analysis. This is activated by setting the "rotation_filter_variable" in the :ref:`config` to either "include", than only certain rotations from the schedule are considered, or to "exclude", than certain rotations are excluded from the analysis. The list of rotations for both options is specified as "rotation_filter" in the Path paragraph of the :ref:`config`.
+Before all rotations specified in the :ref:`schedule` are simulated, there is the option to filter only the ones relevant to for the actual analysis. This is activated by setting the "rotation_filter_variable" in the :ref:`config` to either "include" to consider only certain rotations from the schedule, or to "exclude" to exclude certain rotations from the analysis. The list of rotations for both options is specified as "rotation_filter" in the Path paragraph of the :ref:`config`.
 
 Logging
 -------
 
-SimBA uses the "logging" package for logging. All logging messages are both displayed in the Terminal and written to a .log file. The filepath and the loglevel can be defined in the :ref:`config`. Four loglevels are available in the following order: DEBUG, INFO, WARN and ERROR. INFO includes INFO, WARN and ERROR but excludes DEBUG.
+SimBA uses the "logging" package for logging. All logging messages are both displayed in the Terminal and written to a .log file. The filepath and the loglevel can be defined in the :ref:`config`. Four log levels are available in the following order: DEBUG, INFO, WARN and ERROR. INFO includes INFO, WARN and ERROR but excludes DEBUG.

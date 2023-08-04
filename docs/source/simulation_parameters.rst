@@ -20,7 +20,7 @@ The configuration file config.cfg is provided as example in ./examples/ and prov
 | Modes: Here the modes of execution can be defined
 | Flags: Here, optional functionality can be activated or deactivated
 | Physical setup of environment: Here, the physical setup is characterized
-| Simulation Parameters: The simulation can be adjusted using these paramteres
+| Simulation Parameters: The simulation can be adjusted using these parameters
 
 The example (data/simba.cfg) contains parameter descriptions which are explained here in more detail:
 
@@ -33,35 +33,35 @@ The example (data/simba.cfg) contains parameter descriptions which are explained
      - Description
    * - input_schedule
      - Mandatory: no default given
-     - path as string
+     - Path as string
      - Input file containing :ref:`schedule` information
-   * - output_directory
-     - data/sim_outputs
-     - path as string
+   * - Output_directory
+     - Data/sim_outputs
+     - Path as string
      - Output files are stored here
    * - electrified_stations
      - ./data/examples/vehicle_types.json
-     - path as string
+     - Path as string
      - Path to Electrified stations data
    * - vehicle_types
      - ./data/examples/vehicle_types.json
-     - path as string
+     - Path as string
      - Path to :ref:`vehicle_types`
    * - station_data_path
      - Optional: no default given
-     - path as string
+     - Path as string
      - Path to :ref:`station_geo_data`
    * - outside_temperature_over_day_path
      - Optional: no default given
-     - path as string
+     - Path as string
      - Path to :ref:`temperature_data`
    * - level_of_loading_over_day_path
      - Optional: no default given
-     - path as string
+     - Path as string
      - Path to :ref:`level_of_loading`
    * - cost_parameters_file
      - Optional: no default given
-     - path as string
+     - Path as string
      - Path to :ref:`cost_params`
    * - mode
      - ['sim', 'report']
@@ -78,7 +78,7 @@ The example (data/simba.cfg) contains parameter descriptions which are explained
    * - skip_inconsistent_rotations
      - false
      - Boolean
-     - If check_rotation_consistency is active, rotations that don't comply with the checked assumtions are removed from the schedule if skip_inconsistent_rotations is set true
+     - If check_rotation_consistency is active, rotations that don't comply with the checked assumptions are removed from the schedule if skip_inconsistent_rotations is set true
    * - show_plots
      - false
      - Boolean
@@ -91,23 +91,23 @@ The example (data/simba.cfg) contains parameter descriptions which are explained
    * - gc_power_opps
      - 100000
      - Numeric
-     -  Default max power [kW] of grid connectors at opportunity charging stations, Individual gc_power per gc can be defined in :ref:`electrified_stations`
+     -  Default max. power [kW] of grid connectors at opportunity charging stations, Individual gc_power per gc can be defined in :ref:`electrified_stations`
    * - gc_power_deps
      - 100000
      - Numeric
-     -  Default max power [kW] of grid connectors at depot charging stations, Individual gc_power per gc can be defined in :ref:`electrified_stations`
+     -  Default max. power [kW] of grid connectors at depot charging stations, Individual gc_power per gc can be defined in :ref:`electrified_stations`
    * - cs_power_opps
      - 300
      - Numeric
-     - Default max power [kW] of opportunity charging stations
+     - Default max. power [kW] of opportunity charging stations
    * - cs_power_deps_depb
      - 300
      - Numeric
-     - Default max power [kW] of depot charging stations for depot charging busses. Individual cs_power per gc and cs type can be defined in :ref:`electrified_stations`
+     - Default max. power [kW] of depot charging stations for depot charging buses. Individual cs_power per gc and cs type can be defined in :ref:`electrified_stations`
    * - cs_power_deps_oppb
      - 300
      - Numeric
-     - Default max power [kW] of depot charging stations for opportunity charging busses. Individual cs_power per gc and cs type can be defined in :ref:`electrified_stations`
+     - Default max. power [kW] of depot charging stations for opportunity charging buses. Individual cs_power per gc and cs type can be defined in :ref:`electrified_stations`
    * - desired_soc_deps
      - 1
      - 0...1
@@ -135,23 +135,23 @@ The example (data/simba.cfg) contains parameter descriptions which are explained
    * - default_voltage_level
      - MV
      - HV, HV/MV, MV, MV/LV, LV
-     - The default volage level is used, if no specific voltage level is defined per station in :ref:`electrified_stations`. It is used to calculate the costs. Choices describe high voltage (HV), transfomer between high and medium voltage (HV/MV), medium voltage MV, transfomer between medium and low voltage (MV/LV) and low voltage (LV)
+     - The default voltage level is used, if no specific voltage level is defined per station in :ref:`electrified_stations`. It is used to calculate the costs. Choices describe high voltage (HV), transformer between high and medium voltage (HV/MV), medium voltage MV, transformer between medium and low voltage (MV/LV) and low voltage (LV)
 
    * - days
      - Optional: no default given
-     - numeric
+     - Numeric
      - If this value is defined only the first number of 'days' of the schedule are simulated
    * - interval
      - 1
-     - numeric
-     - timestep in minutes
+     - Numeric
+     - Timestep in minutes
    * - signal_time_dif
      - 10
-     - numeric
-     - Some strategies use limited foresight. E.g. priorization of vehicles at limited number of charging stations is carried out only for this time ahead of actual time step. Also used in spiceEV as time difference between signal time and actual start time of a vehicle event in min.
+     - Numeric
+     - Some strategies use limited foresight. E.g. prioritization of vehicles at limited number of charging stations is carried out only for this time ahead of actual time step. Also used in spiceEV as time difference between signal time and actual start time of a vehicle event in min.
    * - eta
      - false
-     - boolen
+     - Boolean
      - Show estimated time to finish simulation after each step. Not recommended for fast computations
 
 

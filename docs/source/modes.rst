@@ -8,7 +8,7 @@ Modes of SimBA
 ==============
 
 SimBA assists the user in analyzing and optimising electrified bus fleets and schedules. Besides a simple simulation run, several
-different modes support the user in finding optimal solutions for their eBus-System. Supported Modes are
+different modes support the user in finding optimal solutions for their eBus-System. Supported modes are
 
 * simple simulation
 * negative depot to opportunity charger
@@ -19,7 +19,7 @@ different modes support the user in finding optimal solutions for their eBus-Sys
 
 Chained Modes
 -------------
-While the default mode of the SimBA is the simple simulation together with a report, modes can be chained together differently to achieve the desired results. The chain of modes is defined in the config file (default: simba.cfg) under the keyword *mode*:
+While the default mode of SimBA is the simple simulation together with a report, modes can be chained together differently to achieve the desired results. The chain of modes is defined in the config file (default: simba.cfg) under the keyword *mode*:
 
 ::
 
@@ -31,8 +31,7 @@ This results in a simple simulation with a following report. To run a simulation
 
     mode = ["sim", "report" ,"neg_depb_to_oppb", "report]
 
-Where the scenario is run as is, a report is generated, the schedule is changed and simulated again and a second report is generated. The description what the modes do
-can be found below.
+Where the scenario is run as is, a report is generated, the schedule is changed and simulated again and a second report is generated. Descriptions for the modes can be found below.
 
 Simple Simulation
 -----------------
@@ -74,7 +73,7 @@ It takes the results of the previous simulation, and changes the charging type o
 
 Service Optimization
 --------------------
-It can happen that several busses influence each other while simulataiously charging at the same charging station, e.g. due to limited grid power or limited number of charging stations, which can lead to negative SoCs due to hindered charging. In this case, this mode finds the largest set of rotations that results in no negative SoC. This is done by first taking all rotations that do become negative and finding their dependent rotations, i.e., ones that can have an influence by sharing a station earlier with the negative rotation. Next, all rotations are filtered out that stay negative when running with just their dependent rotations.
+It can happen that several buses influence each other while simultaneously charging at the same charging station, e.g. due to limited grid power or limited number of charging stations, which can lead to negative SoCs due to hindered charging. In this case, this mode finds the largest set of rotations that results in no negative SoC. This is done by first taking all rotations that do become negative and finding their dependent rotations, i.e., ones that can have an influence by sharing a station earlier with the negative rotation. Next, all rotations are filtered out that stay negative when running with just their dependent rotations.
 Now, only rotations are left that are non-negative when viewed alone, but might become negative when run together. To find the largest subset of non-negative rotations, all possible set combinations are generated and tried out. When a union of two rotation-sets is non-negative, it is taken as the basis for new possible combinations.
 In the end, the largest number of rotations that produce a non-negative result when taken together is returned as the optimized scenario.
 
@@ -96,7 +95,7 @@ or
     mode = ["sim","neg_depb_to_oppb", "station_optimization", "report"]
 
 While the first call optimizes the scenario straight away trying to electrify all opportunity chargers, the second call, changes depot chargers to opportunity chargers, if they were not able to finish their rotations in the first simulation run. This way the second approach can lead to a higher degree of electrification for the system.
-The network with no opportunity charging station is first analyzed to find rotations which fail at the current stage and to estimate the potential of electrifying each station by its own. *Step-by-step* new opportunity stations are electrified until full electrification is reached. The optimization assumes that at every electrified station unlimited charging points exist, i.e. the number of simultaneously charging buses is not limited. In between each electrification a simulation is run and the network is analyzed again. The first run called the **base optimization** leads to a scenario which often times is better than extensively optimizing the scenario by hand. Since a greedy approach can not guarantee a global optimum a second extensive optimization can be chained to this base optimization. This *deep* optimization can make use of a *step-by-step* decision tree expansion which evaluates new combinations of electrified stations starting with the most promising combinations **OR** use a *brute* force approach trying to reduce the amount of electrified stations by one in comparison to the base optimization. The step-by-step process of the optimization follows :numref:`optimization_loop`
+The network with no opportunity charging station is first analyzed to find rotations which fail at the current stage and to estimate the potential of electrifying each station by its own. *Step-by-step* new opportunity stations are electrified until full electrification is reached. The optimization assumes that at every newly electrified station unlimited charging points exist, i.e. the number of simultaneously charging buses is not limited. In between each electrification a simulation is run and the network is analyzed again. The first run called the **base optimization** leads to a scenario which often times is better than extensively optimizing the scenario by hand. Since a greedy approach can not guarantee a global optimum a second extensive optimization can be chained to this base optimization. This *deep* optimization can make use of a *step-by-step* decision tree expansion which evaluates new combinations of electrified stations starting with the most promising combinations **OR** use a *brute* force approach trying to reduce the amount of electrified stations by one in comparison to the base optimization. The step-by-step process of the optimization follows :numref:`optimization_loop`
 
 .. _optimization_loop:
 .. figure:: https://user-images.githubusercontent.com/104760879/217225177-66201146-d31a-4127-9ca0-4d6e6e5a3cc4.png
@@ -114,19 +113,19 @@ After a single simulation is run the rotations are analyzed. Any time a vehicle 
 
     Low SoC event and classification of stations.
 
-The next step groups low SoC events based on the stations which were found earlier. Events which share at least one station could possibly interact with each other, e.g. vehicles could share a charging station. Therefore groups are build which do not share any stations in between groups. This speeds up the optimization process since for every electrification and simulation only rotations are calculated which could be impacted by the change.
+The next step groups low SoC events based on the stations which were found earlier. Events which share at least one station could possibly interact with each other, e.g. vehicles could share a charging station. Therefore, groups are build which do not share any stations in between groups. This speeds up the optimization process since for every electrification and simulation only rotations are calculated which could be impacted by the change.
 
-Since greedy approaches execute the step which seems most promising in the current situation an evaluation function is needed. One possible approach could be to simulate each scenario, meaning simulating every case in which one of all possible stations is electrified and continuing with the best case. The optimizer does not use this approach. Instead an approximation function is used to evaluate the potential of electrifying a station. This approximation function analyzes the duration at each stop, the possible charging time, the SoC and resulting possible charging power (battery with high SoCs are charged at a lower rate) as well as the upper SoC threshold and minimal SoC of the event. While this methodology is not accurate in all cases, e.g. a station could exist multiple times inside of a low SoC event, therefore charging the first time at this station would alter the SoC and charging power the vehicle has the second time it reaches the station, it seems well suited as heuristic for choosing the most promising station. The objective function of choosing what the *best* station is, is the mitigation of missing charge, i.e. what is the minimal amount of energy that needs to be inserted into the battery, so that no SoC is below 0.
+Since greedy approaches execute the step which seems most promising in the current situation an evaluation function is needed. One possible approach could be to simulate each scenario, meaning simulating every case in which one of all possible stations is electrified and continuing with the best case. The optimizer does not use this approach. Instead, an approximation function is used to evaluate the potential of electrifying a station. This approximation function analyzes the duration at each stop, the possible charging time, the SoC and resulting possible charging power (in general batteries with high SoCs are charged at a lower rate) as well as the upper SoC threshold and minimal SoC of the event. While this methodology is not accurate in all cases, e.g. a station could exist multiple times inside a low SoC event, therefore charging the first time at this station would alter the SoC and charging power the vehicle has the second time it reaches the station, it seems well suited as heuristic for choosing the most promising station. The objective function of choosing what the *best* station is, is the mitigation of missing charge, i.e. what is the minimal amount of energy that needs to be inserted into the battery, so that no SoC is below 0.
 
-After the evaluation selected a station to be electrified the scenario input data is altered so that vehicles at this station are charged without limitation of charging points. This is followed up by a detailed simulation which can make use of a highly accurate solver for charging events called *SpiceEV* or a less accurate but faster solver. Now the resulting system has less missing charge and the potentials of stations might be decreased. Also a single group might have been split up into several smaller groups which can be analyzed even quicker. Therefore the loop repeats up until the point the missing charge in the system is zero or in other words the system is fully electrified.
+After the evaluation selected a station to be electrified the scenario input data is altered so that vehicles at this station are charged without limitation of charging points. This is followed up by a detailed simulation which can make use of a highly accurate solver for charging events called *SpiceEV* or a less accurate but faster solver. Now the resulting system has less missing charge and the potentials of stations might be decreased. Also, a single group might have been split up into several smaller groups which can be analyzed even quicker. Therefore, the loop repeats up until the point the missing charge in the system is zero or in other words the system is fully electrified.
 
 At the current stage the scenario to be optimized needs depot charging stations at the start and end of each rotation. The scenario should not contain any opportunity charging stations. If for a given scenario opportunity charging stations are predefined, i.e. the scenario should contain a specific electrification and is set in the *electrified_station.json* the solver type *spice_ev* should be used in the *optimizer.cfg*. If the *quick* solver is supposed to be used the station can be listed in *inclusion_stations* while the *electrified_stations.json* should only contain depot stations. Stations can be also excluded from optimization by adding their name to *exclusion_stations*.
 
 Deep Optimization
 ####################
-The greedy algorithm in the base optimization can not guarantee that the solution is the global optimum. This is why the use of the *deep* mode is recommended for systems with high requirements. After the first run, instead of electrifying the station with the highest potential the second best station is electrified. This is similar to a decision tree, where every node is a set of electrified stations, with the first node being zero stations electrified and the last node being all stations electrified. The nodes in between correlate with every possible state of electrification. Each branch therefore represents an additional electrification of a single station. The algorithm continues electrifying the best station, as long as this node has not been evaluated yet. This way gradually all possible nodes are checked. The search stops whenever the number of stations surpasses the number of the current optimal solution. If several options with the same optimal number of stations arise, they can be found in the log file of the optimizer, but only one file with optimized stations is produced.
+The greedy algorithm in the base optimization can not guarantee that the solution is the global optimum. This is why the use of the *deep* mode is recommended for systems with high requirements. After the first run, instead of electrifying the station with the highest potential the second-best station is electrified. This is similar to a decision tree, where every node is a set of electrified stations, with the first node being zero stations electrified and the last node being all stations electrified. The nodes in between correlate with every possible state of electrification. Each branch therefore represents an additional electrification of a single station. The algorithm continues electrifying the best station, as long as this node has not been evaluated yet. This way gradually all possible nodes are checked. The search stops whenever the number of stations surpasses the number of the current optimal solution. If several options with the same optimal number of stations arise, they can be found in the log file of the optimizer, but only one file with optimized stations is produced.
 
-**Pruning** is used to stop evaluation of branches, whenever foresight predicts that no better solution will be reached. This is done through the simple heuristic of checking the sum of potential of the n remaining stations with the highest potentials, with n being the number until the number of stations of the current optimal solution is reached.
+**Pruning** is used to stop evaluation of branches, whenever foresight predicts that no better solution will be reached. This is done through the simple heuristic of checking the sum of potentials of the n remaining stations with the highest potentials, with n being the number until the number of stations of the current optimal solution is reached.
 
 | **Example:**
 | The base optimization found a set of 5 stations to fully electrify the scenario. These stations are *A*, *B*, *C*, *D* and *E* which were chosen in the same order. The whole scenario consists of the whole alphabet of stations. The deep optimization starts with evaluating a scenario without any electrified opportunity stations. Depot stations are electrified. The first evaluation gives a sorted list of potentials by
@@ -159,17 +158,17 @@ For every vehicle the amount of missing energy is calculated and summed up. In t
 
    Pot = Pot_B + Pot_E + Pot_C + Pot_G = 28 + 25 + 20 +18 = 91
 
-In this case the potential is high enough to continue the exploration of this branch. If the potential would have been below 85 the branch would have been pruned, meaning it would not be explored any further and labeled as *not promising*. It is not promising since it will not lead to a better solution than the current one. This is the case since on one hand the evaluation by approximation tends to overestimate the potential while the missing energy is accurately calculated and on the other hand electrification of stations can reduce the potential of other stations, for example if 2 stations charge the same rotation, electrifying one station might fully electrify the rotation meaning the potential of the other station drops to zero.
+In this case the potential is high enough to continue the exploration of this branch. If the potential had been below 85 the branch would have been pruned, meaning it would not be explored any further and labeled as *not promising*. It is not promising since it will not lead to a better solution than the current one. This is the case since on one hand the evaluation by approximation tends to overestimate the potential while the missing energy is accurately calculated and on the other hand electrification of stations can reduce the potential of other stations, for example if 2 stations charge the same rotation, electrifying one station might fully electrify the rotation meaning the potential of the other station drops to zero.
 This concept can reduce the amount of nodes which have to be checked.
 
 Other Optimization Functionality
 ###################################
-**Mandatory stations** can be attained to increase the optimization process. Mandatory stations are defined by being stations which are needed for a fully electrified system. To check if a station *Y* is a mandatory station can be easily attained by simulating the network with every station electrified except *Y*. If the system has vehicle SoCs which drop below the minimal SoC (default value is 0) in this scenario, the station is mandatory. In the later exploration of best combinations of stations this station will be included in any case.
+**Mandatory stations** can be attained to increase the speed of the optimization process. Mandatory stations are defined by being stations which are needed for a fully electrified system. To check if a station *Y* is mandatory the network with every station electrified except *Y* is simulated. If the system has vehicle SoCs which drop below the minimal SoC (default value is 0) in this scenario, the station is mandatory. In the later exploration of the best combinations of stations this station will be included in every case.
 
 **Impossible rotations** are rotations which given the settings are not possible to be run as opportunity chargers, given the vehicle properties, even when every station is electrified. Before starting an optimization it is recommended to remove these rotations from the optimization, since the optimizer will not reach the goal of full electrification.
 
 **Quick solver**
-Instead of using the regular SpiceEV solver for optimization the user can also choose the *quick* solver. This approximates the SoC history of a vehicle by straight manipulation of the SoC data and numeric approximations of the charged energy. Therefore small differences between solving a scenario with SpiceEV and the quick solver exist. For the quick solver to work, some assumptions have to be met as well
+Instead of using the regular SpiceEV solver for optimization the user can also choose the *quick* solver. This approximates the SoC history of a vehicle by straight manipulation of the SoC data and numeric approximations of the charged energy. Therefore, small differences between solving a scenario with SpiceEV and the quick solver exist. For the quick solver to work, some assumptions have to be met as well
 
 * Depots charge the vehicles to 100% SoC
 * Station electrification leads to unlimited charging points
@@ -198,7 +197,7 @@ To make use of this feature the parameters in the optimizer.cfg have to be set.
 
 Optimizer Configuration
 ###################################
-The functionality of the optimizer is controlled through the optimizer.cfg specified in the simba.cfg used for calling the SimBA.
+The functionality of the optimizer is controlled through the optimizer.cfg specified in the simba.cfg used for calling SimBA.
 
 .. list-table:: Optimizer.cfg parameters
    :header-rows: 1
@@ -210,7 +209,7 @@ The functionality of the optimizer is controlled through the optimizer.cfg speci
    * - debug_level
      - 1
      - 1 to 99
-     - Level of debugging information that is printed to the .log file between. debug_level = 1 prints everything
+     - Level of debugging information that is printed to the .log file. debug_level = 1 prints everything
    * - console_level
      - 99
      - 1 to 99
@@ -278,7 +277,7 @@ The functionality of the optimizer is controlled through the optimizer.cfg speci
    * - pruning_threshold
      - 3
      - positive integer value
-     - Number of stations left until number of stations in optimal solution is reached,where pruning is activated. Calculation time of checking for pruning is not negligible, meaning that a lot of pruning checks (high pruning threshold, e.g. 99) lead to slower optimization. Low values will rarely check for pruning but also pruning will be rarely achieved
+     - Number of stations left until number of stations in optimal solution is reached,where pruning is activated. Calculation time of checking for pruning is not negligible, meaning that a lot of pruning checks (high pruning threshold, e.g. 99) lead to slower optimization. Low values will rarely check for pruning but also pruning will rarely be achieved
    * - opt_type
      - greedy
      - [greedy, deep]
@@ -322,7 +321,7 @@ The functionality of the optimizer is controlled through the optimizer.cfg speci
 
 Report
 ------
-The report will generate several files which include information about the expected SoCs, power loads at the charging stations or depots, default plots for the scenario and other useful data. Please refer to :ref:`generate_report` for more datailed information.
+The report will generate several files which include information about the expected SoCs, power loads at the charging stations or depots, default plots for the scenario and other useful data. Please refer to :ref:`generate_report` for more detailed information.
 
 
 

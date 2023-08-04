@@ -2,8 +2,7 @@ Getting Started
 ===============
 
 SimBA - the Simulation toolbox for Bus Applications - was designed to analyze and optimize electrified bus fleets.
-It be used for locating and dimensioning charging infrastructure, dimensioning buses, analyzing the feasibility of electrification of trips and circulations, determining charging strategies, and calculating investments and costs.
-
+It is used for locating and dimensioning charging infrastructure, dimensioning buses, analyzing the feasibility of electrification of trips and circulations, determining charging strategies, and calculating investments and costs.
 .. Without creating links like in the line below, subpages go missing from the sidebar
 
 .. _installation_label:
@@ -40,11 +39,11 @@ Now add a new "run/debug configuration" with the following information:
 | Working directory: ``path/to/local/simba_repo``
 | Run with Python Console: true
 
-Now you can run the scenario specified in the conif using PyCharm.
+Now you can run the scenario specified in the config using PyCharm.
 
 General Concept
 ---------------
-SimBA is designed as a toolbox, so the specific use can be adapted to the users needs. Its core functionality is to run scenariobased simulations. A scenario is defined by a set of input files. Next to the simulation mode, several optimization modes exist, that can be linked and executed consecutively.
+SimBA is designed as a toolbox, so the specific use can be adapted to the users needs. Its core functionality is to run scenario based simulations. A scenario is defined by a set of input files. Next to the simulation mode, several optimization modes exist, that can be linked and executed consecutively.
 
 .. _figure_simba_modules:
 .. figure:: _static/SimBA_module_overview.png
@@ -57,7 +56,7 @@ SimBA is designed as a toolbox, so the specific use can be adapted to the users 
 
 Depending on the given simulation parameters, the vehicles are then dispatched. In this step, every rotation – the sum of all trips between leaving the depot until return – is allocated to a specific vehicle. The vehicles can be charged at any number of :ref:`electrified_stations`. These can be classified either as depot stations (deps) or as opportunity stations (opps). Each vehicle can be charged following one of the two charging strategies: Either as opportunity charging bus (oppb) or as depot charging bus (depb). While an oppb is charged at both deps and opps, depb are only charged at deps. The charging strategy can either be defined for each rotation in the :ref:`schedule` data or for all not explicitly defined rotations using the "preferred charging type" option in the :ref:`config`. Using this information, the charging simulation is then carried out.
 
-As a result of each simulation the energy demand at each electrified station, the development of vehicles SoCs (State of Charge), summaries of all rotations, estimated costs for vehicles, infrastructure and operationand further data can be displayed and saved. Some information can also be plotted, an example can be seen in :numref:`simba_default_plot`.
+As a result of each simulation the energy demand at each electrified station, the development of vehicles SoCs (State of Charge), summaries of all rotations, estimated costs for vehicles, infrastructure and operation and further data can be displayed and saved. Some information can also be plotted, an example can be seen in :numref:`simba_default_plot`.
 
 In case an optimization is carried out, the results are then analyzed, the optimizer adapts the input data and parameters and starts the process again with the trip consumption analysis. In which order and for what purpose the individual modules are executed is mainly defined using the different modes. These modes can be used to manipulate the defined scenario e.g. by altering bus types from depot to opportunity chargers, optimize sets of rotations to increase electrification or suggest stations for electrification by minimizing the amount of stations needed. You can learn more about the modes  :ref:`here <sim_modes>`.
 
