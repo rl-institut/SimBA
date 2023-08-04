@@ -221,7 +221,7 @@ def nd_interp(input_values, lookup_table):
 def setup_logging(args, time_str):
     # set up logging
     # always to console
-    log_level = vars(logging)[args.loglevel]
+    log_level = vars(logging)[args.loglevel.upper()]
     console = logging.StreamHandler()
     console.setLevel(log_level)
     log_handlers = [console]
@@ -234,7 +234,7 @@ def setup_logging(args, time_str):
         log_path = args.output_directory / log_name
         print(f"Writing log to {log_path}")
         file_logger = logging.FileHandler(log_path, encoding='utf-8')
-        log_level_file = vars(logging).get(args.loglevel_file or args.loglevel)
+        log_level_file = vars(logging).get((args.loglevel_file or args.loglevel).upper())
         file_logger.setLevel(log_level_file)
         log_handlers.append(file_logger)
         log_level = min(log_level, log_level_file)
@@ -342,10 +342,10 @@ def get_args():
                         help='set mode for filtering schedule rotations')
 
     # #### LOGGING PARAMETERS #### #
-    parser.add_argument('--loglevel', default='INFO',
+    parser.add_argument('--loglevel', default='INFO', type=str.upper,
                         choices=logging._nameToLevel.keys(), help='Log level.')
     parser.add_argument('--logfile', default='', help='Log file suffix. null: no log file.')
-    parser.add_argument('--loglevel_file', default='',
+    parser.add_argument('--loglevel_file', default='', type=str.upper,
                         choices=list(logging._nameToLevel.keys()) + [''],
                         help='Log level for file logger.')
 
