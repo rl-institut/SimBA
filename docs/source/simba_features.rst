@@ -1,8 +1,8 @@
 
-.. _simba_modules:
+.. _simba_features:
 
-SimBA modules
-=============
+Features of SimBA
+=================
 
 Consumption analysis
 --------------------
@@ -161,8 +161,25 @@ There are several options for optimizations that are implemented as :ref:`sim_mo
 Consistency check
 -----------------
 
+SimBA makes certain assumption, that have to be valid to trust the results. these are:
+
+* The trips inside a rotation are chronologically sorted
+* The trip time is not negative, so the arrival of the trip is later or equal to its departure.
+* The break time between trips is not negative, so the departure of the consecutive trip is later or equal to the arrival of the preceding trip.
+* Each rotation has a defined and fixed depot, so the rotation starts and ends at the same station
+* Every trip within a rotation starts where the previous trip ended
+
+In order to test these assumptions, the flag "check_rotation_consistency" can be activated in the :ref:`config`, which will result in the display of cases were assumptions are broken in the console and in the log file. Additionally the inconsistent totaions can be filtered out of the simulation by setting the "skip_inconsistent_rotations" flag to true.
+
 
 .. _rotation_filter:
 
 Rotation filter
 ---------------
+
+Before all rotations specified in the :ref:`schedule` are simulated, there is the option to filter only the ones relevant to for the actual analysis. This is activated by setting the "rotation_filter_variable" in the :ref:`config` to either "include", than only certain rotations from the schedule are considered, or to "exclude", than certain rotations are excluded from the analysis. The list of rotations for both options is specified as "rotation_filter" in the Path paragraph of the :ref:`config`.
+
+Logging
+-------
+
+SimBA uses the "logging" package for logging. All logging messages are both displayed in the Terminal and written to a .log file. The filepath and the loglevel can be defined in the :ref:`config`. Four loglevels are available in the following order: DEBUG, INFO, WARN and ERROR. INFO includes INFO, WARN and ERROR but excludes DEBUG.

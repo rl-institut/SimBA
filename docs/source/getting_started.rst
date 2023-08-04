@@ -40,7 +40,7 @@ Now add a new "run/debug configuration" with the following information:
 | Working directory: ``path/to/local/simba_repo``
 | Run with Python Console: true
 
-Now you can run the scenario specified in the conif usin PyCharm.
+Now you can run the scenario specified in the conif using PyCharm.
 
 General Concept
 ---------------
