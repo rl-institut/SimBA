@@ -174,7 +174,7 @@ class Mode:
         for rot_id in neg_rot:
             if schedule.rotations[rot_id].charging_type == from_type:
                 new_vehicle_type = f"{schedule.rotations[rot_id].vehicle_type}_{to_type}"
-                if scenario.components.vehicle_types[new_vehicle_type]:
+                if scenario.components.vehicle_types.get(new_vehicle_type) is not None:
                     relevant_rotations.append(rot_id)
                 else:
                     logging.debug(f"Rotation {rot_id} negative and of type {from_type}, "
