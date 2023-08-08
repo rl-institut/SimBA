@@ -35,6 +35,7 @@ def service_optimization(schedule, scenario, args):
 
     negative_sets = {}
     for rot_key in negative_rotations:
+        logging.debug(f"Looking at negative rotation {rot_key}")
         # remove negative rotation from initial schedule
         rotation = schedule.rotations.pop(rot_key)
         if rotation.charging_type != "oppb":
@@ -50,17 +51,26 @@ def service_optimization(schedule, scenario, args):
         last_neg_soc_time = datetime.datetime.fromisoformat(last_neg_soc_time)
         dependent_station = {r: t for r, t in common_stations[rot_key].items()
                              if t <= last_neg_soc_time}
+        logging.debug(f"Dependent stations: {dependent_station}")
         while dependent_station:
+            # get next rotation ID and last common time
             r, t = dependent_station.popitem()
+            # rotation ID -> rotation object
+            dependent_rotation = schedule.rotations.get(r)
+            logging.debug(f"\tRotation {r} ({dependent_rotation}) @ {t}:")
             if r not in negative_rotations:
+                # r not negative: add to set of dependent rotations
                 s.add(r)
-                # add dependencies of r
-                dependent_station.update({r2: t2 for r2, t2
-                                          in common_stations[r].items() if t2 <= t})
-            elif r.charging_type != "obbp":
+                # add dependencies of r, avoid circular dependency
+                dependencies = {r2: t2 for r2, t2 in common_stations[r].items()
+                                if t2 <= t and r2 not in s}
+                dependent_station.update(dependencies)
+                logging.debug(f"\t{dependencies}")
+            elif dependent_rotation is not None and dependent_rotation.charging_type != "obbp":
                 logging.warning(f"Rotation {rot_key} depends on negative non-oppb rotation")
 
         negative_sets[rot_key] = s
+        logging.debug(f"Negative sets: {negative_sets}")
 
     # run scenario with non-negative rotations only
     if schedule.rotations:
@@ -96,11 +106,13 @@ def service_optimization(schedule, scenario, args):
         combined = negative_sets[r1].union(negative_sets[r2])
         schedule.rotations = {r: original[0].rotations[r] for r in combined}
         scenario = schedule.run(args)
+        logging.debug(f"{r1} + {r2}: {not scenario.negative_soc_tracker}")
         if not scenario.negative_soc_tracker:
             # compatible (don't interfere): keep union, remove r2
             negative_sets[r1] = combined
             # simplified. What about triangle? (r1+r2, r1+r3, r2!+r3)?
             possible = [t for t in possible if r2 not in t]
+            logging.debug(possible)
 
             # save scenario with highest electrification rate
             if optimal is None or len(scenario[0].rotations) > len(optimal[0].rotations):
