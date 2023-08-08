@@ -231,14 +231,43 @@ This is how a schedule file might look like.
 
 Vehicle types
 -------------
-vehicle_type.json
-tbc
+
+The vehicle types that can be used are defined in the "vehicle_type.json". The path to this file has to be defined in the :ref:`config` and an example is given at `data/examples/vehicle_types.json`.
+
+The data is structured as a .json where the top level key represents the vehicle_type, that needs to correspont to the "vehicle_type" defined in the :ref:`schedule`. The next level key defines the charging_type ("oppb" or "depb"). For one vehicle type either one or both charging types can be defined and for each given charging type the specifications in the third level of the .json have to be given. In this level, the parameters for the specified vehicle are be defined. The specification of one vehicle with the vehicle_type "AB" and the charging_types "depb" and "oppb" is given as follows:
+
+.. code-block:: json
+
+    {
+        "AB": {  // vehicle_type
+            "depb": {  // charging_type
+                "name": "articulated bus - depot charging",  // long name
+                "capacity": 250,  // battery capacity in kWh
+                "charging_curve": [[0, 150], [0.8, 150], [1, 15]],  // charging curve [SoC, kW]
+                "min_charging_power": 0,  // min charging power in KW
+                "v2g": false,  // Is vehicle capable of vehicle to grid?
+                "mileage": "data/examples/energy_consumption_example.csv",  // mileage in kWh/km or link to consumption.csv
+                "battery_efficiency": 0.95  // optional. default: 0.95
+            },
+            "oppb": {
+                "name": "articulated bus - opportunity charging",
+                "capacity": 150,
+                "charging_curve": [[0, 250], [0.8, 250], [1, 25]],
+                "min_charging_power": 0,
+                "v2g": false,
+                "mileage": "data/examples/energy_consumption_example.csv"
+            }
+        }
+    }
 
 .. _electrified_stations:
 
 Electrified stations
 --------------------
-Stations which are electrified. TBC
+
+All stations, that are or could be equipped with charging infrastructure have to be parameterized in the "electrified_stations.json" together with their grid connection, charging infrastructure and local energy systems. The path to this file has to be defined in the :ref:`config` and an example is given at `data/examples/electrified_stations.json`.
+
+TODO: HIER WEITER
 
 .. _cost_params:
 

@@ -2,7 +2,7 @@ Getting Started
 ===============
 
 SimBA - the Simulation toolbox for Bus Applications - was designed to analyze and optimize electrified bus fleets.
-It is used for locating and dimensioning charging infrastructure, dimensioning buses, analyzing the feasibility of electrification of trips and circulations, determining charging strategies, and calculating investments and costs.
+It is used for locating and dimensioning charging infrastructure, dimensioning buses, analyzing the feasibility of electrification of trips and rotations, determining charging strategies, and calculating investments and costs.
 .. Without creating links like in the line below, subpages go missing from the sidebar
 
 .. _installation_label:

@@ -81,7 +81,7 @@ Station Optimization
 --------------------
 Greedy Optimization
 ####################
-This mode optimizes a scenario by electrifying as few opportunity stations as possible using a greedy approach. Two basic approaches to use the optimization module are setting the mode in the simba configuration file to
+This mode optimizes a scenario by electrifying as few opportunity stations as possible using a greedy approach. Two basic approaches to use the optimization module are setting the mode in the SimBA configuration file to
 
 ::
 
@@ -322,12 +322,3 @@ The functionality of the optimizer is controlled through the optimizer.cfg speci
 Report
 ------
 The report will generate several files which include information about the expected SoCs, power loads at the charging stations or depots, default plots for the scenario and other useful data. Please refer to :ref:`generate_report` for more detailed information.
-
-
-
-
-
-
-
-
-
