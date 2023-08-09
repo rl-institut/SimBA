@@ -1,4 +1,4 @@
 numpy >= 1.12.0
 matplotlib
--e git+https://github.com/rl-institut/spice_ev.git@dev#egg=spice_ev
+-e git+https://github.com/rl-institut/spice_ev.git@master#egg=spice_ev
 pandas

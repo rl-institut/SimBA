@@ -2,7 +2,7 @@ from setuptools import setup, find_packages
 
 setup(
     name="simba",
-    version="0.0.1dev",
+    version="1.0.0",
     description="Simulation toolbox for Bus Applications",
     url="https://github.com/rl-institut/eBus-Toolbox",
     author="Reiner Lemoine Institut",
