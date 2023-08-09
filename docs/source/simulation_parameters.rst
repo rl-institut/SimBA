@@ -264,9 +264,9 @@ Electrified stations
 
 All stations, that are or could be equipped with charging infrastructure have to be parameterized in the "electrified_stations.json" together with their grid connection, charging infrastructure and local energy systems. The path to this file has to be defined in the :ref:`config`.
 
-The data is structured as a .json where the top level key represents the station name, that needs to correspond to the "departure_name", respectively "arrival_name" defined in the :ref:`schedule`. Each station has two mandatory arguments: "type" defines if a station is a depot ("deps") or a opportunity charging station ("opps") and "n_charging_stations" limits the amount of vehicles, that can simultaneously charge at one station.
+The data is structured as a .json where the top level key represents the station name, that needs to correspond to the "departure_name", respectively "arrival_name" defined in the :ref:`schedule`. Each station has two mandatory arguments: "type" defines if a station is a depot ("deps") or an opportunity charging station ("opps") and "n_charging_stations" limits the amount of vehicles, that can simultaneously charge at one station.
 
-Furthermore the energy system at each station can be characterized in terms of local power generation ("energy_feed_in"), local external loads ("external_load") or local stationary electric power storage ("battery"). An example that displays all further parameters and the specification of the local energy systems is given at "data/examples/electrified_stations.json".
+Furthermore, the energy system at each station can be characterized in terms of local power generation ("energy_feed_in"), local external loads ("external_load") or local stationary electric power storage ("battery"). An example that displays all further parameters and the specification of the local energy systems is given at "data/examples/electrified_stations.json".
 
 
 .. _cost_params:

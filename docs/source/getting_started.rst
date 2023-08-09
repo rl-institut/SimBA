@@ -3,6 +3,7 @@ Getting Started
 
 SimBA - the Simulation toolbox for Bus Applications - was designed to analyze and optimize electrified bus fleets.
 It is used for locating and dimensioning charging infrastructure, dimensioning buses, analyzing the feasibility of electrification of trips and rotations, determining charging strategies, and calculating investments and costs.
+
 .. Without creating links like in the line below, subpages go missing from the sidebar
 
 .. _installation_label:
@@ -28,7 +29,7 @@ Default configurations are detailed at `data/configs/simba.cfg`.
 Usage with PyCharm
 ##################
 
-To use SimBa with PyCharm, create a new python (>= 3.7) environment and clone this repository. Then go to File -> Settings -> project in PyCharm and set Python of the newly created environment as interpreter and the local SimBA repository as project root. Now install the required packages by running in the Terminal:
+To use SimBa with PyCharm, create a new python (>= 3.7) environment and clone `this repository <https://github.com/rl-institut/SimBA>`_. Then go to File -> Settings -> project in PyCharm and set Python of the newly created environment as interpreter and the local SimBA repository as project root. Now install the required packages by running in the terminal:
 
 ``pip install -r requirements.txt``
 
@@ -52,7 +53,8 @@ SimBA is designed as a toolbox, so the specific use can be adapted to the users 
 
 :numref:`figure_simba_modules` shows the structure of the toolbox with its needed input data and how different modules work together to calculate the scenario. The optional input data and modules are indicated with dashed lines. A simulation starts by calculating the energy consumption of each trip, that is specified in the :ref:`schedule` data. A trip is defined by its departure name and time, arrival name and time, distance, pause, rotation_id and vehicle_type. For each of the :ref:`vehicle_types` either a specific consumption depending on current conditions like temperature and incline can be defined as a :ref:`consumption_table` or a constant specific consumption can be used. The specific consumption of the vehicles is then used to analyze the consumption of each trip.
 
-    Modules of SimBA
+Modules of SimBA
+################
 
 Depending on the given simulation parameters, the vehicles are then dispatched. In this step, every rotation – the sum of all trips between leaving the depot until return – is allocated to a specific vehicle. The vehicles can be charged at any number of :ref:`electrified_stations`. These can be classified either as depot stations (deps) or as opportunity stations (opps). Each vehicle can be charged following one of the two charging strategies: Either as opportunity charging bus (oppb) or as depot charging bus (depb). While an oppb is charged at both deps and opps, depb are only charged at deps. The charging strategy can either be defined for each rotation in the :ref:`schedule` data or for all not explicitly defined rotations using the "preferred charging type" option in the :ref:`config`. Using this information, the charging simulation is then carried out.
 

@@ -33,7 +33,7 @@ The charging simulation is carried out in the open source software `SpiceEV <htt
 Generate report
 ---------------
 
-The generation of the report is implemented as a mode, that can be activated with the keyword "report" in modes (:ref:`report`). The report generates most of the output files. These are saved in a sub-folder of the output directory as defined in :ref:`config` named as a string with the modes executed up to the point when report is called. e.g. mode = ['sim', 'report', 'neg_oppb_to_depb', 'report'] will create two sub-folders in the output directory named "sim" and "sim__neg_oppb_to_depb" containing the output files for the respective times in simulation.
+The generation of the report is implemented as a mode, that can be activated with the keyword "report" in modes (:ref:`report`). The report generates most of the output files. These are saved in a sub-folder of the output directory as defined in the :ref:`config` named as a string with the modes executed up to the point when report is called. e.g. mode = ['sim', 'report', 'neg_oppb_to_depb', 'report'] will create two sub-folders in the output directory named "sim" and "sim__neg_oppb_to_depb" containing the output files for the respective times in simulation.
 
 The generation of the report can be modified using the flag "cost_calculation" in :ref:`config`. If this flag is set to true, each report will also generate the file "summary_vehicles_costs.csv".
 
@@ -94,7 +94,7 @@ As result the following table is saved as CSV:
 +---------------------------------+----------+-----------------------------------------------------------------------+
 |**parameter**                    | **unit** | **description**                                                       |
 +=================================+==========+=======================================================================+
-|c_vehicles                       | EUR      | Investment costs of all busses                                        |
+|c_vehicles                       | EUR      | Investment costs of all buses                                        |
 +---------------------------------+----------+-----------------------------------------------------------------------+
 |c_gcs                            | EUR      | Investment costs of all grid connectors                               |
 +---------------------------------+----------+-----------------------------------------------------------------------+
@@ -111,7 +111,7 @@ As result the following table is saved as CSV:
 |c_invest                         | EUR      | Sum of all investment costs                                           |
 +---------------------------------+----------+-----------------------------------------------------------------------+
 +---------------------------------+----------+-----------------------------------------------------------------------+
-|c_vehicles_annual                | EUR/year | Annual investment costs of all busses                                 |
+|c_vehicles_annual                | EUR/year | Annual investment costs of all buses                                 |
 +---------------------------------+----------+-----------------------------------------------------------------------+
 |c_gcs_annual                     | EUR/year | Annual investment costs of all grid connectors                        |
 +---------------------------------+----------+-----------------------------------------------------------------------+
@@ -128,7 +128,7 @@ As result the following table is saved as CSV:
 +---------------------------------+----------+-----------------------------------------------------------------------+
 |c_maint_infrastructure_annual    | EUR/year | Annual maintenance costs of charging stations and stationary storages |
 +---------------------------------+----------+-----------------------------------------------------------------------+
-|c_maint_vehicles_annual          | EUR/year | Annual maintenance costs of busses                                    |
+|c_maint_vehicles_annual          | EUR/year | Annual maintenance costs of buses                                    |
 +---------------------------------+----------+-----------------------------------------------------------------------+
 |c_maint_stat_storage_annual      | EUR/year | Annual maintenance costs of stationary storages                       |
 +---------------------------------+----------+-----------------------------------------------------------------------+
