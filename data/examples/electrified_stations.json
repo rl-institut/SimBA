@@ -12,13 +12,13 @@
             "start_time": "2022-03-07T00:00:00",  // start time as YYYY-MM-DDThh:mm:ss
             "step_duration_s": 3600,  // timestep in seconds
             "column": "Feed-in Total (kW)",  // column name in .csv
-            "nominal_power": 10,  // nominal power in kW, needed for PV remuneration
+            "nominal_power": 10,  // nominal power in kW, needed calculation of for PV remuneration
             "factor": 1  // factor to multiply column values, eg 0.001 for conversion from W to kW
         },
         "external_load": {  // optional: local external loads
-            "csv_file": "data/examples/example_external_load.csv",  // path to feedin.csv
+            "csv_file": "data/examples/example_external_load.csv",  // path to external_load.csv
             "start_time": "2022-03-07T00:00:00",  // start time as YYYY-MM-DDThh:mm:ss
-            "step_duration_s": 900,  // timestep in seconds
+            "step_duration_s": 3600,  // timestep in seconds
             "column": "External Load (kW)",  // column name in .csv
             "factor": 2  // factor to multiply column values, eg 0.001 for conversion from W to kW
         },
@@ -49,7 +49,7 @@
         "gc_power": 250,  // optional: maximum gc power can be defined per station
         "cs_power_opps" : 140,  // optional: maximum cs power can be defined per station
         "voltage_level": "LV" // optional: voltage_level can be defined per station, influences cost
-        },
+    },
     "Station-21": {
         "type": "opps",
         "n_charging_stations": 2

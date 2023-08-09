@@ -5,10 +5,7 @@ Simulation Parameters
 
 The simulation of an eBus-System relies on a variety of simulation parameters.
 SimBA provides most of them as default values. Depending on specific needs adjusting
-these values can increase the accuracy of the simulation outputs. The SimBA input files are described
-in detail in the following subsections as well as their default parameters.
-When providing the user defined input files, the user should make sure the files are either 'utf-8'
-encoded or not contain regional characters.
+these values can increase the accuracy of the simulation outputs. The SimBA input files are described in detail in the following subsections as well as their default parameters. When providing the user defined input files, the user should make sure the files are either 'utf-8' encoded or not contain regional characters. Except for the ``electrified_stations.json``, all .json files can be enriched with in-line comments starting with :code:`\\\\`.
 
 .. _config:
 
@@ -232,7 +229,7 @@ This is how a schedule file might look like.
 Vehicle types
 -------------
 
-The vehicle types that can be used are defined in the "vehicle_type.json". The path to this file has to be defined in the :ref:`config` and an example is given at `data/examples/vehicle_types.json`.
+The vehicle types that can be used are defined in the "vehicle_type.json". The path to this file has to be defined in the :ref:`config` and an example is given at "data/examples/vehicle_types.json".
 
 The data is structured as a .json where the top level key represents the vehicle_type, that needs to correspont to the "vehicle_type" defined in the :ref:`schedule`. The next level key defines the charging_type ("oppb" or "depb"). For one vehicle type either one or both charging types can be defined and for each given charging type the specifications in the third level of the .json have to be given. In this level, the parameters for the specified vehicle are be defined. The specification of one vehicle with the vehicle_type "AB" and the charging_types "depb" and "oppb" is given as follows:
 
@@ -265,37 +262,90 @@ The data is structured as a .json where the top level key represents the vehicle
 Electrified stations
 --------------------
 
-All stations, that are or could be equipped with charging infrastructure have to be parameterized in the "electrified_stations.json" together with their grid connection, charging infrastructure and local energy systems. The path to this file has to be defined in the :ref:`config` and an example is given at `data/examples/electrified_stations.json`.
+All stations, that are or could be equipped with charging infrastructure have to be parameterized in the "electrified_stations.json" together with their grid connection, charging infrastructure and local energy systems. The path to this file has to be defined in the :ref:`config`.
 
-TODO: HIER WEITER
+The data is structured as a .json where the top level key represents the station name, that needs to correspont to the "departure_name", respectively "arrival_name" defined in the :ref:`schedule`. Each station has two mandatory arguments: "type" defines if a station is a depot ("deps") or a opportunity charging station ("opps") and "n_charging_stations" limits the amount of vehicles, that can simulataniously charge at one station.
+
+Furthermore the energy system at each station can be characterized in terms of local power generation ("energy_feed_in"), local external loads ("external_load") or local stationary electric power storage ("battery"). An example that displays all further parameters and the specification of the local energy systems is given at "data/examples/electrified_stations.json".
+
 
 .. _cost_params:
 
 Cost parameters
 ---------------
-TBC
+In order to run the :ref:`cost_calculation`, all cost parameters are to be defined in the ``cost_params.json``. The file is used as input for both, SimBA and SpiceEV, as both tools do part of the cost calculation and therefore no comments are allowed here. If not otherwise specified the investments/costs are gross prices. A commented example is given below, for a working example please refer to "data/examples/cost_params.json".
+
+.. code-block:: json
+
+    {
+        "vehicles": {  // all vehicles and charging types have to be defined here
+            "SB_debp": {  // all combinations of vehicle types and charging types have a separate cost definition, the name is to be given as [vehicle_type]_[charging_type]
+                "capex": 500000,  // investment cost for one vehicle without vehicle battery
+                "c_maint_per_km": 0.24,  // maintanance cost per km
+                "lifetime": 14  // lifetime of the vehicle in years
+            }
+        },
+        "batteries": {  // vehicle battery
+            "lifetime_battery": 7,   // lifetime of the vehicle battery in years
+            "cost_per_kWh": 250  // investment cost for vehicle battery per kWh
+        },
+        "gc": {  // grid connection
+            "LV": {  // grid connection in specific volatege level. Options are "HV", "HV/MV", "MV", "MV/LV", "LV" and all relevant voltage levels have to be defined here
+                "default_distance": 50,  // Used if not specified individually in electrified_stations.json
+                "capex_gc_fix": 100,  // fix investment cost for establishing a grid connection
+                "capex_gc_per_meter": 16.85,  // investment cost per meter
+                "capex_gc_per_kW": 24.14,  // investment cost per kW
+                "capex_transformer_fix": 0,  // fix investment cost for a transformer
+                "capex_transformer_per_kW": 0  // fix investment cost for a transformer per kW
+            },
+            "lifetime_gc": 50,  // lifetime of the grid connection in years
+            "c_maint_transformer_per_year": 0.02,  // annual maintanance costs in % of capex
+            "lifetime_transformer": 20  // lifetime in years
+        },
+        "stationary_storage": {    // stationary electric energy storage
+            "capex_fix": 1,  // fix investment cost for stationary storage
+            "capex_per_kWh": 1,  //  investment cost for stationary storage per kWh
+            "c_maint_stat_storage_per_year": 0.02,  // annual maintanance costs in % of capex
+            "lifetime_stat_storage": 20  // lifetime in years
+        },
+        "cs":{  // charging stations
+            "capex_opps_per_kW": 877.5,  //  investment cost for opportunity charging stations per kW
+            "capex_deps_per_kW": 1000,  //  investment cost for depot charging stations per kW
+            "lifetime_cs": 20,  // lifetime of charging stations in years
+            "c_maint_cs_per_year": 0.02  // annual maintanance costs in % of capex
+        },
+        "garage": {
+            "n_charging_stations": 1,  // number of charging stations for the garage
+            "power_cs": 50,  // power of the charging stations for the garage
+            "vehicles_per_workstation": 20,  // how many vehicles share one workstation
+            "cost_per_workstation": 245000,  //  investment cost for one workstation
+            "lifetime_workstations": 20  // lifetime in years
+        }
+    }
+
+all remaining parameters are described in the example file.
 
 
 .. _station_geo_data:
 
 Station data
 ------------
-TBC
+The file "all_stations.csv" contains information that is relevant for all stations regardless of their status of electrification. At this stage of development this reduces to the information of station height that is relevant only if a trip specific :ref:`consumption_analysis` is employed. See the example at "data/examples/all_stations.csv" for the required structure.
 
 
 .. _level_of_loading:
 
 Level of loading
 ----------------
-TBC
+
+If a trip specific :ref:`consumption_analysis` is employed, the level of loading for each trip is required. This information can be detailed in the :ref:`schedule`. If not specified there, a default value for every hour of the day can be specified in this file. See the example at "data/examples/default_level_of_loading_over_day.csv" for the required structure.
 
 
 .. _temperature_data:
 
 Temperatures
 ------------
-TBC
-
+If a trip specific :ref:`consumption_analysis` is employed, the temperature for each trip is required. This information can be detailed in the :ref:`schedule`. If not specified there, a default value for every hour of the day can be specified in this file. See the example at "data/examples/default_temp_summer.csv" for the required structure.
 
 .. _consumption_table:
 
