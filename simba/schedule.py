@@ -608,6 +608,8 @@ class Schedule:
                         "estimated_time_of_arrival": arrival_time.isoformat()
                     }
                 })
+                assert trip.delta_soc is not None, (
+                    "Trip delta_soc is None. Did you forget to calculate consumption?")
 
                 # create arrival event
                 events["vehicle_events"].append({

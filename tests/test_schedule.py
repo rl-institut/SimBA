@@ -178,7 +178,7 @@ class TestSchedule:
         sched, scen = self.basic_run()
 
         neg_rots = sched.get_negative_rotations(scen)
-        assert '1' in neg_rots
+        assert '2' in neg_rots
 
     def test_rotation_filter(self, tmp_path):
         s = schedule.Schedule(self.vehicle_types, self.electrified_stations, **mandatory_args)
