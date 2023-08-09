@@ -49,24 +49,22 @@ def service_optimization(schedule, scenario, args):
         vid = rotation.vehicle_id
         last_neg_soc_time = scenario.negative_soc_tracker[vid][-1]
         last_neg_soc_time = datetime.datetime.fromisoformat(last_neg_soc_time)
-        dependent_station = {r: t for r, t in common_stations[rot_key].items()
-                             if t <= last_neg_soc_time}
-        logging.debug(f"Dependent stations: {dependent_station}")
-        while dependent_station:
+        dependent_rotations = {r: t for r, t in common_stations[rot_key].items()
+                               if t <= last_neg_soc_time}
+        logging.debug(f"Dependent stations: {dependent_rotations}")
+        while dependent_rotations:
             # get next rotation ID and last common time
-            r, t = dependent_station.popitem()
-            # rotation ID -> rotation object
-            dependent_rotation = schedule.rotations.get(r)
-            logging.debug(f"\tRotation {r} ({dependent_rotation}) @ {t}:")
+            r, t = dependent_rotations.popitem()
+            logging.debug(f"\tRotation {r} @ {t}:")
             if r not in negative_rotations:
                 # r not negative: add to set of dependent rotations
                 s.add(r)
                 # add dependencies of r, avoid circular dependency
                 dependencies = {r2: t2 for r2, t2 in common_stations[r].items()
                                 if t2 <= t and r2 not in s}
-                dependent_station.update(dependencies)
+                dependent_rotations.update(dependencies)
                 logging.debug(f"\t{dependencies}")
-            elif dependent_rotation is not None and dependent_rotation.charging_type != "obbp":
+            elif original.rotations[r].charging_type != "obbp":
                 logging.warning(f"Rotation {rot_key} depends on negative non-oppb rotation")
 
         negative_sets[rot_key] = s
