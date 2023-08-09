@@ -119,7 +119,7 @@ def generate_plots(scenario, args):
     logging.disable(logging.NOTSET)
 
 
-def generate(schedule, scenario, args):
+def generate(schedule, scenario, args, i):
     """Generates all output files/ plots and saves them in the output directory.
 
     :param schedule: Driving schedule for the simulation.
@@ -130,13 +130,18 @@ def generate(schedule, scenario, args):
     :type args: argparse.Namespace
     """
 
+    # save used modes in report version
+    used_modes = ['sim'] + [m for m in args.mode[:i] if m not in ['sim', 'report']]
+    with open(args.results_directory / "used_modes.txt", "w", encoding='utf-8') as f:
+        f.write(f"Used modes in this scenario: {used_modes}")
+
     # generate simulation_timeseries.csv, simulation.json and vehicle_socs.csv in spiceEV
     with warnings.catch_warnings():
         warnings.simplefilter('ignore', UserWarning)
         # re-route output paths
-        args.save_soc = args.results_directory / "vehicle_socs.csv"
-        args.save_results = args.results_directory / "simulation.json"
-        args.save_timeseries = args.results_directory / "simulation_timeseries.csv"
+        args.save_soc = args.results_directory / "v_socs.csv"
+        args.save_results = args.results_directory / "sim_info.json"
+        args.save_timeseries = args.results_directory / "sim_ts.csv"
         generate_reports(scenario, vars(args).copy())
         args.save_timeseries = None
         args.save_results = None
