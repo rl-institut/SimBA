@@ -128,6 +128,8 @@ def generate(schedule, scenario, args, i):
     :type scenario: spice_ev.Scenario
     :param args: Configuration arguments specified in config files contained in configs directory.
     :type args: argparse.Namespace
+    :param i: Number representing last used mode in mode chain before report is created.
+    :type i: int
     """
 
     # save used modes in report version
