@@ -231,7 +231,7 @@ Vehicle types
 
 The vehicle types that can be used are defined in the "vehicle_type.json". The path to this file has to be defined in the :ref:`config` and an example is given at "data/examples/vehicle_types.json".
 
-The data is structured as a .json where the top level key represents the vehicle_type, that needs to correspont to the "vehicle_type" defined in the :ref:`schedule`. The next level key defines the charging_type ("oppb" or "depb"). For one vehicle type either one or both charging types can be defined and for each given charging type the specifications in the third level of the .json have to be given. In this level, the parameters for the specified vehicle are be defined. The specification of one vehicle with the vehicle_type "AB" and the charging_types "depb" and "oppb" is given as follows:
+The data is structured as a .json where the top level key represents the vehicle_type, that needs to correspond to the "vehicle_type" defined in the :ref:`schedule`. The next level key defines the charging_type ("oppb" or "depb"). For one vehicle type either one or both charging types can be defined and for each given charging type the specifications in the third level of the .json have to be given. In this level, the parameters for the specified vehicle are be defined. The specification of one vehicle with the vehicle_type "AB" and the charging_types "depb" and "oppb" is given as follows:
 
 .. code-block:: json
 
@@ -264,7 +264,7 @@ Electrified stations
 
 All stations, that are or could be equipped with charging infrastructure have to be parameterized in the "electrified_stations.json" together with their grid connection, charging infrastructure and local energy systems. The path to this file has to be defined in the :ref:`config`.
 
-The data is structured as a .json where the top level key represents the station name, that needs to correspont to the "departure_name", respectively "arrival_name" defined in the :ref:`schedule`. Each station has two mandatory arguments: "type" defines if a station is a depot ("deps") or a opportunity charging station ("opps") and "n_charging_stations" limits the amount of vehicles, that can simulataniously charge at one station.
+The data is structured as a .json where the top level key represents the station name, that needs to correspond to the "departure_name", respectively "arrival_name" defined in the :ref:`schedule`. Each station has two mandatory arguments: "type" defines if a station is a depot ("deps") or a opportunity charging station ("opps") and "n_charging_stations" limits the amount of vehicles, that can simultaneously charge at one station.
 
 Furthermore the energy system at each station can be characterized in terms of local power generation ("energy_feed_in"), local external loads ("external_load") or local stationary electric power storage ("battery"). An example that displays all further parameters and the specification of the local energy systems is given at "data/examples/electrified_stations.json".
 
@@ -281,7 +281,7 @@ In order to run the :ref:`cost_calculation`, all cost parameters are to be defin
         "vehicles": {  // all vehicles and charging types have to be defined here
             "SB_debp": {  // all combinations of vehicle types and charging types have a separate cost definition, the name is to be given as [vehicle_type]_[charging_type]
                 "capex": 500000,  // investment cost for one vehicle without vehicle battery
-                "c_maint_per_km": 0.24,  // maintanance cost per km
+                "c_maint_per_km": 0.24,  // maintenance cost per km
                 "lifetime": 14  // lifetime of the vehicle in years
             }
         },
@@ -290,7 +290,7 @@ In order to run the :ref:`cost_calculation`, all cost parameters are to be defin
             "cost_per_kWh": 250  // investment cost for vehicle battery per kWh
         },
         "gc": {  // grid connection
-            "LV": {  // grid connection in specific volatege level. Options are "HV", "HV/MV", "MV", "MV/LV", "LV" and all relevant voltage levels have to be defined here
+            "LV": {  // grid connection in specific voltage level. Options are "HV", "HV/MV", "MV", "MV/LV", "LV" and all relevant voltage levels have to be defined here
                 "default_distance": 50,  // Used if not specified individually in electrified_stations.json
                 "capex_gc_fix": 100,  // fix investment cost for establishing a grid connection
                 "capex_gc_per_meter": 16.85,  // investment cost per meter
@@ -299,20 +299,20 @@ In order to run the :ref:`cost_calculation`, all cost parameters are to be defin
                 "capex_transformer_per_kW": 0  // fix investment cost for a transformer per kW
             },
             "lifetime_gc": 50,  // lifetime of the grid connection in years
-            "c_maint_transformer_per_year": 0.02,  // annual maintanance costs in % of capex
+            "c_maint_transformer_per_year": 0.02,  // annual maintenance costs in % of capex
             "lifetime_transformer": 20  // lifetime in years
         },
         "stationary_storage": {    // stationary electric energy storage
             "capex_fix": 1,  // fix investment cost for stationary storage
             "capex_per_kWh": 1,  //  investment cost for stationary storage per kWh
-            "c_maint_stat_storage_per_year": 0.02,  // annual maintanance costs in % of capex
+            "c_maint_stat_storage_per_year": 0.02,  // annual maintenance costs in % of capex
             "lifetime_stat_storage": 20  // lifetime in years
         },
         "cs":{  // charging stations
             "capex_opps_per_kW": 877.5,  //  investment cost for opportunity charging stations per kW
             "capex_deps_per_kW": 1000,  //  investment cost for depot charging stations per kW
             "lifetime_cs": 20,  // lifetime of charging stations in years
-            "c_maint_cs_per_year": 0.02  // annual maintanance costs in % of capex
+            "c_maint_cs_per_year": 0.02  // annual maintenance costs in % of capex
         },
         "garage": {
             "n_charging_stations": 1,  // number of charging stations for the garage
