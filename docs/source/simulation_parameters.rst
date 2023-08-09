@@ -276,14 +276,11 @@ Cost parameters
 TBC
 
 
-
-TBC
-
 .. _station_geo_data:
 
 Station data
 ------------
-Geodata. TBV
+TBC
 
 
 .. _level_of_loading:
@@ -292,12 +289,13 @@ Level of loading
 ----------------
 TBC
 
+
 .. _temperature_data:
 
 Temperatures
 ------------
-
 TBC
+
 
 .. _consumption_table:
 

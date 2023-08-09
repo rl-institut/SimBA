@@ -2,8 +2,12 @@
     "Station-0": {  // name of station
         "type": "deps",  // type: "deps" or "opps"
         "n_charging_stations": null,  // nr of charging stataions, "null" for unlimited
-        "distance_to_grid": 150,  // distance to grid, needed for cost calculation
-        "energy_feed_in": {  // energy feed in e.g. by local renewables
+        "distance_to_grid": 150,  // optional: distance to grid, default defined in cost_params
+        "gc_power": 5000,  // optional: maximum gc power for this station, default defined in config
+        "cs_power_deps_oppb" : 50,  // optional: maximum cs power for this station, default defined in config
+        "cs_power_deps_depb" : 120,  // optional: maximum cs power for this station, default defined in config
+        "voltage_level": "MV", // optional: voltage_level for this station, default defined in config
+        "energy_feed_in": {  // optional: energy feed in e.g. by local renewables
             "csv_file": "data/examples/example_pv_feedin.csv",  // path to feedin.csv
             "start_time": "2022-03-07T00:00:00",  // start time as YYYY-MM-DDThh:mm:ss
             "step_duration_s": 3600,  // timestep in seconds
@@ -11,23 +15,21 @@
             "nominal_power": 10,  // nominal power in kW, needed for PV remuneration
             "factor": 1  // factor to multiply column values, eg 0.001 for conversion from W to kW
         },
-        "external_load": {  // local external loads
+        "external_load": {  // optional: local external loads
             "csv_file": "data/examples/example_external_load.csv",  // path to feedin.csv
             "start_time": "2022-03-07T00:00:00",  // start time as YYYY-MM-DDThh:mm:ss
             "step_duration_s": 900,  // timestep in seconds
             "column": "External Load (kW)",  // column name in .csv
             "factor": 2  // factor to multiply column values, eg 0.001 for conversion from W to kW
         },
-        "battery": {  // local stationary battery
+        "battery": {  // optional: local stationary battery
             "charging_curve": [[0,50], [1,50]], // piecewise linear function that maps SoC to power, from 0 to 1, required
             "capacity": 300, // kWh, assumed to be infinite if not given
             "min_charging_power": 0, // kW, optional
             "soc": 0, // initial state of charge [0-1], optional
             "efficiency": 0.95, // optional
             "discharge_curve": null // optional, same as charging curve
-        },
-        "cs_power_deps_oppb" : 50,  // optional: maximum cs power can be defined per station
-        "cs_power_deps_depb" : 120  // optional: maximum cs power can be defined per station
+        }
     },
     "Station-3": {
         "type": "opps",
