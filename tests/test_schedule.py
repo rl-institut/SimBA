@@ -6,6 +6,7 @@ import sys
 import spice_ev.scenario as scenario
 from spice_ev.util import set_options_from_config
 
+from simba.simulate import pre_simulation
 from tests.conftest import example_root, file_root
 from tests.helpers import generate_basic_schedule
 from simba import consumption, rotation, schedule, trip, util
@@ -33,10 +34,9 @@ class TestSchedule:
         vehicle_types = util.uncomment_json_file(file)
 
     def basic_run(self):
-        """Returns a schedule and scenario after running SimBA.
-        :return: schedule, scenario
+        """Returns a schedule, scenario and args after running SimBA.
+        :return: schedule, scenario, args
         """
-        path_to_trips = example_root / "trips_example.csv"
         # set the system variables to imitate the console call with the config argument.
         # first element has to be set to something or error is thrown
         sys.argv = ["foo", "--config", str(example_root / "simba.cfg")]
@@ -44,22 +44,13 @@ class TestSchedule:
         args.config = example_root / "simba.cfg"
         args.days = None
         args.seed = 5
-
-        trip.Trip.consumption = consumption.Consumption(
-            self.vehicle_types, outside_temperatures=self.temperature_path,
-            level_of_loading_over_day=self.lol_path)
-
-        path_to_all_station_data = example_root / "all_stations.csv"
-        generated_schedule = schedule.Schedule.from_csv(
-            path_to_trips, self.vehicle_types, self.electrified_stations, **mandatory_args,
-            station_data_path=path_to_all_station_data)
-
         set_options_from_config(args, verbose=False)
         args.ALLOW_NEGATIVE_SOC = True
         args.attach_vehicle_soc = True
 
-        scen = generated_schedule.run(args)
-        return generated_schedule, scen, args
+        sched = pre_simulation(args)
+        scen = sched.run(args)
+        return sched, scen, args
 
     def test_mandatory_options_exit(self):
         """
@@ -105,7 +96,7 @@ class TestSchedule:
     def test_basic_run(self):
         """ Check if running a basic example works and if a scenario object is returned
         """
-        schedule, scen, args = self.basic_run()
+        sched, scen, args = self.basic_run()
         assert type(scen) is scenario.Scenario
 
     def test_assign_vehicles(self):
