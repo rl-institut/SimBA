@@ -5,7 +5,7 @@
 
 
 .. image:: _images/SimBA_logo.png
-    :alt:  SimBA_Logo
+    :alt:  SimBA_logo
     :width: 200
 
 Welcome to the SimBA documentation!
