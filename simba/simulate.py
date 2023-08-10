@@ -129,6 +129,8 @@ def modes_simulation(schedule, scenario, args):
             logging.error(msg)
             logging.error('*'*len(msg))
             logging.error(traceback.format_exc())
+            if args.propagate_mode_errors:
+                raise e
             if scenario is not None and scenario.step_i > 0:
                 # generate plot of failed scenario
                 args.mode = args.mode[:i] + ["ABORTED"]
