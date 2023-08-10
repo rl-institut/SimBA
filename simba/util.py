@@ -287,7 +287,7 @@ def get_args():
                         help='Remove rotations from schedule that violate assumptions. ')
     parser.add_argument('--show-plots', action='store_true',
                         help='show plots for users to view in "report" mode')
-    parser.add_argument('--propagate_mode_errors', default=False,
+    parser.add_argument('--propagate-mode-errors', default=False,
                         help='Re-raise errors instead of continuing during simulation modes')
 
     # #### Physical setup of environment #####
