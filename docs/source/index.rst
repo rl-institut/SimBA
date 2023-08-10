@@ -4,7 +4,7 @@
    contain the root `toctree` directive.
 
 
-.. image:: ./_images/SimBA_Logo.png
+.. image:: _images/SimBA_Logo.png
     :alt:  SimBA_Logo
     :width: 200
 
