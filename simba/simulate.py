@@ -240,7 +240,12 @@ def create_results_directory(args, i):
     :param i: iteration number of loop
     :type i: int
     """
-    prior_modes = ['sim'] + [m for m in args.mode[:i] if m not in ['sim', 'report']]
-    report_name = '__'.join(prior_modes)
+
+    prior_reports = sum([m.count('report') for m in args.mode[:i]])
+    report_name = f"report_{prior_reports+1}"
     args.results_directory = args.output_directory.joinpath(report_name)
     args.results_directory.mkdir(parents=True, exist_ok=True)
+    # save used modes in report version
+    used_modes = ['sim'] + [m for m in args.mode[:i] if m not in ['sim', 'report']]
+    with open(args.results_directory / "used_modes.txt", "w", encoding='utf-8') as f:
+        f.write(f"Used modes in this scenario: {', '.join(used_modes)}")
