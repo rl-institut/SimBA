@@ -94,7 +94,7 @@ As result the following table is saved as CSV:
 +---------------------------------+----------+-----------------------------------------------------------------------+
 |**parameter**                    | **unit** | **description**                                                       |
 +=================================+==========+=======================================================================+
-|c_vehicles                       | EUR      | Investment costs of all buses                                        |
+|c_vehicles                       | EUR      | Investment costs of all buses                                         |
 +---------------------------------+----------+-----------------------------------------------------------------------+
 |c_gcs                            | EUR      | Investment costs of all grid connectors                               |
 +---------------------------------+----------+-----------------------------------------------------------------------+
@@ -111,7 +111,7 @@ As result the following table is saved as CSV:
 |c_invest                         | EUR      | Sum of all investment costs                                           |
 +---------------------------------+----------+-----------------------------------------------------------------------+
 +---------------------------------+----------+-----------------------------------------------------------------------+
-|c_vehicles_annual                | EUR/year | Annual investment costs of all buses                                 |
+|c_vehicles_annual                | EUR/year | Annual investment costs of all buses                                  |
 +---------------------------------+----------+-----------------------------------------------------------------------+
 |c_gcs_annual                     | EUR/year | Annual investment costs of all grid connectors                        |
 +---------------------------------+----------+-----------------------------------------------------------------------+
@@ -128,7 +128,7 @@ As result the following table is saved as CSV:
 +---------------------------------+----------+-----------------------------------------------------------------------+
 |c_maint_infrastructure_annual    | EUR/year | Annual maintenance costs of charging stations and stationary storages |
 +---------------------------------+----------+-----------------------------------------------------------------------+
-|c_maint_vehicles_annual          | EUR/year | Annual maintenance costs of buses                                    |
+|c_maint_vehicles_annual          | EUR/year | Annual maintenance costs of buses                                     |
 +---------------------------------+----------+-----------------------------------------------------------------------+
 |c_maint_stat_storage_annual      | EUR/year | Annual maintenance costs of stationary storages                       |
 +---------------------------------+----------+-----------------------------------------------------------------------+
