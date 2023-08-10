@@ -1,0 +1,17 @@
+.vscode/
+.DS_Store
+.python-version
+*.pyc
+.idea/
+.env
+__pycache__
+
+docs/_build
+docs/source/temp
+
+data/*
+!data/examples
+
+src/
+spice_ev/
+*.bak
