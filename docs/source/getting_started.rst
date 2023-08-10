@@ -51,6 +51,8 @@ SimBA is designed as a toolbox, so the specific use can be adapted to the users 
     :alt:  figure_simba_modules
     :width: 600
 
+    Overview of SimBA modules.
+
 :numref:`figure_simba_modules` shows the structure of the toolbox with its needed input data and how different modules work together to calculate the scenario. The optional input data and modules are indicated with dashed lines. A simulation starts by calculating the energy consumption of each trip, that is specified in the :ref:`schedule` data. A trip is defined by its departure name and time, arrival name and time, distance, pause, rotation_id and vehicle_type. For each of the :ref:`vehicle_types` either a specific consumption depending on current conditions like temperature and incline can be defined as a :ref:`consumption_table` or a constant specific consumption can be used. The specific consumption of the vehicles is then used to analyze the consumption of each trip.
 
 Modules of SimBA
