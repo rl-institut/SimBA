@@ -130,13 +130,13 @@ def generate(schedule, scenario, args):
     :type args: argparse.Namespace
     """
 
-    # generate simulation_timeseries.csv, simulation.json and vehicle_socs.csv in spiceEV
+    # generate simulation_timeseries.csv, simulation.json and vehicle_socs.csv in SpiceEV
     with warnings.catch_warnings():
         warnings.simplefilter('ignore', UserWarning)
         # re-route output paths
         args.save_soc = args.results_directory / "vehicle_socs.csv"
-        args.save_results = args.results_directory / "simulation.json"
-        args.save_timeseries = args.results_directory / "simulation_timeseries.csv"
+        args.save_results = args.results_directory / "info.json"
+        args.save_timeseries = args.results_directory / "ts.csv"
         generate_reports(scenario, vars(args).copy())
         args.save_timeseries = None
         args.save_results = None

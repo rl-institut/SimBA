@@ -1,4 +1,4 @@
-from copy import copy
+from copy import copy, deepcopy
 import json
 from pathlib import Path
 import pytest
@@ -123,6 +123,39 @@ class TestStationOptimization:
         opt_sched, opt_scen = run_optimization(conf, sched=sched, scen=scen, args=args)
         conf.solver = "spiceev"
         opt_sched, opt_scen = run_optimization(conf, sched=sched, scen=scen, args=args)
+
+    def test_schedule_consistency(self):
+        """ Test if the optimization returns all rotations even when some filters are active"""
+        trips_file_name = "trips_for_optimizer.csv"
+        sched, scen, args = self.basic_run(trips_file_name)
+        config_path = example_root / "default_optimizer.cfg"
+        conf = opt_util.read_config(config_path)
+
+        sched_impossible = deepcopy(sched)
+        # Make a single trip impossible
+        next(iter(sched_impossible.rotations.values())).trips[0].distance = 99999999
+        sched_impossible.calculate_consumption()
+        scen = sched_impossible.run(args)
+
+        amount_rotations = len(sched_impossible.rotations)
+        conf.remove_impossible_rotations = True
+        conf.run_only_oppb = False
+        opt_sched, opt_scen = run_optimization(conf, sched=sched_impossible, scen=scen, args=args)
+        assert len(opt_sched.rotations) == amount_rotations
+
+        # set a single rotation to depot
+        next(iter(sched.rotations.values())).set_charging_type("depb")
+        # and run again to make everything consistent
+        scen = sched.run(args)
+
+        amount_rotations = len(sched.rotations)
+        conf.run_only_oppb = True
+        opt_sched, opt_scen = run_optimization(conf, sched=deepcopy(sched), scen=scen, args=args)
+        assert len(opt_sched.rotations) == amount_rotations
+
+        conf.run_only_oppb = False
+        opt_sched, opt_scen = run_optimization(conf, sched=deepcopy(sched), scen=scen, args=args)
+        assert len(opt_sched.rotations) == amount_rotations
 
     def test_deep_optimization(self):
         """ Check if deep analysis finds the prepared optimal solution for the test case.

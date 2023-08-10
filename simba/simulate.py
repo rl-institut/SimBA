@@ -98,8 +98,10 @@ def modes_simulation(schedule, scenario, args):
     :type args: Namespace
     :return: final schedule and scenario
     :rtype: tuple
+    :raises Exception: if args.propagate_mode_errors is set, re-raises error instead of continuing
     """
-    if type(args.mode) is not list:
+
+    if not isinstance(args.mode, list):
         # backwards compatibility: run single mode
         args.mode = [args.mode]
 
@@ -124,6 +126,8 @@ def modes_simulation(schedule, scenario, args):
             schedule, scenario = func(schedule, scenario, args, i)
             logging.debug("Finished mode " + mode)
         except Exception as e:
+            if args.propagate_mode_errors:
+                raise
             msg = f"{e.__class__.__name__} during {mode}: {e}"
             logging.error('*'*len(msg))
             logging.error(msg)
@@ -236,7 +240,12 @@ def create_results_directory(args, i):
     :param i: iteration number of loop
     :type i: int
     """
-    prior_modes = ['sim'] + [m for m in args.mode[:i] if m not in ['sim', 'report']]
-    report_name = '__'.join(prior_modes)
+
+    prior_reports = sum([m.count('report') for m in args.mode[:i]])
+    report_name = f"report_{prior_reports+1}"
     args.results_directory = args.output_directory.joinpath(report_name)
     args.results_directory.mkdir(parents=True, exist_ok=True)
+    # save used modes in report version
+    used_modes = ['sim'] + [m for m in args.mode[:i] if m not in ['sim', 'report']]
+    with open(args.results_directory / "used_modes.txt", "w", encoding='utf-8') as f:
+        f.write(f"Used modes in this scenario: {', '.join(used_modes)}")

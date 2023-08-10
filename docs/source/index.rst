@@ -3,21 +3,29 @@
    You can adapt this file completely to your liking, but it should at least
    contain the root `toctree` directive.
 
+.. _figure_SimBA_logo:
+.. figure:: _static/SimBA_Logo.png
+    :alt:  SimBA_Logo
+    :width: 200
+
 Welcome to the SimBA documentation!
-========================================
+===================================
 
-This toolbox extends the functionality of the Open Source simulation tool SpiceEV to facilitate eBus feasibility studies. 
-
+SimBa - the Simulation toolbox for Bus Applications - was designed to analyze and optimize electrified bus fleets.
 
 .. toctree::
-   :maxdepth: 2
+   :maxdepth: 3
    :caption: Contents:
 
-
+   getting_started
+   simba_features
+   modes
+   simulation_parameters
+   modindex
 
 Indices and tables
 ==================
 
 * :ref:`genindex`
 * :ref:`modindex`
-* :ref:`search`
+

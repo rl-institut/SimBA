@@ -99,6 +99,7 @@ class Rotation:
 
         if ct == self.charging_type:
             return
+
         assert self.schedule.vehicle_types.get(self.vehicle_type, {}).get(ct), (
             f"Combination of vehicle type {self.vehicle_type} and {ct} not defined.")
 
