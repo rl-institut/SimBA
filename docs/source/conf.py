@@ -45,7 +45,7 @@ extensions = ['sphinx.ext.autodoc', 'sphinx.ext.autosummary','sphinx.ext.autosec
 numfig = True
 # Add any paths that contain templates here, relative to this directory.
 templates_path = []
-
+html_logo = "./_images/SimBA_logo.png"
 # List of patterns, relative to source directory, that match files and
 # directories to ignore when looking for source files.
 # This pattern also affects html_static_path and html_extra_path.
