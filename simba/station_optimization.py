@@ -1,8 +1,6 @@
 """ Optimization that tries minimizing the amount of electrified stations to achieve full
 electrification.
-
 """
-
 from copy import deepcopy
 import json
 import sys
@@ -122,9 +120,9 @@ def run_optimization(conf, sched=None, scen=None, args=None):
     # filter out depot chargers if option is set
     if conf.run_only_oppb:
         optimizer.config.exclusion_rots = optimizer.config.exclusion_rots.union(
-            r for r in sched.rotations if "depb" in sched.rotations[r].charging_type)
+            r for r in sched.rotations if "depb" == sched.rotations[r].charging_type)
         sched.rotations = {r: sched.rotations[r] for r in sched.rotations
-                           if "oppb" in sched.rotations[r].charging_type}
+                           if "oppb" == sched.rotations[r].charging_type}
         assert len(sched.rotations) > 0, "No rotations left after removing depot chargers"
 
     # rebasing the scenario meaning simulating it again with SpiceEV and the given conditions of
