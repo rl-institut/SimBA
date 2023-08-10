@@ -33,7 +33,7 @@ The charging simulation is carried out in the open source software `SpiceEV <htt
 Generate report
 ---------------
 
-The generation of the report is implemented as a mode, that can be activated with the keyword "report" in modes (:ref:`report`). The report generates most of the output files. These are saved in a sub-folder of the output directory as defined in the :ref:`config` named as a string with the modes executed up to the point when report is called. e.g. mode = ['sim', 'report', 'neg_oppb_to_depb', 'report'] will create two sub-folders in the output directory named "sim" and "sim__neg_oppb_to_depb" containing the output files for the respective times in simulation.
+The generation of the report is implemented as a mode, that can be activated with the keyword "report" in modes (:ref:`report`). The report generates most of the output files. The report can be called any number of times e.g. mode = ["sim", "report", "neg_depb_to_oppb", "report", "service_optimization", "report"]. For each report, a sub-folder is created in the output directory (as defined in the :ref:`config`)  named report\_[nr] with the respective number.
 
 The generation of the report can be modified using the flag "cost_calculation" in :ref:`config`. If this flag is set to true, each report will also generate the file "summary_vehicles_costs.csv".
 
@@ -66,6 +66,9 @@ Default outputs
 
 | **Overview on costs and vehicles (summary_vehicles_costs.csv)**
 | If cost_calculation is activated, this file contains the cost report as described below in :ref:`cost_calculation`.
+
+| **Used modes (used_modes.txt)**
+| This text file lists all modes executed until the report is created.
 
 .. _cost_calculation:
 
