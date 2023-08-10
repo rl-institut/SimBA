@@ -33,7 +33,7 @@ The charging simulation is carried out in the open source software `SpiceEV <htt
 Generate report
 ---------------
 
-The generation of the report is implemented as a mode, that can be activated with the keyword "report" in modes (:ref:`report`). The report generates most of the output files. The report can be called any number of times e.g. mode = ["sim", "report", "neg_depb_to_oppb", "report", "service_optimization", "report"]. For each report, a sub-folder is created in the output directory (as defined in the :ref:`config`)  named report\_[nr] with the respective number.
+The generation of the report is implemented as a mode, that can be activated with the keyword "report" in modes (:ref:`report`). The report generates most of the output files. The report can be called any number of times e.g. mode = ["sim", "report", "neg_depb_to_oppb", "report", "service_optimization", "report"]. For each report, a sub-folder is created in the output directory (as defined in the :ref:`config`)  named "report_[nr]" with the respective number.
 
 The generation of the report can be modified using the flag "cost_calculation" in :ref:`config`. If this flag is set to true, each report will also generate the file "summary_vehicles_costs.csv".
 
