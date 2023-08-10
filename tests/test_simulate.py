@@ -12,7 +12,7 @@ example_path = root_path / "data/examples"
 
 
 class TestSimulate:
-
+    # Add propagate_mode_errors as developer setting to raise Exceptions.
     DEFAULT_VALUES = {
         "vehicle_types": example_path / "vehicle_types.json",
         "electrified_stations": example_path / "electrified_stations.json",
@@ -39,6 +39,7 @@ class TestSimulate:
         "desired_soc_deps": 1,
         "min_charging_time": 0,
         "default_voltage_level": "MV",
+        "propagate_mode_errors": True,
     }
 
     def test_basic(self):
@@ -48,12 +49,16 @@ class TestSimulate:
     def test_missing(self):
         # every value in DEFAULT_VALUES is expected to be set, so omitting one should raise an error
         values = self.DEFAULT_VALUES.copy()
+        # except propagate_modes_error
+        del self.DEFAULT_VALUES["propagate_mode_errors"]
         for k, v in self.DEFAULT_VALUES.items():
             del values[k]
             with pytest.raises(Exception):
                 simulate(Namespace(**values))
             # reset
             values[k] = v
+        # restore the setting for further testing
+        self.DEFAULT_VALUES["propagate_mode_errors"] = values["propagate_mode_errors"]
 
         # required file missing
         for file_type in ["vehicle_types", "electrified_stations", "cost_parameters_file"]:

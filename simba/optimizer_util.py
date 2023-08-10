@@ -1,5 +1,4 @@
-""" Module for the minor classes LowSocEvent, ChargingEvent, OptimizerConfig
-and utility functionality used by the StationOptimizer and station_optimization"""
+""" Module for LowSocEvent, ChargingEvent, OptimizerConfig and utility functionality"""
 import logging
 import math
 import os
@@ -26,7 +25,8 @@ from spice_ev.report import generate_soc_timeseries
 
 
 class ChargingEvent:
-    """ Class to gather information about a charging event"""
+    """Class to gather information about a charging event"""
+
     def __init__(self, start_idx, end_idx, arrival_time, start_time, end_time, buffer_time,
                  vehicle_id, capacity,
                  station_name, rotation):
@@ -353,6 +353,7 @@ def evaluate(events: typing.Iterable[LowSocEvent],
     :param kwargs: optional overwriting of soc_lower_thresh, soc_upper_thresh or soc_data
     :return: sorted stations and potentials
     :rtype: list(str(station_id), float(potential))
+
     """
     soc_lower_thresh = kwargs.get("soc_lower_thresh", optimizer.config.min_soc)
     soc_upper_thresh = kwargs.get("soc_upper_thresh", optimizer.args.desired_soc_deps)
@@ -631,6 +632,7 @@ def recursive_dict_updater(dict_to_change, filter_function, modify_function):
     The filter criteria are checked by the filter_function which gets the arguments key and value.
     The values are updated by the modify_function which gets the arguments key and value and returns
     the updated value.
+
     :param dict_to_change: nested dictionary that needs to be updated
     :type dict_to_change: dict
     :param filter_function: function that returns True if the value should be changed with key and
@@ -639,6 +641,7 @@ def recursive_dict_updater(dict_to_change, filter_function, modify_function):
     :param modify_function: function that returns the dictionary value with key and value as
         arguments
     :type modify_function: function
+
     """
     # iterate over all items. For every item, try iterating over it as well until an AttributeError
     for key, value in dict_to_change.items():
@@ -662,6 +665,7 @@ def combination_generator(iterable: typing.Iterable, amount: int):
     :param amount: Number of elements which should be drawn from iterable
     :type amount: int
     :yields: list of items
+
     """
     iterable = list(iterable)
 

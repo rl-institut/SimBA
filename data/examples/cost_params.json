@@ -28,7 +28,7 @@
     "gc": {
         "LV": {
             "default_distance": 50,
-            "capex_gc_fix": 16.85,
+            "capex_gc_fix": 100,
             "capex_gc_per_meter": 16.85,
             "capex_gc_per_kW": 24.14,
             "capex_transformer_fix": 0,
@@ -36,7 +36,7 @@
         },
         "MV/LV": {
             "default_distance": 100,
-            "capex_gc_fix": 16.85,
+            "capex_gc_fix": 100,
             "capex_gc_per_meter": 16.85,
             "capex_gc_per_kW": 24.14,
             "capex_transformer_fix": 0,
