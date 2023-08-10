@@ -1,4 +1,3 @@
-import traceback
 from argparse import Namespace
 import logging
 from pathlib import Path
@@ -106,7 +105,6 @@ class TestSimulate:
         values["ALLOW_NEGATIVE_SOC"] = True
         simulate(Namespace(**values))
 
-
     def test_mode_remove_negative(self):
         values = self.DEFAULT_VALUES.copy()
         values["mode"] = "remove_negative"
@@ -114,10 +112,6 @@ class TestSimulate:
         # values["desired_soc_opps"] = 0
         values["ALLOW_NEGATIVE_SOC"] = True
         simulate(Namespace(**values))
-
-
-
-
 
     def test_mode_report(self, tmp_path):
         # report with cost calculation, write to tmp

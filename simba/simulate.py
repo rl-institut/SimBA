@@ -98,6 +98,8 @@ def modes_simulation(schedule, scenario, args):
     :type args: Namespace
     :return: final schedule and scenario
     :rtype: tuple
+    :raises Exception: If developer setting propagate_mode_errors is set and error occurs during
+        mode
     """
     if type(args.mode) is not list:
         # backwards compatibility: run single mode
