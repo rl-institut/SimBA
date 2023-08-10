@@ -134,7 +134,7 @@ def generate(schedule, scenario, args):
     with warnings.catch_warnings():
         warnings.simplefilter('ignore', UserWarning)
         # re-route output paths
-        args.save_soc = args.results_directory / "socs.csv"
+        args.save_soc = args.results_directory / "vehicle_socs.csv"
         args.save_results = args.results_directory / "info.json"
         args.save_timeseries = args.results_directory / "ts.csv"
         generate_reports(scenario, vars(args).copy())
