@@ -29,7 +29,7 @@ This results in a simple simulation with a following report. To run a simulation
 
 ::
 
-    mode = ["sim", "report" ,"neg_depb_to_oppb", "report]
+    mode = ["sim", "report" ,"neg_depb_to_oppb", "remove_negative", "report]
 
 Where the scenario is run as is, a report is generated, the schedule is changed and simulated again and a second report is generated. Descriptions for the modes can be found below.
 
@@ -322,3 +322,16 @@ The functionality of the optimizer is controlled through the optimizer.cfg speci
 Report
 ------
 The report will generate several files which include information about the expected SoCs, power loads at the charging stations or depots, default plots for the scenario and other useful data. Please refer to :ref:`generate_report` for more detailed information.
+
+..  _remove_negative:
+
+Remove negative rotations
+------------------------------
+
+This mode removes rotations with negative SoCs from the scenario and repeats the simulation. It is called by
+
+::
+
+    mode = ["remove_negative"]
+
+This can be useful as rotations with negative SoCs are not feasible for electrification. If they are included in the scenario, they are nonetheless being charged and contribute to costs, installed infrastructure and electricity demand.
