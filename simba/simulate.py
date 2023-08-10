@@ -98,8 +98,7 @@ def modes_simulation(schedule, scenario, args):
     :type args: Namespace
     :return: final schedule and scenario
     :rtype: tuple
-    :raises Exception: If developer setting propagate_mode_errors is set and error occurs during
-        mode
+    :raises Exception: if args.propagate_mode_errors is set, re-raises error instead of continuing
     """
     if type(args.mode) is not list:
         # backwards compatibility: run single mode
@@ -126,13 +125,13 @@ def modes_simulation(schedule, scenario, args):
             schedule, scenario = func(schedule, scenario, args, i)
             logging.debug("Finished mode " + mode)
         except Exception as e:
+            if args.propagate_mode_errors:
+                raise
             msg = f"{e.__class__.__name__} during {mode}: {e}"
             logging.error('*'*len(msg))
             logging.error(msg)
             logging.error('*'*len(msg))
             logging.error(traceback.format_exc())
-            if args.propagate_mode_errors:
-                raise e
             if scenario is not None and scenario.step_i > 0:
                 # generate plot of failed scenario
                 args.mode = args.mode[:i] + ["ABORTED"]
