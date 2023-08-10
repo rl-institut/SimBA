@@ -16,9 +16,9 @@ def save_version(file_path):
 
 
 def get_buffer_time(trip, default=0):
-    """ Get buffer time at arrival station of a trip.
-        Buffer_time is an abstraction of delays like docking procedures and
-        is added to the planned arrival time
+    """
+    Get buffer time at arrival station of a trip. Buffer_time is an abstraction of delays like
+    docking procedures and is added to the planned arrival time.
 
     :param trip: The of buffer time of this trips arrival is returned.
     :type trip: simba.Trip
@@ -27,18 +27,19 @@ def get_buffer_time(trip, default=0):
     :return: Buffer time
     :rtype: numeric
 
-    NOTE: Buffertime dictionaries map hours of the day to a buffer time.
+        NOTE: Buffertime dictionaries map hours of the day to a buffer time.
     Keys are ranges of hours and corresponding values provide buffer time in
     minutes for that time range.
     An entry with key "else" is a must if not all
     hours of the day are covered.
     E.g.
-        buffer_time = {
-            "10-22": 2,
-            "22-6": 3,
-            "else": 1
-        }
+    buffer_time = {
+    "10-22": 2,
+    "22-6": 3,
+    "else": 1
+    }
     """
+
     schedule = trip.rotation.schedule
     buffer_time = schedule.stations.get(trip.arrival_name, {}).get('buffer_time', default)
 

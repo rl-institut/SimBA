@@ -100,7 +100,8 @@ def modes_simulation(schedule, scenario, args):
     :rtype: tuple
     :raises Exception: if args.propagate_mode_errors is set, re-raises error instead of continuing
     """
-    if type(args.mode) is not list:
+
+    if not isinstance(args.mode, list):
         # backwards compatibility: run single mode
         args.mode = [args.mode]
 

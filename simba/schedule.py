@@ -65,6 +65,7 @@ class Schedule:
         :return: Returns a new instance of Schedule with all trips from csv loaded.
         :rtype: Schedule
         """
+
         schedule = cls(vehicle_types, stations, **kwargs)
 
         station_data = dict()
@@ -198,12 +199,14 @@ class Schedule:
     def set_charging_type(self, ct, rotation_ids=None):
         """ Change charging type of either all or specified rotations. Adjust minimum standing time
         at depot after completion of rotation.
+
         :param ct: Choose this charging type wheneever possible. Either 'depb' or 'oppb'.
         :type ct: str
         :param rotation_ids: IDs of rotations for which to set charging type. If None set charging
                             charging type for all rotations.
         :type rotation_ids: list
         """
+
         assert ct in ["oppb", "depb"], f"Invalid charging type: {ct}"
 
         for id, rot in self.rotations.items():
