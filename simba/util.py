@@ -287,6 +287,9 @@ def get_args():
                         help='Remove rotations from schedule that violate assumptions. ')
     parser.add_argument('--show-plots', action='store_true',
                         help='show plots for users to view in "report" mode')
+    parser.add_argument('--propagate-mode-errors', default=False,
+                        help='Re-raise errors instead of continuing during simulation modes')
+
     # #### Physical setup of environment #####
     parser.add_argument('--preferred-charging-type', '-pct', default='depb',
                         choices=['depb', 'oppb'], help="Preferred charging type. Choose one\
@@ -348,7 +351,7 @@ def get_args():
                         nargs=2, default=[], action='append',
                         help='append additional argument to price signals')
     parser.add_argument('--optimizer_config', default=None,
-                        help="For station_optimization a optimizer_config is needed. \
+                        help="For station_optimization an optimizer_config is needed. \
                         Input a path to an .cfg file or use the default_optimizer.cfg")
 
     parser.add_argument('--config', help='Use config file to set arguments')

@@ -49,7 +49,7 @@ class TestUtil:
         assert type(git_hash) is str
 
     def test_get_buffer_time(self):
-        schedule, scenario = TestSchedule().basic_run()
+        schedule, scenario, _ = TestSchedule().basic_run()
         trip = next(iter(schedule.rotations.values())).trips.pop(0)
         util.get_buffer_time(trip)
         buffer_time = {"10-22": 2,
