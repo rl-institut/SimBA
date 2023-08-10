@@ -224,7 +224,7 @@ class Mode:
             calculate_costs(args.cost_parameters, scenario, schedule, args)
         # name: always start with sim, append all prior optimization modes
         create_results_directory(args, i)
-        report.generate(schedule, scenario, args, i)
+        report.generate(schedule, scenario, args)
         return schedule, scenario
 
 
@@ -238,6 +238,10 @@ def create_results_directory(args, i):
     """
 
     prior_reports = sum([m.count('report') for m in args.mode[:i]])
-    report_name = "report_1" if prior_reports == 0 else f"report_{prior_reports+1}"
+    report_name = f"report_{prior_reports+1}"
     args.results_directory = args.output_directory.joinpath(report_name)
     args.results_directory.mkdir(parents=True, exist_ok=True)
+    # save used modes in report version
+    used_modes = ['sim'] + [m for m in args.mode[:i] if m not in ['sim', 'report']]
+    with open(args.results_directory / "used_modes.txt", "w", encoding='utf-8') as f:
+        f.write(f"Used modes in this scenario: {', '.join(used_modes)}")
