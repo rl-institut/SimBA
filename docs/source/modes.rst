@@ -16,6 +16,7 @@ different modes support the user in finding optimal solutions for their eBus-Sys
 * service optimization
 * station optimization
 * report
+* remove negative rotations
 
 Chained Modes
 -------------
@@ -328,7 +329,7 @@ The report will generate several files which include information about the expec
 Remove negative rotations
 ------------------------------
 
-This mode removes rotations with negative SoCs from the scenario and repeats the simulation. It is called by
+This mode removes rotations with negative SoCs from the schedule and repeats the simulation. It is called by
 
 ::
 
