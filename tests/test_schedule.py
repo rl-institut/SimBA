@@ -59,7 +59,7 @@ class TestSchedule:
         args.attach_vehicle_soc = True
 
         scen = generated_schedule.run(args)
-        return generated_schedule, scen
+        return generated_schedule, scen, args
 
     def test_mandatory_options_exit(self):
         """
@@ -105,7 +105,7 @@ class TestSchedule:
     def test_basic_run(self):
         """ Check if running a basic example works and if a scenario object is returned
         """
-        schedule, scen = self.basic_run()
+        schedule, scen, args = self.basic_run()
         assert type(scen) is scenario.Scenario
 
     def test_assign_vehicles(self):
@@ -131,13 +131,15 @@ class TestSchedule:
     def test_calculate_consumption(self):
         """ Test if calling the consumption calculation works
         """
+        # Changing self.vehicle_types can propagate to other tests
+        vehicle_types = deepcopy(self.vehicle_types)
         trip.Trip.consumption = consumption.Consumption(
-            self.vehicle_types, outside_temperatures=self.temperature_path,
+            vehicle_types, outside_temperatures=self.temperature_path,
             level_of_loading_over_day=self.lol_path)
 
         path_to_trips = file_root / "trips_assign_vehicles.csv"
         generated_schedule = schedule.Schedule.from_csv(
-            path_to_trips, self.vehicle_types, self.electrified_stations, **mandatory_args)
+            path_to_trips, vehicle_types, self.electrified_stations, **mandatory_args)
 
         # set mileage to a constant
         mileage = 10
@@ -173,12 +175,16 @@ class TestSchedule:
 
     def test_get_negative_rotations(self):
         """Check if the single rotation '1' with a negative soc is found """
-
         # make use of the test_run() which has to return schedule and scenario object
-        sched, scen = self.basic_run()
-
+        sched, scen, args = self.basic_run()
+        for rot in sched.rotations.values():
+            for t in rot.trips:
+                t.distance = 0.01
+        sched.rotations["1"].trips[0].distance = 9999999
+        sched.calculate_consumption()
+        scen = sched.run(args)
         neg_rots = sched.get_negative_rotations(scen)
-        assert '2' in neg_rots
+        assert ['1'] == neg_rots
 
     def test_rotation_filter(self, tmp_path):
         s = schedule.Schedule(self.vehicle_types, self.electrified_stations, **mandatory_args)
