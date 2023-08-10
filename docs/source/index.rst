@@ -4,9 +4,10 @@
    contain the root `toctree` directive.
 
 .. _figure_SimBA_logo:
-.. figure:: _static/SimBA_Logo.png
+.. image:: _static/SimBA_Logo.png
     :alt:  SimBA_Logo
     :width: 200
+
 
 Welcome to the SimBA documentation!
 ===================================
