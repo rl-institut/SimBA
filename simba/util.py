@@ -340,10 +340,9 @@ def get_parser():
     parser.add_argument('--min-charging-time', help='define minimum time of charging',
                         default=0)
     parser.add_argument('--default-buffer-time-opps', help='time to subtract off of standing time '
-                                                           'at opp station to simulate docking procedure.',
-                        default=0)
-    parser.add_argument('--default-voltage-level', help='Default voltage level for '
-                                                        'charging stations if not set in electrified_stations file',
+                        'at opp station to simulate docking procedure.', default=0)
+    parser.add_argument('--default-voltage-level', help='Default voltage level for charging '
+                        'stations if not set in electrified_stations file',
                         default='MV', choices=['HV', 'HV/MV', 'MV', 'MV/LV', 'LV'])
     # #### SIMULATION PARAMETERS #####
     parser.add_argument('--days', metavar='N', type=int, default=None,
