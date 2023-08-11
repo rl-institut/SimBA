@@ -81,7 +81,7 @@ def calculate_costs(c_params, scenario, schedule, args):
                                   c_transformer / c_params["gc"]["lifetime_transformer"])
         # calculate maintenance cost of grid connection
         costs["c_maint_gc_annual"] += (
-                c_transformer * c_params["gc"]["c_maint_transformer_per_year"])
+            c_transformer * c_params["gc"]["c_maint_transformer_per_year"])
 
         # STATIONARY STORAGE
         # assume there is a stationary storage
@@ -94,10 +94,10 @@ def calculate_costs(c_params, scenario, schedule, args):
         except KeyError:
             # if no stationary storage at grid connector: cost is 0
             pass
-    costs["c_stat_storage_annual"] = (costs["c_stat_storage"] / c_params["stationary_storage"]
-                                      ["lifetime_stat_storage"])
-    costs["c_maint_stat_storage_annual"] = (costs["c_stat_storage"] * c_params["stationary_storage"]
-                                            ["c_maint_stat_storage_per_year"])
+    costs["c_stat_storage_annual"] = (
+        costs["c_stat_storage"] / c_params["stationary_storage"]["lifetime_stat_storage"])
+    costs["c_maint_stat_storage_annual"] = (
+        costs["c_stat_storage"] * c_params["stationary_storage"]["c_maint_stat_storage_per_year"])
 
     # CHARGING INFRASTRUCTURE
     cs = schedule.scenario["components"]["charging_stations"]
