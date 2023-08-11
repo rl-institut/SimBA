@@ -23,11 +23,11 @@ def calculate_costs(c_params, scenario, schedule, args):
         "c_vehicles", "c_gcs", "c_cs", "c_garage_cs", "c_garage", "c_garage_workstations",
         "c_stat_storage", "c_invest",
         # annual investment costs
-        "c_vehicles_annual",  "c_gcs_annual",  "c_cs_annual", "c_garage_annual",
+        "c_vehicles_annual", "c_gcs_annual", "c_cs_annual", "c_garage_annual",
         "c_stat_storage_annual", "c_invest_annual",
-        # annual maintainance costs
-        "c_maint_gc_annual", "c_maint_infrastructure_annual", "c_maint_vehicles_annual",
-        "c_maint_stat_storage_annual", "c_maint_annual",
+        # annual maintenance costs
+        "c_maint_vehicles_annual", "c_maint_gc_annual", "c_maint_cs_annual",
+        "c_maint_stat_storage_annual", "c_maint_infrastructure_annual", "c_maint_annual",
         # annual electricity costs
         "c_el_procurement_annual", "c_el_power_price_annual", "c_el_energy_price_annual",
         "c_el_taxes_annual", "c_el_feed_in_remuneration_annual", "c_el_annual"]}
@@ -66,7 +66,7 @@ def calculate_costs(c_params, scenario, schedule, args):
         # get distance between grid and grid connector
         distance_to_grid = schedule.stations[gcID].get(
             "distance_to_grid", c_params["gc"][voltage_level]["default_distance"])
-        # calculate grid connection costs, typically buidling costs and buiding cost subsidy
+        # calculate grid connection costs, typically building costs and building cost subsidy
         c_gc = (c_params["gc"][voltage_level]["capex_gc_fix"] +
                 c_params["gc"][voltage_level]["capex_gc_per_kW"] * gc_max_power +
                 c_params["gc"][voltage_level]["capex_gc_per_meter"] * distance_to_grid)
@@ -82,6 +82,7 @@ def calculate_costs(c_params, scenario, schedule, args):
         # calculate maintenance cost of grid connection
         costs["c_maint_gc_annual"] += (
             c_transformer * c_params["gc"]["c_maint_transformer_per_year"])
+
         # STATIONARY STORAGE
         # assume there is a stationary storage
         try:
@@ -118,6 +119,8 @@ def calculate_costs(c_params, scenario, schedule, args):
     # calculate annual cost of charging stations, depending on their lifetime
     costs["c_cs_annual"] = costs["c_cs"] / c_params["cs"]["lifetime_cs"]
 
+    costs["c_maint_cs_annual"] = costs["c_cs"] * c_params["cs"]["c_maint_cs_per_year"]
+
     # GARAGE
     costs["c_garage_cs"] = (
         c_params["garage"]["n_charging_stations"]
@@ -132,9 +135,9 @@ def calculate_costs(c_params, scenario, schedule, args):
         + costs["c_garage_workstations"] / c_params["garage"]["lifetime_workstations"])
 
     # MAINTENANCE
-    costs["c_maint_infrastructure_annual"] = (
-        costs["c_cs"] * c_params["cs"]["c_maint_cs_per_year"]
-        + costs["c_maint_gc_annual"] + costs["c_maint_stat_storage_annual"])
+    costs["c_maint_infrastructure_annual"] = (costs["c_maint_cs_annual"] +
+                                              costs["c_maint_gc_annual"] +
+                                              costs["c_maint_stat_storage_annual"])
     # calculate (ceil) number of days in scenario
     drive_days = -(-(schedule.scenario["scenario"]["n_intervals"] *
                      schedule.scenario["scenario"]["interval"]) // (24 * 60))
@@ -149,9 +152,11 @@ def calculate_costs(c_params, scenario, schedule, args):
                           ". Unable to calculate maintenance costs for this vehicle type.")
     costs["c_maint_annual"] = (costs["c_maint_infrastructure_annual"] +
                                costs["c_maint_vehicles_annual"])
-    costs["c_invest"] = costs["c_vehicles"] + costs["c_cs"] + costs["c_gcs"] + costs["c_garage"]
+    costs["c_invest"] = (costs["c_vehicles"] + costs["c_cs"] + costs["c_gcs"] + costs["c_garage"] +
+                         costs["c_stat_storage"])
     costs["c_invest_annual"] = (costs["c_vehicles_annual"] + costs["c_cs_annual"] +
-                                costs["c_gcs_annual"] + costs["c_garage_annual"])
+                                costs["c_gcs_annual"] + costs["c_garage_annual"] +
+                                costs["c_stat_storage_annual"])
 
     # ELECTRICITY COSTS #
 

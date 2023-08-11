@@ -47,7 +47,7 @@ General Concept
 SimBA is designed as a toolbox, so the specific use can be adapted to the users needs. Its core functionality is to run scenario based simulations. A scenario is defined by a set of input files. Next to the simulation mode, several optimization modes exist, that can be linked and executed consecutively.
 
 .. _figure_simba_modules:
-.. figure:: _static/SimBA_module_overview.png
+.. figure:: _images/SimBA_module_overview.png
     :alt:  figure_simba_modules
     :width: 600
 
@@ -65,7 +65,7 @@ As a result of each simulation the energy demand at each electrified station, th
 In case an optimization is carried out, the results are then analyzed, the optimizer adapts the input data and parameters and starts the process again with the trip consumption analysis. In which order and for what purpose the individual modules are executed is mainly defined using the different modes. These modes can be used to manipulate the defined scenario e.g. by altering bus types from depot to opportunity chargers, optimize sets of rotations to increase electrification or suggest stations for electrification by minimizing the amount of stations needed. You can learn more about the modes  :ref:`here <sim_modes>`.
 
 .. _simba_default_plot:
-.. figure:: _static/run_overview.png
+.. figure:: _images/run_overview.png
     :alt:  simba_default_plot
     :width: 600
 
