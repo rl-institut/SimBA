@@ -4,7 +4,6 @@ import csv
 import datetime
 import logging
 import matplotlib.pyplot as plt
-import warnings
 from spice_ev.report import aggregate_global_results, plot, generate_reports
 
 
