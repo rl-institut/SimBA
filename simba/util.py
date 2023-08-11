@@ -241,9 +241,36 @@ def setup_logging(args, time_str):
 
 
 def get_args():
+    parser = get_parser()
+
+    args = parser.parse_args()
+
+    # arguments relevant to SpiceEV, setting automatically to reduce clutter in config
+    mutate_args_for_spiceev(args)
+
+    # If a config is provided, the config will overwrite previously parsed arguments
+    set_options_from_config(args, check=parser, verbose=False)
+
+    # rename special options
+    args.timing = args.eta
+
+    missing = [a for a in ["input_schedule", "electrified_stations"] if vars(args).get(a) is None]
+    if missing:
+        raise Exception("The following arguments are required: {}".format(", ".join(missing)))
+
+    return args
+
+
+def mutate_args_for_spiceev(args):
+    args.strategy = 'distributed'
+    args.margin = 1
+    args.ALLOW_NEGATIVE_SOC = True
+    args.PRICE_THRESHOLD = -100  # ignore price for charging decisions
+
+
+def get_parser():
     parser = argparse.ArgumentParser(
         description='SimBA - Simulation toolbox for Bus Applications.')
-
     # #### Paths #####
     parser.add_argument('--input-schedule', nargs='?',
                         help='Path to CSV file containing all trips of schedule to be analyzed.')
@@ -263,7 +290,6 @@ def get_args():
                         level of loading in case they are not in trips.csv")
     parser.add_argument('--cost-parameters-file', default=None,
                         help='include cost parameters json, needed if cost_calculation==True')
-
     # #### Modes #####
     mode_choices = [
         'sim', 'neg_depb_to_oppb', 'neg_oppb_to_depb', 'service_optimization',
@@ -278,7 +304,6 @@ def get_args():
                         station_optimization finds the smallest set of electrified stations.\
                         remove_negative removes all negative rotations.\
                         report generates simulation output files.")
-
     # #### Flags #####
     parser.add_argument('--cost-calculation', '-cc', action='store_true',
                         help='Calculate costs')
@@ -290,7 +315,6 @@ def get_args():
                         help='show plots for users to view in "report" mode')
     parser.add_argument('--propagate-mode-errors', default=False,
                         help='Re-raise errors instead of continuing during simulation modes')
-
     # #### Physical setup of environment #####
     parser.add_argument('--preferred-charging-type', '-pct', default='depb',
                         choices=['depb', 'oppb'], help="Preferred charging type. Choose one\
@@ -316,11 +340,11 @@ def get_args():
     parser.add_argument('--min-charging-time', help='define minimum time of charging',
                         default=0)
     parser.add_argument('--default-buffer-time-opps', help='time to subtract off of standing time '
-                        'at opp station to simulate docking procedure.', default=0)
+                                                           'at opp station to simulate docking procedure.',
+                        default=0)
     parser.add_argument('--default-voltage-level', help='Default voltage level for '
-                        'charging stations if not set in electrified_stations file',
+                                                        'charging stations if not set in electrified_stations file',
                         default='MV', choices=['HV', 'HV/MV', 'MV', 'MV/LV', 'LV'])
-
     # #### SIMULATION PARAMETERS #####
     parser.add_argument('--days', metavar='N', type=int, default=None,
                         help='set duration of scenario as number of days')
@@ -337,12 +361,10 @@ def get_args():
     parser.add_argument('--rotation-filter-variable', default=None,
                         choices=[None, 'include', 'exclude'],
                         help='set mode for filtering schedule rotations')
-
     # #### LOGGING PARAMETERS #### #
     parser.add_argument('--loglevel', default='INFO',
                         choices=logging._nameToLevel.keys(), help='Log level.')
     parser.add_argument('--logfile', default='', help='Log file suffix. null: no log file.')
-
     # #### SpiceEV PARAMETERS ONLY DEFAULT VALUES NOT IN SimBA CONFIG #####
     parser.add_argument('--seed', default=1, type=int, help='set random seed')
     parser.add_argument('--include-price-csv',
@@ -354,24 +376,5 @@ def get_args():
     parser.add_argument('--optimizer_config', default=None,
                         help="For station_optimization an optimizer_config is needed. \
                         Input a path to an .cfg file or use the default_optimizer.cfg")
-
     parser.add_argument('--config', help='Use config file to set arguments')
-
-    args = parser.parse_args()
-
-    # arguments relevant to SpiceEV, setting automatically to reduce clutter in config
-    args.strategy = 'distributed'
-    args.margin = 1
-    args.ALLOW_NEGATIVE_SOC = True
-    args.PRICE_THRESHOLD = -100  # ignore price for charging decisions
-
-    set_options_from_config(args, check=parser, verbose=False)
-
-    # rename special options
-    args.timing = args.eta
-
-    missing = [a for a in ["input_schedule", "electrified_stations"] if vars(args).get(a) is None]
-    if missing:
-        raise Exception("The following arguments are required: {}".format(", ".join(missing)))
-
-    return args
+    return parser
