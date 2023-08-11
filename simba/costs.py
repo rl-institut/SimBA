@@ -47,10 +47,10 @@ def calculate_costs(c_params, scenario, schedule, args):
             # sum up cost of vehicles and their batteries, depending on how often the battery
             # has to be replaced in the lifetime of the vehicles
             c_vehicles_vt = (
-                    schedule.vehicle_type_counts[v_type] *
-                    (costs_vehicle + (c_params["vehicles"][v_type]["lifetime"] //
-                                      c_params["batteries"]["lifetime_battery"]) *
-                     v_keys["capacity"] * c_params["batteries"]["cost_per_kWh"]))
+                schedule.vehicle_type_counts[v_type] *
+                (costs_vehicle + (c_params["vehicles"][v_type]["lifetime"] //
+                                  c_params["batteries"]["lifetime_battery"]) *
+                 v_keys["capacity"] * c_params["batteries"]["cost_per_kWh"]))
             costs["c_vehicles"] += c_vehicles_vt
             # calculate annual cost of vehicles of this type, depending on their lifetime
             costs["c_vehicles_annual"] += c_vehicles_vt / c_params["vehicles"][v_type]["lifetime"]
@@ -72,8 +72,8 @@ def calculate_costs(c_params, scenario, schedule, args):
                 c_params["gc"][voltage_level]["capex_gc_per_meter"] * distance_to_grid)
         # calculate transformer costs
         c_transformer = (
-                c_params["gc"][voltage_level]["capex_transformer_fix"] +
-                c_params["gc"][voltage_level]["capex_transformer_per_kW"] * gc_max_power)
+            c_params["gc"][voltage_level]["capex_transformer_fix"] +
+            c_params["gc"][voltage_level]["capex_transformer_per_kW"] * gc_max_power)
         # calculate total cost of grid connection
         costs["c_gcs"] += c_gc + c_transformer
         # calculate annual costs of grid connection, depending on lifetime of gc and transformer
@@ -88,9 +88,9 @@ def calculate_costs(c_params, scenario, schedule, args):
         try:
             # calculate costs of stationary storage
             costs["c_stat_storage"] += (
-                    c_params["stationary_storage"]["capex_fix"] +
-                    c_params["stationary_storage"]["capex_per_kWh"] *
-                    schedule.stations[gcID]["battery"]["capacity"])
+                c_params["stationary_storage"]["capex_fix"] +
+                c_params["stationary_storage"]["capex_per_kWh"] *
+                schedule.stations[gcID]["battery"]["capacity"])
         except KeyError:
             # if no stationary storage at grid connector: cost is 0
             pass
@@ -110,11 +110,11 @@ def calculate_costs(c_params, scenario, schedule, args):
         if schedule.stations[gcID]["type"] == "opps":
             gc_timeseries = getattr(scenario, f"{gcID}_timeseries")
             costs["c_cs"] += (
-                    c_params["cs"]["capex_opps_per_kW"] *
-                    # get cs power of this opps
-                    schedule.stations[gcID].get("cs_power_opps", vars(args)["cs_power_opps"]) *
-                    # get max. nr of occupied CS per grid connector
-                    max(gc_timeseries["# CS in use [-]"]))
+                c_params["cs"]["capex_opps_per_kW"] *
+                # get cs power of this opps
+                schedule.stations[gcID].get("cs_power_opps", vars(args)["cs_power_opps"]) *
+                # get max. nr of occupied CS per grid connector
+                max(gc_timeseries["# CS in use [-]"]))
 
     # calculate annual cost of charging stations, depending on their lifetime
     costs["c_cs_annual"] = costs["c_cs"] / c_params["cs"]["lifetime_cs"]
@@ -123,16 +123,16 @@ def calculate_costs(c_params, scenario, schedule, args):
 
     # GARAGE
     costs["c_garage_cs"] = (
-            c_params["garage"]["n_charging_stations"]
-            * c_params["garage"]["power_cs"] * c_params["cs"]["capex_deps_per_kW"])
+        c_params["garage"]["n_charging_stations"]
+        * c_params["garage"]["power_cs"] * c_params["cs"]["capex_deps_per_kW"])
     costs["c_garage_workstations"] = -(
-            -sum(schedule.vehicle_type_counts.values())
-            // c_params["garage"]["vehicles_per_workstation"]
-            * c_params["garage"]["cost_per_workstation"])
+        -sum(schedule.vehicle_type_counts.values())
+        // c_params["garage"]["vehicles_per_workstation"]
+        * c_params["garage"]["cost_per_workstation"])
     costs["c_garage"] = costs["c_garage_cs"] + costs["c_garage_workstations"]
     costs["c_garage_annual"] = (
-            costs["c_garage_cs"] / c_params["cs"]["lifetime_cs"]
-            + costs["c_garage_workstations"] / c_params["garage"]["lifetime_workstations"])
+        costs["c_garage_cs"] / c_params["cs"]["lifetime_cs"]
+        + costs["c_garage_workstations"] / c_params["garage"]["lifetime_workstations"])
 
     # MAINTENANCE
     costs["c_maint_infrastructure_annual"] = (costs["c_maint_cs_annual"] +
