@@ -1,5 +1,6 @@
 import logging
 import traceback
+from copy import deepcopy
 
 from simba import report, optimization, util
 from simba.consumption import Consumption
@@ -40,6 +41,8 @@ def pre_simulation(args):
     :return: schedule
     :rtype: simba.schedule.Schedule
     """
+    # Deepcopy args so args do not get mutated, i.e. deleted
+    args = deepcopy(args)
     try:
         with open(args.vehicle_types, encoding='utf-8') as f:
             vehicle_types = util.uncomment_json_file(f)
