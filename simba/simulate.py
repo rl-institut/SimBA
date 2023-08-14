@@ -24,7 +24,7 @@ def simulate(args):
     :return: final schedule and scenario
     :rtype: tuple
     """
-    schedule = pre_simulation(args)
+    schedule, args = pre_simulation(args)
     scenario = schedule.run(args)
     return modes_simulation(schedule, scenario, args)
 
@@ -41,8 +41,9 @@ def pre_simulation(args):
     :return: schedule
     :rtype: simba.schedule.Schedule
     """
-    # Deepcopy args so args do not get mutated, i.e. deleted
+    # Deepcopy args so original args do not get mutated, i.e. deleted
     args = deepcopy(args)
+
     try:
         with open(args.vehicle_types, encoding='utf-8') as f:
             vehicle_types = util.uncomment_json_file(f)
@@ -83,7 +84,7 @@ def pre_simulation(args):
     # calculate consumption of all trips
     schedule.calculate_consumption()
 
-    return schedule
+    return schedule, args
 
 
 def modes_simulation(schedule, scenario, args):

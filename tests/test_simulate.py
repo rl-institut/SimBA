@@ -49,7 +49,7 @@ class TestSimulate:
     def test_missing(self):
         # every value in DEFAULT_VALUES is expected to be set, so omitting one should raise an error
         values = self.DEFAULT_VALUES.copy()
-        # except propagate_modes_error
+        # except propagate_modes_error, since this is only checked when error needs propagation
         del self.DEFAULT_VALUES["propagate_mode_errors"]
         for k, v in self.DEFAULT_VALUES.items():
             del values[k]
