@@ -48,7 +48,7 @@ class TestSchedule:
         args.ALLOW_NEGATIVE_SOC = True
         args.attach_vehicle_soc = True
 
-        sched = pre_simulation(args)
+        sched, args = pre_simulation(args)
         scen = sched.run(args)
         return sched, scen, args
 
