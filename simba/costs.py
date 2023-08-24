@@ -130,7 +130,7 @@ def calculate_costs(c_params, scenario, schedule, args):
             gc_timeseries = getattr(scenario, f"{gcID}_timeseries")
             costs["c_cs"] += (
                 c_params["cs"]["capex_opps_per_kW"] *
-                # get cs power of this opps
+                # get power of this opps
                 schedule.stations[gcID].get("cs_power_opps", vars(args)["cs_power_opps"]) *
                 # get max. nr of occupied CS per grid connector
                 max(gc_timeseries["# CS in use [-]"]))
@@ -156,7 +156,15 @@ def calculate_costs(c_params, scenario, schedule, args):
         costs["c_garage_cs"] / c_params["cs"]["lifetime_cs"]
         + costs["c_garage_workstations"] / c_params["garage"]["lifetime_workstations"])
 
-    # MAINTENANCE
+    # TOTAL COSTS
+    costs["c_invest"] = (costs["c_vehicles"] + costs["c_cs"] + costs["c_gcs"] + costs["c_garage"] +
+                         costs["c_stat_storage"])
+    costs["c_invest_annual"] = (costs["c_vehicles_annual"] + costs["c_cs_annual"] +
+                                costs["c_gcs_annual"] + costs["c_garage_annual"] +
+                                costs["c_stat_storage_annual"])
+
+    # MAINTENANCE COSTS #
+
     costs["c_maint_infrastructure_annual"] = (costs["c_maint_cs_annual"] +
                                               costs["c_maint_gc_annual"] +
                                               costs["c_maint_stat_storage_annual"])
@@ -174,11 +182,6 @@ def calculate_costs(c_params, scenario, schedule, args):
                           ". Unable to calculate maintenance costs for this vehicle type.")
     costs["c_maint_annual"] = (costs["c_maint_infrastructure_annual"] +
                                costs["c_maint_vehicles_annual"])
-    costs["c_invest"] = (costs["c_vehicles"] + costs["c_cs"] + costs["c_gcs"] + costs["c_garage"] +
-                         costs["c_stat_storage"])
-    costs["c_invest_annual"] = (costs["c_vehicles_annual"] + costs["c_cs_annual"] +
-                                costs["c_gcs_annual"] + costs["c_garage_annual"] +
-                                costs["c_stat_storage_annual"])
 
     # ELECTRICITY COSTS #
 
