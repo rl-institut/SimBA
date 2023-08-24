@@ -4,10 +4,38 @@ import logging
 from pathlib import Path
 import random
 import warnings
+from typing import Iterable, Dict, Type
 
+import simba.rotation
 from simba import util
 from simba.rotation import Rotation
 from spice_ev.scenario import Scenario
+
+
+class SocDispatcher:
+    """Dispatches the right initial SoC for every vehicle id at scenario generation.
+
+    Used for specific vehicle initialization for example when coupling tools."""
+
+    def __init__(self,
+                 default_soc_deps: float,
+                 default_soc_opps: float,
+                 # vehicle_socs stores the departure soc of a rotation as a dict of the previous
+                 # trip, since this is how the SpiceEV scenario is generated.
+                 # The first trip of a vehicle has no previous trip and therefore is None
+                 vehicle_socs: Dict[str, Type[Dict["simba.trip.Trip", float]]] = None):
+        self.default_soc_deps = default_soc_deps
+        self.default_soc_opps = default_soc_opps
+        self.vehicle_socs = {}
+        if vehicle_socs is not None:
+            self.vehicle_socs = vehicle_socs
+
+    def get_soc(self, vehicle_id: str, trip: "simba.trip.Trip",  station_type: str = None):
+        try:
+            v_socs = self.vehicle_socs[vehicle_id]
+            return v_socs[trip]
+        except KeyError:
+            return vars(self).get("default_soc_" + station_type)
 
 
 class Schedule:
@@ -27,12 +55,12 @@ class Schedule:
         """
 
         self.stations = stations
-        self.rotations = {}
+        self.rotations: Dict[str, simba.rotation.Rotation] = {}
         self.consumption = 0
         self.vehicle_types = vehicle_types
         self.original_rotations = None
         self.station_data = None
-
+        self.soc_dispatcher: SocDispatcher = None
         # mandatory config parameters
         mandatory_options = [
             "min_recharge_deps_oppb",
@@ -185,7 +213,19 @@ class Schedule:
     def run(self, args):
         # each rotation is assigned a vehicle ID
         self.assign_vehicles()
+        return self._run(args)
 
+    def _run(self, args):
+        """Runs a schedule without assigning vehicles.
+
+        For external usage the core run functionality is accessible through this function. It
+        allows for defining a custom-made assign_vehicles method for the schedule.
+        :param args: used arguments are rotation_filter, path to rotation ids,
+            and rotation_filter_variable that sets mode (options: include, exclude)
+        :type args: argparse.Namespace
+        :return: scenario
+        :rtype spice_ev.Scenario
+        """
         scenario = self.generate_scenario(args)
 
         logging.info("Running SpiceEV...")
@@ -212,6 +252,41 @@ class Schedule:
         for id, rot in self.rotations.items():
             if rotation_ids is None or id in rotation_ids:
                 rot.set_charging_type(ct)
+
+    def assign_vehicles_for_django(self, eflips_output: Iterable):
+        """Assign vehicles based on eflips outputs
+
+        eflips couples vehicles and returns for every rotation the departure soc and vehicle id.
+        This is included into simba by assigning new vehicles with the respective values. I.e. in
+        simba every rotation gets a new vehicle.
+        :param eflips_output: output from eflip meant for simba
+        """
+        eflips_rot_dict = {obj.rot_id: {"v_id": obj.v_id, "soc": obj.soc}
+                           for obj in eflips_output}
+        unique_vids = {obj.v_id for obj in eflips_output}
+        vehicle_socs = {v_id: dict() for v_id in unique_vids}
+        eflips_vid_dict = {v_id: sorted([obj.rot_id for obj in eflips_output if obj.v_id == v_id],
+                                        key=lambda r_id: rotations[r_id].departure_time)
+                           for v_id in unique_vids}
+
+        rotations = sorted(self.rotations.values(), key=lambda rot: rot.departure_time)
+        for rot in rotations:
+            v_id = eflips_rot_dict[rot.id]["v_id"]
+            rot.vehicle_id = v_id
+            index = eflips_vid_dict[v_id].index(rot.id)
+            # if this rotation is not the first rotation of the vehicle, find the previous trip
+            if index != 0:
+                prev_rot_id = eflips_vid_dict[v_id][index - 1]
+                trip = self.rotations[prev_rot_id].trips[-1]
+            else:
+                # if the rotation has no previous trip, trip is set as None
+                trip = None
+            vehicle_socs[v_id][trip] = eflips_rot_dict[rot.id]["soc"]
+        self.soc_dispatcher.vehicle_socs = vehicle_socs
+
+    def init_soc_dispatcher(self, args):
+        self.soc_dispatcher = SocDispatcher(default_soc_deps=args.desired_soc_deps,
+                                            default_soc_opps=args.desired_soc_opps)
 
     def assign_vehicles(self):
         """ Assign vehicle IDs to rotations. A FIFO approach is used.
@@ -499,8 +574,9 @@ class Schedule:
                         # a depot bus cannot charge at an opp station
                         station_type = None
                     else:
-                        # get desired soc by station type
-                        desired_soc = vars(args).get("desired_soc_" + station_type)
+                        # get desired soc by station type and trip
+                        desired_soc = self.soc_dispatcher.get_soc(
+                            vehicle_id=vehicle_id, trip=trip, station_type=station_type)
                 except KeyError:
                     # non-electrified station
                     station_type = None
@@ -590,11 +666,19 @@ class Schedule:
 
                 # initial condition of vehicle
                 if i == 0:
+                    gc_name = trip.departure_name
+                    try:
+                        departure_station_type = self.stations[gc_name]["type"]
+                    except KeyError:
+                        departure_station_type = "deps"
+
                     vehicles[vehicle_id] = {
                         "connected_charging_station": None,
                         "estimated_time_of_departure": trip.departure_time.isoformat(),
                         "desired_soc": None,
-                        "soc": args.desired_soc_deps,
+                        "soc": self.soc_dispatcher.get_soc(vehicle_id=vehicle_id,
+                                                           trip=None,
+                                                           station_type=departure_station_type),
                         "vehicle_type":
                             f"{trip.rotation.vehicle_type}_{trip.rotation.charging_type}"
                     }

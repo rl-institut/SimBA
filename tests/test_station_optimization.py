@@ -104,6 +104,8 @@ class TestStationOptimization:
         generated_schedule = Schedule.from_csv(path_to_trips, self.vehicle_types,
                                                self.electrified_stations,
                                                **vars(args2))
+        # Create soc dispatcher
+        generated_schedule.init_soc_dispatcher(args)
 
         scen = generated_schedule.run(args)
         # optimization depends on vehicle_socs, therefore they need to be generated

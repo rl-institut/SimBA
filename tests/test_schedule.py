@@ -262,10 +262,13 @@ class TestSchedule:
         generated_schedule = schedule.Schedule.from_csv(
             path_to_trips, self.vehicle_types, electrified_stations, **mandatory_args,
             station_data_path=path_to_all_station_data)
+        # Create soc dispatcher
+        generated_schedule.init_soc_dispatcher(args)
 
         set_options_from_config(args, verbose=False)
         args.ALLOW_NEGATIVE_SOC = True
         args.attach_vehicle_soc = True
+
         scen = generated_schedule.generate_scenario(args)
         assert "Station-0" in scen.components.photovoltaics
         assert "Station-3" in scen.components.photovoltaics
@@ -284,6 +287,9 @@ class TestSchedule:
         generated_schedule = schedule.Schedule.from_csv(
             path_to_trips, self.vehicle_types, electrified_stations, **mandatory_args,
             station_data_path=path_to_all_station_data)
+
+        # Create soc dispatcher
+        generated_schedule.init_soc_dispatcher(args)
 
         set_options_from_config(args, verbose=False)
 

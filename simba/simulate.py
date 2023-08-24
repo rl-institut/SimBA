@@ -84,6 +84,9 @@ def pre_simulation(args):
     # calculate consumption of all trips
     schedule.calculate_consumption()
 
+    # Create soc dispatcher
+    schedule.init_soc_dispatcher(args)
+
     return schedule, args
 
 
