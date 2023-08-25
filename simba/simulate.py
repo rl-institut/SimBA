@@ -38,8 +38,8 @@ def pre_simulation(args):
     :param args: arguments
     :type args: Namespace
     :raises Exception: If an input file does not exist, exit the program.
-    :return: schedule
-    :rtype: simba.schedule.Schedule
+    :return: schedule, args
+    :rtype: simba.schedule.Schedule, Namespace
     """
     # Deepcopy args so original args do not get mutated, i.e. deleted
     args = deepcopy(args)
