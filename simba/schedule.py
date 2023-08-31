@@ -261,6 +261,7 @@ class Schedule:
         This is included into simba by assigning new vehicles with the respective values. I.e. in
         simba every rotation gets a new vehicle.
         :param eflips_output: output from eflip meant for simba
+        :raises KeyError: If not every rotation has a vehicle assigned to it
         """
         eflips_rot_dict = {obj.rot_id: {"v_id": obj.v_id, "soc": obj.soc}
                            for obj in eflips_output}
