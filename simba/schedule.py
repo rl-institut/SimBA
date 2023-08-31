@@ -1,15 +1,16 @@
 import csv
 import datetime
 import logging
-from pathlib import Path
 import random
 import warnings
+from pathlib import Path
 from typing import Iterable, Dict, Type
+
+from spice_ev.scenario import Scenario
 
 import simba.rotation
 from simba import util
 from simba.rotation import Rotation
-from spice_ev.scenario import Scenario
 
 
 class SocDispatcher:
@@ -266,12 +267,27 @@ class Schedule:
         unique_vids = {obj.v_id for obj in eflips_output}
         vehicle_socs = {v_id: dict() for v_id in unique_vids}
         eflips_vid_dict = {v_id: sorted([obj.rot_id for obj in eflips_output if obj.v_id == v_id],
-                                        key=lambda r_id: rotations[r_id].departure_time)
+                                        key=lambda r_id: self.rotations[r_id].departure_time)
                            for v_id in unique_vids}
+
+        # Calculate vehicle counts
+        # count number of vehicles per type
+        # used for unique vehicle id e.g. vehicletype_chargingtype_id
+        vehicle_type_counts = {f'{vehicle_type}_{charging_type}': 0
+                               for vehicle_type, charging_types in self.vehicle_types.items()
+                               for charging_type in charging_types.keys()}
+        for vid in unique_vids:
+            v_ls = vid.split("_")
+            vehicle_type_counts[f'{v_ls[0]}_{v_ls[1]}'] += 1
 
         rotations = sorted(self.rotations.values(), key=lambda rot: rot.departure_time)
         for rot in rotations:
-            v_id = eflips_rot_dict[rot.id]["v_id"]
+            try:
+                v_id = eflips_rot_dict[rot.id]["v_id"]
+            except KeyError as exc:
+                raise KeyError(f"SoC-data does not include the rotation with the id: {rot.id}. "
+                               "Externally generated vehicles assignments need to include all "
+                               "rotations") from exc
             rot.vehicle_id = v_id
             index = eflips_vid_dict[v_id].index(rot.id)
             # if this rotation is not the first rotation of the vehicle, find the previous trip
