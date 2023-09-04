@@ -23,6 +23,7 @@ mandatory_args = {
 }
 
 
+
 class TestSchedule:
     temperature_path = example_root / 'default_temp_winter.csv'
     lol_path = example_root / 'default_level_of_loading_over_day.csv'
@@ -32,6 +33,20 @@ class TestSchedule:
 
     with open(example_root / "vehicle_types.json", "r", encoding='utf-8') as file:
         vehicle_types = util.uncomment_json_file(file)
+
+    path_to_all_station_data = example_root / "all_stations.csv"
+
+    @pytest.fixture
+    def default_schedule_arguments(self):
+        arguments = {"path_to_csv": None,
+                     "vehicle_types": self.vehicle_types,
+                     "stations": self.electrified_stations,
+                     "station_data_path": self.path_to_all_station_data,
+                     "outside_temperature_over_day_path": self.temperature_path,
+                     "level_of_loading_over_day_path": self.lol_path
+                     }
+        arguments.update(**mandatory_args)
+        return arguments
 
     def basic_run(self):
         """Returns a schedule, scenario and args after running SimBA.
@@ -64,33 +79,23 @@ class TestSchedule:
                 schedule.Schedule(self.vehicle_types, self.electrified_stations, **args)
             args[key] = value
 
-    def test_station_data_reading(self):
+    def test_station_data_reading(self, default_schedule_arguments):
         """ Test if the reading of the geo station data works and outputs warnings in
         case the data was problematic, e.g. not numeric or not existent"""
-        path_to_trips = example_root / "trips_example.csv"
+        trip.Trip.consumption = consumption.Consumption(self.vehicle_types)
 
-        trip.Trip.consumption = consumption.Consumption(
-            self.vehicle_types, outside_temperatures=self.temperature_path,
-            level_of_loading_over_day=self.lol_path)
-
-        path_to_all_station_data = example_root / "all_stations.csv"
-        generated_schedule = schedule.Schedule.from_csv(
-            path_to_trips, self.vehicle_types, self.electrified_stations, **mandatory_args,
-            station_data_path=path_to_all_station_data)
+        default_schedule_arguments["path_to_csv"] = example_root / "trips_example.csv"
+        generated_schedule = schedule.Schedule.from_csv(**default_schedule_arguments)
         assert generated_schedule.station_data is not None
 
         # check if reading a non valid station.csv throws warnings
         with pytest.warns(Warning) as record:
-            path_to_all_station_data = file_root / "not_existent_file"
-            schedule.Schedule.from_csv(
-                path_to_trips, self.vehicle_types, self.electrified_stations, **mandatory_args,
-                station_data_path=path_to_all_station_data)
+            default_schedule_arguments["station_data_path"] = file_root / "not_existent_file"
+            schedule.Schedule.from_csv(**default_schedule_arguments)
             assert len(record) == 1
 
-            path_to_all_station_data = file_root / "not_numeric_stations.csv"
-            schedule.Schedule.from_csv(
-                path_to_trips, self.vehicle_types, self.electrified_stations, **mandatory_args,
-                station_data_path=path_to_all_station_data)
+            default_schedule_arguments["station_data_path"] = file_root / "not_numeric_stations.csv"
+            schedule.Schedule.from_csv(**default_schedule_arguments)
             assert len(record) == 2
 
     def test_basic_run(self):
@@ -99,7 +104,7 @@ class TestSchedule:
         sched, scen, args = self.basic_run()
         assert type(scen) is scenario.Scenario
 
-    def test_assign_vehicles(self):
+    def test_assign_vehicles(self,default_schedule_arguments):
         """ Test if assigning vehicles works as intended.
 
         Use a trips csv with two rotations ("1","2") a day apart.
@@ -107,30 +112,25 @@ class TestSchedule:
         Rotation "3" starts shortly after "2" and should be a new vehicle.
         """
 
-        trip.Trip.consumption = consumption.Consumption(self.vehicle_types,
-                                                        outside_temperatures=self.temperature_path,
-                                                        level_of_loading_over_day=self.lol_path)
+        trip.Trip.consumption = consumption.Consumption(self.vehicle_types)
 
-        path_to_trips = file_root / "trips_assign_vehicles.csv"
-        generated_schedule = schedule.Schedule.from_csv(
-            path_to_trips, self.vehicle_types, self.electrified_stations, **mandatory_args)
+        default_schedule_arguments["path_to_csv"] = file_root / "trips_assign_vehicles.csv"
+        generated_schedule = schedule.Schedule.from_csv(**default_schedule_arguments)
         generated_schedule.assign_vehicles()
         gen_rotations = generated_schedule.rotations
         assert gen_rotations["1"].vehicle_id == gen_rotations["2"].vehicle_id
         assert gen_rotations["1"].vehicle_id != gen_rotations["3"].vehicle_id
 
-    def test_calculate_consumption(self):
+    def test_calculate_consumption(self, default_schedule_arguments):
         """ Test if calling the consumption calculation works
         """
         # Changing self.vehicle_types can propagate to other tests
         vehicle_types = deepcopy(self.vehicle_types)
-        trip.Trip.consumption = consumption.Consumption(
-            vehicle_types, outside_temperatures=self.temperature_path,
-            level_of_loading_over_day=self.lol_path)
+        trip.Trip.consumption = consumption.Consumption(vehicle_types)
 
-        path_to_trips = file_root / "trips_assign_vehicles.csv"
-        generated_schedule = schedule.Schedule.from_csv(
-            path_to_trips, vehicle_types, self.electrified_stations, **mandatory_args)
+        default_schedule_arguments["path_to_csv"] = file_root / "trips_assign_vehicles.csv"
+        default_schedule_arguments["vehicle_types"] = vehicle_types
+        generated_schedule = schedule.Schedule.from_csv(**default_schedule_arguments)
 
         # set mileage to a constant
         mileage = 10
@@ -144,18 +144,15 @@ class TestSchedule:
                 charge_typ['mileage'] = mileage / 2
         assert calc_consumption == generated_schedule.calculate_consumption() * 2
 
-    def test_get_common_stations(self):
+    def test_get_common_stations(self, default_schedule_arguments):
         """Test if getting common_stations works. Rotation 1 is on the first day, rotation 2 and 3
         on the second day. rotation 1 should not share any stations with other rotations and
         2 and 3 are almost simultaneous.
         """
-        trip.Trip.consumption = consumption.Consumption(
-            self.vehicle_types, outside_temperatures=self.temperature_path,
-            level_of_loading_over_day=self.lol_path)
+        trip.Trip.consumption = consumption.Consumption(self.vehicle_types)
 
-        path_to_trips = file_root / "trips_assign_vehicles.csv"
-        generated_schedule = schedule.Schedule.from_csv(
-            path_to_trips, self.vehicle_types, self.electrified_stations, **mandatory_args)
+        default_schedule_arguments["path_to_csv"] = file_root / "trips_assign_vehicles.csv"
+        generated_schedule = schedule.Schedule.from_csv(**default_schedule_arguments)
 
         common_stations = generated_schedule.get_common_stations(only_opps=False)
         assert len(common_stations["1"]) == 0
@@ -177,8 +174,8 @@ class TestSchedule:
         neg_rots = sched.get_negative_rotations(scen)
         assert ['1'] == neg_rots
 
-    def test_rotation_filter(self, tmp_path):
-        s = schedule.Schedule(self.vehicle_types, self.electrified_stations, **mandatory_args)
+    def test_rotation_filter(self, tmp_path, default_schedule_arguments):
+        s = schedule.Schedule(**default_schedule_arguments)
         args = Namespace(**{
             "rotation_filter_variable": None,
             "rotation_filter": None,
@@ -238,11 +235,10 @@ class TestSchedule:
         s.rotation_filter(args, rf_list=[])
         assert not s.rotations
 
-    def test_scenario_with_feed_in(self):
+    def test_scenario_with_feed_in(self, default_schedule_arguments):
         """ Check if running a example with an extended electrified stations file
          with feed in, external load and battery works and if a scenario object is returned"""
 
-        path_to_trips = example_root / "trips_example.csv"
         sys.argv = ["foo", "--config", str(example_root / "simba.cfg")]
         args = util.get_args()
         args.config = example_root / "simba.cfg"
@@ -255,13 +251,13 @@ class TestSchedule:
         args.seed = 5
 
         trip.Trip.consumption = consumption.Consumption(
-            self.vehicle_types, outside_temperatures=self.temperature_path,
-            level_of_loading_over_day=self.lol_path)
+            self.vehicle_types)
 
-        path_to_all_station_data = example_root / "all_stations.csv"
-        generated_schedule = schedule.Schedule.from_csv(
-            path_to_trips, self.vehicle_types, electrified_stations, **mandatory_args,
-            station_data_path=path_to_all_station_data)
+        default_schedule_arguments["path_to_csv"] = example_root / "trips_example.csv"
+        default_schedule_arguments["stations"] = electrified_stations
+        default_schedule_arguments["station_data_path"] = example_root / "all_stations.csv"
+        default_schedule_arguments["path_to_trips"] = example_root / "trips_example.csv"
+        generated_schedule = schedule.Schedule.from_csv(**default_schedule_arguments)
         # Create soc dispatcher
         generated_schedule.init_soc_dispatcher(args)
 
@@ -284,9 +280,9 @@ class TestSchedule:
 
         electrified_stations["Station-0"]["energy_feed_in"]["csv_file"] = file_root / "notafile"
         electrified_stations["Station-0"]["external_load"]["csv_file"] = file_root / "notafile"
-        generated_schedule = schedule.Schedule.from_csv(
-            path_to_trips, self.vehicle_types, electrified_stations, **mandatory_args,
-            station_data_path=path_to_all_station_data)
+
+        default_schedule_arguments["stations"] = electrified_stations
+        generated_schedule = schedule.Schedule.from_csv(**default_schedule_arguments)
 
         # Create soc dispatcher
         generated_schedule.init_soc_dispatcher(args)

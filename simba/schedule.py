@@ -102,7 +102,6 @@ class Schedule:
 
         level_of_loading_path = kwargs.get("level_of_loading_over_day_path", None)
 
-        file_path = level_of_loading_path
         if level_of_loading_path is not None:
             index = "hour"
             column = "level_of_loading"
@@ -164,7 +163,7 @@ class Schedule:
                     # Clip level of loading to [0,1]
                     lol = max(0, min(float(trip["level_of_loading"]), 1))
                 # In case of empty temperature column or no column at all
-                except (TypeError, ValueError):
+                except (KeyError, ValueError):
                     lol = level_of_loading_dict[hour]
                 trip["level_of_loading"] = lol
 
@@ -173,7 +172,7 @@ class Schedule:
                     # Clip level of loading to [0,1]
                     temperature = float(trip["temperature"])
                 # In case of empty temperature column or no column at all
-                except (TypeError, ValueError):
+                except (KeyError, ValueError):
                     temperature = temperature_data_dict[hour]
                 trip["temperature"] = temperature
                 if rotation_id not in schedule.rotations.keys():
