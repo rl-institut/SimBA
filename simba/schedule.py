@@ -123,7 +123,10 @@ class Schedule:
                     reader = csv.DictReader(f, delimiter=delim)
                     for row in reader:
                         station_data.update({str(row['Endhaltestelle']):
-                                            {"elevation": float(row['elevation'])}})
+                                                 {"elevation": float(row['elevation']),
+                                                  "lat": float(row.get('lat', None)),
+                                                  "long": float(row.get('long', None))}
+                                             })
             except FileNotFoundError or KeyError:
                 warnings.warn("Warning: external csv file '{}' not found or not named properly "
                               "(Needed column names are 'Endhaltestelle' and 'elevation')".
@@ -359,6 +362,7 @@ class Schedule:
     def init_soc_dispatcher(self, args):
         self.soc_dispatcher = SocDispatcher(default_soc_deps=args.desired_soc_deps,
                                             default_soc_opps=args.desired_soc_opps)
+
 
     def assign_vehicles(self):
         """ Assign vehicle IDs to rotations. A FIFO approach is used.
