@@ -100,6 +100,20 @@ class Schedule:
         station_data = dict()
         station_path = kwargs.get("station_data_path")
 
+        level_of_loading_path = kwargs.get("level_of_loading_over_day_path", None)
+
+        file_path = level_of_loading_path
+        if level_of_loading_path is not None:
+            index = "hour"
+            column = "level_of_loading"
+            level_of_loading_dict = cls.get_dict_from_csv(column, level_of_loading_path, index)
+
+        temperature_path = kwargs.get("outside_temperature_over_day_path", None)
+        if temperature_path is not None:
+            index = "hour"
+            column = "temperature"
+            temperature_data_dict = cls.get_dict_from_csv(column, temperature_path, index)
+
         # find the temperature and elevation of the stations by reading the .csv file.
         # this data is stored in the schedule and passed to the trips, which use the information
         # for consumption calculation. Missing station data is handled with default values.
@@ -129,7 +143,39 @@ class Schedule:
                 rotation_id = trip['rotation_id']
                 # trip gets reference to station data and calculates height diff during trip
                 # initialization. Could also get the height difference from here on
-                trip["station_data"] = station_data
+                # get average hour of trip if level of loading or temperature has to be read from
+                # auxiliary tabular data
+                arr_time = datetime.datetime.fromisoformat(trip["arrival_time"])
+                dep_time = datetime.datetime.fromisoformat(trip["departure_time"])
+
+                # get average hour of trip and parse to string, since tabular data has strings
+                # as keys
+                hour = (dep_time + (arr_time - dep_time) / 2).hour
+                # Get height difference from station_data
+                try:
+                    height_diff = station_data[trip["arrival_name"]]["elevation"] \
+                                  - station_data[trip["departure_name"]]["elevation"]
+                except (KeyError, TypeError):
+                    height_diff = 0
+                trip["height_diff"] = height_diff
+
+                # Get level of loading from trips.csv or from file
+                try:
+                    # Clip level of loading to [0,1]
+                    lol = max(0, min(float(trip["level_of_loading"]), 1))
+                # In case of empty temperature column or no column at all
+                except (TypeError, ValueError):
+                    lol = level_of_loading_dict[hour]
+                trip["level_of_loading"] = lol
+
+                # Get temperature from trips.csv or from file
+                try:
+                    # Clip level of loading to [0,1]
+                    temperature = float(trip["temperature"])
+                # In case of empty temperature column or no column at all
+                except (TypeError, ValueError):
+                    temperature = temperature_data_dict[hour]
+                trip["temperature"] = temperature
                 if rotation_id not in schedule.rotations.keys():
                     schedule.rotations.update({
                         rotation_id: Rotation(id=rotation_id,
@@ -137,7 +183,7 @@ class Schedule:
                                               schedule=schedule)})
                 schedule.rotations[rotation_id].add_trip(trip)
 
-        # set charging type for all rotations without explicitly specified charging type
+        # set charging type for all rotations without explicitly specified charging type.
         # charging type may have been set above if a trip of a rotation has a specified
         # charging type
         for rot in schedule.rotations.values():
@@ -161,6 +207,16 @@ class Schedule:
                           "as check_rotation_consistency is not set to 'true'")
 
         return schedule
+
+    @classmethod
+    def get_dict_from_csv(cls, column, file_path, index):
+        output = dict()
+        with open(file_path, "r") as f:
+            delim = util.get_csv_delim(file_path)
+            reader = csv.DictReader(f, delimiter=delim)
+            for row in reader:
+                output[float(row[index])] = float(row[column])
+        return output
 
     @classmethod
     def check_consistency(cls, schedule):

@@ -70,10 +70,7 @@ def pre_simulation(args):
                             "does not exist. Exiting...")
 
     # setup consumption calculator that can be accessed by all trips
-    Trip.consumption = Consumption(
-        vehicle_types,
-        outside_temperatures=args.outside_temperature_over_day_path,
-        level_of_loading_over_day=args.level_of_loading_over_day_path)
+    Trip.consumption = Consumption(vehicle_types)
 
     # generate schedule from csv
     schedule = Schedule.from_csv(args.input_schedule, vehicle_types, stations, **vars(args))
