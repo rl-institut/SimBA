@@ -23,7 +23,6 @@ mandatory_args = {
 }
 
 
-
 class TestSchedule:
     temperature_path = example_root / 'default_temp_winter.csv'
     lol_path = example_root / 'default_level_of_loading_over_day.csv'
@@ -81,7 +80,10 @@ class TestSchedule:
 
     def test_station_data_reading(self, default_schedule_arguments):
         """ Test if the reading of the geo station data works and outputs warnings in
-        case the data was problematic, e.g. not numeric or not existent"""
+        case the data was problematic, e.g. not numeric or not existent
+
+        :param default_schedule_arguments: basic arguments the schedule needs for creation
+        """
         trip.Trip.consumption = consumption.Consumption(self.vehicle_types)
 
         default_schedule_arguments["path_to_csv"] = example_root / "trips_example.csv"
@@ -104,12 +106,14 @@ class TestSchedule:
         sched, scen, args = self.basic_run()
         assert type(scen) is scenario.Scenario
 
-    def test_assign_vehicles(self,default_schedule_arguments):
-        """ Test if assigning vehicles works as intended.
+    def test_assign_vehicles(self, default_schedule_arguments):
+        """Test if assigning vehicles works as intended.
 
         Use a trips csv with two rotations ("1","2") a day apart.
         SimBA should assign the same vehicle to both of them.
         Rotation "3" starts shortly after "2" and should be a new vehicle.
+
+        :param default_schedule_arguments: basic arguments the schedule needs for creation
         """
 
         trip.Trip.consumption = consumption.Consumption(self.vehicle_types)
@@ -122,7 +126,9 @@ class TestSchedule:
         assert gen_rotations["1"].vehicle_id != gen_rotations["3"].vehicle_id
 
     def test_calculate_consumption(self, default_schedule_arguments):
-        """ Test if calling the consumption calculation works
+        """Test if calling the consumption calculation works
+
+        :param default_schedule_arguments: basic arguments the schedule needs for creation
         """
         # Changing self.vehicle_types can propagate to other tests
         vehicle_types = deepcopy(self.vehicle_types)
@@ -148,6 +154,8 @@ class TestSchedule:
         """Test if getting common_stations works. Rotation 1 is on the first day, rotation 2 and 3
         on the second day. rotation 1 should not share any stations with other rotations and
         2 and 3 are almost simultaneous.
+
+        :param default_schedule_arguments: basic arguments the schedule needs for creation
         """
         trip.Trip.consumption = consumption.Consumption(self.vehicle_types)
 
@@ -237,8 +245,10 @@ class TestSchedule:
 
     def test_scenario_with_feed_in(self, default_schedule_arguments):
         """ Check if running a example with an extended electrified stations file
-         with feed in, external load and battery works and if a scenario object is returned"""
+         with feed in, external load and battery works and if a scenario object is returned
 
+        :param default_schedule_arguments: basic arguments the schedule needs for creation
+        """
         sys.argv = ["foo", "--config", str(example_root / "simba.cfg")]
         args = util.get_args()
         args.config = example_root / "simba.cfg"

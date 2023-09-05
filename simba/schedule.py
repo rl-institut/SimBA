@@ -122,10 +122,9 @@ class Schedule:
                     delim = util.get_csv_delim(station_path)
                     reader = csv.DictReader(f, delimiter=delim)
                     for row in reader:
-                        station_data.update({str(row['Endhaltestelle']):
-                                                 {"elevation": float(row['elevation']),
-                                                  "lat": float(row.get('lat', None)),
-                                                  "long": float(row.get('long', None))}
+                        station_data.update({str(row['Endhaltestelle']): {
+                            "elevation": float(row['elevation']), "lat": float(row.get('lat', 0)),
+                            "long": float(row.get('long', 0))}
                                              })
             except FileNotFoundError or KeyError:
                 warnings.warn("Warning: external csv file '{}' not found or not named properly "
@@ -363,11 +362,10 @@ class Schedule:
         self.soc_dispatcher = SocDispatcher(default_soc_deps=args.desired_soc_deps,
                                             default_soc_opps=args.desired_soc_opps)
 
-
     def assign_vehicles(self):
         """ Assign vehicle IDs to rotations. A FIFO approach is used.
             For every rotation it is checked whether vehicles with matching type are idle, in which
-            case the one with longest standing time since last rotation is used.
+            case the one with the longest standing time since last rotation is used.
             If no vehicle is available a new vehicle ID is generated.
         """
         rotations_in_progress = []
