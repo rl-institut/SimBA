@@ -3,6 +3,7 @@ import datetime
 import logging
 import random
 import warnings
+from dataclasses import dataclass
 from pathlib import Path
 from typing import Iterable, Dict, Type
 
@@ -284,6 +285,7 @@ class Schedule:
         :return: scenario
         :rtype spice_ev.Scenario
         """
+        # ToDo call assign_vehicles if vehicles are not assigned yet. _run can be deleted
         scenario = self.generate_scenario(args)
 
         logging.info("Running SpiceEV...")
@@ -311,13 +313,15 @@ class Schedule:
             if rotation_ids is None or id in rotation_ids:
                 rot.set_charging_type(ct)
 
-    def assign_vehicles_for_django(self, eflips_output: Iterable):
+    def assign_vehicles_for_django(self, eflips_output: Iterable[dataclass]):
         """Assign vehicles based on eflips outputs
 
         eflips couples vehicles and returns for every rotation the departure soc and vehicle id.
         This is included into simba by assigning new vehicles with the respective values. I.e. in
         simba every rotation gets a new vehicle.
-        :param eflips_output: output from eflip meant for simba
+        :param eflips_output: output from eflips meant for simba. Iterable contains
+            rotation_id, vehicle_id and start_soc for each rotation
+        :type eflips_output: iterable of dataclass "simba_input"
         :raises KeyError: If not every rotation has a vehicle assigned to it
         """
         eflips_rot_dict = {obj.rot_id: {"v_id": obj.v_id, "soc": obj.soc}

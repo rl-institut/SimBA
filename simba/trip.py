@@ -6,7 +6,7 @@ import simba.consumption
 class Trip:
     consumption: simba.consumption.Consumption = None
 
-    def __init__(self, rotation, departure_time, departure_name,
+    def __init__(self, rotation  , departure_time, departure_name,
                  arrival_time, arrival_name, distance, temperature, level_of_loading, height_diff,
                  **kwargs):
         self.departure_name = departure_name
