@@ -56,8 +56,8 @@ def calculate_costs(c_params, scenario, schedule, args):
             costs["c_vehicles_annual"] += c_vehicles_vt / c_params["vehicles"][v_type]["lifetime"]
 
     # GRID CONNECTION POINTS
-    gcs = schedule.scenario["components"]["grid_connectors"]
-    for gcID in gcs.keys():
+    gc_in_use = schedule.scenario["components"]["grid_connectors"]
+    for gcID in gc_in_use.keys():
         # get max. power of grid connector
         gc_timeseries = getattr(scenario, f"{gcID}_timeseries")
         gc_max_power = -min(gc_timeseries["grid supply [kW]"])
@@ -100,43 +100,41 @@ def calculate_costs(c_params, scenario, schedule, args):
         costs["c_stat_storage"] * c_params["stationary_storage"]["c_maint_stat_storage_per_year"])
 
     # CHARGING INFRASTRUCTURE
-    cs = schedule.scenario["components"]["charging_stations"]
-    for gcID in gcs:
-        # depot charging stations - each charging bus generates one CS
-        if schedule.stations[gcID]["type"] == "deps":
-            if schedule.stations[gcID]["n_charging_stations"] is not None:
-                # get nr of CS from electrified stations data
-                n_cs = min(sum(gcID in i for i in cs.keys()),
-                           schedule.stations[gcID]["n_charging_stations"])
+    stations = schedule.scenario["components"]["charging_stations"]
+    for gcID, station in schedule.stations.items():
+        # check if electrified station from list is actually used in simulation
+        if gcID in gc_in_use:
+            # depot charging station - each charging bus generates one CS
+            if station["type"] == "deps":
+                if station["n_charging_stations"] is not None:
+                    # get nr of CS in use
+                    n_cs = min(sum(gcID == cs["parent"] for cs in stations.values()),
+                               station["n_charging_stations"])
+                    # get max. defined power for deps or else max. power at deps in general
+                    max_defined_power = max(
+                        station.get("cs_power_deps_depb", vars(args)["cs_power_deps_depb"]),
+                        station.get("cs_power_deps_oppb", vars(args)["cs_power_deps_oppb"])
+                    )
+                    # calculate costs with nr of CS at electrified station and its defined max power
+                    costs["c_cs"] += c_params["cs"]["capex_deps_per_kW"] * n_cs * max_defined_power
+                else:
+                    # get sum of installed power at electrified stations without predefined nr of CS
+                    nr_cs_at_station = [cs for cs in stations.values() if cs["parent"] == gcID]
+                    sum_power_at_station = sum(cs["max_power"] for cs in nr_cs_at_station)
+                    # calculate costs with sum of installed power at electrified station
+                    costs["c_cs"] += c_params["cs"]["capex_deps_per_kW"] * sum_power_at_station
+            # opportunity charging station - nr of CS depend on max nr of simultaneously occupied CS
+            elif station["type"] == "opps":
+                gc_timeseries = getattr(scenario, f"{gcID}_timeseries")
                 costs["c_cs"] += (
-                        c_params["cs"]["capex_deps_per_kW"] * n_cs *
-                        # get max. defined power for this deps or else max. power at deps in general
-                        # ToDo: Calculation does not work!
-                        #  max("cs_power_deps_depb", "cs_power_deps_oppb") always takes value of
-                        #  cs_power_deps_oppb, since only the strings are compared.
-                        #  Instead it should compare both entries and return max value
-                        #  if one or both exist.
-                        schedule.stations[gcID].get(max("cs_power_deps_depb", "cs_power_deps_oppb"),
-                                                    max(vars(args)["cs_power_deps_depb"],
-                                                        vars(args)["cs_power_deps_oppb"])))
+                    c_params["cs"]["capex_opps_per_kW"] *
+                    # get power of this opps
+                    station.get("cs_power_opps", vars(args)["cs_power_opps"]) *
+                    # get max. nr of occupied CS per grid connector
+                    max(gc_timeseries["# CS in use [-]"]))
             else:
-                # check for electrified stations without a predefined number of CS in list of all CS
-                for csID in cs.values():
-                    if gcID == csID["parent"]:
-                        # calculate costs with installed power of specific charging station
-                        costs["c_cs"] += c_params["cs"]["capex_deps_per_kW"] * csID["max_power"]
-        # opportunity charging stations - nr of CS depend on max nr of simultaneously occupied CS
-        elif schedule.stations[gcID]["type"] == "opps":
-            gc_timeseries = getattr(scenario, f"{gcID}_timeseries")
-            costs["c_cs"] += (
-                c_params["cs"]["capex_opps_per_kW"] *
-                # get power of this opps
-                schedule.stations[gcID].get("cs_power_opps", vars(args)["cs_power_opps"]) *
-                # get max. nr of occupied CS per grid connector
-                max(gc_timeseries["# CS in use [-]"]))
-        else:
-            warnings.warn(f"Electrified station {schedule.stations[gcID]} must be deps or opps. "
-                          "Unable to calculate investment costs for this station.")
+                warnings.warn(f"Electrified station {station} must be deps or opps. "
+                              "Unable to calculate investment costs for this station.")
 
     # calculate annual cost of charging stations, depending on their lifetime
     costs["c_cs_annual"] = costs["c_cs"] / c_params["cs"]["lifetime_cs"]
