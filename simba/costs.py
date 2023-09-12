@@ -106,32 +106,31 @@ def calculate_costs(c_params, scenario, schedule, args):
         if gcID in gc_in_use:
             # depot charging station - each charging bus generates one CS
             if station["type"] == "deps":
+                cs_at_station = [cs for cs in stations.values() if cs["parent"] == gcID]
                 if station["n_charging_stations"] is not None:
-                    # get nr of CS in use
-                    n_cs = min(sum(gcID == cs["parent"] for cs in stations.values()),
-                               station["n_charging_stations"])
+                    # get nr of CS in use at station
+                    n_cs = min(len(cs_at_station), station["n_charging_stations"])
                     # get max. defined power for deps or else max. power at deps in general
-                    max_defined_power = max(
+                    defined_max_power = max(
                         station.get("cs_power_deps_depb", vars(args)["cs_power_deps_depb"]),
                         station.get("cs_power_deps_oppb", vars(args)["cs_power_deps_oppb"])
                     )
                     # calculate costs with nr of CS at electrified station and its defined max power
-                    costs["c_cs"] += c_params["cs"]["capex_deps_per_kW"] * n_cs * max_defined_power
+                    costs["c_cs"] += c_params["cs"]["capex_deps_per_kW"] * n_cs * defined_max_power
                 else:
                     # get sum of installed power at electrified stations without predefined nr of CS
-                    nr_cs_at_station = [cs for cs in stations.values() if cs["parent"] == gcID]
-                    sum_power_at_station = sum(cs["max_power"] for cs in nr_cs_at_station)
+                    sum_power_at_station = sum(cs["max_power"] for cs in cs_at_station)
                     # calculate costs with sum of installed power at electrified station
                     costs["c_cs"] += c_params["cs"]["capex_deps_per_kW"] * sum_power_at_station
             # opportunity charging station - nr of CS depend on max nr of simultaneously occupied CS
             elif station["type"] == "opps":
                 gc_timeseries = getattr(scenario, f"{gcID}_timeseries")
-                costs["c_cs"] += (
-                    c_params["cs"]["capex_opps_per_kW"] *
-                    # get power of this opps
-                    station.get("cs_power_opps", vars(args)["cs_power_opps"]) *
-                    # get max. nr of occupied CS per grid connector
-                    max(gc_timeseries["# CS in use [-]"]))
+                # get nr of CS in use at station
+                n_cs = max(gc_timeseries["# CS in use [-]"])
+                # get max. defined power for opps or else max. power at opps in general
+                defined_max_power = station.get("cs_power_opps", vars(args)["cs_power_opps"])
+                # calculate costs with nr of CS at electrified station and its defined max power
+                costs["c_cs"] += c_params["cs"]["capex_opps_per_kW"] * n_cs * defined_max_power
             else:
                 warnings.warn(f"Electrified station {station} must be deps or opps. "
                               "Unable to calculate investment costs for this station.")
