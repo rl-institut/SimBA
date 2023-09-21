@@ -5,12 +5,14 @@ from simba.trip import Trip
 
 class Rotation:
 
-    def __init__(self, id, vehicle_type, schedule) -> None:
+    def __init__(self, id, vehicle_type, schedule, vehicle_class=None) -> None:
         self.id = id
         self.trips = []
         self.schedule = schedule
-
-        self.vehicle_type = vehicle_type
+        self.vehicle_class = []
+        if vehicle_class is None:
+            self.vehicle_class = vehicle_type.split(";")
+        self.vehicle_type = self.vehicle_class[0]
         self.vehicle_id = None
         self.charging_type = None
 
