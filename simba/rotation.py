@@ -11,7 +11,7 @@ class Rotation:
         self.schedule = schedule
         self.vehicle_class = []
         if vehicle_class is None:
-            self.vehicle_class = vehicle_type.split(";")
+            self.vehicle_class = list(vehicle_type.split(";"))
         self.vehicle_type = self.vehicle_class[0]
         self.vehicle_id = None
         self.charging_type = None
