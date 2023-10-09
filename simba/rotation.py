@@ -9,10 +9,15 @@ class Rotation:
         self.id = id
         self.trips = []
         self.schedule = schedule
-        self.vehicle_class = []
         if vehicle_class is None:
-            self.vehicle_class = list(vehicle_type.split(";"))
-        self.vehicle_type = self.vehicle_class[0]
+            # if vehicle class is not provided vehicle class and vehicle type are read from vehicle
+            # type
+            self.vehicle_class = set(vehicle_type.split(";"))
+            self.vehicle_type = vehicle_type.split(";")[0]
+        else:
+            # If vehicle_class is provided vehicle type is read in a normal way
+            self.vehicle_class = vehicle_class
+            self.vehicle_type = vehicle_type
         self.vehicle_id = None
         self.charging_type = None
 
