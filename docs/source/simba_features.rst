@@ -76,6 +76,7 @@ Cost calculation
 ################
 | **Cost calculation (summary_vehicles_costs.csv)**
 | This is an optional output which calculates investment and maintenance costs of the infrastructure as well as energy costs in the scenario. The costs are calculated based on the price sheet, given as input in the :ref:`cost_params`.
+| The energy costs and the grid connector costs are spefific for each grid operator, as given by the :ref:`cost_params`.
 | The following costs are calculated as both total and annual, depending on the lifetime of each component. See `SpiceEV documentation <https://spice-ev.readthedocs.io/en/latest/charging_strategies_incentives.html#incentive-scheme>`_ for the calculation of electricity costs.
 
 * Investment

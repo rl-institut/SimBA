@@ -7,7 +7,7 @@ from spice_ev.costs import calculate_costs as calc_costs_spice_ev
 def calculate_costs(c_params, scenario, schedule, args):
     """ Calculates annual costs of all necessary vehicles and infrastructure.
 
-    :param c_params: Cost of various infrastructure components.
+    :param c_params: Infrastructure component costs and specific grid operator costs.
     :type c_params: dict
     :param scenario: Information about the simulated scenario and all used parameters.
     :type scenario: Scenario
@@ -58,6 +58,9 @@ def calculate_costs(c_params, scenario, schedule, args):
     # GRID CONNECTION POINTS
     gc_in_use = schedule.scenario["components"]["grid_connectors"]
     for gcID in gc_in_use.keys():
+        # get dict with costs for specific grid operator
+        grid_operator = gc_in_use[gcID]["grid_operator"]
+        c_params_go = c_params[grid_operator]
         # get max. power of grid connector
         gc_timeseries = getattr(scenario, f"{gcID}_timeseries")
         gc_max_power = -min(gc_timeseries["grid supply [kW]"])
@@ -65,23 +68,23 @@ def calculate_costs(c_params, scenario, schedule, args):
         voltage_level = schedule.stations[gcID].get("voltage_level", args.default_voltage_level)
         # get distance between grid and grid connector
         distance_to_grid = schedule.stations[gcID].get(
-            "distance_to_grid", c_params["gc"][voltage_level]["default_distance"])
+            "distance_to_grid", c_params_go["gc"][voltage_level]["default_distance"])
         # calculate grid connection costs, typically building costs and building cost subsidy
-        c_gc = (c_params["gc"][voltage_level]["capex_gc_fix"] +
-                c_params["gc"][voltage_level]["capex_gc_per_kW"] * gc_max_power +
-                c_params["gc"][voltage_level]["capex_gc_per_meter"] * distance_to_grid)
+        c_gc = (c_params_go["gc"][voltage_level]["capex_gc_fix"] +
+                c_params_go["gc"][voltage_level]["capex_gc_per_kW"] * gc_max_power +
+                c_params_go["gc"][voltage_level]["capex_gc_per_meter"] * distance_to_grid)
         # calculate transformer costs
         c_transformer = (
-            c_params["gc"][voltage_level]["capex_transformer_fix"] +
-            c_params["gc"][voltage_level]["capex_transformer_per_kW"] * gc_max_power)
+            c_params_go["gc"][voltage_level]["capex_transformer_fix"] +
+            c_params_go["gc"][voltage_level]["capex_transformer_per_kW"] * gc_max_power)
         # calculate total cost of grid connection
         costs["c_gcs"] += c_gc + c_transformer
         # calculate annual costs of grid connection, depending on lifetime of gc and transformer
-        costs["c_gcs_annual"] += (c_gc / c_params["gc"]["lifetime_gc"] +
-                                  c_transformer / c_params["gc"]["lifetime_transformer"])
+        costs["c_gcs_annual"] += (c_gc / c_params_go["gc"]["lifetime_gc"] +
+                                  c_transformer / c_params_go["gc"]["lifetime_transformer"])
         # calculate maintenance cost of grid connection
         costs["c_maint_gc_annual"] += (
-            c_transformer * c_params["gc"]["c_maint_transformer_per_year"])
+            c_transformer * c_params_go["gc"]["c_maint_transformer_per_year"])
 
         # STATIONARY STORAGE
         # assume there is a stationary storage
@@ -200,7 +203,8 @@ def calculate_costs(c_params, scenario, schedule, args):
             power_v2g_feed_in_list=timeseries.get("V2G feed-in [kW]"),
             power_battery_feed_in_list=timeseries.get("battery feed-in [kW]"),
             charging_signal_list=timeseries.get("window"),
-            price_sheet_json=args.cost_parameters_file,
+            price_sheet_path=args.cost_parameters_file,
+            grid_operator=grid_operator,
             power_pv_nominal=pv,
         )
 
