@@ -551,6 +551,7 @@ class Schedule:
                             "max_power": gc_power,
                             "cost": {"type": "fixed", "value": 0.3},
                             "number_cs": station["n_charging_stations"],
+                            "grid_operator": station.get("grid_operator", "default_grid_operator"),
                             "voltage_level":
                                 station.get("voltage_level", args.default_voltage_level)
                         }

@@ -289,19 +289,6 @@ In order to run the :ref:`cost_calculation`, all cost parameters are to be defin
             "lifetime_battery": 7,   // lifetime of the vehicle battery in years
             "cost_per_kWh": 250  // investment cost for vehicle battery per kWh
         },
-        "gc": {  // grid connection
-            "LV": {  // grid connection in specific voltage level. Options are "HV", "HV/MV", "MV", "MV/LV", "LV" and all relevant voltage levels have to be defined here
-                "default_distance": 50,  // Used if not specified individually in electrified_stations.json
-                "capex_gc_fix": 100,  // fix investment cost for establishing a grid connection
-                "capex_gc_per_meter": 16.85,  // investment cost per meter
-                "capex_gc_per_kW": 24.14,  // investment cost per kW
-                "capex_transformer_fix": 0,  // fix investment cost for a transformer
-                "capex_transformer_per_kW": 0  // fix investment cost for a transformer per kW
-            },
-            "lifetime_gc": 50,  // lifetime of the grid connection in years
-            "c_maint_transformer_per_year": 0.02,  // annual maintenance costs in % of capex
-            "lifetime_transformer": 20  // lifetime in years
-        },
         "stationary_storage": {    // stationary electric energy storage
             "capex_fix": 1,  // fix investment cost for stationary storage
             "capex_per_kWh": 1,  //  investment cost for stationary storage per kWh
@@ -320,10 +307,25 @@ In order to run the :ref:`cost_calculation`, all cost parameters are to be defin
             "vehicles_per_workstation": 20,  // how many vehicles share one workstation
             "cost_per_workstation": 245000,  //  investment cost for one workstation
             "lifetime_workstations": 20  // lifetime in years
+        },
+        "grid operator": {
+            "gc": {  // grid connection
+                "LV": {  // grid connection in specific voltage level. Options are "HV", "HV/MV", "MV", "MV/LV", "LV" and all relevant voltage levels have to be defined here
+                    "default_distance": 50,  // Used if not specified individually in electrified_stations.json
+                    "capex_gc_fix": 100,  // fix investment cost for establishing a grid connection
+                    "capex_gc_per_meter": 16.85,  // investment cost per meter
+                    "capex_gc_per_kW": 24.14,  // investment cost per kW
+                    "capex_transformer_fix": 0,  // fix investment cost for a transformer
+                    "capex_transformer_per_kW": 0  // fix investment cost for a transformer per kW
+                },
+                "lifetime_gc": 50,  // lifetime of the grid connection in years
+                "c_maint_transformer_per_year": 0.02,  // annual maintenance costs in % of capex
+                "lifetime_transformer": 20  // lifetime in years
+            }
         }
     }
 
-all remaining parameters are described in the example file.
+All remaining parameters such as grid fees or energy taxes are described in the example file.
 
 
 .. _station_geo_data:
