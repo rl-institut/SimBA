@@ -290,6 +290,7 @@ def get_args():
                         help='show plots for users to view in "report" mode')
     parser.add_argument('--propagate-mode-errors', default=False,
                         help='Re-raise errors instead of continuing during simulation modes')
+    parser.add_argument('--create-scenario-file', help='Write scenario.json to file')
 
     # #### Physical setup of environment #####
     parser.add_argument('--preferred-charging-type', '-pct', default='depb',

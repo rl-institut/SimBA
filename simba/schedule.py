@@ -1,5 +1,6 @@
 import csv
 import datetime
+import json
 import logging
 from pathlib import Path
 import random
@@ -715,5 +716,8 @@ class Schedule:
             },
             "events": events
         }
+        if args.create_scenario_file:
+            with open(args.output_directory_input / args.create_scenario_file, 'w', encoding='utf-8') as f:
+                json.dump(self.scenario, f, indent=2)
 
         return Scenario(self.scenario, Path())
