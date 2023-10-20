@@ -18,7 +18,6 @@
             "column": "External Load (kW)",
             "factor": 2
         },
-        "grid_operator" : "default_grid_operator",
         "voltage_level" : "MV",
         "battery": {
             "charging_curve": [[0,50], [1,50]], // piecewise linear function that maps SoC to power, from 0 to 1, required
@@ -34,7 +33,6 @@
     "Station-3": {
         "type": "opps",
         "n_charging_stations": 3,
-        "grid_operator" : "default_grid_operator",
         "voltage_level" : "MV",
         "energy_feed_in": {
             "csv_file": "data/examples/example_pv_feedin.csv",
@@ -48,7 +46,6 @@
     "Station-10": {
         "type": "opps",
         "n_charging_stations": 1,
-        "grid_operator" : "default_grid_operator",
         "voltage_level" : "MV",
         "gc_power": 250,  // optional: maximum gc power can be defined per station
         "cs_power_opps" : 140  // optional: maximum cs power can be defined per station
@@ -56,49 +53,41 @@
     "Station-21": {
         "type": "opps",
         "n_charging_stations": 2,
-        "grid_operator" : "default_grid_operator",
         "voltage_level" : "MV"
     },
     "Station-22": {
         "type": "deps",
         "n_charging_stations": null,
-        "grid_operator" : "default_grid_operator",
         "voltage_level" : "MV"
     },
     "Station-26": {
         "type": "opps",
         "n_charging_stations": 5,
-        "grid_operator" : "default_grid_operator",
         "voltage_level" : "MV"
     },
     "Station-28": {
         "type": "opps",
         "n_charging_stations": 4,
-        "grid_operator" : "default_grid_operator",
         "voltage_level" : "MV"
     },
     "Station-30": {
         "type": "opps",
         "n_charging_stations": 4,
-        "grid_operator" : "default_grid_operator",
         "voltage_level" : "MV"
     },
     "Station-32": {
         "type": "opps",
         "n_charging_stations": 3,
-        "grid_operator" : "default_grid_operator",
         "voltage_level" : "MV"
     },
     "Station-39": {
         "type": "opps",
         "n_charging_stations": 5,
-        "grid_operator" : "default_grid_operator",
         "voltage_level" : "MV"
     },
     "Station-42": {
         "type": "deps",
         "n_charging_stations": null,
-        "grid_operator" : "default_grid_operator",
         "voltage_level" : "MV"
     }
 }
