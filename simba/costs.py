@@ -63,7 +63,7 @@ def calculate_costs(c_params, scenario, schedule, args):
             c_params_go = c_params[gc.grid_operator]
         except KeyError:
             raise Exception(f"{gcID}: Unknown grid operator {gc.grid_operator}, "
-                            f"might have to set in electrified stations or cost params")
+                            "might have to set in electrified stations or cost params")
         # get max. power of grid connector
         gc_timeseries = getattr(scenario, f"{gcID}_timeseries")
         gc_max_power = -min(gc_timeseries["grid supply [kW]"])
