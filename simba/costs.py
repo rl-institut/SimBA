@@ -15,6 +15,7 @@ def calculate_costs(c_params, scenario, schedule, args):
     :type schedule: Schedule
     :param args: Configuration arguments specified in config files contained in configs directory.
     :type args: argparse.Namespace
+    :raises Exception: if grid operator of grid connector can not be found in cost params
     """
 
     # initialize dictionary with all costs
