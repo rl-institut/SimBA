@@ -56,11 +56,14 @@ def calculate_costs(c_params, scenario, schedule, args):
             costs["c_vehicles_annual"] += c_vehicles_vt / c_params["vehicles"][v_type]["lifetime"]
 
     # GRID CONNECTION POINTS
-    gc_in_use = schedule.scenario["components"]["grid_connectors"]
-    for gcID in gc_in_use.keys():
+    gc_in_use = scenario.components.grid_connectors
+    for gcID, gc in gc_in_use.items():
         # get dict with costs for specific grid operator
-        grid_operator = gc_in_use[gcID]["grid_operator"]
-        c_params_go = c_params[grid_operator]
+        try:
+            c_params_go = c_params[gc.grid_operator]
+        except KeyError:
+            raise Exception(f"{gcID}: Unknown grid operator {gc.grid_operator}, "
+                            f"might have to set in electrified stations or cost params")
         # get max. power of grid connector
         gc_timeseries = getattr(scenario, f"{gcID}_timeseries")
         gc_max_power = -min(gc_timeseries["grid supply [kW]"])
@@ -204,7 +207,7 @@ def calculate_costs(c_params, scenario, schedule, args):
             power_battery_feed_in_list=timeseries.get("battery feed-in [kW]"),
             charging_signal_list=timeseries.get("window"),
             price_sheet_path=args.cost_parameters_file,
-            grid_operator=grid_operator,
+            grid_operator=gc.grid_operator,
             power_pv_nominal=pv,
         )
 
