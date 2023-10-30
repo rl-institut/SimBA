@@ -68,6 +68,9 @@ def calculate_costs(c_params, scenario, schedule, args):
         # get max. power of grid connector
         gc_timeseries = getattr(scenario, f"{gcID}_timeseries")
         gc_max_power = -min(gc_timeseries["grid supply [kW]"])
+        # skip grid connector, if not actually used
+        if gc_max_power == 0:
+            continue
         # get voltage_level
         voltage_level = schedule.stations[gcID].get("voltage_level", args.default_voltage_level)
         # get distance between grid and grid connector
