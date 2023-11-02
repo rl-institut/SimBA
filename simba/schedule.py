@@ -324,11 +324,11 @@ class Schedule:
         :type eflips_output: iterable of dataclass "simba_input"
         :raises KeyError: If not every rotation has a vehicle assigned to it
         """
-        eflips_rot_dict = {obj.rot_id: {"v_id": obj.v_id, "soc": obj.soc}
+        eflips_rot_dict = {obj.rotation_id: {"v_id": obj.vehicle_id, "soc": obj.soc_departure}
                            for obj in eflips_output}
-        unique_vids = {obj.v_id for obj in eflips_output}
+        unique_vids = {obj.vehicle_id for obj in eflips_output}
         vehicle_socs = {v_id: dict() for v_id in unique_vids}
-        eflips_vid_dict = {v_id: sorted([obj.rot_id for obj in eflips_output if obj.v_id == v_id],
+        eflips_vid_dict = {v_id: sorted([obj.rotation_id for obj in eflips_output if obj.vehicle_id == v_id],
                                         key=lambda r_id: self.rotations[r_id].departure_time)
                            for v_id in unique_vids}
 
