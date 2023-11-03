@@ -3,6 +3,7 @@ import json
 import logging
 import subprocess
 
+from spice_ev.strategy import STRATEGIES
 from spice_ev.util import set_options_from_config
 
 
@@ -289,13 +290,12 @@ def get_args():
                         help='show plots for users to view in "report" mode')
 
     # #### Charging strategy #####
-    valid_spice_ev_stategies = ['balanced', 'greedy', 'balanced_marked']
     parser.add_argument('--preferred-charging-type', '-pct', default='depb',
                         choices=['depb', 'oppb'], help="Preferred charging type. Choose one\
                         from {depb, oppb}. opp stands for opportunity.")
-    parser.add_argument('--strategy_deps', default='balanced', choices=valid_spice_ev_stategies,
+    parser.add_argument('--strategy_deps', default='balanced', choices=STRATEGIES,
                         help='strategy to use in depot')
-    parser.add_argument('--strategy_opps', default='greedy', choices=valid_spice_ev_stategies,
+    parser.add_argument('--strategy_opps', default='greedy', choices=STRATEGIES,
                         help='strategy to use at station')
     parser.add_argument('--strategy_options_deps', default={}, type=dict,
                         help='special strategy options to use in depot')
