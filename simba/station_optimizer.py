@@ -148,6 +148,8 @@ class StationOptimizer:
             for i in range(self.config.max_brute_loop):
                 if i % 10 == 0:
                     self.logger.log(msg=f"{len(self.current_tree)} nodes checked", level=100)
+                    self.logger.log(msg=f"{i}/{self.config.max_brute_loop} simulations for group "
+                                        f"{group_nr}/{len(groups)}", level=100)
                     self.logger.log(
                         msg=f"Optimal solution has length {len(pre_optimized_set)}", level=100)
 
