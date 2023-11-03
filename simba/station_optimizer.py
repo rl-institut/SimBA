@@ -998,6 +998,7 @@ class StationOptimizer:
         :type soc_data: dict
         :param kwargs: optional soc_lower_thresh or soc_upper_thresh if from optimizer differing
             values should be used
+        :raises InfiniteLoopException: If while loop does not change during iterations
         :return: low soc events
         :rtype: list(simba.optimizer_util.LowSocEvent)
         """
@@ -1018,11 +1019,13 @@ class StationOptimizer:
             rot_end_idx += 1
             idx = range(0, len(soc))
             # combined data of the soc data of the rotation and the original index
-            comb = list(zip(soc, idx))[rot_start_idx:rot_end_idx]
+            soc_idx = np.array((soc, idx))[:, rot_start_idx:rot_end_idx]
+
+            # Mask for soc_idx which is used to know if an index has been checked or not
+            mask = np.ones(len(soc_idx[0])).astype(bool)
 
             # get the minimum soc and index of this value
-            min_soc, min_idx = min(comb, key=lambda x: x[0])
-            reduced_list = comb.copy()
+            min_soc, min_idx = soc_idx[:, mask][:, np.argmin(soc_idx[0, mask])]
 
             soc_lower_thresh_cur = soc_lower_thresh
             # if rotation gets a start soc below 1 this should change below 0 soc events,
@@ -1030,19 +1033,26 @@ class StationOptimizer:
 
             # if using relative SOC, SOC lookup has to be adjusted
             if rel_soc:
-                start_soc = comb[0][0]
+                start_soc = soc_idx[0, 0]
                 soc_lower_thresh_cur = min(start_soc, soc_upper_thresh) - (
                         soc_upper_thresh - soc_lower_thresh)
                 soc_upper_thresh = soc_lower_thresh_cur + soc_upper_thresh
+
+            # Used to check if an infinite loop is happening
+            old_idx = -1
 
             # while the minimal soc of the soc time series is below the threshold find the events
             # which are connected with this event. Every iteration the data of the found events is
             # removed. At some point the reduced time series is either empty or does not have a
             # soc below the lower threshold.
             while min_soc < soc_lower_thresh_cur:
+                min_idx = int(min_idx)
+
+                if min_idx == old_idx:
+                    raise opt_util.InfiniteLoopException
+                else:
+                    old_idx = min_idx
                 i = min_idx
-                # these indicies were not removed yet.
-                idx = [x[1] for x in reduced_list]
 
                 # find the first index by going back from the minimal soc index, where the soc
                 # was above the upper threshold OR the index where the rotation started.
@@ -1053,17 +1063,16 @@ class StationOptimizer:
 
                 # which index in the original data is the found index?
                 start = i
-                start_comb = idx.index(start)
 
                 i = min_idx
                 # do the same as before but find the index after the minimal soc.
                 while soc[i] < soc_upper_thresh:
-                    if i >= rot_end_idx-1:
+                    if i >= rot_end_idx - 1:
                         break
                     i += 1
-                end_comb = idx.index(i)
+                end = i
 
-                # with the start index and and the minimal index find trips, in this time span
+                # with the start index and the minimal index find trips, in this time span
                 trips = self.get_trips(rot=rot, start_idx=start, end_idx=min_idx)
                 possible_stations = set()
                 possible_stations_list = []
@@ -1100,27 +1109,16 @@ class StationOptimizer:
                     v_type=v_type, ch_type=ch_type)
 
                 events.append(event)
-                copy_list = reduced_list.copy()
 
-                # to leave the while loop, we need to change the data source of the loop, which is
-                # reduced_list and the minimal soc and index.
-                # the reduced list, contains the same values as the reduced list up to the point,
-                # where our current low soc event started
-                reduced_list = reduced_list[:start_comb]
+                # the mask is expanded to the just checked low_soc_event
+                mask[start-rot_start_idx:end-rot_start_idx+1] = False
 
-                # if the index end_comb is smaller than the length of the list, the end of the
-                # list has to be appended, since there is data left in the rotation
-                # after the low soc event.
-                # Note: The event goes from start_comb to min_index. Therefore this part is removed
-                # from the reduced list. Since the socs right after the minimal soc are dominated,
-                # by the previous minimal socs they can be removed up to the point of the upper soc
-                # threshold. This index was found earlier as end_comb.
-                if end_comb + 1 <= len(copy_list):
-                    reduced_list.extend(copy_list[end_comb + 1:])
-                if len(reduced_list) > 0:
-                    min_soc, min_idx = min(reduced_list, key=lambda x: x[0])
-                else:
+                # if the mask does not leave any value, the loop is finished
+                if not np.any(mask):
                     break
+                # Check the remaining unmasked socs for the minimal soc
+                min_soc, min_idx = soc_idx[:, mask][:, np.argmin(soc_idx[0, mask])]
+
         return events
 
 
