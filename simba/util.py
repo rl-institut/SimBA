@@ -17,9 +17,9 @@ def save_version(file_path):
 
 
 def get_buffer_time(trip, default=0):
-    """ Get buffer time at arrival station of a trip.
-        Buffer_time is an abstraction of delays like docking procedures and
-        is added to the planned arrival time
+    """
+    Get buffer time at arrival station of a trip. Buffer_time is an abstraction of delays like
+    docking procedures and is added to the planned arrival time.
 
     :param trip: The of buffer time of this trips arrival is returned.
     :type trip: simba.Trip
@@ -28,18 +28,19 @@ def get_buffer_time(trip, default=0):
     :return: Buffer time
     :rtype: numeric
 
-    NOTE: Buffertime dictionaries map hours of the day to a buffer time.
+        NOTE: Buffertime dictionaries map hours of the day to a buffer time.
     Keys are ranges of hours and corresponding values provide buffer time in
     minutes for that time range.
     An entry with key "else" is a must if not all
     hours of the day are covered.
     E.g.
-        buffer_time = {
-            "10-22": 2,
-            "22-6": 3,
-            "else": 1
-        }
+    buffer_time = {
+    "10-22": 2,
+    "22-6": 3,
+    "else": 1
+    }
     """
+
     schedule = trip.rotation.schedule
     buffer_time = schedule.stations.get(trip.arrival_name, {}).get('buffer_time', default)
 
@@ -288,6 +289,9 @@ def get_args():
                         help='Remove rotations from schedule that violate assumptions. ')
     parser.add_argument('--show-plots', action='store_true',
                         help='show plots for users to view in "report" mode')
+    parser.add_argument('--propagate-mode-errors', default=False,
+                        help='Re-raise errors instead of continuing during simulation modes')
+    parser.add_argument('--create-scenario-file', help='Write scenario.json to file')
 
     # #### Charging strategy #####
     parser.add_argument('--preferred-charging-type', '-pct', default='depb',
@@ -360,7 +364,7 @@ def get_args():
                         nargs=2, default=[], action='append',
                         help='append additional argument to price signals')
     parser.add_argument('--optimizer_config', default=None,
-                        help="For station_optimization a optimizer_config is needed. \
+                        help="For station_optimization an optimizer_config is needed. \
                         Input a path to an .cfg file or use the default_optimizer.cfg")
 
     parser.add_argument('--config', help='Use config file to set arguments')

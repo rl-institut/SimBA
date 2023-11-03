@@ -14,7 +14,7 @@ class TestConsumption:
 
         :param tmp_path: pytest fixture to create a temporary path
         """
-        schedule, scenario = TestSchedule().basic_run()
+        schedule, scenario, _ = TestSchedule().basic_run()
         trip = next(iter(schedule.rotations.values())).trips.pop(0)
         consumption = trip.__class__.consumption
         consumption.temperatures_by_hour = {hour: hour * 2 - 15 for hour in range(0, 24)}

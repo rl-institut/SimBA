@@ -4,7 +4,6 @@ import csv
 import datetime
 import logging
 import matplotlib.pyplot as plt
-import warnings
 from spice_ev.report import aggregate_global_results, plot, generate_reports
 
 
@@ -130,17 +129,15 @@ def generate(schedule, scenario, args):
     :type args: argparse.Namespace
     """
 
-    # generate simulation_timeseries.csv, simulation.json and vehicle_socs.csv in spiceEV
-    with warnings.catch_warnings():
-        warnings.simplefilter('ignore', UserWarning)
-        # re-route output paths
-        args.save_soc = args.results_directory / "vehicle_socs.csv"
-        args.save_results = args.results_directory / "simulation.json"
-        args.save_timeseries = args.results_directory / "simulation_timeseries.csv"
-        generate_reports(scenario, vars(args).copy())
-        args.save_timeseries = None
-        args.save_results = None
-        args.save_soc = None
+    # generate simulation_timeseries.csv, simulation.json and vehicle_socs.csv in SpiceEV
+    # re-route output paths
+    args.save_soc = args.results_directory / "vehicle_socs.csv"
+    args.save_results = args.results_directory / "info.json"
+    args.save_timeseries = args.results_directory / "ts.csv"
+    generate_reports(scenario, vars(args).copy())
+    args.save_timeseries = None
+    args.save_results = None
+    args.save_soc = None
 
     # generate gc power overview
     generate_gc_power_overview_timeseries(scenario, args)

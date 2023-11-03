@@ -1,5 +1,6 @@
 import csv
 import datetime
+import json
 import logging
 from pathlib import Path
 import random
@@ -65,6 +66,7 @@ class Schedule:
         :return: Returns a new instance of Schedule with all trips from csv loaded.
         :rtype: Schedule
         """
+
         schedule = cls(vehicle_types, stations, **kwargs)
 
         station_data = dict()
@@ -198,12 +200,14 @@ class Schedule:
     def set_charging_type(self, ct, rotation_ids=None):
         """ Change charging type of either all or specified rotations. Adjust minimum standing time
         at depot after completion of rotation.
+
         :param ct: Choose this charging type wheneever possible. Either 'depb' or 'oppb'.
         :type ct: str
         :param rotation_ids: IDs of rotations for which to set charging type. If None set charging
                             charging type for all rotations.
         :type rotation_ids: list
         """
+
         assert ct in ["oppb", "depb"], f"Invalid charging type: {ct}"
 
         for id, rot in self.rotations.items():
@@ -548,6 +552,7 @@ class Schedule:
                             "max_power": gc_power,
                             "cost": {"type": "fixed", "value": 0.3},
                             "number_cs": station["n_charging_stations"],
+                            "grid_operator": station.get("grid_operator", "default_grid_operator"),
                             "voltage_level":
                                 station.get("voltage_level", args.default_voltage_level)
                         }
@@ -566,7 +571,7 @@ class Schedule:
                                 warnings.warn("feed-in csv file '{}' does not exist".format(
                                     feed_in_path), category=UserWarning)
                             feed_in["grid_connector_id"] = gc_name
-                            feed_in["csv_file"] = feed_in_path
+                            feed_in["csv_file"] = str(feed_in_path)
                             events["energy_feed_in"][gc_name + " feed-in"] = feed_in
                             # add PV component
                             photovoltaics[gc_name] = {
@@ -582,7 +587,7 @@ class Schedule:
                                 warnings.warn("external load csv file '{}' does not exist".format(
                                     ext_load_path), category=UserWarning)
                             ext_load["grid_connector_id"] = gc_name
-                            ext_load["csv_file"] = ext_load_path
+                            ext_load["csv_file"] = str(ext_load_path)
                             events["external_load"][gc_name + " ext. load"] = ext_load
 
                 # initial condition of vehicle
@@ -608,6 +613,8 @@ class Schedule:
                         "estimated_time_of_arrival": arrival_time.isoformat()
                     }
                 })
+                assert trip.delta_soc is not None, (
+                    "Trip delta_soc is None. Did you forget to calculate consumption?")
 
                 # create arrival event
                 events["vehicle_events"].append({
@@ -710,5 +717,8 @@ class Schedule:
             },
             "events": events
         }
-
+        if vars(args).get("create_scenario_file"):
+            p = args.output_directory_input / args.create_scenario_file
+            with p.open('w', encoding='utf-8') as f:
+                json.dump(self.scenario, f, indent=2)
         return Scenario(self.scenario, Path())

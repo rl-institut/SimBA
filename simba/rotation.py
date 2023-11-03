@@ -28,6 +28,7 @@ class Rotation:
 
         :param trip: Information on trip to be added to rotation
         :type trip: dict
+        :raises Exception: if charging type of trip and rotation differ
         """
         new_trip = Trip(self, **trip)
 
@@ -57,16 +58,21 @@ class Rotation:
 
         # set charging type if given
         charging_type = trip.get('charging_type')
+        self.trips.append(new_trip)
         if charging_type in ['depb', 'oppb']:
-            assert self.charging_type is None or self.charging_type == charging_type, (
-                f"Two trips of rotation {self.id} have distinct charging types")
             assert self.schedule.vehicle_types.get(
                 self.vehicle_type, {}).get(charging_type) is not None, (
                 f"The required vehicle type {self.vehicle_type}({charging_type}) "
                 "is not given in the vehicle_types.json file.")
-            self.set_charging_type(charging_type)
-
-        self.trips.append(new_trip)
+            if self.charging_type is None:
+                # set CT for whole rotation
+                self.set_charging_type(charging_type)
+            elif self.charging_type == charging_type:
+                # same CT as other trips: just add trip consumption
+                self.consumption += new_trip.calculate_consumption()
+            else:
+                # different CT than rotation: error
+                raise Exception(f"Two trips of rotation {self.id} have distinct charging types")
 
     def calculate_consumption(self):
         """ Calculate consumption of this rotation and all its trips.
@@ -93,6 +99,7 @@ class Rotation:
 
         if ct == self.charging_type:
             return
+
         assert self.schedule.vehicle_types.get(self.vehicle_type, {}).get(ct), (
             f"Combination of vehicle type {self.vehicle_type} and {ct} not defined.")
 

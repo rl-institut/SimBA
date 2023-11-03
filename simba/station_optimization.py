@@ -1,8 +1,7 @@
 """ Optimization that tries minimizing the amount of electrified stations to achieve full
 electrification.
-
 """
-
+from copy import deepcopy
 import json
 import sys
 from pathlib import Path
@@ -101,6 +100,8 @@ def run_optimization(conf, sched=None, scen=None, args=None):
         assert conf.args, error_message
         sched, scen, args = opt_util.toolbox_from_pickle(conf.schedule, conf.scenario, conf.args)
 
+    original_schedule = deepcopy(sched)
+
     # setup folders, paths and copy config
     prepare_filesystem(args, conf)
 
@@ -118,8 +119,10 @@ def run_optimization(conf, sched=None, scen=None, args=None):
 
     # filter out depot chargers if option is set
     if conf.run_only_oppb:
+        optimizer.config.exclusion_rots = optimizer.config.exclusion_rots.union(
+            r for r in sched.rotations if "depb" == sched.rotations[r].charging_type)
         sched.rotations = {r: sched.rotations[r] for r in sched.rotations
-                           if "oppb" in sched.rotations[r].vehicle_id}
+                           if "oppb" == sched.rotations[r].charging_type}
         assert len(sched.rotations) > 0, "No rotations left after removing depot chargers"
 
     # rebasing the scenario meaning simulating it again with SpiceEV and the given conditions of
@@ -187,6 +190,13 @@ def run_optimization(conf, sched=None, scen=None, args=None):
 
     # Calculation with SpiceEV is more accurate and will show if the optimization is viable or not
     logger.debug("Detailed calculation of optimized case as a complete scenario")
+
+    # Restore excluded rotations
+    for rotation_id in optimizer.config.exclusion_rots:
+        optimizer.schedule.rotations[rotation_id] = original_schedule.rotations[rotation_id]
+
+    # remove exclusion since internally these would not be simulated
+    optimizer.config.exclusion_rots = set()
     _, __ = optimizer.preprocessing_scenario(
         electrified_stations=ele_stations, run_only_neg=False)
 
