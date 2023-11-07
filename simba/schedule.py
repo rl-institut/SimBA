@@ -328,7 +328,8 @@ class Schedule:
                            for obj in eflips_output}
         unique_vids = {obj.vehicle_id for obj in eflips_output}
         vehicle_socs = {v_id: dict() for v_id in unique_vids}
-        eflips_vid_dict = {v_id: sorted([obj.rotation_id for obj in eflips_output if obj.vehicle_id == v_id],
+        eflips_vid_dict = {v_id: sorted([obj.rotation_id for obj in eflips_output
+                                         if obj.vehicle_id == v_id],
                                         key=lambda r_id: self.rotations[r_id].departure_time)
                            for v_id in unique_vids}
 
@@ -341,6 +342,8 @@ class Schedule:
         for vid in unique_vids:
             v_ls = vid.split("_")
             vehicle_type_counts[f'{v_ls[0]}_{v_ls[1]}'] += 1
+
+        self.vehicle_type_counts = vehicle_type_counts
 
         rotations = sorted(self.rotations.values(), key=lambda rot: rot.departure_time)
         for rot in rotations:
