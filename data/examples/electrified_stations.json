@@ -13,7 +13,7 @@
             "start_time": "2022-03-07T00:00:00",  // start time as YYYY-MM-DDThh:mm:ss
             "step_duration_s": 3600,  // timestep in seconds
             "column": "Feed-in Total (kW)",  // column name in .csv
-            "nominal_power": 10,  // nominal power in kW, needed calculation of for PV remuneration and cost of feed-in
+            "nominal_power": 10,  // nominal power in kW, needed for calculation of PV remuneration and cost of feed-in
             "factor": 1  // factor to multiply column values, eg 0.001 for conversion from W to kW
         },
         "external_load": {  // optional: local external loads
