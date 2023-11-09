@@ -246,7 +246,7 @@ class TestSchedule:
         sys.argv = ["foo", "--config", str(example_root / "simba.cfg")]
         args = util.get_args()
         args.config = example_root / "simba.cfg"
-        electrified_stations_path = example_root / "electrified_stations_with_feeds.json"
+        electrified_stations_path = example_root / "electrified_stations.json"
         args.electrified_stations = electrified_stations_path
         with open(electrified_stations_path, "r", encoding='utf-8') as file:
             electrified_stations = util.uncomment_json_file(file)

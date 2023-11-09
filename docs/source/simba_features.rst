@@ -84,9 +84,10 @@ Cost calculation
     * **Charging infrastructure**: Costs for all depot and opportunity charging stations, depending on the number of actually used charging stations at each grid connector.
     * **Grid connectors**: Costs for grid connectors and transformers, depending on the voltage level and the distance to the grid.
     * **Garages**: Costs for workstations and charging infrastructure at garages.
-    * **Stationary storages**: Costs for stationary batteries at depot and opportunity stations, depending on its capacity.
+    * **Stationary storages**: Costs for stationary batteries at depot and opportunity stations, depending on its capacity [kWh].
+    * **Feed-in**: Costs for feed-in (power generation plant such as PV modules) at depot and opportunity stations, depending on its capacity [kW].
 * Maintenance
-    * Depending on the lifetime of each component maintenance costs are calculated for buses, charging infrastructure, grid connectors and stationary storages.
+    * Depending on the lifetime of each component maintenance costs are calculated for buses, charging infrastructure, grid connectors,  stationary storages and feed-in.
 * Electricity
     * **Power procurement**: Costs for the procurement of energy.
     * **Grid fees**: Costs for power and energy price, depending on the voltage level and the utilization time per year.
@@ -112,6 +113,8 @@ As result the following table is saved as CSV:
 +---------------------------------+----------+-----------------------------------------------------------------------+
 |c_stat_storage                   | EUR      | Investment costs of stationary storages                               |
 +---------------------------------+----------+-----------------------------------------------------------------------+
+|c_feed_in                        | EUR      | Investment costs of feed in (power generation plant)                  |
++---------------------------------+----------+-----------------------------------------------------------------------+
 |c_invest                         | EUR      | Sum of all investment costs                                           |
 +---------------------------------+----------+-----------------------------------------------------------------------+
 +---------------------------------+----------+-----------------------------------------------------------------------+
@@ -125,6 +128,8 @@ As result the following table is saved as CSV:
 +---------------------------------+----------+-----------------------------------------------------------------------+
 |c_stat_storage_annual            | EUR/year | Annual investment costs of all stationary storages                    |
 +---------------------------------+----------+-----------------------------------------------------------------------+
+|c_feed_in                        | EUR/year | Annual investment costs of all feed-ins                               |
++---------------------------------+----------+-----------------------------------------------------------------------+
 |c_invest_annual                  | EUR/year | Sum of all annual investment costs                                    |
 +---------------------------------+----------+-----------------------------------------------------------------------+
 +---------------------------------+----------+-----------------------------------------------------------------------+
@@ -135,6 +140,8 @@ As result the following table is saved as CSV:
 |c_maint_vehicles_annual          | EUR/year | Annual maintenance costs of buses                                     |
 +---------------------------------+----------+-----------------------------------------------------------------------+
 |c_maint_stat_storage_annual      | EUR/year | Annual maintenance costs of stationary storages                       |
++---------------------------------+----------+-----------------------------------------------------------------------+
+|c_maint_feed_in_annual           | EUR/year | Annual maintenance costs of feed-in                                   |
 +---------------------------------+----------+-----------------------------------------------------------------------+
 |c_maint_annual                   | EUR/year | Sum of annual maintenance costs                                       |
 +---------------------------------+----------+-----------------------------------------------------------------------+
