@@ -31,6 +31,12 @@
         "c_maint_stat_storage_per_year": 0.02,
         "lifetime_stat_storage": 20
     },
+    "feed_in": {
+        "capex_fix": 10,
+        "capex_per_kW": 50,
+        "c_maint_feed_in_per_year": 0.02,
+        "lifetime_feed_in": 20
+    },
     "cs":{
         "capex_opps_per_kW": 877.5,
         "capex_deps_per_kW": 1000,
