@@ -271,7 +271,7 @@ class Schedule:
         # update vehicle ID for nice natural sorting
         for rot in rotations:
             # get old vehicle id (vehicle type + charging type, sequential number)
-            vt_ct, old_num = rot.vehicle_id.rsplit('_',1)
+            vt_ct, old_num = rot.vehicle_id.rsplit('_', 1)
             # how many vehicles of this type?
             vt_cnt = vehicle_type_counts[vt_ct]
             # easy log10 to get max needed number of digits
