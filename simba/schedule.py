@@ -561,7 +561,7 @@ class Schedule:
                         if battery is not None:
                             # add stationary battery at this station/GC
                             battery["parent"] = gc_name
-                            batteries[gc_name] = battery
+                            batteries[f"{gc_name} storage"] = battery
 
                         # add feed-in name and power at grid connector if exists
                         feed_in = station.get("energy_feed_in")
