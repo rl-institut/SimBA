@@ -121,7 +121,8 @@ class Schedule:
             inconsistent_rotations = cls.check_consistency(schedule)
             if inconsistent_rotations:
                 # write errors to file
-                with open(kwargs["output_directory"] / "inconsistent_rotations.csv", "w") as f:
+                filepath = kwargs["output_directory"] / "inconsistent_rotations.csv"
+                with open(filepath, "w", encoding='utf-8') as f:
                     for rot_id, e in inconsistent_rotations.items():
                         f.write(f"Rotation {rot_id}: {e}\n")
                         logging.error(f"Rotation {rot_id}: {e}")
