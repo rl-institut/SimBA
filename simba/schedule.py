@@ -268,6 +268,19 @@ class Schedule:
             # insert at calculated index
             rotations_in_progress.insert(i, rot)
 
+        # update vehicle ID for nice natural sorting
+        for rot in rotations:
+            # get old vehicle id (vehicle type + charging type, sequential number)
+            vt_ct, old_num = rot.vehicle_id.rsplit('_', 1)
+            # how many vehicles of this type?
+            vt_cnt = vehicle_type_counts[vt_ct]
+            # easy log10 to get max needed number of digits
+            digits = len(str(vt_cnt))
+            # how many digits have to be added for this vehicle ID?
+            missing = digits - len(str(old_num))
+            # assign new zero-padded ID (all of same vehicle type have same length)
+            rot.vehicle_id = f"{vt_ct}_{'0'*missing}{old_num}"
+
         self.vehicle_type_counts = vehicle_type_counts
 
     def calculate_consumption(self):
