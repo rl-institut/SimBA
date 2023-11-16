@@ -297,13 +297,15 @@ def get_args():
     parser.add_argument('--preferred-charging-type', '-pct', default='depb',
                         choices=['depb', 'oppb'], help="Preferred charging type. Choose one\
                         from {depb, oppb}. opp stands for opportunity.")
-    parser.add_argument('--strategy_deps', default='balanced', choices=STRATEGIES,
+    parser.add_argument('--strategy-deps', default='balanced', choices=STRATEGIES,
                         help='strategy to use in depot')
-    parser.add_argument('--strategy_opps', default='greedy', choices=STRATEGIES,
+    parser.add_argument('--strategy-opps', default='greedy', choices=STRATEGIES,
                         help='strategy to use at station')
-    parser.add_argument('--strategy_options_deps', default={}, type=dict,
+    parser.add_argument('--strategy-options-deps', default={},
+                        type=lambda s: s if type(s) is dict else json.loads(s),
                         help='special strategy options to use in depot')
-    parser.add_argument('--strategy_options_opps', default={}, type=dict,
+    parser.add_argument('--strategy-options-opps', default={},
+                        type=lambda s: s if type(s) is dict else json.loads(s),
                         help='special strategy options to use at electrified station')
 
     # #### Physical setup of environment #####
