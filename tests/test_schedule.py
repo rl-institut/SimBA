@@ -269,10 +269,10 @@ class TestSchedule:
         scen = generated_schedule.generate_scenario(args)
         assert "Station-0" in scen.components.photovoltaics
         assert "Station-3" in scen.components.photovoltaics
-        assert "Station-0" in scen.components.batteries
-        assert scen.components.batteries["Station-0"].capacity == 300
-        assert scen.components.batteries["Station-0"].efficiency == 0.95
-        assert scen.components.batteries["Station-0"].min_charging_power == 0
+        assert "Station-0 storage" in scen.components.batteries
+        assert scen.components.batteries["Station-0 storage"].capacity == 300
+        assert scen.components.batteries["Station-0 storage"].efficiency == 0.95
+        assert scen.components.batteries["Station-0 storage"].min_charging_power == 0
         scen = generated_schedule.run(args)
         assert type(scen) is scenario.Scenario
 
