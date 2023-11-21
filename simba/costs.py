@@ -220,7 +220,7 @@ def calculate_costs(c_params, scenario, schedule, args):
 
         # calculate costs for electricity
         costs_electricity = calc_costs_spice_ev(
-            strategy=args.strategy,
+            strategy=vars(args)["strategy_"+station.get("type")],
             voltage_level=gc.voltage_level,
             interval=scenario.interval,
             timestamps_list=timeseries.get("time"),
