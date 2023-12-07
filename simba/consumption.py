@@ -1,6 +1,6 @@
 import csv
 import pandas as pd
-from ebus_toolbox import util
+from simba import util
 
 
 class Consumption:
@@ -33,6 +33,7 @@ class Consumption:
     def calculate_consumption(self, time, distance, vehicle_type, charging_type, temp=None,
                               height_diff=0, level_of_loading=None, mean_speed=18):
         """ Calculates consumed amount of energy for a given distance.
+
         :param time: The date and time at which the trip ends
         :type time: datetime.datetime
         :param distance: Distance travelled [m]
@@ -55,12 +56,12 @@ class Consumption:
         :return: Consumed energy [kWh] and delta SOC as tuple
         :rtype: (float, float)
 
-        :raises IndexError: if there is missing data for temperature or lol data
+        :raises KeyError: if there is missing data for temperature or lol data
         :raises AttributeError: if there is no path to temperature or lol data provided
         """
 
-        assert self.vehicle_types.get(vehicle_type, {}).get(charging_type),\
-            f"Combination of vehicle type {vehicle_type} and {charging_type} not defined."
+        assert self.vehicle_types.get(vehicle_type, {}).get(charging_type), (
+            f"Combination of vehicle type {vehicle_type} and {charging_type} not defined.")
 
         vehicle_info = self.vehicle_types[vehicle_type][charging_type]
 
@@ -74,34 +75,34 @@ class Consumption:
         if temp is None:
             try:
                 temp = self.temperatures_by_hour[time.hour]
-            except AttributeError:
-                print("Neither of these conditions is met:\n"
-                      "1. Temperature data is available for every trip through the trips file "
-                      "or a temperature over day file.\n"
-                      f"2. A constant mileage for the vehicle "
-                      f"{vehicle_info['mileage']} is provided.")
-                raise AttributeError
-            except IndexError:
-                print(f"No temperature data for the hour {time.hour} is provided")
-                raise IndexError
+            except AttributeError as e:
+                raise AttributeError(
+                    "Neither of these conditions is met:\n"
+                    "1. Temperature data is available for every trip through the trips file "
+                    "or a temperature over day file.\n"
+                    f"2. A constant mileage for the vehicle "
+                    f"{vehicle_info['mileage']} is provided."
+                ) from e
+            except KeyError as e:
+                raise KeyError(f"No temperature data for the hour {time.hour} is provided") from e
 
         # if no specific LoL is given, lookup temperature
         if level_of_loading is None:
             try:
                 level_of_loading = self.lol_by_hour[time.hour]
-            except AttributeError:
-                print("Neither of these conditions is met:\n"
-                      "1. Level of loading data is available for every trip through the trips file "
-                      "or a level of loading over day file.\n"
-                      f"2. A constant mileage for the vehicle "
-                      f"{vehicle_info['mileage']} is provided.")
-                raise AttributeError
-            except IndexError:
-                print(f"No level of loading data for the hour {time.hour} is provided")
-                raise IndexError
+            except AttributeError as e:
+                raise AttributeError(
+                    "Neither of these conditions is met:\n"
+                    "1. Level of loading data is available for every trip through the trips file "
+                    "or a level of loading over day file.\n"
+                    f"2. A constant mileage for the vehicle "
+                    f"{vehicle_info['mileage']} is provided."
+                ) from e
+            except KeyError as e:
+                raise KeyError(f"No level of loading for the hour {time.hour} is provided") from e
 
         # load consumption csv
-        consumption_path = vehicle_info["mileage"]
+        consumption_path = str(vehicle_info["mileage"])
 
         # consumption_files holds interpol functions of csv files which are called directly
 
@@ -109,10 +110,8 @@ class Consumption:
         consumption_function = vehicle_type+"_from_"+consumption_path
         try:
             mileage = self.consumption_files[consumption_function](
-                                                               this_incline=height_diff / distance,
-                                                               this_temp=temp,
-                                                               this_lol=level_of_loading,
-                                                               this_speed=mean_speed)
+                this_incline=height_diff / distance, this_temp=temp,
+                this_lol=level_of_loading, this_speed=mean_speed)
         except KeyError:
             # creating the interpol function from csv file.
             delim = util.get_csv_delim(consumption_path)
@@ -135,10 +134,8 @@ class Consumption:
             self.consumption_files.update({consumption_function: interpol_function})
 
             mileage = self.consumption_files[consumption_function](
-                                                               this_incline=height_diff / distance,
-                                                               this_temp=temp,
-                                                               this_lol=level_of_loading,
-                                                               this_speed=mean_speed)
+               this_incline=height_diff / distance, this_temp=temp,
+               this_lol=level_of_loading, this_speed=mean_speed)
 
         consumed_energy = mileage * distance / 1000  # kWh
         delta_soc = -1 * (consumed_energy / vehicle_info["capacity"])
