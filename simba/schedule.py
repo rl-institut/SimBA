@@ -270,11 +270,6 @@ class Schedule:
         return inconsistent_rotations
 
     def run(self, args):
-        # each rotation is assigned a vehicle ID
-        self.assign_vehicles()
-        return self._run(args)
-
-    def _run(self, args):
         """Runs a schedule without assigning vehicles.
 
         For external usage the core run functionality is accessible through this function. It

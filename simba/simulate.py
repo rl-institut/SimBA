@@ -84,6 +84,9 @@ def pre_simulation(args):
     # Create soc dispatcher
     schedule.init_soc_dispatcher(args)
 
+    # each rotation is assigned a vehicle ID
+    schedule.assign_vehicles()
+
     return schedule, args
 
 
