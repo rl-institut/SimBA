@@ -172,7 +172,7 @@ class Schedule:
 
                 # Get temperature from trips.csv or from file
                 try:
-                    # Clip level of loading to [0,1]
+                    # Cast temperature to float
                     temperature = float(trip["temperature"])
                 # In case of empty temperature column or no column at all
                 except (KeyError, ValueError):
@@ -180,8 +180,7 @@ class Schedule:
                 trip["temperature"] = temperature
                 if rotation_id not in schedule.rotations.keys():
                     schedule.rotations.update({
-                        rotation_id: Rotation(id=rotation_id,
-                                              vehicle_type=trip['vehicle_type'],
+                        rotation_id: Rotation(id=rotation_id, vehicle_type=trip['vehicle_type'],
                                               schedule=schedule)})
                 schedule.rotations[rotation_id].add_trip(trip)
 
