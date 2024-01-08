@@ -71,7 +71,7 @@ class TestSchedule:
         sched.init_soc_dispatcher(args)
 
         sched.assign_vehicles()
-        scen = sched._run(args)
+        scen = sched.run(args)
 
         for rot in sched.rotations.values():
             print(rot.id, rot.vehicle_id)
@@ -85,17 +85,17 @@ class TestSchedule:
 
         @dataclass
         class eflips:
-            rot_id: str
-            v_id: str
-            soc: float
+            rotation_id: str
+            vehicle_id: str
+            soc_departure: float
 
-        eflips_output.append(eflips(rot_id="4", v_id="AB_depb_1", soc=1))
-        eflips_output.append(eflips(rot_id="3", v_id="AB_depb_2", soc=0.8))
-        eflips_output.append(eflips(rot_id="2", v_id="AB_depb_3", soc=1))
-        eflips_output.append(eflips(rot_id="21", v_id="AB_depb_3", soc=0.69))
-        eflips_output.append(eflips(rot_id="1", v_id="AB_oppb_1", soc=1))
-        eflips_output.append(eflips(rot_id="11", v_id="AB_oppb_2", soc=0.6))
-        eflips_output.append(eflips(rot_id="12", v_id="AB_oppb_1", soc=0.945))
+        eflips_output.append(eflips(rotation_id="4", vehicle_id="AB_depb_1", soc_departure=1))
+        eflips_output.append(eflips(rotation_id="3", vehicle_id="AB_depb_2", soc_departure=0.8))
+        eflips_output.append(eflips(rotation_id="2", vehicle_id="AB_depb_3", soc_departure=1))
+        eflips_output.append(eflips(rotation_id="21", vehicle_id="AB_depb_3", soc_departure=0.69))
+        eflips_output.append(eflips(rotation_id="1", vehicle_id="AB_oppb_1", soc_departure=1))
+        eflips_output.append(eflips(rotation_id="11", vehicle_id="AB_oppb_2", soc_departure=0.6))
+        eflips_output.append(eflips(rotation_id="12", vehicle_id="AB_oppb_1", soc_departure=0.945))
         return eflips_output
 
     def test_basic_dispatching(self, eflips_output):
@@ -107,7 +107,7 @@ class TestSchedule:
         pd.DataFrame(scen.vehicle_socs).plot()
 
         sched.assign_vehicles_for_django(eflips_output)
-        scen = sched._run(args)
+        scen = sched.run(args)
 
         pd.DataFrame(scen.vehicle_socs).plot()
 
@@ -119,7 +119,7 @@ class TestSchedule:
         """
         sched, scen, args = self.basic_run()
         # delete data for a single rotation but keep the rotation_id
-        missing_rot_id = eflips_output[-1].rot_id
+        missing_rot_id = eflips_output[-1].rotation_id
         del eflips_output[-1]
 
         # if data for a rotation is missing an error containing the rotation id should be raised

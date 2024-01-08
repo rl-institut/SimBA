@@ -282,6 +282,7 @@ class TestSchedule:
         assert scen.components.batteries["Station-0"].capacity == 300
         assert scen.components.batteries["Station-0"].efficiency == 0.95
         assert scen.components.batteries["Station-0"].min_charging_power == 0
+        generated_schedule.assign_vehicles()
         scen = generated_schedule.run(args)
         assert type(scen) is scenario.Scenario
 

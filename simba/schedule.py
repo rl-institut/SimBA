@@ -280,7 +280,8 @@ class Schedule:
         :return: scenario
         :rtype spice_ev.Scenario
         """
-        # ToDo call assign_vehicles if vehicles are not assigned yet. _run can be deleted
+        # Make sure all rotations have an assigned vehicle
+        assert all([rot.vehicle_id is not None for rot in self.rotations.values()])
         scenario = self.generate_scenario(args)
 
         logging.info("Running SpiceEV...")
