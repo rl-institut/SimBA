@@ -22,13 +22,14 @@ def calculate_costs(c_params, scenario, schedule, args):
     costs = {cost: 0 for cost in [
         # investment costs
         "c_vehicles", "c_gcs", "c_cs", "c_garage_cs", "c_garage", "c_garage_workstations",
-        "c_stat_storage", "c_invest",
+        "c_stat_storage", "c_feed_in", "c_invest",
         # annual investment costs
         "c_vehicles_annual", "c_gcs_annual", "c_cs_annual", "c_garage_annual",
-        "c_stat_storage_annual", "c_invest_annual",
+        "c_stat_storage_annual", "c_feed_in_annual", "c_invest_annual",
         # annual maintenance costs
         "c_maint_vehicles_annual", "c_maint_gc_annual", "c_maint_cs_annual",
-        "c_maint_stat_storage_annual", "c_maint_infrastructure_annual", "c_maint_annual",
+        "c_maint_stat_storage_annual", "c_maint_feed_in_annual", "c_maint_infrastructure_annual",
+        "c_maint_annual",
         # annual electricity costs
         "c_el_procurement_annual", "c_el_power_price_annual", "c_el_energy_price_annual",
         "c_el_taxes_annual", "c_el_feed_in_remuneration_annual", "c_el_annual"]}
@@ -104,10 +105,28 @@ def calculate_costs(c_params, scenario, schedule, args):
         except KeyError:
             # if no stationary storage at grid connector: cost is 0
             pass
+
+        # FEED IN (local renewables)
+        # assume there is a feed in
+        try:
+            # calculate costs of feed in
+            costs["c_feed_in"] += (
+                c_params["feed_in"]["capex_fix"] +
+                c_params["feed_in"]["capex_per_kW"] *
+                schedule.stations[gcID]["energy_feed_in"]["nominal_power"])
+        except KeyError:
+            # if no feed in at grid connector: cost is 0
+            pass
+
     costs["c_stat_storage_annual"] = (
         costs["c_stat_storage"] / c_params["stationary_storage"]["lifetime_stat_storage"])
     costs["c_maint_stat_storage_annual"] = (
         costs["c_stat_storage"] * c_params["stationary_storage"]["c_maint_stat_storage_per_year"])
+
+    costs["c_feed_in_annual"] = (
+        costs["c_feed_in"] / c_params["feed_in"]["lifetime_feed_in"])
+    costs["c_maint_feed_in_annual"] = (
+        costs["c_feed_in"] * c_params["feed_in"]["c_maint_feed_in_per_year"])
 
     # CHARGING INFRASTRUCTURE
     stations = schedule.scenario["components"]["charging_stations"]
@@ -165,16 +184,18 @@ def calculate_costs(c_params, scenario, schedule, args):
 
     # TOTAL COSTS
     costs["c_invest"] = (costs["c_vehicles"] + costs["c_cs"] + costs["c_gcs"] + costs["c_garage"] +
-                         costs["c_stat_storage"])
+                         costs["c_stat_storage"] + costs["c_feed_in"])
     costs["c_invest_annual"] = (costs["c_vehicles_annual"] + costs["c_cs_annual"] +
                                 costs["c_gcs_annual"] + costs["c_garage_annual"] +
-                                costs["c_stat_storage_annual"])
+                                costs["c_stat_storage_annual"] + costs["c_feed_in_annual"])
 
     # MAINTENANCE COSTS #
 
     costs["c_maint_infrastructure_annual"] = (costs["c_maint_cs_annual"] +
                                               costs["c_maint_gc_annual"] +
-                                              costs["c_maint_stat_storage_annual"])
+                                              costs["c_maint_stat_storage_annual"] +
+                                              costs["c_maint_feed_in_annual"])
+
     # calculate (ceil) number of days in scenario
     drive_days = -(-(schedule.scenario["scenario"]["n_intervals"] *
                      schedule.scenario["scenario"]["interval"]) // (24 * 60))
@@ -199,7 +220,7 @@ def calculate_costs(c_params, scenario, schedule, args):
 
         # calculate costs for electricity
         costs_electricity = calc_costs_spice_ev(
-            strategy=args.strategy,
+            strategy=vars(args)["strategy_"+station.get("type")],
             voltage_level=gc.voltage_level,
             interval=scenario.interval,
             timestamps_list=timeseries.get("time"),

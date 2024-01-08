@@ -26,7 +26,7 @@ To allocate the rotations to vehicles, vehicles of the needed type to fulfil the
 Charging simulation
 -------------------
 
-The charging simulation is carried out in the open source software `SpiceEV <https://github.com/rl-institut/spice_ev>`_, that is included in SimBA as a package. SimBA therefore uses SpiceEVs charging strategy "distributed", that allows to separate the charging strategy depending on the station type. The station types can be either depot charging station (deps) or opportunity charging station (opps). At depot charging stations vehicles are being charged using SpiceEVs strategy "balanced", which uses the whole standing time to charge with the minimal power to reach a desired SoC. At opportunity charging stations the strategy "greedy" is employed, that charges with the maximum available power due to restrictions from the grid connection, the charging curve of the vehicle and the charging station.
+The charging simulation is carried out in the open source software `SpiceEV <https://github.com/rl-institut/spice_ev>`_, that is included in SimBA as a package. SimBA therefore uses SpiceEVs charging strategy "distributed", that allows to separate the charging strategy depending on the station type. The station types can be either depot charging station (deps) or opportunity charging station (opps). The charging strategy that is applied at depot and opportunity charging stations can be chosen in the config as "strategy_deps" respectively "strategy_opps", together with the strategy options. See the SpiceEV documentation for the description of all possible `strategies <https://spice-ev.readthedocs.io/en/latest/charging_strategies_incentives.html>`_ and  `options <https://spice-ev.readthedocs.io/en/latest/simulating_with_spiceev.html#strategy-options>`_.
 
 .. _generate_report:
 
@@ -84,9 +84,10 @@ Cost calculation
     * **Charging infrastructure**: Costs for all depot and opportunity charging stations, depending on the number of actually used charging stations at each grid connector.
     * **Grid connectors**: Costs for grid connectors and transformers, depending on the voltage level and the distance to the grid.
     * **Garages**: Costs for workstations and charging infrastructure at garages.
-    * **Stationary storages**: Costs for stationary batteries at depot and opportunity stations, depending on its capacity.
+    * **Stationary storages**: Costs for stationary batteries at depot and opportunity stations, depending on its capacity [kWh].
+    * **Feed-in**: Costs for feed-in (power generation plant such as PV modules) at depot and opportunity stations, depending on its capacity [kW].
 * Maintenance
-    * Depending on the lifetime of each component maintenance costs are calculated for buses, charging infrastructure, grid connectors and stationary storages.
+    * Depending on the lifetime of each component maintenance costs are calculated for buses, charging infrastructure, grid connectors,  stationary storages and feed-in.
 * Electricity
     * **Power procurement**: Costs for the procurement of energy.
     * **Grid fees**: Costs for power and energy price, depending on the voltage level and the utilization time per year.
@@ -112,6 +113,8 @@ As result the following table is saved as CSV:
 +---------------------------------+----------+-----------------------------------------------------------------------+
 |c_stat_storage                   | EUR      | Investment costs of stationary storages                               |
 +---------------------------------+----------+-----------------------------------------------------------------------+
+|c_feed_in                        | EUR      | Investment costs of feed in (power generation plant)                  |
++---------------------------------+----------+-----------------------------------------------------------------------+
 |c_invest                         | EUR      | Sum of all investment costs                                           |
 +---------------------------------+----------+-----------------------------------------------------------------------+
 +---------------------------------+----------+-----------------------------------------------------------------------+
@@ -125,6 +128,8 @@ As result the following table is saved as CSV:
 +---------------------------------+----------+-----------------------------------------------------------------------+
 |c_stat_storage_annual            | EUR/year | Annual investment costs of all stationary storages                    |
 +---------------------------------+----------+-----------------------------------------------------------------------+
+|c_feed_in                        | EUR/year | Annual investment costs of all feed-ins                               |
++---------------------------------+----------+-----------------------------------------------------------------------+
 |c_invest_annual                  | EUR/year | Sum of all annual investment costs                                    |
 +---------------------------------+----------+-----------------------------------------------------------------------+
 +---------------------------------+----------+-----------------------------------------------------------------------+
@@ -135,6 +140,8 @@ As result the following table is saved as CSV:
 |c_maint_vehicles_annual          | EUR/year | Annual maintenance costs of buses                                     |
 +---------------------------------+----------+-----------------------------------------------------------------------+
 |c_maint_stat_storage_annual      | EUR/year | Annual maintenance costs of stationary storages                       |
++---------------------------------+----------+-----------------------------------------------------------------------+
+|c_maint_feed_in_annual           | EUR/year | Annual maintenance costs of feed-in                                   |
 +---------------------------------+----------+-----------------------------------------------------------------------+
 |c_maint_annual                   | EUR/year | Sum of annual maintenance costs                                       |
 +---------------------------------+----------+-----------------------------------------------------------------------+

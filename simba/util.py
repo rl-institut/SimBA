@@ -3,6 +3,7 @@ import json
 import logging
 import subprocess
 
+from spice_ev.strategy import STRATEGIES
 from spice_ev.util import set_options_from_config
 
 
@@ -292,10 +293,22 @@ def get_args():
                         help='Re-raise errors instead of continuing during simulation modes')
     parser.add_argument('--create-scenario-file', help='Write scenario.json to file')
 
-    # #### Physical setup of environment #####
+    # #### Charging strategy #####
     parser.add_argument('--preferred-charging-type', '-pct', default='depb',
                         choices=['depb', 'oppb'], help="Preferred charging type. Choose one\
                         from {depb, oppb}. opp stands for opportunity.")
+    parser.add_argument('--strategy-deps', default='balanced', choices=STRATEGIES,
+                        help='strategy to use in depot')
+    parser.add_argument('--strategy-opps', default='greedy', choices=STRATEGIES,
+                        help='strategy to use at station')
+    parser.add_argument('--strategy-options-deps', default={},
+                        type=lambda s: s if type(s) is dict else json.loads(s),
+                        help='special strategy options to use in depot')
+    parser.add_argument('--strategy-options-opps', default={},
+                        type=lambda s: s if type(s) is dict else json.loads(s),
+                        help='special strategy options to use at electrified station')
+
+    # #### Physical setup of environment #####
     parser.add_argument('--gc-power-opps', metavar='POPP', type=float, default=100000,
                         help='max power of grid connector at opp stations')
     parser.add_argument('--gc-power-deps', metavar='PDEP', type=float, default=100000,
@@ -322,7 +335,7 @@ def get_args():
                         'charging stations if not set in electrified_stations file',
                         default='MV', choices=['HV', 'HV/MV', 'MV', 'MV/LV', 'LV'])
 
-    # #### SIMULATION PARAMETERS #####
+    # #### Simulation Parameters #####
     parser.add_argument('--days', metavar='N', type=int, default=None,
                         help='set duration of scenario as number of days')
     parser.add_argument('--interval', metavar='MIN', type=int, default=1,
