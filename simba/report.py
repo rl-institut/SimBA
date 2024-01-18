@@ -216,7 +216,11 @@ def generate(schedule, scenario, args):
         with open(args.results_directory / "rotation_socs.csv", "w", newline='') as f:
             csv_writer = csv.writer(f)
             # order rotations naturally
-            rotations = sorted(rotation_socs.keys(), key=lambda k: int(k))
+            try:
+                rotations = sorted(rotation_socs.keys(), key=lambda k: int(k))
+            except ValueError:
+                # Some strings can not be casted to int and throw a value error
+                rotations = sorted(rotation_socs.keys(), key=lambda k: k)
             csv_writer.writerow(["time"] + rotations)
             for i in range(scenario.n_intervals):
                 t = sim_start_time + i * scenario.interval
