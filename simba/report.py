@@ -241,9 +241,24 @@ def generate(schedule, scenario, args):
                 if value > 0:
                     csv_writer.writerow([key, value, "vehicles"])
             for key, value in scenario.costs.items():
-                if "annual" in key:
-                    csv_writer.writerow([key, round(value, 2), "€/year"])
-                else:
-                    csv_writer.writerow([key, round(value, 2), "€"])
+                # Write nested dicts as well
+                output = nested_dict_to_str_lists(key, value)
+                for row in output:
+                    csv_writer.writerow(row)
 
     logging.info(f"Plots and output files saved in {args.results_directory}")
+
+
+def nested_dict_to_str_lists(key, value) -> list[str]:
+    output = []
+    if isinstance(value, dict):
+        output.append([key])
+        for k, v in value.items():
+            output.extend(nested_dict_to_str_lists(k, v))
+    else:
+        value = round(value, 2)
+        if "annual" in key:
+            output.append([key, value, "€/year"])
+        else:
+            output.append([key, value, "€"])
+    return output

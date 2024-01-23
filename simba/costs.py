@@ -59,7 +59,9 @@ def calculate_costs(c_params, scenario, schedule, args):
 
     # GRID CONNECTION POINTS
     gc_in_use = scenario.components.grid_connectors
+    gc_cost_dict = dict()
     for gcID, gc in gc_in_use.items():
+        gc_cost_dict[gcID] = dict()
         # get dict with costs for specific grid operator
         try:
             c_params_go = c_params[gc.grid_operator]
@@ -88,20 +90,30 @@ def calculate_costs(c_params, scenario, schedule, args):
         # calculate total cost of grid connection
         costs["c_gcs"] += c_gc + c_transformer
         # calculate annual costs of grid connection, depending on lifetime of gc and transformer
-        costs["c_gcs_annual"] += (c_gc / c_params_go["gc"]["lifetime_gc"] +
-                                  c_transformer / c_params_go["gc"]["lifetime_transformer"])
+        c_gc_annual = (c_gc / c_params_go["gc"]["lifetime_gc"] +
+                       c_transformer / c_params_go["gc"]["lifetime_transformer"])
+
+        costs["c_gcs_annual"] += c_gc_annual
         # calculate maintenance cost of grid connection
-        costs["c_maint_gc_annual"] += (
-            c_transformer * c_params_go["gc"]["c_maint_transformer_per_year"])
+        c_maint_gc_annual = (c_transformer * c_params_go["gc"]["c_maint_transformer_per_year"])
+        costs["c_maint_gc_annual"] += c_maint_gc_annual
+
+        # Store the individual costs of the GC as well
+        gc_cost_dict[gcID]["c_gc"] = c_gc
+        gc_cost_dict[gcID]["c_transformer"] = c_transformer
+        gc_cost_dict[gcID]["c_gc_annual"] = c_gc_annual
+        gc_cost_dict[gcID]["c_maint_gc_annual"] = c_maint_gc_annual
 
         # STATIONARY STORAGE
         # assume there is a stationary storage
         try:
             # calculate costs of stationary storage
-            costs["c_stat_storage"] += (
+            c_stat_storage = (
                 c_params["stationary_storage"]["capex_fix"] +
                 c_params["stationary_storage"]["capex_per_kWh"] *
                 schedule.stations[gcID]["battery"]["capacity"])
+            costs["c_stat_storage"] += c_stat_storage
+            gc_cost_dict[gcID]["c_stat_storage"] = c_stat_storage
         except KeyError:
             # if no stationary storage at grid connector: cost is 0
             pass
@@ -110,10 +122,11 @@ def calculate_costs(c_params, scenario, schedule, args):
         # assume there is a feed in
         try:
             # calculate costs of feed in
-            costs["c_feed_in"] += (
-                c_params["feed_in"]["capex_fix"] +
-                c_params["feed_in"]["capex_per_kW"] *
-                schedule.stations[gcID]["energy_feed_in"]["nominal_power"])
+            c_feed_in = (c_params["feed_in"]["capex_fix"] +
+                         c_params["feed_in"]["capex_per_kW"] *
+                         schedule.stations[gcID]["energy_feed_in"]["nominal_power"])
+            costs["c_feed_in"] += c_feed_in
+            gc_cost_dict[gcID]["c_feed_in"] = c_feed_in
 
             costs["c_feed_in_annual"] = (
                     costs["c_feed_in"] / c_params["feed_in"]["lifetime_feed_in"])
@@ -145,12 +158,15 @@ def calculate_costs(c_params, scenario, schedule, args):
                         station.get("cs_power_deps_oppb", vars(args)["cs_power_deps_oppb"])
                     )
                     # calculate costs with nr of CS at electrified station and its defined max power
-                    costs["c_cs"] += c_params["cs"]["capex_deps_per_kW"] * n_cs * defined_max_power
+                    c_cs = c_params["cs"]["capex_deps_per_kW"] * n_cs * defined_max_power
+                    costs["c_cs"] += c_cs
                 else:
                     # get sum of installed power at electrified stations without predefined nr of CS
                     sum_power_at_station = sum(cs["max_power"] for cs in cs_at_station)
                     # calculate costs with sum of installed power at electrified station
-                    costs["c_cs"] += c_params["cs"]["capex_deps_per_kW"] * sum_power_at_station
+                    c_cs = c_params["cs"]["capex_deps_per_kW"] * sum_power_at_station
+                    costs["c_cs"] += c_cs
+
             # opportunity charging station - nr of CS depend on max nr of simultaneously occupied CS
             elif station["type"] == "opps":
                 gc_timeseries = getattr(scenario, f"{gcID}_timeseries")
@@ -159,10 +175,14 @@ def calculate_costs(c_params, scenario, schedule, args):
                 # get max. defined power for opps or else max. power at opps in general
                 defined_max_power = station.get("cs_power_opps", vars(args)["cs_power_opps"])
                 # calculate costs with nr of CS at electrified station and its defined max power
-                costs["c_cs"] += c_params["cs"]["capex_opps_per_kW"] * n_cs * defined_max_power
+                c_cs = c_params["cs"]["capex_opps_per_kW"] * n_cs * defined_max_power
+                costs["c_cs"] += c_cs
             else:
                 warnings.warn(f"Electrified station {station} must be deps or opps. "
                               "Unable to calculate investment costs for this station.")
+                c_cs = 0
+
+            gc_cost_dict[gcID]["c_cs"] = c_cs
 
     # calculate annual cost of charging stations, depending on their lifetime
     costs["c_cs_annual"] = costs["c_cs"] / c_params["cs"]["lifetime_cs"]
@@ -235,6 +255,7 @@ def calculate_costs(c_params, scenario, schedule, args):
             grid_operator=gc.grid_operator,
             power_pv_nominal=pv,
         )
+        gc_cost_dict[gcID]["spiceEV"] = costs_electricity
 
         # ToDo: Decide if gc-specific costs should be added to scenario object to use in report.py
         # setattr(scenario.components.grid_connectors[gcID], "costs_electricity", costs_electricity)
@@ -249,6 +270,8 @@ def calculate_costs(c_params, scenario, schedule, args):
     # round all costs to ct
     for key, v in costs.items():
         costs[key] = round(v, 2)
+
+    costs["cost_per_gc"] = gc_cost_dict
 
     logging.info(
         "\nTotal costs:\n"
