@@ -490,7 +490,7 @@ class CostsObject:
                 power_generation_feed_in_list=timeseries.get("generation feed-in [kW]"),
                 power_v2g_feed_in_list=timeseries.get("V2G feed-in [kW]"),
                 power_battery_feed_in_list=timeseries.get("battery feed-in [kW]"),
-                charging_signal_list=timeseries.get("window"),
+                charging_signal_list=timeseries.get("window signal [-]"),
                 price_sheet_path=self.args.cost_parameters_file,
                 grid_operator=gc.grid_operator,
                 power_pv_nominal=pv,
