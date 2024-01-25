@@ -63,7 +63,7 @@ class CostsObject:
         else:
             return "€"
 
-    def get_gc_cost_variables(self) -> list[str]:
+    def get_gc_cost_variables(self):
         return [  # investment costs
             "c_vehicles", "c_gcs", "c_cs", "c_garage_cs", "c_garage",
             "c_garage_workstations",
@@ -85,7 +85,7 @@ class CostsObject:
         return list(dict(sorted(self.costs_per_gc.items(), key=lambda x: x[1][self.SORT_COLUMN],
                                 reverse=True)).keys())
 
-    def get_gcs(self) -> dict:
+    def get_gcs(self):
         return self.scenario.components.grid_connectors
 
     def to_csv_lists(self):
@@ -126,7 +126,7 @@ class CostsObject:
             "c_garage_annual"]
         return self
 
-    def get_vehicle_count_per_gc(self) -> dict:
+    def get_vehicle_count_per_gc(self):
         v_types = self.schedule.scenario["components"]["vehicle_types"]
         vehicle_count_per_gc = {gc: {v_type_name: 0 for v_type_name in v_types if
                                      self.schedule.vehicle_type_counts[v_type_name] > 0} for gc in
@@ -422,16 +422,18 @@ def calculate_costs(c_params, scenario, schedule, args):
     # Calculate the cost these vehicles
     cost_object.set_vehicle_costs_per_gc()
 
+    # Calculate the cost of the grid connections including stationary and feed in costs
     cost_object.set_grid_connection_costs()
 
-    cost_object.set_grid_connection_costs()
-
+    # costs for charging stations
     cost_object.set_charging_infrastructure_costs()
 
     cost_object.set_garage_costs()
 
+    # Get electricity costs from spiceEV
     cost_object.set_electricity_costs()
 
+    # Cumulate the costs of all gcs
     cost_object.cumulate()
 
     logging.info(cost_object.info())
