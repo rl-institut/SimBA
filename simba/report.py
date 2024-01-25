@@ -234,51 +234,10 @@ def generate(schedule, scenario, args):
 
     # summary of used vehicle types and all costs
     if args.cost_calculation:
-        with open(args.results_directory / "summary_vehicles_costs.csv", "w", newline='') as f:
+        with open(args.results_directory / "summary_vehicles_costs.csv", "w", newline='',
+                  encoding='utf-8') as f:
             csv_writer = csv.writer(f)
             for row in scenario.costs.to_csv_lists():
                 csv_writer.writerow(row)
 
     logging.info(f"Plots and output files saved in {args.results_directory}")
-
-#
-# def nested_dict_to_str_lists(key, value, _depth=1) -> list[str]:
-#     dict_seperator_string = ["#####" * max(8 // _depth, 1)]
-#     output = []
-#     if isinstance(value, dict):
-#         output.append([])
-#         output.append([key])
-#         output.append(dict_seperator_string)
-#         for k, v in value.items():
-#             output.extend(nested_dict_to_str_lists(k, v, _depth=_depth+1))
-#     else:
-#         value = round(value, 2)
-#         if "annual" in key:
-#             output.append([key, value, "€/year"])
-#         else:
-#             output.append([key, value, "€"])
-#     return output
-#
-# def dict_to_str_lists_with_2d_columns(data_dict: dict, column_depth=0, _depth=1) -> list[str]:
-#     dict_seperator_string = ["#####" * max(8 // _depth, 1)]
-#     index_dict = {}
-#     output = []
-#     if column_depth == 0:
-#         index = 0
-#         for key, value in data_dict.items():
-#             index_dict[key] = index
-#             output.append([key])
-#
-#     if isinstance(value, dict):
-#         output.append([])
-#         output.append([key])
-#         output.append(dict_seperator_string)
-#         for k, v in value.items():
-#             output.extend(nested_dict_to_str_lists(k, v, _depth=_depth+1))
-#     else:
-#         value = round(value, 2)
-#         if "annual" in key:
-#             output.append([key, value, "€/year"])
-#         else:
-#             output.append([key, value, "€"])
-#     return output
