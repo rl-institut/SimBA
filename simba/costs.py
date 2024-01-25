@@ -567,7 +567,7 @@ def calculate_costs(c_params, scenario, schedule, args):
 
     cost_object.set_garage_costs()
 
-    # Get electricity costs from spiceEV
+    # Get electricity costs from SpiceEV
     cost_object.set_electricity_costs()
 
     # Cumulate the costs of all gcs
