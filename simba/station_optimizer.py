@@ -1020,14 +1020,17 @@ class StationOptimizer:
             soc, rot_start_idx, rot_end_idx = self.get_rotation_soc(rot_id, soc_data)
             rot_end_idx += 1
             idx = range(0, len(soc))
+
             # combined data of the soc data of the rotation and the original index
+            # The array will get masked later, so the index of the array might be different
+            # to the index data column
             soc_idx = np.array((soc, idx))[:, rot_start_idx:rot_end_idx]
 
             # Mask for soc_idx which is used to know if an index has been checked or not
             mask = np.ones(len(soc_idx[0])).astype(bool)
 
-            # get the minimum soc and index of this value
-            min_soc, min_idx = soc_idx[:, mask][:, np.argmin(soc_idx[0, mask])]
+            # get the minimum soc and index of this value. The mask does nothing yet
+            min_soc, min_idx = get_min_soc_and_index(soc_idx, mask)
 
             soc_lower_thresh_cur = soc_lower_thresh
             # if rotation gets a start soc below 1 this should change below 0 soc events,
@@ -1048,6 +1051,7 @@ class StationOptimizer:
             # removed. At some point the reduced time series is either empty or does not have a
             # soc below the lower threshold.
             while min_soc < soc_lower_thresh_cur:
+                # soc_idx is of type float, so the index needs to be cast to int
                 min_idx = int(min_idx)
 
                 if min_idx == old_idx:
@@ -1119,9 +1123,25 @@ class StationOptimizer:
                 if not np.any(mask):
                     break
                 # Check the remaining unmasked socs for the minimal soc
-                min_soc, min_idx = soc_idx[:, mask][:, np.argmin(soc_idx[0, mask])]
+                min_soc, min_idx = get_min_soc_and_index(soc_idx, mask)
 
         return events
+
+
+def get_min_soc_and_index(soc_idx, mask):
+    """Returns the minimal soc and the corresponding index of a masked soc_idx
+
+    :param soc_idx: soc values and their corresponding index of shape (nr_values,2)
+    :type soc_idx: np.array
+
+    :param mask: boolean mask. Is false where the soc_idx has been checked already
+    :type mask: np.array
+
+    :return: minimal soc and corresponding index
+    :rtype: tuple(Float, Float)
+    """
+    min_soc, idx = soc_idx[:, mask][:, np.argmin(soc_idx[0, mask])]
+    return min_soc, idx
 
 
 def get_init_node():
