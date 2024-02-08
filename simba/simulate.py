@@ -26,7 +26,8 @@ def simulate(args):
     """
     schedule, args = pre_simulation(args)
     scenario = schedule.run(args)
-    return modes_simulation(schedule, scenario, args)
+    schedule, scenario = modes_simulation(schedule, scenario, args)
+    return schedule, scenario
 
 
 def pre_simulation(args):
