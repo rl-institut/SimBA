@@ -3,7 +3,6 @@ import datetime
 import logging
 import random
 import warnings
-from dataclasses import dataclass
 from pathlib import Path
 from typing import Iterable, Dict, Type
 
@@ -308,7 +307,7 @@ class Schedule:
             if rotation_ids is None or id in rotation_ids:
                 rot.set_charging_type(ct)
 
-    def assign_vehicles_for_django(self, eflips_output: Iterable[dataclass]):
+    def assign_vehicles_for_django(self, eflips_output: Iterable[dict]):
         """Assign vehicles based on eflips outputs
 
         eflips couples vehicles and returns for every rotation the departure soc and vehicle id.
@@ -319,12 +318,11 @@ class Schedule:
         :type eflips_output: iterable of dataclass "simba_input"
         :raises KeyError: If not every rotation has a vehicle assigned to it
         """
-        eflips_rot_dict = {obj.rotation_id: {"v_id": obj.vehicle_id, "soc": obj.soc_departure}
-                           for obj in eflips_output}
-        unique_vids = {obj.vehicle_id for obj in eflips_output}
+        eflips_rot_dict = {d["rot"]: {"v_id": d["v_id"], "soc": d["soc"]} for d in eflips_output}
+        unique_vids = {d["v_id"] for d in eflips_output}
         vehicle_socs = {v_id: dict() for v_id in unique_vids}
-        eflips_vid_dict = {v_id: sorted([obj.rotation_id for obj in eflips_output
-                                         if obj.vehicle_id == v_id],
+        eflips_vid_dict = {v_id: sorted([d["rot"] for d in eflips_output
+                                         if d["v_id"] == v_id],
                                         key=lambda r_id: self.rotations[r_id].departure_time)
                            for v_id in unique_vids}
 
@@ -363,6 +361,22 @@ class Schedule:
     def init_soc_dispatcher(self, args):
         self.soc_dispatcher = SocDispatcher(default_soc_deps=args.desired_soc_deps,
                                             default_soc_opps=args.desired_soc_opps)
+
+    def assign_only_new_vehicles(self):
+        """ Assign new vehicle IDs to rotations
+        """
+        # count number of vehicles per type
+        # used for unique vehicle id e.g. vehicletype_chargingtype_id
+        vehicle_type_counts = {f'{vehicle_type}_{charging_type}': 0
+                               for vehicle_type, charging_types in self.vehicle_types.items()
+                               for charging_type in charging_types.keys()}
+        rotations = sorted(self.rotations.values(), key=lambda rot: rot.departure_time)
+        for rot in rotations:
+            vt_ct = f"{rot.vehicle_type}_{rot.charging_type}"
+            # no vehicle available for dispatch, generate new one
+            vehicle_type_counts[vt_ct] += 1
+            rot.vehicle_id = f"{vt_ct}_{vehicle_type_counts[vt_ct]}"
+        self.vehicle_type_counts = vehicle_type_counts
 
     def assign_vehicles(self):
         """ Assign vehicle IDs to rotations. A FIFO approach is used.
