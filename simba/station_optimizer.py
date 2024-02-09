@@ -1140,6 +1140,7 @@ def get_min_soc_and_index(soc_idx, mask):
     """
     return soc_idx[:, mask][:, np.argmin(soc_idx[0, mask])]
 
+
 def get_init_node():
     """ Returns the initialization dictionary / node of the decision tree.
 
