@@ -191,8 +191,8 @@ def run_optimization(conf, sched=None, scen=None, args=None):
     # Calculation with SpiceEV is more accurate and will show if the optimization is viable or not
     logger.debug("Detailed calculation of optimized case as a complete scenario")
 
-    # Restore excluded rotations
-    for rotation_id in optimizer.config.exclusion_rots:
+    # Restore original rotations
+    for rotation_id in original_schedule.rotations:
         optimizer.schedule.rotations[rotation_id] = original_schedule.rotations[rotation_id]
 
     # remove exclusion since internally these would not be simulated
