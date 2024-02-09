@@ -7,16 +7,58 @@ from spice_ev.costs import calculate_costs as calc_costs_spice_ev
 import simba.schedule
 
 
-class CostsObject:
-    """
-    Class representing costs associated with vehicles and infrastructure.
+def calculate_costs(c_params, scenario, schedule, args):
+    """ Calculates annual costs of all necessary vehicles and infrastructure.
 
-    :param schedule: The simulation schedule.
+    :param c_params: Infrastructure component costs and specific grid operator costs.
+    :type c_params: dict
+    :param scenario: Information about the simulated scenario and all used parameters.
+    :type scenario: Scenario
+    :param schedule: Information about the whole bus schedule and all used parameters.
+    :type schedule: Schedule
+    :param args: Configuration arguments specified in config files contained in configs directory.
+    :type args: argparse.Namespace
+    """
+    cost_object = Costs(schedule, scenario, args, c_params)
+
+    # Split the rotations to their home depots as a dict
+    cost_object.set_gc_rotations()
+
+    # Count the number of vehicles per gc
+    cost_object.set_vehicles_per_gc()
+
+    # Calculate the cost these vehicles
+    cost_object.set_vehicle_costs_per_gc()
+
+    # Calculate the cost of the grid connections including stationary and feed in costs
+    cost_object.set_grid_connection_costs()
+
+    # costs for charging stations
+    cost_object.set_charging_infrastructure_costs()
+
+    cost_object.set_garage_costs()
+
+    # Get electricity costs from SpiceEV
+    cost_object.set_electricity_costs()
+
+    # Cumulate the costs of all gcs
+    cost_object.cumulate()
+
+    logging.info(cost_object.info())
+
+    setattr(scenario, "costs", cost_object)
+
+
+class Costs:
+    """
+    Class representing costs associated with vehicles and infrastructure
+
+    :param schedule: simulation schedule.
     :type schedule: simba.schedule.Schedule
-    :param scenario: The scenario for the simulation.
+    :param scenario: scenario for the simulation.
     :type scenario: spice_ev.scenario.Scenario
-    :param args: Arguments for the simulation.
-    :param c_params: Parameters for the simulation costs.
+    :param args: arguments for the simulation.
+    :param c_params: parameters for the simulation costs.
     :type c_params: dict
     """
     CUMULATED = "cumulated"
@@ -25,21 +67,25 @@ class CostsObject:
     SORT_COLUMN = "c_invest"
 
     def __init__(self, schedule: simba.schedule.Schedule, scenario: spice_ev.scenario.Scenario,
-                 args,
-                 c_params: dict):
+                 args, c_params: dict):
         """
-        Initialize the CostsObject instance.
+        Initialize the Costs instance.
 
-        :param schedule: The simulation schedule.
+        :param schedule: simulation schedule.
         :type schedule: simba.schedule.Schedule
-        :param scenario: The scenario for the simulation.
+        :param scenario: scenario for the simulation.
         :type scenario: spice_ev.scenario.Scenario
-        :param args: Arguments for the simulation.
-        :param c_params: Parameters for the simulation costs.
+        :param args: arguments for the simulation.
+        :param c_params: parameters for the simulation costs.
         :type c_params: dict
         """
 
         gc_in_use = scenario.components.grid_connectors
+
+        # Make sure CUMULATED and Garage is unique to gc names
+        self.CUMULATED = add_suffix(self.CUMULATED, gc_in_use)
+        self.GARAGE = add_suffix(self.GARAGE, gc_in_use)
+
         self.costs_per_gc = {gc: {key: 0 for key in self.get_gc_cost_variables()} for gc in
                              [self.GARAGE] + list(gc_in_use)}
         self.units: dict = None
@@ -70,51 +116,21 @@ class CostsObject:
         Set grid connector rotations.
 
         :return: The updated instance.
-        :rtype: CostsObject
+        :rtype: Costs
         """
-        rotations_per_gc = {
+        self.gc_rotations = {
             gc: [rot for rot in self.schedule.rotations.values() if rot.departure_name == gc]
-            for gc in self.get_gcs()}
-        self.gc_rotations = rotations_per_gc
+            for gc in self.gcs()}
         return self
 
-    def get_unit(self, key):
+    def get_vehicle_types(self):
         """
-        Get the unit for a given key.
+         Get the types of vehicles used.
 
-        :param key: The key to get the unit for.
-        :type key: str
-        :return: The unit associated with the key.
-        :rtype: str
-        """
-
-        in_costs_per_gc = any(key in d.keys() for d in self.costs_per_gc.values())
-        in_vehicles_per_gc = any(key in d.keys() for d in self.vehicles_per_gc.values())
-        assert in_costs_per_gc + in_vehicles_per_gc == 1
-        if in_costs_per_gc:
-            return self.get_costs_per_gc_unit(key)
-        if in_vehicles_per_gc:
-            return self.get_vehicles_per_gc_unit()
-
-    def get_costs_per_gc_unit(self, key):
-        """
-        Get the unit for a cost associated with a grid connector.
-
-        :param key: The key to get the unit for.
-        :type key: str
-        :return: The unit associated with the key.
-        :rtype: str
-        """
-        return self.get_annual_or_not(key)
-
-    def get_vehicles_per_gc_unit(self):
-        """
-        Get the unit for vehicles per grid connector.
-
-        :return: The unit for vehicles per grid connector.
-        :rtype: str
-        """
-        return "vehicles"
+         :return: The vehicle types.
+         :rtype: list
+         """
+        return next(iter(self.vehicles_per_gc.values())).keys()
 
     def get_annual_or_not(self, key):
         """
@@ -164,7 +180,7 @@ class CostsObject:
         return list(dict(sorted(self.costs_per_gc.items(), key=lambda x: x[1][self.SORT_COLUMN],
                                 reverse=True)).keys())
 
-    def get_gcs(self):
+    def gcs(self):
         """
         Get the grid connectors used in the scenario.
 
@@ -175,46 +191,42 @@ class CostsObject:
 
     def to_csv_lists(self):
         """
-        Convert costs to a list of lists easily converteable to a csv.
+        Convert costs to a list of lists easily convertible to a csv.
 
-        :return: The list of lists of parameters, units and costs per gc.
+        :return: list of lists of parameters, units and costs per gc.
         :rtype: list
         """
         output = [["parameter", "unit"] + self.get_columns()]
         for key in self.get_vehicle_types():
-            row = [key, self.get_unit(key)]
+            # The first two columns contain the parameter and unit
+            row = [key, "vehicles"]
+
             for col in self.get_columns():
                 row.append(self.vehicles_per_gc[col][key])
             output.append(row)
 
-        for key in next(iter(self.costs_per_gc.values())):
-            row = [key, self.get_unit(key)]
+        # Take a single station and take the cost parameters
+        cost_parameters = next(iter(self.costs_per_gc.values()))
+        for key in cost_parameters:
+            # The first two columns contain the parameter and unit
+            row = [key, self.get_annual_or_not(key)]
             for col in self.get_columns():
                 row.append(round(self.costs_per_gc[col][key], self.rounding_precision))
             output.append(row)
         return output
-
-    def get_vehicle_types(self):
-        """
-         Get the types of vehicles used.
-
-         :return: The vehicle types.
-         :rtype: list
-         """
-        return next(iter(self.vehicles_per_gc.values())).keys()
 
     def cumulate(self):
         """
         Cumulate the costs of vehicles and infrastructure.
 
         :return: The updated instance.
-        :rtype: CostsObject
+        :rtype: Costs
         """
         v_types = self.get_vehicle_types()
         self.vehicles_per_gc[self.CUMULATED] = dict()
         for v_type in v_types:
             self.vehicles_per_gc[self.CUMULATED][v_type] = sum(
-                [self.vehicles_per_gc[gc][v_type] for gc in self.get_gcs()])
+                [self.vehicles_per_gc[gc][v_type] for gc in self.gcs()])
 
         # Cumulate gcs variables
         self.costs_per_gc[self.CUMULATED] = dict()
@@ -239,7 +251,7 @@ class CostsObject:
         v_types = self.schedule.scenario["components"]["vehicle_types"]
         vehicle_count_per_gc = {gc: {v_type_name: 0 for v_type_name in v_types if
                                      self.schedule.vehicle_type_counts[v_type_name] > 0} for gc in
-                                list(self.get_gcs()) + [self.GARAGE]}
+                                list(self.gcs()) + [self.GARAGE]}
         for name, vehicle in self.scenario.components.vehicles.items():
             for rot in self.schedule.rotations.values():
                 if rot.vehicle_id == name:
@@ -254,7 +266,7 @@ class CostsObject:
         """Calculate vehicle numbers and set vehicles_per_gc before vehicle costs can be calculated.
 
         :return: self
-        :rtype: CostsObject
+        :rtype: Costs
         """
         self.vehicles_per_gc = self.get_vehicle_count_per_gc()
         return self
@@ -264,7 +276,7 @@ class CostsObject:
         Calculate and set the costs associated with vehicles at each grid connector.
 
         :return: self
-        :rtype: CostsObject
+        :rtype: Costs
         """
         # Iterate over each gc and use the vehicles which start and end at this gc for cost
         # calculation
@@ -292,10 +304,10 @@ class CostsObject:
 
         :raises Exception: if grid operator of grid connector can not be found in cost params
         :return: self
-        :rtype: CostsObject
+        :rtype: Costs
         """
         # get dict with costs for specific grid operator
-        for gcID, gc in self.get_gcs().items():
+        for gcID, gc in self.gcs().items():
             try:
                 c_params_go = self.params[gc.grid_operator]
             except KeyError:
@@ -374,13 +386,13 @@ class CostsObject:
         Calculate the costs associated with charging infrastructure at each grid connector.
 
         :return: self
-        :rtype: CostsObject
+        :rtype: Costs
         """
 
         all_stations = self.schedule.scenario["components"]["charging_stations"]
         # find all stations from the schedule which are grid connectors
         used_stations = {gcId: station for gcId, station in self.schedule.stations.items() if
-                         gcId in self.get_gcs()}
+                         gcId in self.gcs()}
 
         for gcID, station in used_stations.items():
             # depot charging station - each charging bus generates one CS
@@ -470,9 +482,9 @@ class CostsObject:
         Calculate the electricity costs at each grid connector.
 
         :return: self
-        :rtype: CostsObject
+        :rtype: Costs
         """
-        for gcID, gc in self.get_gcs().items():
+        for gcID, gc in self.gcs().items():
             station = self.schedule.stations[gcID]
             pv = sum([pv.nominal_power for pv in self.scenario.components.photovoltaics.values()
                       if pv.parent == gcID])
@@ -515,7 +527,7 @@ class CostsObject:
         Note that although a garage can have charging stations, electricity costs are not used.
 
         :return: self
-        :rtype: CostsObject
+        :rtype: Costs
         """
         c_garage_cs = (
                 self.params["garage"]["n_charging_stations"]
@@ -530,49 +542,18 @@ class CostsObject:
 
         self.costs_per_gc[self.GARAGE]["c_garage"] = c_garage_cs + c_garage_workstations
         self.costs_per_gc[self.GARAGE]["c_garage_annual"] = (
-                    c_garage_cs / self.params["cs"]["lifetime_cs"]
-                    + c_garage_workstations / self.params["garage"][
-                        "lifetime_workstations"])
+                c_garage_cs / self.params["cs"]["lifetime_cs"]
+                + c_garage_workstations / self.params["garage"][
+                    "lifetime_workstations"])
         return self
 
 
-def calculate_costs(c_params, scenario, schedule, args):
-    """ Calculates annual costs of all necessary vehicles and infrastructure.
-
-    :param c_params: Infrastructure component costs and specific grid operator costs.
-    :type c_params: dict
-    :param scenario: Information about the simulated scenario and all used parameters.
-    :type scenario: Scenario
-    :param schedule: Information about the whole bus schedule and all used parameters.
-    :type schedule: Schedule
-    :param args: Configuration arguments specified in config files contained in configs directory.
-    :type args: argparse.Namespace
-    """
-    cost_object = CostsObject(schedule, scenario, args, c_params)
-
-    # Split the rotations to their home depots as a dict
-    cost_object.set_gc_rotations()
-
-    # Count the number of vehicles per gc
-    cost_object.set_vehicles_per_gc()
-
-    # Calculate the cost these vehicles
-    cost_object.set_vehicle_costs_per_gc()
-
-    # Calculate the cost of the grid connections including stationary and feed in costs
-    cost_object.set_grid_connection_costs()
-
-    # costs for charging stations
-    cost_object.set_charging_infrastructure_costs()
-
-    cost_object.set_garage_costs()
-
-    # Get electricity costs from SpiceEV
-    cost_object.set_electricity_costs()
-
-    # Cumulate the costs of all gcs
-    cost_object.cumulate()
-
-    logging.info(cost_object.info())
-
-    setattr(scenario, "costs", cost_object)
+def add_suffix(name: str, gcs):
+    if name in gcs:
+        k = 1
+        suffix = "_" + k
+        while name + suffix in gcs:
+            k += 1
+            suffix = "_" + k
+        name = name + suffix
+    return name
