@@ -1129,20 +1129,16 @@ class StationOptimizer:
 
 
 def get_min_soc_and_index(soc_idx, mask):
-    """Returns the minimal soc and the corresponding index of a masked soc_idx
+    """ Returns the minimal soc and the corresponding index of a masked soc_idx.
 
-    :param soc_idx: soc values and their corresponding index of shape (nr_values,2)
+    :param soc_idx: soc values and their corresponding index of shape (2,nr_values).
     :type soc_idx: np.array
-
-    :param mask: boolean mask. Is false where the soc_idx has been checked already
+    :param mask: boolean mask. It is false where the soc_idx has been checked already
     :type mask: np.array
-
     :return: minimal soc and corresponding index
     :rtype: tuple(Float, Float)
     """
-    min_soc, idx = soc_idx[:, mask][:, np.argmin(soc_idx[0, mask])]
-    return min_soc, idx
-
+    return soc_idx[:, mask][:, np.argmin(soc_idx[0, mask])]
 
 def get_init_node():
     """ Returns the initialization dictionary / node of the decision tree.
