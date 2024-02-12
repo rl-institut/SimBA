@@ -2,6 +2,13 @@ import csv
 import pandas as pd
 from simba import util
 
+# String Lookups expected in the Dataframes containing Consumption data
+INCLINE = "incline"
+T_AMB = " t_amb"
+LEVEL_OF_LOADING = "level_of_loading"
+SPEED = "mean_speed_kmh"
+CONSUMPTION = "consumption_kwh_per_km"
+
 
 class Consumption:
     def __init__(self, vehicle_types, **kwargs) -> None:
@@ -55,9 +62,6 @@ class Consumption:
         :type mean_speed: float
         :return: Consumed energy [kWh] and delta SOC as tuple
         :rtype: (float, float)
-
-        :raises KeyError: if there is missing data for temperature or lol data
-        :raises AttributeError: if there is no path to temperature or lol data provided
         """
 
         assert self.vehicle_types.get(vehicle_type, {}).get(charging_type), (
@@ -73,33 +77,11 @@ class Consumption:
 
         # if no specific Temperature is given, lookup temperature
         if temp is None:
-            try:
-                temp = self.temperatures_by_hour[time.hour]
-            except AttributeError as e:
-                raise AttributeError(
-                    "Neither of these conditions is met:\n"
-                    "1. Temperature data is available for every trip through the trips file "
-                    "or a temperature over day file.\n"
-                    f"2. A constant mileage for the vehicle "
-                    f"{vehicle_info['mileage']} is provided."
-                ) from e
-            except KeyError as e:
-                raise KeyError(f"No temperature data for the hour {time.hour} is provided") from e
+            temp = self.get_temperature(time, vehicle_info)
 
-        # if no specific LoL is given, lookup temperature
+        # if no specific LoL is given, lookup LoL
         if level_of_loading is None:
-            try:
-                level_of_loading = self.lol_by_hour[time.hour]
-            except AttributeError as e:
-                raise AttributeError(
-                    "Neither of these conditions is met:\n"
-                    "1. Level of loading data is available for every trip through the trips file "
-                    "or a level of loading over day file.\n"
-                    f"2. A constant mileage for the vehicle "
-                    f"{vehicle_info['mileage']} is provided."
-                ) from e
-            except KeyError as e:
-                raise KeyError(f"No level of loading for the hour {time.hour} is provided") from e
+            level_of_loading = self.get_level_of_loading(time, vehicle_info)
 
         # load consumption csv
         consumption_path = str(vehicle_info["mileage"])
@@ -107,33 +89,24 @@ class Consumption:
         # consumption_files holds interpol functions of csv files which are called directly
 
         # try to use the interpol function. If it does not exist yet its created in except case.
-        consumption_function = vehicle_type+"_from_"+consumption_path
+        consumption_lookup_name = self.get_consumption_lookup_name(consumption_path, vehicle_type)
         try:
-            mileage = self.consumption_files[consumption_function](
+            mileage = self.consumption_files[consumption_lookup_name](
                 this_incline=height_diff / distance, this_temp=temp,
                 this_lol=level_of_loading, this_speed=mean_speed)
         except KeyError:
             # creating the interpol function from csv file.
             delim = util.get_csv_delim(consumption_path)
             df = pd.read_csv(consumption_path, sep=delim)
-            # create lookup table and make sure its in the same order as the input point
-            # which will be the input for the nd lookup
-            df = df[df["vehicle_type"] == vehicle_type]
-            assert len(df) > 0, f"Vehicle type {vehicle_type} not found in {consumption_path}"
-            inc_col = df["incline"]
-            tmp_col = df["t_amb"]
-            lol_col = df["level_of_loading"]
-            speed_col = df["mean_speed_kmh"]
-            cons_col = df["consumption_kwh_per_km"]
-            data_table = list(zip(inc_col, tmp_col, lol_col, speed_col, cons_col))
+            if "vehicle_type" in df.columns:
+                assert vehicle_type is not None
 
-            def interpol_function(this_incline, this_temp, this_lol, this_speed):
-                input_point = (this_incline, this_temp, this_lol, this_speed)
-                return util.nd_interp(input_point, data_table)
+                df = df[df["vehicle_type"] == vehicle_type]
+                assert len(df) > 0, f"Dataframe contains vehicle_type info but the {vehicle_type}" \
+                                    f" was not found"
+            self.set_consumption_interpolation(consumption_lookup_name, df)
 
-            self.consumption_files.update({consumption_function: interpol_function})
-
-            mileage = self.consumption_files[consumption_function](
+            mileage = self.consumption_files[consumption_lookup_name](
                this_incline=height_diff / distance, this_temp=temp,
                this_lol=level_of_loading, this_speed=mean_speed)
 
@@ -141,3 +114,106 @@ class Consumption:
         delta_soc = -1 * (consumed_energy / vehicle_info["capacity"])
 
         return consumed_energy, delta_soc
+
+    def set_consumption_interpolation(self, consumption_lookup_name: str, df: pd.DataFrame):
+        """
+         Set interpolation function for consumption lookup.
+
+         :param consumption_lookup_name: Name for the consumption lookup.
+         :type consumption_lookup_name: str
+         :param df: DataFrame containing consumption data.
+         :type df: pd.DataFrame
+         """
+        interpol_function = self.get_nd_interpolation(df)
+        self.consumption_files.update({consumption_lookup_name: interpol_function})
+
+    def get_nd_interpolation(self, df):
+        """
+        Get n-dimensional interpolation function.
+
+        :param df: DataFrame containing consumption data.
+        :type df: pd.DataFrame
+        :return: Interpolation function.
+        :rtype: function
+        """
+
+        inc_col = df[INCLINE]
+        tmp_col = df[T_AMB]
+        lol_col = df[LEVEL_OF_LOADING]
+        speed_col = df[SPEED]
+        cons_col = df[CONSUMPTION]
+        data_table = list(zip(inc_col, tmp_col, lol_col, speed_col, cons_col))
+
+        def interpol_function(this_incline, this_temp, this_lol, this_speed):
+            input_point = (this_incline, this_temp, this_lol, this_speed)
+            return util.nd_interp(input_point, data_table)
+
+        return interpol_function
+
+    def get_temperature(self, time, vehicle_info):
+        """
+        Get temperature for the given time.
+
+        :param time: time of the lookup.
+        :type time: datetime.datetime
+        :param vehicle_info: Information about the vehicle.
+        :type vehicle_info: dict
+        :return: Temperature.
+        :rtype: float
+        :raises AttributeError: if temperature data is not available.
+        :raises KeyError: if temperature data is not available for the given hour.
+        """
+
+        try:
+            return self.temperatures_by_hour[time.hour]
+        except AttributeError as e:
+            raise AttributeError(
+                "Neither of these conditions is met:\n"
+                "1. Temperature data is available for every trip through the trips file "
+                "or a temperature over day file.\n"
+                f"2. A constant mileage for the vehicle "
+                f"{vehicle_info['mileage']} is provided."
+            ) from e
+        except KeyError as e:
+            raise KeyError(f"No temperature data for the hour {time.hour} is provided") from e
+
+    def get_level_of_loading(self, time, vehicle_info):
+        """
+         Get level of loading for the given time.
+
+         :param time: time of the lookup.
+         :type time: datetime.datetime
+         :param vehicle_info: Information about the vehicle.
+         :type vehicle_info: dict
+         :return: Level of loading.
+         :rtype: float
+         :raises AttributeError: if level of loading data is not available.
+         :raises KeyError: if level of loading data is not available for the given hour.
+         """
+        try:
+            return self.lol_by_hour[time.hour]
+        except AttributeError as e:
+            raise AttributeError(
+                "Neither of these conditions is met:\n"
+                "1. Level of loading data is available for every trip through the trips file "
+                "or a level of loading over day file.\n"
+                f"2. A constant mileage for the vehicle "
+                f"{vehicle_info['mileage']} is provided."
+            ) from e
+        except KeyError as e:
+            raise KeyError(f"No level of loading for the hour {time.hour} is provided") from e
+
+    def get_consumption_lookup_name(self, consumption_path, vehicle_type):
+        """
+        Get name for the consumption lookup.
+
+        :param consumption_path: Path to consumption data.
+        :type consumption_path: str
+        :param vehicle_type: Type of vehicle.
+        :type vehicle_type: str
+        :return: Name for the consumption lookup.
+        :rtype: str
+        """
+
+        consumption_function = vehicle_type + "_from_" + consumption_path
+        return consumption_function
