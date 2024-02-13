@@ -3,6 +3,7 @@ import traceback
 from copy import deepcopy
 
 from simba import report, optimization, util
+from simba.data_container import DataContainer
 from simba.consumption import Consumption
 from simba.costs import calculate_costs
 from simba.optimizer_util import read_config as read_optimizer_config
@@ -24,13 +25,25 @@ def simulate(args):
     :return: final schedule and scenario
     :rtype: tuple
     """
-    schedule, args = pre_simulation(args)
+    # The data_container stores various input data.
+    data_container = create_and_fill_data_container(args)
+
+    schedule, args = pre_simulation(args, data_container)
     scenario = schedule.run(args)
     schedule, scenario = modes_simulation(schedule, scenario, args)
     return schedule, scenario
 
 
-def pre_simulation(args):
+def create_and_fill_data_container(args):
+    data_container = DataContainer()
+    # Add the vehicle_types from a json file
+    data_container.add_vehicle_types_from_json(args.vehicle_types_path)
+    # Add consumption data, which is found in the vehicle_type data
+    data_container.add_consumption_data_from_vehicle_type_linked_files()
+    return data_container
+
+
+def pre_simulation(args, data_container: DataContainer):
     """
     Prepare simulation.
 
@@ -38,20 +51,14 @@ def pre_simulation(args):
 
     :param args: arguments
     :type args: Namespace
+    :param data_container: data needed for simulation
+    :type data_container: DataContainer
     :raises Exception: If an input file does not exist, exit the program.
     :return: schedule, args
     :rtype: simba.schedule.Schedule, Namespace
     """
     # Deepcopy args so original args do not get mutated, i.e. deleted
     args = deepcopy(args)
-
-    try:
-        with open(args.vehicle_types, encoding='utf-8') as f:
-            vehicle_types = util.uncomment_json_file(f)
-            del args.vehicle_types
-    except FileNotFoundError:
-        raise Exception(f"Path to vehicle types ({args.vehicle_types}) "
-                        "does not exist. Exiting...")
 
     # load stations file
     try:
@@ -71,10 +78,17 @@ def pre_simulation(args):
                             "does not exist. Exiting...")
 
     # setup consumption calculator that can be accessed by all trips
-    Trip.consumption = Consumption(vehicle_types)
+    consumption = Consumption(data_container.vehicle_types_data)
+
+    for name, df in data_container.consumption_data.items():
+        consumption.set_consumption_interpolation(name, df)
+
+    # Add this consumption calculator to trip class
+    Trip.consumption = consumption
 
     # generate schedule from csv
-    schedule = Schedule.from_csv(args.input_schedule, vehicle_types, stations, **vars(args))
+    schedule = Schedule.from_csv(args.input_schedule, data_container.vehicle_types_data, stations,
+                                 **vars(args))
 
     # filter rotations
     schedule.rotation_filter(args)

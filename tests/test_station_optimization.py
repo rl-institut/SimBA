@@ -6,12 +6,11 @@ import re
 import sys
 import shutil
 
-from simba.consumption import Consumption
 import simba.optimizer_util as opt_util
 from simba.schedule import Schedule
 from simba.station_optimization import run_optimization
-from simba.trip import Trip
 import simba.util as util
+from tests.helpers import initialize_consumption
 from spice_ev.report import generate_soc_timeseries
 from tests.conftest import example_root
 
@@ -92,15 +91,13 @@ class TestStationOptimization:
             folder
         :type trips_file_name: str
         :return: schedule, scenario"""
+
         path_to_trips = file_root / trips_file_name
         sys.argv = ["foo", "--config", str(self.tmp_path / "simba.cfg")]
         args = util.get_args()
         args.input_schedule = path_to_trips
-        Trip.consumption = Consumption(self.vehicle_types,
-                                       outside_temperatures=None,
-                                       level_of_loading_over_day=None)
+        initialize_consumption(self.vehicle_types)
         args2 = copy(args)
-        del args2.vehicle_types
         generated_schedule = Schedule.from_csv(path_to_trips, self.vehicle_types,
                                                self.electrified_stations,
                                                **vars(args2))
@@ -197,7 +194,8 @@ class TestStationOptimization:
 
         trips_file_name = "trips_extended.csv"
         # adjust mileage so scenario is not possible without adding electrification
-        self.vehicle_types = adjust_vehicle_file(args.vehicle_types, mileage=2, capacity=150)
+
+        self.vehicle_types = adjust_vehicle_file(args.vehicle_types_path, mileage=2, capacity=150)
         sched, scen, args = self.basic_run(trips_file_name=trips_file_name)
         # optimization can only be properly tested if negative rotations exist
         assert len(sched.get_negative_rotations(scen)) > 0

@@ -154,7 +154,7 @@ def calculate_costs(c_params, scenario, schedule, args):
                                 costs["c_gcs_annual"] + costs["c_garage_annual"])
 
     # ELECTRICITY COSTS #
-
+    "https://github.com/rl-institut/spice_ev/archive/refs/tags/v1.0.0.tar.gz"
     for gcID, gc in scenario.components.grid_connectors.items():
         pv = sum([pv.nominal_power for pv in scenario.components.photovoltaics.values()
                   if pv.parent == gcID])

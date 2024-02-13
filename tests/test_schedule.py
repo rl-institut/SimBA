@@ -6,11 +6,10 @@ import sys
 import spice_ev.scenario as scenario
 from spice_ev.util import set_options_from_config
 
-from simba.simulate import pre_simulation
+from simba.simulate import pre_simulation, create_and_fill_data_container
 from tests.conftest import example_root, file_root
-from tests.helpers import generate_basic_schedule
-from simba import consumption, rotation, schedule, trip, util
-
+from tests.helpers import generate_basic_schedule, initialize_consumption
+from simba import rotation, schedule, util
 
 mandatory_args = {
     "min_recharge_deps_oppb": 0,
@@ -21,6 +20,10 @@ mandatory_args = {
     "cs_power_deps_depb": 50,
     "cs_power_deps_oppb": 150
 }
+
+
+def basic_run():
+    return TestSchedule().basic_run()
 
 
 class TestSchedule:
@@ -62,7 +65,8 @@ class TestSchedule:
         args.ALLOW_NEGATIVE_SOC = True
         args.attach_vehicle_soc = True
 
-        sched, args = pre_simulation(args)
+        data_container = create_and_fill_data_container(args)
+        sched, args = pre_simulation(args, data_container)
         scen = sched.run(args)
         return sched, scen, args
 
@@ -84,7 +88,7 @@ class TestSchedule:
 
         :param default_schedule_arguments: basic arguments the schedule needs for creation
         """
-        trip.Trip.consumption = consumption.Consumption(self.vehicle_types)
+        initialize_consumption(self.vehicle_types)
 
         default_schedule_arguments["path_to_csv"] = example_root / "trips_example.csv"
         generated_schedule = schedule.Schedule.from_csv(**default_schedule_arguments)
@@ -116,7 +120,7 @@ class TestSchedule:
         :param default_schedule_arguments: basic arguments the schedule needs for creation
         """
 
-        trip.Trip.consumption = consumption.Consumption(self.vehicle_types)
+        initialize_consumption(self.vehicle_types)
 
         default_schedule_arguments["path_to_csv"] = file_root / "trips_assign_vehicles.csv"
         generated_schedule = schedule.Schedule.from_csv(**default_schedule_arguments)
@@ -132,7 +136,7 @@ class TestSchedule:
         """
         # Changing self.vehicle_types can propagate to other tests
         vehicle_types = deepcopy(self.vehicle_types)
-        trip.Trip.consumption = consumption.Consumption(vehicle_types)
+        initialize_consumption(vehicle_types)
 
         default_schedule_arguments["path_to_csv"] = file_root / "trips_assign_vehicles.csv"
         default_schedule_arguments["vehicle_types"] = vehicle_types
@@ -157,7 +161,7 @@ class TestSchedule:
 
         :param default_schedule_arguments: basic arguments the schedule needs for creation
         """
-        trip.Trip.consumption = consumption.Consumption(self.vehicle_types)
+        initialize_consumption(self.vehicle_types)
 
         default_schedule_arguments["path_to_csv"] = file_root / "trips_assign_vehicles.csv"
         generated_schedule = schedule.Schedule.from_csv(**default_schedule_arguments)
@@ -260,8 +264,7 @@ class TestSchedule:
         args.days = None
         args.seed = 5
 
-        trip.Trip.consumption = consumption.Consumption(
-            self.vehicle_types)
+        initialize_consumption(self.vehicle_types)
 
         default_schedule_arguments["path_to_csv"] = example_root / "trips_example.csv"
         default_schedule_arguments["stations"] = electrified_stations
@@ -334,7 +337,7 @@ class TestSchedule:
         faulty_rot = list(sched.rotations.values())[0]
         faulty_trip = faulty_rot.trips[1]
         # create error through moving trip departure before last arrival
-        faulty_trip.departure_time = faulty_rot.trips[0].arrival_time-timedelta(minutes=1)
+        faulty_trip.departure_time = faulty_rot.trips[0].arrival_time - timedelta(minutes=1)
         assert schedule.Schedule.check_consistency(sched)["1"] == error
 
         error = "Trips are not sequential"

@@ -1,13 +1,9 @@
 import csv
+import warnings
+
 import pandas as pd
 from simba import util
-
-# String Lookups expected in the Dataframes containing Consumption data
-INCLINE = "incline"
-T_AMB = " t_amb"
-LEVEL_OF_LOADING = "level_of_loading"
-SPEED = "mean_speed_kmh"
-CONSUMPTION = "consumption_kwh_per_km"
+from simba.data_container import INCLINE, LEVEL_OF_LOADING, SPEED, T_AMB, CONSUMPTION, VEHICLE_TYPE
 
 
 class Consumption:
@@ -87,28 +83,11 @@ class Consumption:
         consumption_path = str(vehicle_info["mileage"])
 
         # consumption_files holds interpol functions of csv files which are called directly
-
         # try to use the interpol function. If it does not exist yet its created in except case.
         consumption_lookup_name = self.get_consumption_lookup_name(consumption_path, vehicle_type)
-        try:
-            mileage = self.consumption_files[consumption_lookup_name](
-                this_incline=height_diff / distance, this_temp=temp,
-                this_lol=level_of_loading, this_speed=mean_speed)
-        except KeyError:
-            # creating the interpol function from csv file.
-            delim = util.get_csv_delim(consumption_path)
-            df = pd.read_csv(consumption_path, sep=delim)
-            if "vehicle_type" in df.columns:
-                assert vehicle_type is not None
-
-                df = df[df["vehicle_type"] == vehicle_type]
-                assert len(df) > 0, f"Dataframe contains vehicle_type info but the {vehicle_type}" \
-                                    f" was not found"
-            self.set_consumption_interpolation(consumption_lookup_name, df)
-
-            mileage = self.consumption_files[consumption_lookup_name](
-               this_incline=height_diff / distance, this_temp=temp,
-               this_lol=level_of_loading, this_speed=mean_speed)
+        mileage = self.consumption_files[consumption_lookup_name](
+            this_incline=height_diff / distance, this_temp=temp,
+            this_lol=level_of_loading, this_speed=mean_speed)
 
         consumed_energy = mileage * distance / 1000  # kWh
         delta_soc = -1 * (consumed_energy / vehicle_info["capacity"])
@@ -119,12 +98,30 @@ class Consumption:
         """
          Set interpolation function for consumption lookup.
 
+         If dataframes contain vehicle_types the name of the vehicle_type will be added and the df
+         filtered.
+
          :param consumption_lookup_name: Name for the consumption lookup.
          :type consumption_lookup_name: str
          :param df: DataFrame containing consumption data.
          :type df: pd.DataFrame
          """
+
+        if VEHICLE_TYPE in df.columns:
+            unique_vts = df[VEHICLE_TYPE].unique()
+            for vt in unique_vts:
+                mask = df[VEHICLE_TYPE] == vt
+                df_vt = df.loc[mask, [INCLINE, SPEED, LEVEL_OF_LOADING, T_AMB, CONSUMPTION]]
+                interpol_function = self.get_nd_interpolation(df_vt)
+                vt_specific_name = self.get_consumption_lookup_name(consumption_lookup_name, vt)
+                if vt_specific_name in self.consumption_files:
+                    warnings.warn("Overwriting exising consumption function")
+                self.consumption_files.update({vt_specific_name: interpol_function})
+            return
+
         interpol_function = self.get_nd_interpolation(df)
+        if consumption_lookup_name in self.consumption_files:
+            warnings.warn("Overwriting exising consumption function")
         self.consumption_files.update({consumption_lookup_name: interpol_function})
 
     def get_nd_interpolation(self, df):

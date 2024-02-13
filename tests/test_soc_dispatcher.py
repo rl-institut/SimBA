@@ -1,17 +1,16 @@
 from copy import deepcopy
-from dataclasses import dataclass
 from datetime import timedelta
 import sys
 import pandas as pd
 import pytest
 
-from simba.simulate import pre_simulation
+from simba.simulate import pre_simulation, create_and_fill_data_container
 from simba.trip import Trip
 from tests.conftest import example_root
 from simba import util
 
 
-class TestSchedule:
+class TestSocDispatcher:
     def basic_run(self):
         """Returns a schedule, scenario and args after running SimBA.
         :return: schedule, scenario, args
@@ -22,7 +21,8 @@ class TestSchedule:
         args = util.get_args()
         args.seed = 5
         args.attach_vehicle_soc = True
-        sched, args = pre_simulation(args)
+        data_container = create_and_fill_data_container(args)
+        sched, args = pre_simulation(args, data_container=data_container)
 
         # Copy an opportunity rotation twice, so dispatching can be tested
         assert sched.rotations["1"].charging_type == "oppb"
@@ -83,19 +83,13 @@ class TestSchedule:
         # eflipsoutput
         eflips_output = []
 
-        @dataclass
-        class eflips:
-            rotation_id: str
-            vehicle_id: str
-            soc_departure: float
-
-        eflips_output.append(eflips(rotation_id="4", vehicle_id="AB_depb_1", soc_departure=1))
-        eflips_output.append(eflips(rotation_id="3", vehicle_id="AB_depb_2", soc_departure=0.8))
-        eflips_output.append(eflips(rotation_id="2", vehicle_id="AB_depb_3", soc_departure=1))
-        eflips_output.append(eflips(rotation_id="21", vehicle_id="AB_depb_3", soc_departure=0.69))
-        eflips_output.append(eflips(rotation_id="1", vehicle_id="AB_oppb_1", soc_departure=1))
-        eflips_output.append(eflips(rotation_id="11", vehicle_id="AB_oppb_2", soc_departure=0.6))
-        eflips_output.append(eflips(rotation_id="12", vehicle_id="AB_oppb_1", soc_departure=0.945))
+        eflips_output.append(dict(rot="4", v_id="AB_depb_1", soc=1))
+        eflips_output.append(dict(rot="3", v_id="AB_depb_2", soc=0.8))
+        eflips_output.append(dict(rot="21", v_id="AB_depb_3", soc=0.69))
+        eflips_output.append(dict(rot="2", v_id="AB_depb_3", soc=1))
+        eflips_output.append(dict(rot="1", v_id="AB_oppb_1", soc=1))
+        eflips_output.append(dict(rot="11", v_id="AB_oppb_2", soc=0.6))
+        eflips_output.append(dict(rot="12", v_id="AB_oppb_1", soc=0.945))
         return eflips_output
 
     def test_basic_dispatching(self, eflips_output):
@@ -119,7 +113,7 @@ class TestSchedule:
         """
         sched, scen, args = self.basic_run()
         # delete data for a single rotation but keep the rotation_id
-        missing_rot_id = eflips_output[-1].rotation_id
+        missing_rot_id = eflips_output[-1]["rot"]
         del eflips_output[-1]
 
         # if data for a rotation is missing an error containing the rotation id should be raised
