@@ -85,7 +85,13 @@ class Consumption:
         # consumption_files holds interpol functions of csv files which are called directly
         # try to use the interpol function. If it does not exist yet its created in except case.
         consumption_lookup_name = self.get_consumption_lookup_name(consumption_path, vehicle_type)
-        mileage = self.consumption_files[consumption_lookup_name](
+
+        # This lookup includes the vehicle type. If the consumption data did not include vehicle
+        # types this key will not be found. In this case use the file path instead
+        interpol_function = self.consumption_files.get(consumption_lookup_name,
+                                                       self.consumption_files[consumption_path])
+
+        mileage = interpol_function(
             this_incline=height_diff / distance, this_temp=temp,
             this_lol=level_of_loading, this_speed=mean_speed)
 
