@@ -3,7 +3,7 @@ import warnings
 
 import pandas as pd
 from simba import util
-from simba.data_container import INCLINE, LEVEL_OF_LOADING, SPEED, T_AMB, CONSUMPTION, VEHICLE_TYPE
+from simba.ids import INCLINE, LEVEL_OF_LOADING, SPEED, T_AMB, CONSUMPTION, VEHICLE_TYPE
 
 
 class Consumption:
@@ -88,8 +88,10 @@ class Consumption:
 
         # This lookup includes the vehicle type. If the consumption data did not include vehicle
         # types this key will not be found. In this case use the file path instead
-        interpol_function = self.consumption_files.get(consumption_lookup_name,
-                                                       self.consumption_files[consumption_path])
+        try:
+            interpol_function = self.consumption_files[consumption_lookup_name]
+        except KeyError:
+            interpol_function = self.consumption_files[consumption_path]
 
         mileage = interpol_function(
             this_incline=height_diff / distance, this_temp=temp,

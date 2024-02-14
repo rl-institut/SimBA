@@ -6,14 +6,7 @@ import pandas as pd
 
 from simba import util
 from simba.consumption import Consumption
-
-# String Lookups expected in the Dataframes containing Consumption data
-INCLINE = "incline"
-T_AMB = "t_amb"
-LEVEL_OF_LOADING = "level_of_loading"
-SPEED = "mean_speed_kmh"
-CONSUMPTION = "consumption_kwh_per_km"
-VEHICLE_TYPE = "vehicle_type"
+from simba.ids import INCLINE, LEVEL_OF_LOADING, SPEED, T_AMB, CONSUMPTION
 
 
 class DataContainer:
