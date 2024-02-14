@@ -4,7 +4,6 @@ from copy import deepcopy
 
 from simba import report, optimization, util
 from simba.data_container import DataContainer
-from simba.consumption import Consumption
 from simba.costs import calculate_costs
 from simba.optimizer_util import read_config as read_optimizer_config
 from simba.schedule import Schedule
@@ -77,14 +76,8 @@ def pre_simulation(args, data_container: DataContainer):
             raise Exception(f"Path to cost parameters ({args.cost_parameters_file}) "
                             "does not exist. Exiting...")
 
-    # setup consumption calculator that can be accessed by all trips
-    consumption = Consumption(data_container.vehicle_types_data)
-
-    for name, df in data_container.consumption_data.items():
-        consumption.set_consumption_interpolation(name, df)
-
-    # Add this consumption calculator to trip class
-    Trip.consumption = consumption
+    # Add consumption calculator to trip class
+    Trip.consumption = data_container.to_consumption()
 
     # generate schedule from csv
     schedule = Schedule.from_csv(args.input_schedule, data_container.vehicle_types_data, stations,

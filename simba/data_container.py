@@ -5,6 +5,7 @@ from typing import Dict
 import pandas as pd
 
 from simba import util
+from simba.consumption import Consumption
 
 # String Lookups expected in the Dataframes containing Consumption data
 INCLINE = "incline"
@@ -63,6 +64,16 @@ class DataContainer:
             assert expected_col in df.columns, f"Consumption data is missing {expected_col}"
         assert data_name not in self.consumption_data, f"{data_name} already exists in data"
         self.consumption_data[data_name] = df
+
+    def to_consumption(self) -> Consumption:
+        """Build a consumption instance from the stored data
+        :returns: Consumption instance
+        """
+        # setup consumption calculator that can be accessed by all trips
+        consumption = Consumption(self.vehicle_types_data)
+        for name, df in self.consumption_data.items():
+            consumption.set_consumption_interpolation(name, df)
+        return consumption
 
 
 def get_values_from_nested_key(key, data: dict) -> list[any]:
