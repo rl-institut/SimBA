@@ -69,7 +69,7 @@ class DataContainer:
         return consumption
 
 
-def get_values_from_nested_key(key, data: dict) -> list[any]:
+def get_values_from_nested_key(key, data: dict) -> list:
     """Get all the values of the specified key in a nested dict
 
     :param key: key to find
