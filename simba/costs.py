@@ -112,27 +112,6 @@ class Costs:
                 f"Annual maintenance costs: {cumulated['c_maint_annual']} €/a. \n"
                 f"Annual costs for electricity: {cumulated['c_el_annual']} €/a.\n")
 
-    def set_gc_rotations(self):
-        """
-        Set grid connector rotations.
-
-        :return: The updated instance.
-        :rtype: Costs
-        """
-        self.gc_rotations = {
-            gc: [rot for rot in self.schedule.rotations.values() if rot.departure_name == gc]
-            for gc in self.gcs}
-        return self
-
-    def get_vehicle_types(self):
-        """
-         Get the types of vehicles used.
-
-         :return: The vehicle types.
-         :rtype: list
-         """
-        return next(iter(self.vehicles_per_gc.values())).keys()
-
     def get_annual_or_not(self, key):
         """
         Get the unit for annual or non-annual costs.
@@ -146,6 +125,28 @@ class Costs:
             return "€/year"
         else:
             return "€"
+
+    def get_columns(self):
+        """
+        Get the sorted columns for cost calculations.
+
+        :return: The list of columns.
+        :rtype: list
+        """
+        return list(dict(sorted(self.costs_per_gc.items(), key=lambda x: x[1][self.SORT_COLUMN],
+                                reverse=True)).keys())
+
+    def set_gc_rotations(self):
+        """
+        Set grid connector rotations.
+
+        :return: The updated instance.
+        :rtype: Costs
+        """
+        self.gc_rotations = {
+            gc: [rot for rot in self.schedule.rotations.values() if rot.departure_name == gc]
+            for gc in self.gcs}
+        return self
 
     def get_gc_cost_variables(self):
         """
@@ -171,196 +172,14 @@ class Costs:
             "c_el_energy_price_annual",
             "c_el_taxes_annual", "c_el_feed_in_remuneration_annual", "c_el_annual"]
 
-    def get_columns(self):
+    def get_vehicle_types(self):
         """
-        Get the sorted columns for cost calculations.
+         Get the types of vehicles used.
 
-        :return: The list of columns.
-        :rtype: list
-        """
-        return list(dict(sorted(self.costs_per_gc.items(), key=lambda x: x[1][self.SORT_COLUMN],
-                                reverse=True)).keys())
-
-    def to_csv_lists(self):
-        """
-        Convert costs to a list of lists easily convertible to a csv.
-
-        :return: list of lists of parameters, units and costs per gc.
-        :rtype: list
-        """
-        output = [["parameter", "unit"] + self.get_columns()]
-        for key in self.get_vehicle_types():
-            # The first two columns contain the parameter and unit 'vehicles'
-            row = [key, "vehicles"]
-
-            for col in self.get_columns():
-                row.append(self.vehicles_per_gc[col][key])
-            output.append(row)
-
-        # Take a single station and take the cost parameters
-        cost_parameters = self.get_gc_cost_variables()
-        for key in cost_parameters:
-            # The first two columns contain the parameter and unit
-            row = [key, self.get_annual_or_not(key)]
-            for col in self.get_columns():
-                row.append(round(self.costs_per_gc[col][key], self.rounding_precision))
-            output.append(row)
-        return output
-
-    def cumulate(self):
-        """
-        Cumulate the costs of vehicles and infrastructure.
-
-        :return: The updated instance.
-        :rtype: Costs
-        """
-        v_types = self.get_vehicle_types()
-        self.vehicles_per_gc[self.CUMULATED] = dict()
-        for v_type in v_types:
-            self.vehicles_per_gc[self.CUMULATED][v_type] = sum(
-                [self.vehicles_per_gc[gc][v_type] for gc in self.gcs])
-
-        # Cumulate gcs variables
-        self.costs_per_gc[self.CUMULATED] = dict()
-        for key in self.get_gc_cost_variables():
-            self.costs_per_gc[self.CUMULATED][key] = 0
-            for gc in self.costs_per_gc.keys()-[self.CUMULATED]:
-                self.costs_per_gc[self.CUMULATED][key] += self.costs_per_gc[gc][key]
-
-        self.costs_per_gc[self.CUMULATED]["c_invest"] += self.costs_per_gc[self.GARAGE]["c_garage"]
-        self.costs_per_gc[self.CUMULATED]["c_invest_annual"] += self.costs_per_gc[self.GARAGE][
-            "c_garage_annual"]
-        return self
-
-    def set_vehicles_per_gc(self):
-        """Calculate vehicle numbers and set vehicles_per_gc before vehicle costs can be calculated.
-        Calculate the number of vehicles at each grid connector.
-
-        :return: self
-        :rtype: Costs
-        """
-        v_types = self.schedule.scenario["components"]["vehicle_types"]
-        vehicles_per_gc = {gc: {v_type_name: set() for v_type_name in v_types if
-                                self.schedule.vehicle_type_counts[v_type_name] > 0} for gc in
-                           self.gcs_and_garage}
-        for rot in self.schedule.rotations.values():
-            # Get the vehicle_type_name including charging type by removing the number of the id
-            vehicle_type_name = "_".join(rot.vehicle_id.split("_")[:-1])
-            vehicles_per_gc[rot.departure_name][vehicle_type_name].add(rot.vehicle_id)
-        self.vehicles_per_gc = {
-            gc: {v_type_name: len(s) for v_type_name, s in vehicles_dict.items()} for
-            gc, vehicles_dict in vehicles_per_gc.items()}
-        return self
-
-    def set_vehicle_costs_per_gc(self):
-        """
-        Calculate and set the costs associated with vehicles at each grid connector.
-
-        :return: self
-        :rtype: Costs
-        """
-        # Iterate over each gc and use the vehicles which start and end at this gc for cost
-        # calculation
-        for gc, vehicle_types in self.vehicles_per_gc.items():
-            for v_type, vehicle_number in vehicle_types.items():
-                try:
-                    costs_vehicle = self.params["vehicles"][v_type]["capex"]
-                except KeyError:
-                    warnings.warn("No capex defined for vehicle type " + v_type +
-                                  ". Unable to calculate investment costs for this vehicle type.")
-                    continue
-                vehicle_lifetime = self.params["vehicles"][v_type]["lifetime"]
-                battery_lifetime = self.params["batteries"]["lifetime_battery"]
-                capacity = self.schedule.scenario["components"]["vehicle_types"][v_type]["capacity"]
-                cost_per_kWh = self.params["batteries"]["cost_per_kWh"]
-                c_vehicles_vt = (vehicle_number * (costs_vehicle + (
-                        vehicle_lifetime // battery_lifetime) * capacity * cost_per_kWh))
-                c_vehicles_annual = c_vehicles_vt / vehicle_lifetime
-                self.costs_per_gc[gc]["c_vehicles"] += c_vehicles_vt
-                self.costs_per_gc[gc]["c_vehicles_annual"] += c_vehicles_annual
-        return self
-
-    def set_grid_connection_costs(self):
-        """Calculate the costs of each grid connection
-
-        :raises Exception: if grid operator of grid connector can not be found in cost params
-        :return: self
-        :rtype: Costs
-        """
-        # get dict with costs for specific grid operator
-        for gcID, gc in self.gcs.items():
-            try:
-                c_params_go = self.params[gc.grid_operator]
-            except KeyError:
-                raise Exception(f"{gcID}: Unknown grid operator {gc.grid_operator}, "
-                                "might have to set in electrified stations or cost params")
-            # get max. power of grid connector
-
-            gc_timeseries = getattr(self.scenario, f"{gcID}_timeseries")
-            gc_max_power = -min(gc_timeseries["grid supply [kW]"])
-            # skip grid connector, if not actually used
-            if gc_max_power == 0:
-                continue
-            # get voltage_level
-            voltage_level = self.schedule.stations[gcID].get("voltage_level",
-                                                             self.args.default_voltage_level)
-            # get distance between grid and grid connector
-            distance_to_grid = self.schedule.stations[gcID].get(
-                "distance_to_grid", c_params_go["gc"][voltage_level]["default_distance"])
-            # calculate grid connection costs, typically building costs and building cost subsidy
-            c_gc = (c_params_go["gc"][voltage_level]["capex_gc_fix"] +
-                    c_params_go["gc"][voltage_level]["capex_gc_per_kW"] * gc_max_power +
-                    c_params_go["gc"][voltage_level]["capex_gc_per_meter"] * distance_to_grid)
-            # calculate transformer costs
-            c_transformer = (
-                    c_params_go["gc"][voltage_level]["capex_transformer_fix"] +
-                    c_params_go["gc"][voltage_level]["capex_transformer_per_kW"] * gc_max_power)
-            # calculate total cost of grid connection
-            # calculate annual costs of grid connection, depending on lifetime of gc and transformer
-            c_gc_annual = (c_gc / c_params_go["gc"]["lifetime_gc"] +
-                           c_transformer / c_params_go["gc"]["lifetime_transformer"])
-            # calculate maintenance cost of grid connection
-            c_maint_gc_annual = (c_transformer * c_params_go["gc"]["c_maint_transformer_per_year"])
-            # Store the individual costs of the GC as well
-            self.costs_per_gc[gcID]["c_gcs"] = c_gc + c_transformer
-            self.costs_per_gc[gcID]["c_gcs_annual"] = c_gc_annual
-            self.costs_per_gc[gcID]["c_maint_gc_annual"] = c_maint_gc_annual
-
-            # STATIONARY STORAGE
-            # assume there is a stationary storage
-            try:
-                # calculate costs of stationary storage
-                c_stat_storage = (
-                        self.params["stationary_storage"]["capex_fix"] +
-                        self.params["stationary_storage"]["capex_per_kWh"] *
-                        self.schedule.stations[gcID]["battery"]["capacity"])
-                self.costs_per_gc[gcID]["c_stat_storage"] = c_stat_storage
-
-                self.costs_per_gc[gcID]["c_stat_storage_annual"] = c_stat_storage / self.params[
-                    "stationary_storage"]["lifetime_stat_storage"]
-                self.costs_per_gc[gcID]["c_maint_stat_storage_annual"] = (
-                        c_stat_storage * self.params["stationary_storage"][
-                            "c_maint_stat_storage_per_year"])
-            except KeyError:
-                # if no stationary storage at grid connector: cost is 0
-                pass
-
-            # FEED IN (local renewables)
-            # assume there is a feed in
-            try:
-                # calculate costs of feed in
-                c_feed_in = (self.params["feed_in"]["capex_fix"] +
-                             self.params["feed_in"]["capex_per_kW"] *
-                             self.schedule.stations[gcID]["energy_feed_in"]["nominal_power"])
-                self.costs_per_gc[gcID]["c_feed_in"] = c_feed_in
-                self.costs_per_gc[gcID]["c_feed_in_annual"] = (
-                        c_feed_in / self.params["feed_in"]["lifetime_feed_in"])
-                self.costs_per_gc[gcID]["c_maint_feed_in_annual"] = (
-                        c_feed_in * self.params["feed_in"]["c_maint_feed_in_per_year"])
-            except KeyError:
-                # if no feed in at grid connector: cost is 0
-                pass
-        return self
+         :return: The vehicle types.
+         :rtype: list
+         """
+        return next(iter(self.vehicles_per_gc.values())).keys()
 
     def set_charging_infrastructure_costs(self):
         """
@@ -525,6 +344,187 @@ class Costs:
                 + c_garage_workstations / self.params["garage"][
                     "lifetime_workstations"])
         return self
+
+    def set_grid_connection_costs(self):
+        """Calculate the costs of each grid connection
+
+        :raises Exception: if grid operator of grid connector can not be found in cost params
+        :return: self
+        :rtype: Costs
+        """
+        # get dict with costs for specific grid operator
+        for gcID, gc in self.gcs.items():
+            try:
+                c_params_go = self.params[gc.grid_operator]
+            except KeyError:
+                raise Exception(f"{gcID}: Unknown grid operator {gc.grid_operator}, "
+                                "might have to set in electrified stations or cost params")
+            # get max. power of grid connector
+
+            gc_timeseries = getattr(self.scenario, f"{gcID}_timeseries")
+            gc_max_power = -min(gc_timeseries["grid supply [kW]"])
+            # skip grid connector, if not actually used
+            if gc_max_power == 0:
+                continue
+            # get voltage_level
+            voltage_level = self.schedule.stations[gcID].get("voltage_level",
+                                                             self.args.default_voltage_level)
+            # get distance between grid and grid connector
+            distance_to_grid = self.schedule.stations[gcID].get(
+                "distance_to_grid", c_params_go["gc"][voltage_level]["default_distance"])
+            # calculate grid connection costs, typically building costs and building cost subsidy
+            c_gc = (c_params_go["gc"][voltage_level]["capex_gc_fix"] +
+                    c_params_go["gc"][voltage_level]["capex_gc_per_kW"] * gc_max_power +
+                    c_params_go["gc"][voltage_level]["capex_gc_per_meter"] * distance_to_grid)
+            # calculate transformer costs
+            c_transformer = (
+                    c_params_go["gc"][voltage_level]["capex_transformer_fix"] +
+                    c_params_go["gc"][voltage_level]["capex_transformer_per_kW"] * gc_max_power)
+            # calculate total cost of grid connection
+            # calculate annual costs of grid connection, depending on lifetime of gc and transformer
+            c_gc_annual = (c_gc / c_params_go["gc"]["lifetime_gc"] +
+                           c_transformer / c_params_go["gc"]["lifetime_transformer"])
+            # calculate maintenance cost of grid connection
+            c_maint_gc_annual = (c_transformer * c_params_go["gc"]["c_maint_transformer_per_year"])
+            # Store the individual costs of the GC as well
+            self.costs_per_gc[gcID]["c_gcs"] = c_gc + c_transformer
+            self.costs_per_gc[gcID]["c_gcs_annual"] = c_gc_annual
+            self.costs_per_gc[gcID]["c_maint_gc_annual"] = c_maint_gc_annual
+
+            # STATIONARY STORAGE
+            # assume there is a stationary storage
+            try:
+                # calculate costs of stationary storage
+                c_stat_storage = (
+                        self.params["stationary_storage"]["capex_fix"] +
+                        self.params["stationary_storage"]["capex_per_kWh"] *
+                        self.schedule.stations[gcID]["battery"]["capacity"])
+                self.costs_per_gc[gcID]["c_stat_storage"] = c_stat_storage
+
+                self.costs_per_gc[gcID]["c_stat_storage_annual"] = c_stat_storage / self.params[
+                    "stationary_storage"]["lifetime_stat_storage"]
+                self.costs_per_gc[gcID]["c_maint_stat_storage_annual"] = (
+                        c_stat_storage * self.params["stationary_storage"][
+                            "c_maint_stat_storage_per_year"])
+            except KeyError:
+                # if no stationary storage at grid connector: cost is 0
+                pass
+
+            # FEED IN (local renewables)
+            # assume there is a feed in
+            try:
+                # calculate costs of feed in
+                c_feed_in = (self.params["feed_in"]["capex_fix"] +
+                             self.params["feed_in"]["capex_per_kW"] *
+                             self.schedule.stations[gcID]["energy_feed_in"]["nominal_power"])
+                self.costs_per_gc[gcID]["c_feed_in"] = c_feed_in
+                self.costs_per_gc[gcID]["c_feed_in_annual"] = (
+                        c_feed_in / self.params["feed_in"]["lifetime_feed_in"])
+                self.costs_per_gc[gcID]["c_maint_feed_in_annual"] = (
+                        c_feed_in * self.params["feed_in"]["c_maint_feed_in_per_year"])
+            except KeyError:
+                # if no feed in at grid connector: cost is 0
+                pass
+        return self
+
+    def set_vehicles_per_gc(self):
+        """Calculate vehicle numbers and set vehicles_per_gc before vehicle costs can be calculated.
+        Calculate the number of vehicles at each grid connector.
+
+        :return: self
+        :rtype: Costs
+        """
+        v_types = self.schedule.scenario["components"]["vehicle_types"]
+        vehicles_per_gc = {gc: {v_type_name: set() for v_type_name in v_types if
+                                self.schedule.vehicle_type_counts[v_type_name] > 0} for gc in
+                           self.gcs_and_garage}
+        for rot in self.schedule.rotations.values():
+            # Get the vehicle_type_name including charging type by removing the number of the id
+            vehicle_type_name = "_".join(rot.vehicle_id.split("_")[:-1])
+            vehicles_per_gc[rot.departure_name][vehicle_type_name].add(rot.vehicle_id)
+        self.vehicles_per_gc = {
+            gc: {v_type_name: len(s) for v_type_name, s in vehicles_dict.items()} for
+            gc, vehicles_dict in vehicles_per_gc.items()}
+        return self
+
+    def set_vehicle_costs_per_gc(self):
+        """
+        Calculate and set the costs associated with vehicles at each grid connector.
+
+        :return: self
+        :rtype: Costs
+        """
+        # Iterate over each gc and use the vehicles which start and end at this gc for cost
+        # calculation
+        for gc, vehicle_types in self.vehicles_per_gc.items():
+            for v_type, vehicle_number in vehicle_types.items():
+                try:
+                    costs_vehicle = self.params["vehicles"][v_type]["capex"]
+                except KeyError:
+                    warnings.warn("No capex defined for vehicle type " + v_type +
+                                  ". Unable to calculate investment costs for this vehicle type.")
+                    continue
+                vehicle_lifetime = self.params["vehicles"][v_type]["lifetime"]
+                battery_lifetime = self.params["batteries"]["lifetime_battery"]
+                capacity = self.schedule.scenario["components"]["vehicle_types"][v_type]["capacity"]
+                cost_per_kWh = self.params["batteries"]["cost_per_kWh"]
+                c_vehicles_vt = (vehicle_number * (costs_vehicle + (
+                        vehicle_lifetime // battery_lifetime) * capacity * cost_per_kWh))
+                c_vehicles_annual = c_vehicles_vt / vehicle_lifetime
+                self.costs_per_gc[gc]["c_vehicles"] += c_vehicles_vt
+                self.costs_per_gc[gc]["c_vehicles_annual"] += c_vehicles_annual
+        return self
+
+    def cumulate(self):
+        """
+        Cumulate the costs of vehicles and infrastructure.
+
+        :return: The updated instance.
+        :rtype: Costs
+        """
+        v_types = self.get_vehicle_types()
+        self.vehicles_per_gc[self.CUMULATED] = dict()
+        for v_type in v_types:
+            self.vehicles_per_gc[self.CUMULATED][v_type] = sum(
+                [self.vehicles_per_gc[gc][v_type] for gc in self.gcs])
+
+        # Cumulate gcs variables
+        self.costs_per_gc[self.CUMULATED] = dict()
+        for key in self.get_gc_cost_variables():
+            self.costs_per_gc[self.CUMULATED][key] = 0
+            for gc in self.costs_per_gc.keys()-[self.CUMULATED]:
+                self.costs_per_gc[self.CUMULATED][key] += self.costs_per_gc[gc][key]
+
+        self.costs_per_gc[self.CUMULATED]["c_invest"] += self.costs_per_gc[self.GARAGE]["c_garage"]
+        self.costs_per_gc[self.CUMULATED]["c_invest_annual"] += self.costs_per_gc[self.GARAGE][
+            "c_garage_annual"]
+        return self
+
+    def to_csv_lists(self):
+        """
+        Convert costs to a list of lists easily convertible to a csv.
+
+        :return: list of lists of parameters, units and costs per gc.
+        :rtype: list
+        """
+        output = [["parameter", "unit"] + self.get_columns()]
+        for key in self.get_vehicle_types():
+            # The first two columns contain the parameter and unit 'vehicles'
+            row = [key, "vehicles"]
+
+            for col in self.get_columns():
+                row.append(self.vehicles_per_gc[col][key])
+            output.append(row)
+
+        # Take a single station and take the cost parameters
+        cost_parameters = self.get_gc_cost_variables()
+        for key in cost_parameters:
+            # The first two columns contain the parameter and unit
+            row = [key, self.get_annual_or_not(key)]
+            for col in self.get_columns():
+                row.append(round(self.costs_per_gc[col][key], self.rounding_precision))
+            output.append(row)
+        return output
 
 
 def add_suffix(name: str, gcs):
