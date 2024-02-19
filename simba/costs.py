@@ -236,23 +236,20 @@ class Costs:
         """Calculate vehicle numbers and set vehicles_per_gc before vehicle costs can be calculated.
         Calculate the number of vehicles at each grid connector.
 
-        :raises Exception: If a vehicle from the scenario is not found in any rotation
         :return: self
         :rtype: Costs
         """
         v_types = self.schedule.scenario["components"]["vehicle_types"]
-        vehicle_count_per_gc = {gc: {v_type_name: 0 for v_type_name in v_types if
-                                     self.schedule.vehicle_type_counts[v_type_name] > 0} for gc in
-                                self.gcs_and_garage}
-        for name, vehicle in self.scenario.components.vehicles.items():
-            for rot in self.schedule.rotations.values():
-                if rot.vehicle_id == name:
-                    vehicle_count_per_gc[rot.departure_name][
-                        "_".join(name.split("_")[:-1])] += 1
-                    break
-            else:
-                raise Exception(f"Vehicle {name} not found in rotations")
-        self.vehicles_per_gc = vehicle_count_per_gc
+        vehicles_per_gc = {gc: {v_type_name: set() for v_type_name in v_types if
+                                self.schedule.vehicle_type_counts[v_type_name] > 0} for gc in
+                           self.gcs_and_garage}
+        for rot in self.schedule.rotations.values():
+            # Get the vehicle_type_name including charging type by removing the number of the id
+            vehicle_type_name = "_".join(rot.vehicle_id.split("_")[:-1])
+            vehicles_per_gc[rot.departure_name][vehicle_type_name].add(rot.vehicle_id)
+        self.vehicles_per_gc = {
+            gc: {v_type_name: len(s) for v_type_name, s in vehicles_dict.items()} for
+            gc, vehicles_dict in vehicles_per_gc.items()}
         return self
 
     def set_vehicle_costs_per_gc(self):
@@ -447,11 +444,9 @@ class Costs:
             for rot in self.gc_rotations[gcID]:
                 v_type_rot = f"{rot.vehicle_type}_{rot.charging_type}"
                 try:
-                    self.costs_per_gc[gcID]["c_maint_vehicles_annual"] += (rot.distance / 1000 /
-                                                                           drive_days * 365) * \
-                                                                          self.params["vehicles"][
-                                                                              v_type_rot][
-                                                                              "c_maint_per_km"]
+                    c_maint = ((rot.distance / 1000 / drive_days * 365) *
+                               self.params["vehicles"][v_type_rot]["c_maint_per_km"])
+                    self.costs_per_gc[gcID]["c_maint_vehicles_annual"] += c_maint
                 except KeyError:
                     warnings.warn("No maintenance costs defined for vehicle type " +
                                   self.params["vehicles"][v_type_rot] +
