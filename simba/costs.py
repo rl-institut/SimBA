@@ -198,7 +198,7 @@ class Costs:
             output.append(row)
 
         # Take a single station and take the cost parameters
-        cost_parameters = next(iter(self.costs_per_gc.values()))
+        cost_parameters = self.get_gc_cost_variables()
         for key in cost_parameters:
             # The first two columns contain the parameter and unit
             row = [key, self.get_annual_or_not(key)]
@@ -232,13 +232,13 @@ class Costs:
             "c_garage_annual"]
         return self
 
-    def get_vehicle_count_per_gc(self):
-        """
+    def set_vehicles_per_gc(self):
+        """Calculate vehicle numbers and set vehicles_per_gc before vehicle costs can be calculated.
         Calculate the number of vehicles at each grid connector.
 
         :raises Exception: If a vehicle from the scenario is not found in any rotation
-        :return: The number of vehicles at each grid connector.
-        :rtype: dict
+        :return: self
+        :rtype: Costs
         """
         v_types = self.schedule.scenario["components"]["vehicle_types"]
         vehicle_count_per_gc = {gc: {v_type_name: 0 for v_type_name in v_types if
@@ -252,15 +252,7 @@ class Costs:
                     break
             else:
                 raise Exception(f"Vehicle {name} not found in rotations")
-        return vehicle_count_per_gc
-
-    def set_vehicles_per_gc(self):
-        """Calculate vehicle numbers and set vehicles_per_gc before vehicle costs can be calculated.
-
-        :return: self
-        :rtype: Costs
-        """
-        self.vehicles_per_gc = self.get_vehicle_count_per_gc()
+        self.vehicles_per_gc = vehicle_count_per_gc
         return self
 
     def set_vehicle_costs_per_gc(self):
