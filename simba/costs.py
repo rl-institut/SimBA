@@ -80,14 +80,15 @@ class Costs:
         :type c_params: dict
         """
 
-        gc_in_use = scenario.components.grid_connectors
+        self.gcs = scenario.components.grid_connectors
 
         # Make sure CUMULATED and Garage is unique to gc names
-        self.CUMULATED = add_suffix(self.CUMULATED, gc_in_use)
-        self.GARAGE = add_suffix(self.GARAGE, gc_in_use)
+        self.CUMULATED = add_suffix(self.CUMULATED, self.gcs)
+        self.GARAGE = add_suffix(self.GARAGE, self.gcs)
 
+        self.gcs_and_garage = [self.GARAGE] + list(self.gcs)
         self.costs_per_gc = {gc: {key: 0 for key in self.get_gc_cost_variables()} for gc in
-                             [self.GARAGE] + list(gc_in_use)}
+                             self.gcs_and_garage}
         self.units: dict = None
         self.vehicles_per_gc: dict = None
         self.gc_rotations: dict = None
@@ -120,7 +121,7 @@ class Costs:
         """
         self.gc_rotations = {
             gc: [rot for rot in self.schedule.rotations.values() if rot.departure_name == gc]
-            for gc in self.gcs()}
+            for gc in self.gcs}
         return self
 
     def get_vehicle_types(self):
@@ -180,15 +181,6 @@ class Costs:
         return list(dict(sorted(self.costs_per_gc.items(), key=lambda x: x[1][self.SORT_COLUMN],
                                 reverse=True)).keys())
 
-    def gcs(self):
-        """
-        Get the grid connectors used in the scenario.
-
-        :return: The grid connectors.
-        :rtype: dict
-        """
-        return self.scenario.components.grid_connectors
-
     def to_csv_lists(self):
         """
         Convert costs to a list of lists easily convertible to a csv.
@@ -198,7 +190,7 @@ class Costs:
         """
         output = [["parameter", "unit"] + self.get_columns()]
         for key in self.get_vehicle_types():
-            # The first two columns contain the parameter and unit
+            # The first two columns contain the parameter and unit 'vehicles'
             row = [key, "vehicles"]
 
             for col in self.get_columns():
@@ -226,11 +218,11 @@ class Costs:
         self.vehicles_per_gc[self.CUMULATED] = dict()
         for v_type in v_types:
             self.vehicles_per_gc[self.CUMULATED][v_type] = sum(
-                [self.vehicles_per_gc[gc][v_type] for gc in self.gcs()])
+                [self.vehicles_per_gc[gc][v_type] for gc in self.gcs])
 
         # Cumulate gcs variables
         self.costs_per_gc[self.CUMULATED] = dict()
-        for key in next(iter(self.costs_per_gc.values())):
+        for key in self.get_gc_cost_variables():
             self.costs_per_gc[self.CUMULATED][key] = 0
             for gc in self.costs_per_gc.keys()-[self.CUMULATED]:
                 self.costs_per_gc[self.CUMULATED][key] += self.costs_per_gc[gc][key]
@@ -251,7 +243,7 @@ class Costs:
         v_types = self.schedule.scenario["components"]["vehicle_types"]
         vehicle_count_per_gc = {gc: {v_type_name: 0 for v_type_name in v_types if
                                      self.schedule.vehicle_type_counts[v_type_name] > 0} for gc in
-                                list(self.gcs()) + [self.GARAGE]}
+                                self.gcs_and_garage}
         for name, vehicle in self.scenario.components.vehicles.items():
             for rot in self.schedule.rotations.values():
                 if rot.vehicle_id == name:
@@ -307,7 +299,7 @@ class Costs:
         :rtype: Costs
         """
         # get dict with costs for specific grid operator
-        for gcID, gc in self.gcs().items():
+        for gcID, gc in self.gcs.items():
             try:
                 c_params_go = self.params[gc.grid_operator]
             except KeyError:
@@ -392,7 +384,7 @@ class Costs:
         all_stations = self.schedule.scenario["components"]["charging_stations"]
         # find all stations from the schedule which are grid connectors
         used_stations = {gcId: station for gcId, station in self.schedule.stations.items() if
-                         gcId in self.gcs()}
+                         gcId in self.gcs}
 
         for gcID, station in used_stations.items():
             # depot charging station - each charging bus generates one CS
@@ -484,7 +476,7 @@ class Costs:
         :return: self
         :rtype: Costs
         """
-        for gcID, gc in self.gcs().items():
+        for gcID, gc in self.gcs.items():
             station = self.schedule.stations[gcID]
             pv = sum([pv.nominal_power for pv in self.scenario.components.photovoltaics.values()
                       if pv.parent == gcID])
