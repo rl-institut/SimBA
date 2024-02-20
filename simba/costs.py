@@ -10,13 +10,13 @@ import simba.schedule
 def calculate_costs(c_params, scenario, schedule, args):
     """ Calculates annual costs of all necessary vehicles and infrastructure.
 
-    :param c_params: Infrastructure component costs and specific grid operator costs.
+    :param c_params: Infrastructure component costs and specific grid operator costs
     :type c_params: dict
-    :param scenario: Information about the simulated scenario and all used parameters.
+    :param scenario: Information about the simulated scenario and all used parameters
     :type scenario: Scenario
-    :param schedule: Information about the whole bus schedule and all used parameters.
+    :param schedule: Information about the whole bus schedule and all used parameters
     :type schedule: Schedule
-    :param args: Configuration arguments specified in config files contained in configs directory.
+    :param args: Configuration arguments specified in config files contained in configs directory
     :type args: argparse.Namespace
     """
     cost_object = Costs(schedule, scenario, args, c_params)
@@ -53,13 +53,13 @@ class Costs:
     """
     Class representing costs associated with vehicles and infrastructure
 
-    :param schedule: simulation schedule.
+    :param schedule: Simulation schedule
     :type schedule: simba.schedule.Schedule
-    :param scenario: scenario for the simulation.
+    :param scenario: Scenario for the simulation
     :type scenario: spice_ev.scenario.Scenario
-    :param args: arguments for the simulation.
-    :param c_params: parameters for the simulation costs.
-    :type c_params: dict
+    :param args: Arguments for the simulation
+    :param c_params: Parameters for the simulation costs.
+    :type c_params: Dict
     """
     CUMULATED = "cumulated"
     GARAGE = "garage"
@@ -71,12 +71,13 @@ class Costs:
         """
         Initialize the Costs instance.
 
-        :param schedule: simulation schedule.
+        :param schedule: Simulation schedule
         :type schedule: simba.schedule.Schedule
-        :param scenario: scenario for the simulation.
+        :param scenario: Scenario for the simulation
         :type scenario: spice_ev.scenario.Scenario
-        :param args: arguments for the simulation.
-        :param c_params: parameters for the simulation costs.
+        :param args: Arguments for the simulation
+        :type args: Namespace
+        :param c_params: Parameters for the simulation costs
         :type c_params: dict
         """
 
@@ -102,7 +103,7 @@ class Costs:
         """
         Provide information about the total costs.
 
-        :return: A formatted string containing information about total costs.
+        :return: Formatted string containing information about total costs
         :rtype: str
         """
         cumulated = self.costs_per_gc[self.CUMULATED]
@@ -116,9 +117,9 @@ class Costs:
         """
         Get the unit for annual or non-annual costs.
 
-        :param key: The key to get the unit for.
+        :param key: Key to get the unit for
         :type key: str
-        :return: The unit associated with the key.
+        :return: Unit associated with the key
         :rtype: str
         """
         if "annual" in key:
@@ -130,7 +131,7 @@ class Costs:
         """
         Get the sorted columns for cost calculations.
 
-        :return: The list of columns.
+        :return: List of columns
         :rtype: list
         """
         return list(dict(sorted(self.costs_per_gc.items(), key=lambda x: x[1][self.SORT_COLUMN],
@@ -140,7 +141,7 @@ class Costs:
         """
         Set grid connector rotations.
 
-        :return: The updated instance.
+        :return: Updated instance
         :rtype: Costs
         """
         self.gc_rotations = {
@@ -152,7 +153,7 @@ class Costs:
         """
          Get the list of variables representing different cost types.
 
-         :return: The list of cost variables.
+         :return: List of cost variables
          :rtype: list
          """
         return [  # investment costs
@@ -176,7 +177,7 @@ class Costs:
         """
          Get the types of vehicles used.
 
-         :return: The vehicle types.
+         :return: Vehicle types
          :rtype: list
          """
         return next(iter(self.vehicles_per_gc.values())).keys()
@@ -348,7 +349,7 @@ class Costs:
     def set_grid_connection_costs(self):
         """Calculate the costs of each grid connection
 
-        :raises Exception: if grid operator of grid connector can not be found in cost params
+        :raises Exception: If grid operator of grid connector cannot be found in cost params
         :return: self
         :rtype: Costs
         """
@@ -479,7 +480,7 @@ class Costs:
         """
         Cumulate the costs of vehicles and infrastructure.
 
-        :return: The updated instance.
+        :return: Updated instance
         :rtype: Costs
         """
         v_types = self.get_vehicle_types()
@@ -504,7 +505,7 @@ class Costs:
         """
         Convert costs to a list of lists easily convertible to a csv.
 
-        :return: list of lists of parameters, units and costs per gc.
+        :return: List of lists of parameters, units and costs per gc
         :rtype: list
         """
         output = [["parameter", "unit"] + self.get_columns()]
