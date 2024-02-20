@@ -192,8 +192,8 @@ class Costs:
 
         all_stations = self.schedule.scenario["components"]["charging_stations"]
         # find all stations from the schedule which are grid connectors
-        used_stations = {gcId: station for gcId, station in self.schedule.stations.items() if
-                         gcId in self.gcs}
+        used_stations = {gcId: station for gcId, station in self.schedule.stations.items()
+                         if gcId in self.gcs}
 
         for gcID, station in used_stations.items():
             # depot charging station - each charging bus generates one CS
