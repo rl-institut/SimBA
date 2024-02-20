@@ -180,7 +180,7 @@ class Costs:
          :return: Vehicle types
          :rtype: list
          """
-        return next(iter(self.vehicles_per_gc.values())).keys()
+        return [k for k, v in self.schedule.vehicle_type_counts.items() if v > 0]
 
     def set_charging_infrastructure_costs(self):
         """
