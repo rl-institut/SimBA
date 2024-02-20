@@ -455,8 +455,7 @@ class Costs:
         :return: self
         :rtype: Costs
         """
-        # Iterate over each gc and use the vehicles which start and end at this gc for cost
-        # calculation
+        # Iterate over GCs and use the vehicles which start and end at this gc for cost calculation
         for gc, vehicle_types in self.vehicles_per_gc.items():
             for v_type, vehicle_number in vehicle_types.items():
                 try:
