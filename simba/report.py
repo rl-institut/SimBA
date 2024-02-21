@@ -4,9 +4,10 @@ import csv
 import datetime
 import logging
 import matplotlib.pyplot as plt
+import matplotlib
 import warnings
 from spice_ev.report import aggregate_global_results, plot, generate_reports
-plt.use('Agg')
+matplotlib.use('Agg')
 
 
 def generate_gc_power_overview_timeseries(scenario, args):
