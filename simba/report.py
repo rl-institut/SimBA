@@ -6,6 +6,7 @@ import logging
 import matplotlib.pyplot as plt
 import warnings
 from spice_ev.report import aggregate_global_results, plot, generate_reports
+plt.use('Agg')
 
 
 def generate_gc_power_overview_timeseries(scenario, args):
