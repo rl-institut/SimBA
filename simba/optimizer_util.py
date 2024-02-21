@@ -18,8 +18,6 @@ from matplotlib import pyplot as plt
 if typing.TYPE_CHECKING:
     from simba.station_optimizer import StationOptimizer
 
-from simba.consumption import Consumption
-from simba.trip import Trip
 from simba.util import get_buffer_time as get_buffer_time_util
 from spice_ev.report import generate_soc_timeseries
 
@@ -736,8 +734,7 @@ def run_schedule(sched, args, electrified_stations=None):
     """
     sched_copy = copy(sched)
     sched_copy.stations = electrified_stations
-    sched_copy, new_scen = preprocess_schedule(sched_copy, args,
-                                               electrified_stations=electrified_stations)
+    new_scen = sched_copy.generate_scenario(args)
 
     with warnings.catch_warnings():
         warnings.simplefilter('ignore', UserWarning)
@@ -750,32 +747,6 @@ def run_schedule(sched, args, electrified_stations=None):
             sys.stdout = sys.__stdout__
     generate_soc_timeseries(new_scen)
     return sched_copy, new_scen
-
-
-def preprocess_schedule(sched, args, electrified_stations=None):
-    """ Calculate consumption, set electrified stations and assign vehicles.
-
-    Prepare the schedule by calculating consumption, setting electrified stations and assigning
-    vehicles
-
-    :param sched: schedule containing the rotations
-    :type sched: simba.schedule.Schedule
-    :param args: arguments for simulation
-    :type args: Namespace
-    :param electrified_stations: stations to be electrified
-    :type electrified_stations: dict
-    :return: schedule and scenario to be simulated
-    :rtype: (simba.schedule.Schedule, spice_ev.Scenario)
-    """
-    Trip.consumption = Consumption(
-        sched.vehicle_types, outside_temperatures=args.outside_temperature_over_day_path,
-        level_of_loading_over_day=args.level_of_loading_over_day_path)
-
-    sched.stations = electrified_stations
-    sched.calculate_consumption()
-    sched.assign_vehicles()
-
-    return sched, sched.generate_scenario(args)
 
 
 def get_time(start=[]):

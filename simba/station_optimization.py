@@ -103,11 +103,6 @@ def run_optimization(conf, sched=None, scen=None, args=None):
 
     original_schedule = deepcopy(sched)
 
-    # Work on copies of the original schedule and scenario. In case of an exception the outer
-    # schedule and scenario stay intact.
-    sched = deepcopy(sched)
-    scen = deepcopy(scen)
-
     # setup folders, paths and copy config
     prepare_filesystem(args, conf)
 
