@@ -169,6 +169,10 @@ class Mode:
     A function must return the updated schedule and scenario objects.
     """
 
+    def sim(schedule, scenario, args, _i):# Noqa
+        scenario = schedule.run(args)
+        return schedule, scenario
+
     def service_optimization(schedule, scenario, args, _i):
         # find largest set of rotations that produce no negative SoC
         result = optimization.service_optimization(schedule, scenario, args)
