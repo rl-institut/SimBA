@@ -30,6 +30,13 @@
             "soc": 0, // initial state of charge [0-1], optional
             "efficiency": 0.95, // optional
             "discharge_curve": null // optional, same as charging curve
+        },
+        "grid_capacity_from_csv": {  // optional: grid capacity for grid checked market strategy
+            "csv_file": "data/examples/grid_capacity.csv",  // path to csv file
+            "start_time": "2022-03-07T00:00:00",  // optional, use file timestamps if not given
+            "step_duration_s": 21600,  // required if start_time is given. timestep of file in seconds
+            "factor": 2.0,  // optional, default 1. Scale grid capacity values
+            "column": "capacity"  // optional, read values from last column if not given
         }
     },
     "Station-3": {

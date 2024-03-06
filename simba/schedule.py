@@ -603,6 +603,19 @@ class Schedule:
                             ext_load["csv_file"] = str(ext_load_path)
                             events["external_load"][gc_name + " ext. load"] = ext_load
 
+                        # add grid capacity if exists
+                        grid_capacity = station.get("grid_capacity_from_csv")
+                        if grid_capacity:
+                            csv_path = Path(grid_capacity["csv_file"])
+                            if not csv_path.exists():
+                                warnings.warn("grid capacity csv file '{}' does not exist".format(
+                                    csv_path), category=UserWarning)
+                            grid_capacity["grid_connector_id"] = gc_name
+                            try:
+                                events["grid_capacity_from_csv"][gc_name] = grid_capacity
+                            except KeyError:
+                                events["grid_capacity_from_csv"] = {gc_name: grid_capacity}
+
                 # initial condition of vehicle
                 if i == 0:
                     vehicles[vehicle_id] = {
