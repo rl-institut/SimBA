@@ -436,9 +436,9 @@ class Costs:
         :rtype: Costs
         """
         v_types = self.schedule.scenario["components"]["vehicle_types"]
-        vehicles_per_gc = {gc: {v_type_name: set() for v_type_name in v_types if
-                                self.schedule.vehicle_type_counts[v_type_name] > 0} for gc in
-                           self.gcs_and_garage}
+        vehicles_per_gc = {gc: {v_type_name: set() for v_type_name in v_types
+                                if self.schedule.vehicle_type_counts[v_type_name] > 0}
+                           for gc in self.gcs_and_garage}
         for rot in self.schedule.rotations.values():
             # Get the vehicle_type_name including charging type by removing the number of the id
             vehicle_type_name = "_".join(rot.vehicle_id.split("_")[:-1])
