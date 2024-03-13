@@ -8,6 +8,7 @@ import warnings
 
 from simba import util
 from simba.rotation import Rotation
+import spice_ev.util as spice_ev_util
 from spice_ev.scenario import Scenario
 
 
@@ -476,6 +477,29 @@ class Schedule:
             start_simulation = datetime.datetime.fromtimestamp(0)
             stop_simulation = datetime.datetime.fromtimestamp(0)
 
+        daily = datetime.timedelta(days=1)
+        # read in time windows file
+        time_windows = None
+        if vars(args).get('time_windows'):
+            time_windows_path = Path(args.time_windows)
+            if time_windows_path.exists():
+                with time_windows_path.open('r', encoding='utf-8') as f:
+                    time_windows = util.uncomment_json_file(f)
+                # convert time window strings to date/times
+                for grid_operator, grid_operator_seasons in time_windows.items():
+                    for season, info in grid_operator_seasons.items():
+                        info["start"] = datetime.date.fromisoformat(info["start"])
+                        info["end"] = datetime.date.fromisoformat(info["end"])
+                        for level, windows in info.get("windows", {}).items():
+                            info["windows"][level] = [
+                                (datetime.time.fromisoformat(t[0]),
+                                 datetime.time.fromisoformat(t[1]))
+                                for t in windows]
+                        time_windows[grid_operator][season] = info
+                logging.debug("time windows read: " + str(time_windows))
+            else:
+                warnings.warn(f"Time windows file {args.time_windows} does not exist")
+
         # add vehicle events
         for vehicle_id in sorted({rot.vehicle_id for rot in self.rotations.values()}):
             # filter all rides for that bus
@@ -562,13 +586,13 @@ class Schedule:
                         }
                     if gc_name not in grid_connectors:
                         # add one grid connector for each bus station
+                        voltage_level = station.get('voltage_level', args.default_voltage_level)
                         grid_connectors[gc_name] = {
                             "max_power": gc_power,
                             "cost": {"type": "fixed", "value": 0.3},
                             "number_cs": station["n_charging_stations"],
                             "grid_operator": station.get("grid_operator", "default_grid_operator"),
-                            "voltage_level":
-                                station.get("voltage_level", args.default_voltage_level)
+                            "voltage_level": voltage_level,
                         }
                         # check for stationary battery
                         battery = station.get("battery")
@@ -603,6 +627,43 @@ class Schedule:
                             ext_load["grid_connector_id"] = gc_name
                             ext_load["csv_file"] = str(ext_load_path)
                             events["fixed_load"][gc_name + " ext. load"] = ext_load
+
+                        # temporary lowering of grid connector max power during peak load windows
+                        if time_windows is not None:
+                            grid_operator = station.get('grid_operator')
+                            if grid_operator is None:
+                                warnings.warn('Peak Load Windows given, '
+                                              f'but {gc_name} has no grid operator')
+                            # get relevant peak load windows
+                            windows = time_windows.get(grid_operator)
+                            if grid_operator is not None and windows is None:
+                                warnings.warn(f'Grid operator {grid_operator} '
+                                              'not in time windows')
+                            if grid_operator is not None and windows is not None:
+                                # generate grid operator events for simulation
+                                logging.debug(f"{gc_name} time windows: {windows}")
+                                reduced_power = station.get(
+                                    'peak_load_window_power',
+                                    vars(args).get('peak_load_window_power_' + station_type))
+                                assert reduced_power <= gc_power
+                                in_window = False
+                                # can't directly iterate over datetimes:
+                                # get number of simulation timesteps (round up)
+                                n_intervals = -((start_simulation - stop_simulation) // interval)
+                                for t_idx in range(n_intervals):
+                                    cur_time = start_simulation + t_idx * interval
+                                    cur_window = spice_ev_util.datetime_within_time_window(
+                                        cur_time, windows, voltage_level)
+                                    if cur_window ^ in_window:
+                                        # window change: generate event
+                                        events["grid_operator_signals"].append({
+                                            # known one day in advance
+                                            "signal_time": (cur_time - daily).isoformat(),
+                                            "start_time": cur_time.isoformat(),
+                                            "grid_connector_id": gc_name,
+                                            "max_power": reduced_power if cur_window else gc_power,
+                                        })
+                                        in_window = cur_window
 
                 # initial condition of vehicle
                 if i == 0:
@@ -648,7 +709,6 @@ class Schedule:
 
         # ######## END OF VEHICLE EVENTS ########## #
 
-        daily = datetime.timedelta(days=1)
         # price events
         if not args.include_price_csv:
             random.seed(args.seed)

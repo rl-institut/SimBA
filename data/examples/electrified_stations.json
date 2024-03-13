@@ -8,6 +8,7 @@
         "cs_power_deps_depb" : 120,  // optional: maximum cs power for this station, default defined in config
         "grid_operator" : "default_grid_operator", // optional: set grid operator for cost calculation. Default is "default_grid_operator"
         "voltage_level": "MV", // optional: voltage_level for this station, default defined in config
+        "peak_load_window_power": 100,  // optional: power during peak load window (if time_windowds file given), default defined in config
         "energy_feed_in": {  // optional: energy feed in e.g. by local renewables
             "csv_file": "data/examples/example_pv_feedin.csv",  // path to feedin.csv
             "start_time": "2022-03-07T00:00:00",  // start time as YYYY-MM-DDThh:mm:ss
