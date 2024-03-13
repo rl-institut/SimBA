@@ -84,8 +84,8 @@ class Costs:
         self.gcs = scenario.components.grid_connectors
 
         # Make sure CUMULATED and Garage is unique to gc names
-        self.CUMULATED = add_suffix(self.CUMULATED, self.gcs)
-        self.GARAGE = add_suffix(self.GARAGE, self.gcs)
+        assert self.CUMULATED not in self.gcs
+        assert self.GARAGE not in self.gcs
 
         self.gcs_and_garage = [self.GARAGE] + list(self.gcs)
         self.costs_per_gc = {gc: {key: 0 for key in self.get_gc_cost_variables()} for gc in
@@ -526,13 +526,3 @@ class Costs:
             output.append(row)
         return output
 
-
-def add_suffix(name: str, gcs):
-    if name in gcs:
-        k = 1
-        suffix = "_" + k
-        while name + suffix in gcs:
-            k += 1
-            suffix = "_" + k
-        name = name + suffix
-    return name

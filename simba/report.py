@@ -234,10 +234,17 @@ def generate(schedule, scenario, args):
 
     # summary of used vehicle types and all costs
     if args.cost_calculation:
-        with open(args.results_directory / "summary_vehicles_costs.csv", "w", newline='',
-                  encoding='utf-8') as f:
-            csv_writer = csv.writer(f)
-            for row in scenario.costs.to_csv_lists():
-                csv_writer.writerow(row)
+        file_path = args.results_directory / "summary_vehicles_costs.csv"
+        try:
+            with open(file_path, "w", newline='',
+                      encoding='utf-8') as f:
+                csv_writer = csv.writer(f)
+                for row in scenario.costs.to_csv_lists():
+                    csv_writer.writerow(row)
+        except Exception as e:
+            logging.warning(f"Writing the cost calculation to {file_path} calculation failed due "
+                            f"to {str(e)}")
+            if args.propagate_mode_errors:
+                raise
 
     logging.info(f"Plots and output files saved in {args.results_directory}")
