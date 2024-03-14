@@ -191,7 +191,8 @@ class Schedule:
 
         logging.info("Running SpiceEV...")
         with warnings.catch_warnings():
-            warnings.simplefilter('ignore', UserWarning)
+            if logging.root.level > logging.DEBUG:
+                warnings.simplefilter('ignore', UserWarning)
             scenario.run('distributed', vars(args).copy())
         assert scenario.step_i == scenario.n_intervals, \
             'SpiceEV simulation aborted, see above for details'
@@ -267,6 +268,19 @@ class Schedule:
                 i = i + 1
             # insert at calculated index
             rotations_in_progress.insert(i, rot)
+
+        # update vehicle ID for nice natural sorting
+        for rot in rotations:
+            # get old vehicle id (vehicle type + charging type, sequential number)
+            vt_ct, old_num = rot.vehicle_id.rsplit('_', 1)
+            # how many vehicles of this type?
+            vt_cnt = vehicle_type_counts[vt_ct]
+            # easy log10 to get max needed number of digits
+            digits = len(str(vt_cnt))
+            # how many digits have to be added for this vehicle ID?
+            missing = digits - len(str(old_num))
+            # assign new zero-padded ID (all of same vehicle type have same length)
+            rot.vehicle_id = f"{vt_ct}_{'0'*missing}{old_num}"
 
         self.vehicle_type_counts = vehicle_type_counts
 
@@ -444,8 +458,8 @@ class Schedule:
         grid_connectors = {}
         events = {
             "grid_operator_signals": [],
-            "external_load": {},
-            "energy_feed_in": {},
+            "fixed_load": {},
+            "local_generation": {},
             "vehicle_events": []
         }
 
@@ -561,7 +575,7 @@ class Schedule:
                         if battery is not None:
                             # add stationary battery at this station/GC
                             battery["parent"] = gc_name
-                            batteries[gc_name] = battery
+                            batteries[f"{gc_name} storage"] = battery
 
                         # add feed-in name and power at grid connector if exists
                         feed_in = station.get("energy_feed_in")
@@ -572,7 +586,7 @@ class Schedule:
                                     feed_in_path), category=UserWarning)
                             feed_in["grid_connector_id"] = gc_name
                             feed_in["csv_file"] = str(feed_in_path)
-                            events["energy_feed_in"][gc_name + " feed-in"] = feed_in
+                            events["local_generation"][gc_name + " feed-in"] = feed_in
                             # add PV component
                             photovoltaics[gc_name] = {
                                 "parent": gc_name,
@@ -588,7 +602,7 @@ class Schedule:
                                     ext_load_path), category=UserWarning)
                             ext_load["grid_connector_id"] = gc_name
                             ext_load["csv_file"] = str(ext_load_path)
-                            events["external_load"][gc_name + " ext. load"] = ext_load
+                            events["fixed_load"][gc_name + " ext. load"] = ext_load
 
                 # initial condition of vehicle
                 if i == 0:
