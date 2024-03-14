@@ -127,6 +127,8 @@ def generate(schedule, scenario, args):
     :type scenario: spice_ev.Scenario
     :param args: Configuration arguments specified in config files contained in configs directory.
     :type args: argparse.Namespace
+    :raises Exception: if cost calculation cannot be written to file and
+        args.propagate_mode_errors=True
     """
 
     # generate simulation_timeseries.csv, simulation.json and vehicle_socs.csv in SpiceEV

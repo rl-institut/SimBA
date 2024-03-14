@@ -525,4 +525,3 @@ class Costs:
                 row.append(round(self.costs_per_gc[col][key], self.rounding_precision))
             output.append(row)
         return output
-
