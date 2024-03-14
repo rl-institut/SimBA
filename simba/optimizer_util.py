@@ -329,6 +329,10 @@ def get_delta_soc(soc_over_time_curve, soc, time_delta, optimizer: 'StationOptim
                end_soc - start_soc)
 
 
+class InfiniteLoopException(Exception):
+    pass
+
+
 class SuboptimalSimulationException(Exception):
     pass
 

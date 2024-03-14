@@ -192,7 +192,8 @@ class Schedule:
 
         logging.info("Running SpiceEV...")
         with warnings.catch_warnings():
-            warnings.simplefilter('ignore', UserWarning)
+            if logging.root.level > logging.DEBUG:
+                warnings.simplefilter('ignore', UserWarning)
             scenario.run('distributed', vars(args).copy())
         assert scenario.step_i == scenario.n_intervals, \
             'SpiceEV simulation aborted, see above for details'
@@ -458,8 +459,8 @@ class Schedule:
         grid_connectors = {}
         events = {
             "grid_operator_signals": [],
-            "external_load": {},
-            "energy_feed_in": {},
+            "fixed_load": {},
+            "local_generation": {},
             "vehicle_events": []
         }
 
@@ -586,7 +587,7 @@ class Schedule:
                                     feed_in_path), category=UserWarning)
                             feed_in["grid_connector_id"] = gc_name
                             feed_in["csv_file"] = str(feed_in_path)
-                            events["energy_feed_in"][gc_name + " feed-in"] = feed_in
+                            events["local_generation"][gc_name + " feed-in"] = feed_in
                             # add PV component
                             photovoltaics[gc_name] = {
                                 "parent": gc_name,
@@ -602,7 +603,7 @@ class Schedule:
                                     ext_load_path), category=UserWarning)
                             ext_load["grid_connector_id"] = gc_name
                             ext_load["csv_file"] = str(ext_load_path)
-                            events["external_load"][gc_name + " ext. load"] = ext_load
+                            events["fixed_load"][gc_name + " ext. load"] = ext_load
 
                 # initial condition of vehicle
                 if i == 0:

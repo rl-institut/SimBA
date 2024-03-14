@@ -114,6 +114,11 @@ def calculate_costs(c_params, scenario, schedule, args):
                 c_params["feed_in"]["capex_fix"] +
                 c_params["feed_in"]["capex_per_kW"] *
                 schedule.stations[gcID]["energy_feed_in"]["nominal_power"])
+
+            costs["c_feed_in_annual"] = (
+                    costs["c_feed_in"] / c_params["feed_in"]["lifetime_feed_in"])
+            costs["c_maint_feed_in_annual"] = (
+                    costs["c_feed_in"] * c_params["feed_in"]["c_maint_feed_in_per_year"])
         except KeyError:
             # if no feed in at grid connector: cost is 0
             pass
@@ -122,11 +127,6 @@ def calculate_costs(c_params, scenario, schedule, args):
         costs["c_stat_storage"] / c_params["stationary_storage"]["lifetime_stat_storage"])
     costs["c_maint_stat_storage_annual"] = (
         costs["c_stat_storage"] * c_params["stationary_storage"]["c_maint_stat_storage_per_year"])
-
-    costs["c_feed_in_annual"] = (
-        costs["c_feed_in"] / c_params["feed_in"]["lifetime_feed_in"])
-    costs["c_maint_feed_in_annual"] = (
-        costs["c_feed_in"] * c_params["feed_in"]["c_maint_feed_in_per_year"])
 
     # CHARGING INFRASTRUCTURE
     stations = schedule.scenario["components"]["charging_stations"]
@@ -220,7 +220,7 @@ def calculate_costs(c_params, scenario, schedule, args):
 
         # calculate costs for electricity
         costs_electricity = calc_costs_spice_ev(
-            strategy=args.strategy,
+            strategy=vars(args)["strategy_"+station.get("type")],
             voltage_level=gc.voltage_level,
             interval=scenario.interval,
             timestamps_list=timeseries.get("time"),
