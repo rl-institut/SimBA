@@ -262,7 +262,7 @@ def write_csv(data: Iterable, file_path, propagate_errors=False):
     :type file_path: str or Path
     :param propagate_errors: should errors be propagated?
     :type propagate_errors: bool
-    :raises Exception: if file cannot be written propagate_errors=True
+    :raises Exception: if file cannot be written and propagate_errors=True
     """
 
     if data is None:
