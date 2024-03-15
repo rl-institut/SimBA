@@ -151,7 +151,7 @@ def read_config(config_path):
         config_parser.read(config_path, encoding="utf-8")
     except configparser.MissingSectionHeaderError:
         # make sure there is always a DEFAULT section.
-        with open(config_path, 'r') as f:
+        with open(config_path, 'r', encoding='utf-8') as f:
             config_string = '[DEFAULT]\n' + f.read()
         config_parser.read_string(config_string)
     conf = OptimizerConfig()
