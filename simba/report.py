@@ -3,6 +3,8 @@
 import csv
 import datetime
 import logging
+from typing import Iterable
+
 import matplotlib.pyplot as plt
 from spice_ev.report import aggregate_global_results, plot, generate_reports
 
@@ -215,19 +217,19 @@ def generate(schedule, scenario, args):
             "Omit parameter <days> to simulate entire schedule.")
 
     if rotation_infos:
-        with open(args.results_directory / "rotation_socs.csv", "w", newline='') as f:
-            csv_writer = csv.writer(f)
+        try:
             # order rotations naturally
-            try:
-                rotations = sorted(rotation_socs.keys(), key=lambda k: int(k))
-            except ValueError:
-                # Some strings can not be casted to int and throw a value error
-                rotations = sorted(rotation_socs.keys(), key=lambda k: k)
-            csv_writer.writerow(["time"] + rotations)
-            for i in range(scenario.n_intervals):
-                t = sim_start_time + i * scenario.interval
-                socs = [str(rotation_socs[k][i]) for k in rotations]
-                csv_writer.writerow([str(t)] + socs)
+            rotations = sorted(rotation_socs.keys(), key=lambda k: int(k))
+        except ValueError:
+            # Some strings cannot be cast to int and throw a value error
+            rotations = sorted(rotation_socs.keys(), key=lambda k: k)
+        data = [["time"] + rotations]
+        for i in range(scenario.n_intervals):
+            t = sim_start_time + i * scenario.interval
+            socs = [str(rotation_socs[k][i]) for k in rotations]
+            data.append([str(t)] + socs)
+        write_csv(data, args.results_directory / "rotation_socs.csv",
+                  propagate_errors=args.propagate_mode_errors)
 
         with open(args.results_directory / "rotation_summary.csv", "w", newline='') as f:
             csv_writer = csv.DictWriter(f, list(rotation_infos[0].keys()))
@@ -237,16 +239,41 @@ def generate(schedule, scenario, args):
     # summary of used vehicle types and all costs
     if args.cost_calculation:
         file_path = args.results_directory / "summary_vehicles_costs.csv"
+        csv_report = None
         try:
             csv_report = scenario.costs.to_csv_lists()
-            with open(file_path, "w", newline='', encoding='utf-8') as f:
-                csv_writer = csv.writer(f)
-                for row in csv_report:
-                    csv_writer.writerow(row)
         except Exception as e:
-            logging.warning(f"Writing the cost calculation to {file_path} calculation failed due "
-                            f"to {str(e)}")
+            logging.warning(f"Generating the cost calculation to {file_path} calculation failed "
+                            f"due to {str(e)}")
             if args.propagate_mode_errors:
                 raise
+        write_csv(csv_report, file_path, propagate_errors=args.propagate_mode_errors)
 
     logging.info(f"Plots and output files saved in {args.results_directory}")
+
+
+def write_csv(data: Iterable, file_path, propagate_errors=False):
+    """Write iterable data to .csv file.
+
+    Errors are caught if propagate_errors=False. If data is None, no file is created.
+    :param data: data which is written to a file
+    :type data: Iterable
+    :param file_path: file_path for file creation
+    :type file_path: str or Path
+    :param propagate_errors: should errors be propagated?
+    :type propagate_errors: bool
+    :raises Exception: if file cannot be written propagate_errors=True
+    """
+
+    if data is None:
+        logging.debug(f"Writing to {file_path} aborted since no data is passed.")
+        return
+    try:
+        with open(file_path, "w", newline='', encoding='utf-8') as f:
+            csv_writer = csv.writer(f)
+            for row in data:
+                csv_writer.writerow(row)
+    except Exception as e:
+        logging.warning(f"Writing to {file_path} failed due to {str(e)}")
+        if propagate_errors:
+            raise
