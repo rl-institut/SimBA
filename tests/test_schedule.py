@@ -175,7 +175,8 @@ class TestSchedule:
         sched.calculate_consumption()
         scen = sched.run(args)
         neg_rots = sched.get_negative_rotations(scen)
-        assert ['1', '11'] == neg_rots.sort()
+        neg_rots.sort()
+        assert ['1', '11'] == neg_rots
 
     def test_rotation_filter(self, tmp_path):
         s = schedule.Schedule(self.vehicle_types, self.electrified_stations, **mandatory_args)
