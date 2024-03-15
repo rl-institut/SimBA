@@ -165,7 +165,7 @@ class TestSchedule:
         assert '2' in (common_stations["3"])
 
     def test_get_negative_rotations(self):
-        """Check if the single rotation '1' with a negative soc is found """
+        """Check if rotations '1' and '11' with negative SOCs are found """
         # make use of the test_run() which has to return schedule and scenario object
         sched, scen, args = self.basic_run()
         for rot in sched.rotations.values():
@@ -175,7 +175,7 @@ class TestSchedule:
         sched.calculate_consumption()
         scen = sched.run(args)
         neg_rots = sched.get_negative_rotations(scen)
-        assert ['1'] == neg_rots
+        assert ['1', '11'] == neg_rots
 
     def test_rotation_filter(self, tmp_path):
         s = schedule.Schedule(self.vehicle_types, self.electrified_stations, **mandatory_args)
@@ -300,7 +300,7 @@ class TestSchedule:
 
     def test_schedule_from_csv(self):
         generated_schedule = generate_basic_schedule()
-        assert len(generated_schedule.rotations) == 4
+        assert len(generated_schedule.rotations) == 8
         assert type(generated_schedule) is schedule.Schedule
 
     def test_consistency(self):
