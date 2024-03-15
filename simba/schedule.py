@@ -587,11 +587,12 @@ class Schedule:
                     if gc_name not in grid_connectors:
                         # add one grid connector for each bus station
                         voltage_level = station.get('voltage_level', args.default_voltage_level)
+                        grid_operator = station.get("grid_operator", "default_grid_operator")
                         grid_connectors[gc_name] = {
                             "max_power": gc_power,
                             "cost": {"type": "fixed", "value": 0.3},
                             "number_cs": station["n_charging_stations"],
-                            "grid_operator": station.get("grid_operator", "default_grid_operator"),
+                            "grid_operator": grid_operator,
                             "voltage_level": voltage_level,
                         }
                         # check for stationary battery
@@ -630,22 +631,25 @@ class Schedule:
 
                         # temporary lowering of grid connector max power during peak load windows
                         if time_windows is not None:
-                            grid_operator = station.get('grid_operator')
-                            if grid_operator is None:
-                                warnings.warn('Peak Load Windows given, '
-                                              f'but {gc_name} has no grid operator')
+                            generate_events = True  # avoid if-else bloat
                             # get relevant peak load windows
                             windows = time_windows.get(grid_operator)
-                            if grid_operator is not None and windows is None:
-                                warnings.warn(f'Grid operator {grid_operator} '
+                            if windows is None:
+                                warnings.warn(f'{gc_name}: grid operator {grid_operator} '
                                               'not in time windows')
-                            if grid_operator is not None and windows is not None:
-                                # generate grid operator events for simulation
+                                generate_events = False
+                            if generate_events:
+                                # check reduced power
+                                # if higher than GC normal max power, don't generate events
                                 logging.debug(f"{gc_name} time windows: {windows}")
                                 reduced_power = station.get(
                                     'peak_load_window_power',
                                     vars(args).get('peak_load_window_power_' + station_type))
-                                assert reduced_power <= gc_power
+                                if reduced_power > gc_power:
+                                    warnings.warn(f"{gc_name}: maximum power is not "
+                                                  "reduced during peak load windows")
+                                    generate_events = False
+                            if generate_events:
                                 in_window = False
                                 # can't directly iterate over datetimes:
                                 # get number of simulation timesteps (round up)
@@ -661,7 +665,8 @@ class Schedule:
                                             "signal_time": (cur_time - daily).isoformat(),
                                             "start_time": cur_time.isoformat(),
                                             "grid_connector_id": gc_name,
-                                            "max_power": reduced_power if cur_window else gc_power,
+                                            "max_power": (
+                                                reduced_power if cur_window else gc_power),
                                         })
                                         in_window = cur_window
 

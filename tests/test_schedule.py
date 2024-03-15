@@ -294,7 +294,7 @@ class TestSchedule:
             except FileNotFoundError:
                 user_warning_count = sum([1 for warning in record.list
                                           if warning.category == UserWarning])
-                assert user_warning_count == 4
+                assert user_warning_count == 3
             else:
                 assert 0, "No error despite wrong file paths"
 
@@ -368,3 +368,46 @@ class TestSchedule:
         departure_trip = faulty_rot.trips[0]
         faulty_rot.departure_time = departure_trip.departure_time - timedelta(minutes=1)
         assert schedule.Schedule.check_consistency(sched)["1"] == error
+
+    def test_peak_load_window(self):
+        generated_schedule = generate_basic_schedule()
+        sys.argv = ["foo", "--config", str(example_root / "simba.cfg")]
+        args = util.get_args()
+
+        def count_max_power_events(scenario):
+            return sum([e.max_power is not None for e in scenario.events.grid_operator_signals])
+
+        # no time windows
+        args.time_windows = None
+        scenario = generated_schedule.generate_scenario(args)
+        assert count_max_power_events(scenario) == 0
+
+        # wrong time windows file
+        args.time_windows = "does-not-exist"
+        with pytest.warns(UserWarning):
+            generated_schedule.generate_scenario(args)  # warning, no events
+        assert count_max_power_events(scenario) == 0
+
+        # example time windows, but no corresponding grid operators
+        args.time_windows = example_root / "time_windows.json"
+        for station in generated_schedule.stations.values():
+            station["grid_operator"] = "wrong-operator"
+        with pytest.warns(UserWarning):
+            scenario = generated_schedule.generate_scenario(args)
+        assert count_max_power_events(scenario) == 0
+
+        # reduced power too high
+        for station in generated_schedule.stations.values():
+            station["grid_operator"] = "default_grid_operator"
+            station["gc_power"] = 1000
+            station["peak_load_window_power"] = 10000
+        with pytest.warns(UserWarning):
+            scenario = generated_schedule.generate_scenario(args)
+        assert count_max_power_events(scenario) == 0
+
+        # test reduced power events
+        for station in generated_schedule.stations.values():
+            station["gc_power"] = 1000
+            station["peak_load_window_power"] = 100
+        scenario = generated_schedule.generate_scenario(args)
+        assert count_max_power_events(scenario) == 4
