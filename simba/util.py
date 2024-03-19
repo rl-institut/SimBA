@@ -251,7 +251,7 @@ def get_args():
     parser.add_argument('--output-directory', default="data/sim_outputs",
                         help='Location where all simulation outputs are stored')
     parser.add_argument('--electrified-stations', help='include electrified_stations json')
-    parser.add_argument('--vehicle-types', default="data/examples/vehicle_types.json",
+    parser.add_argument('--vehicle-types-path', default="data/examples/vehicle_types.json",
                         help='location of vehicle type definitions')
     parser.add_argument('--station_data_path', default=None,
                         help='Use station data to back calculation of consumption with height\

@@ -53,8 +53,8 @@ class TestStationOptimization:
         # replace line which defines vehicle_types up to line break. line break is concatenated in
         # the replacement, to keep format
         src_text = re.sub(
-            r"(vehicle_types\s=.*)(:=\r\n|\r|\n)",
-            "vehicle_types = " + vehicles_dest_str + r"\g<2>", src_text)
+            r"(vehicle_types_path\s=.*)(:=\r\n|\r|\n)",
+            "vehicle_types_path = " + vehicles_dest_str + r"\g<2>", src_text)
 
         # Use the default electrified stations from example folder but change some values
         with open(example_root / "electrified_stations.json", "r", encoding='utf-8') as file:
@@ -100,7 +100,6 @@ class TestStationOptimization:
                                        outside_temperatures=None,
                                        level_of_loading_over_day=None)
         args2 = copy(args)
-        del args2.vehicle_types
         generated_schedule = Schedule.from_csv(path_to_trips, self.vehicle_types,
                                                self.electrified_stations,
                                                **vars(args2))
@@ -195,7 +194,7 @@ class TestStationOptimization:
 
         trips_file_name = "trips_extended.csv"
         # adjust mileage so scenario is not possible without adding electrification
-        self.vehicle_types = adjust_vehicle_file(args.vehicle_types, mileage=2, capacity=150)
+        self.vehicle_types = adjust_vehicle_file(args.vehicle_types_path, mileage=2, capacity=150)
         sched, scen, args = self.basic_run(trips_file_name=trips_file_name)
         # optimization can only be properly tested if negative rotations exist
         assert len(sched.get_negative_rotations(scen)) > 0

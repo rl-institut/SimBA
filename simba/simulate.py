@@ -41,11 +41,10 @@ def pre_simulation(args):
     :rtype: simba.schedule.Schedule
     """
     try:
-        with open(args.vehicle_types, encoding='utf-8') as f:
+        with open(args.vehicle_types_path, encoding='utf-8') as f:
             vehicle_types = util.uncomment_json_file(f)
-            del args.vehicle_types
     except FileNotFoundError:
-        raise Exception(f"Path to vehicle types ({args.vehicle_types}) "
+        raise Exception(f"Path to vehicle types ({args.vehicle_types_path}) "
                         "does not exist. Exiting...")
 
     # load stations file

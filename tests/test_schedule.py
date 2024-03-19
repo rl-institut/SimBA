@@ -23,6 +23,10 @@ mandatory_args = {
 }
 
 
+def basic_run():
+    return TestSchedule().basic_run()
+
+
 class TestSchedule:
     temperature_path = example_root / 'default_temp_winter.csv'
     lol_path = example_root / 'default_level_of_loading_over_day.csv'
@@ -32,6 +36,20 @@ class TestSchedule:
 
     with open(example_root / "vehicle_types.json", "r", encoding='utf-8') as file:
         vehicle_types = util.uncomment_json_file(file)
+
+    path_to_all_station_data = example_root / "all_stations.csv"
+
+    @pytest.fixture
+    def default_schedule_arguments(self):
+        arguments = {"path_to_csv": None,
+                     "vehicle_types": self.vehicle_types,
+                     "stations": self.electrified_stations,
+                     "station_data_path": self.path_to_all_station_data,
+                     "outside_temperature_over_day_path": self.temperature_path,
+                     "level_of_loading_over_day_path": self.lol_path
+                     }
+        arguments.update(**mandatory_args)
+        return arguments
 
     def basic_run(self):
         """Returns a schedule, scenario and args after running SimBA.
