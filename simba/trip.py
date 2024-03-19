@@ -1,38 +1,23 @@
 from datetime import datetime, timedelta
 
+import simba.consumption
+
 
 class Trip:
+    consumption: simba.consumption.Consumption = None
+
     def __init__(self, rotation, departure_time, departure_name,
-                 arrival_time, arrival_name, distance, **kwargs):
+                 arrival_time, arrival_name, distance, temperature, level_of_loading, height_diff,
+                 **kwargs):
         self.departure_name = departure_name
         self.departure_time = datetime.fromisoformat(departure_time)
         self.arrival_time = datetime.fromisoformat(arrival_time)
         self.arrival_name = arrival_name
         self.distance = float(distance)
         self.line = kwargs.get('line', None)
-        self.temperature = kwargs.get('temperature', None)
-        try:
-            self.temperature = float(self.temperature)
-            # In case of empty temperature column or no column at all
-        except (TypeError, ValueError):
-            self.temperature = None
-
-        height_diff = kwargs.get("height_difference", None)
-        if height_diff is None:
-            station_data = kwargs.get("station_data", dict())
-            try:
-                height_diff = station_data[self.arrival_name]["elevation"] \
-                              - station_data[self.departure_name]["elevation"]
-            except (KeyError, TypeError):
-                height_diff = 0
+        self.temperature = float(temperature)
         self.height_diff = height_diff
-        self.level_of_loading = kwargs.get('level_of_loading', None)
-        try:
-            # Clip level of loading to [0,1]
-            self.level_of_loading = max(0, min(float(self.level_of_loading), 1))
-        # In case of empty temperature column or no column at all
-        except (TypeError, ValueError):
-            self.level_of_loading = None
+        self.level_of_loading = level_of_loading
         # mean speed in km/h from distance and travel time or from initialization
         # travel time is at least 1 min
         mean_speed = kwargs.get("mean_speed", (self.distance / 1000) /
