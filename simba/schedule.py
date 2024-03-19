@@ -123,8 +123,10 @@ class Schedule:
                     delim = util.get_csv_delim(station_path)
                     reader = csv.DictReader(f, delimiter=delim)
                     for row in reader:
-                        station_data.update({str(row['Endhaltestelle']):
-                                            {"elevation": float(row['elevation'])}})
+                        station_data.update({str(row['Endhaltestelle']): {
+                            "elevation": float(row['elevation']), "lat": float(row.get('lat', 0)),
+                            "long": float(row.get('long', 0))}
+                                             })
             except FileNotFoundError or KeyError:
                 warnings.warn("Warning: external csv file '{}' not found or not named properly "
                               "(Needed column names are 'Endhaltestelle' and 'elevation')".
