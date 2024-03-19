@@ -86,6 +86,7 @@ def run_optimization(conf, sched=None, scen=None, args=None):
     :type scen: spice_ev.Scenario
     :param args: Simulation arguments for manipulation of generated outputs
     :type args: Namespace
+    :raises Exception: if no rotations can be optimized
 
     :return: optimized schedule and Scenario
     :rtype: tuple(simba.schedule.Schedule, spice_ev.Scenario)
@@ -111,7 +112,6 @@ def run_optimization(conf, sched=None, scen=None, args=None):
 
     if args.desired_soc_deps != 1 and conf.solver == "quick":
         logger.error("Fast calculation is not yet optimized for desired socs different to 1")
-
     optimizer = simba.station_optimizer.StationOptimizer(sched, scen, args, conf, logger)
 
     # set battery and charging curves through config file
@@ -123,7 +123,8 @@ def run_optimization(conf, sched=None, scen=None, args=None):
             r for r in sched.rotations if "depb" == sched.rotations[r].charging_type)
         sched.rotations = {r: sched.rotations[r] for r in sched.rotations
                            if "oppb" == sched.rotations[r].charging_type}
-        assert len(sched.rotations) > 0, "No rotations left after removing depot chargers"
+        if len(sched.rotations) < 1:
+            raise Exception("No rotations left after removing depot chargers")
 
     # rebasing the scenario meaning simulating it again with SpiceEV and the given conditions of
     # included stations, excluded stations, filtered rotations and changed battery sizes

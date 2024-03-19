@@ -108,9 +108,17 @@ class Rotation:
         # consumption may have changed with new charging type
         self.consumption = self.calculate_consumption()
 
-        # calculate earliest possible departure for this bus after completion
-        # of this rotation
-        if ct == "depb":
+        # recalculate consumption
+        self.schedule.consumption += self.consumption - old_consumption
+
+    @property
+    def earliest_departure_next_rot(self):
+        return self.arrival_time + datetime.timedelta(hours=self.min_standing_time)
+
+    @property
+    def min_standing_time(self):
+        assert self.charging_type in ["depb", "oppb"]
+        if self.charging_type == "depb":
             capacity_depb = self.schedule.vehicle_types[self.vehicle_type]["depb"]["capacity"]
             # minimum time needed to recharge consumed power from depot charger
             min_standing_time = (self.consumption / self.schedule.cs_power_deps_depb)
@@ -119,13 +127,10 @@ class Rotation:
                                          * self.schedule.min_recharge_deps_depb)
             if min_standing_time > desired_max_standing_time:
                 min_standing_time = desired_max_standing_time
-        elif ct == "oppb":
+        elif self.charging_type == "oppb":
             capacity_oppb = self.schedule.vehicle_types[self.vehicle_type]["oppb"]["capacity"]
             min_standing_time = ((capacity_oppb / self.schedule.cs_power_deps_oppb)
                                  * self.schedule.min_recharge_deps_oppb)
-
-        self.earliest_departure_next_rot = \
-            self.arrival_time + datetime.timedelta(hours=min_standing_time)
-
-        # recalculate consumption
-        self.schedule.consumption += self.consumption - old_consumption
+        else:
+            raise not NotImplementedError
+        return min_standing_time

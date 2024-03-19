@@ -1,8 +1,9 @@
 import logging
 import traceback
+from copy import deepcopy
 
 from simba import report, optimization, util
-from simba.consumption import Consumption
+from simba.data_container import DataContainer
 from simba.costs import calculate_costs
 from simba.optimizer_util import read_config as read_optimizer_config
 from simba.schedule import Schedule
@@ -23,12 +24,25 @@ def simulate(args):
     :return: final schedule and scenario
     :rtype: tuple
     """
-    schedule = pre_simulation(args)
+    # The data_container stores various input data.
+    data_container = create_and_fill_data_container(args)
+
+    schedule, args = pre_simulation(args, data_container)
     scenario = schedule.run(args)
-    return modes_simulation(schedule, scenario, args)
+    schedule, scenario = modes_simulation(schedule, scenario, args)
+    return schedule, scenario
 
 
-def pre_simulation(args):
+def create_and_fill_data_container(args):
+    data_container = DataContainer()
+    # Add the vehicle_types from a json file
+    data_container.add_vehicle_types_from_json(args.vehicle_types_path)
+    # Add consumption data, which is found in the vehicle_type data
+    data_container.add_consumption_data_from_vehicle_type_linked_files()
+    return data_container
+
+
+def pre_simulation(args, data_container: DataContainer):
     """
     Prepare simulation.
 
@@ -36,16 +50,14 @@ def pre_simulation(args):
 
     :param args: arguments
     :type args: Namespace
+    :param data_container: data needed for simulation
+    :type data_container: DataContainer
     :raises Exception: If an input file does not exist, exit the program.
-    :return: schedule
-    :rtype: simba.schedule.Schedule
+    :return: schedule, args
+    :rtype: simba.schedule.Schedule, Namespace
     """
-    try:
-        with open(args.vehicle_types_path, encoding='utf-8') as f:
-            vehicle_types = util.uncomment_json_file(f)
-    except FileNotFoundError:
-        raise Exception(f"Path to vehicle types ({args.vehicle_types_path}) "
-                        "does not exist. Exiting...")
+    # Deepcopy args so original args do not get mutated, i.e. deleted
+    args = deepcopy(args)
 
     # load stations file
     try:
@@ -64,14 +76,12 @@ def pre_simulation(args):
             raise Exception(f"Path to cost parameters ({args.cost_parameters_file}) "
                             "does not exist. Exiting...")
 
-    # setup consumption calculator that can be accessed by all trips
-    Trip.consumption = Consumption(
-        vehicle_types,
-        outside_temperatures=args.outside_temperature_over_day_path,
-        level_of_loading_over_day=args.level_of_loading_over_day_path)
+    # Add consumption calculator to trip class
+    Trip.consumption = data_container.to_consumption()
 
     # generate schedule from csv
-    schedule = Schedule.from_csv(args.input_schedule, vehicle_types, stations, **vars(args))
+    schedule = Schedule.from_csv(args.input_schedule, data_container.vehicle_types_data, stations,
+                                 **vars(args))
 
     # filter rotations
     schedule.rotation_filter(args)
@@ -79,7 +89,13 @@ def pre_simulation(args):
     # calculate consumption of all trips
     schedule.calculate_consumption()
 
-    return schedule
+    # Create soc dispatcher
+    schedule.init_soc_dispatcher(args)
+
+    # each rotation is assigned a vehicle ID
+    schedule.assign_vehicles()
+
+    return schedule, args
 
 
 def modes_simulation(schedule, scenario, args):
@@ -201,13 +217,17 @@ class Mode:
                             "Since no path was given, station optimization is skipped")
             return schedule, scenario
         conf = read_optimizer_config(args.optimizer_config)
+        # Get Copies of the original schedule and scenario. In case of an exception the outer
+        # schedule and scenario stay intact.
+        original_schedule = deepcopy(schedule)
+        original_scenario = deepcopy(scenario)
         try:
             create_results_directory(args, i+1)
             return run_optimization(conf, sched=schedule, scen=scenario, args=args)
         except Exception as err:
             logging.warning('During Station optimization an error occurred {0}. '
                             'Optimization was skipped'.format(err))
-            return schedule, scenario
+            return original_schedule, original_scenario
 
     def remove_negative(schedule, scenario, args, _i):
         neg_rot = schedule.get_negative_rotations(scenario)

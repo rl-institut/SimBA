@@ -2,13 +2,42 @@ import csv
 import datetime
 import json
 import logging
-from pathlib import Path
 import random
 import warnings
+from pathlib import Path
+from typing import Dict, Type, Iterable
 
+from spice_ev.scenario import Scenario
+
+import simba.rotation
 from simba import util
 from simba.rotation import Rotation
-from spice_ev.scenario import Scenario
+
+
+class SocDispatcher:
+    """Dispatches the right initial SoC for every vehicle id at scenario generation.
+
+    Used for specific vehicle initialization for example when coupling tools."""
+
+    def __init__(self,
+                 default_soc_deps: float,
+                 default_soc_opps: float,
+                 # vehicle_socs stores the departure soc of a rotation as a dict of the previous
+                 # trip, since this is how the SpiceEV scenario is generated.
+                 # The first trip of a vehicle has no previous trip and therefore is None
+                 vehicle_socs: Dict[str, Type[Dict["simba.trip.Trip", float]]] = None):
+        self.default_soc_deps = default_soc_deps
+        self.default_soc_opps = default_soc_opps
+        self.vehicle_socs = {}
+        if vehicle_socs is not None:
+            self.vehicle_socs = vehicle_socs
+
+    def get_soc(self, vehicle_id: str, trip: "simba.trip.Trip",  station_type: str = None):
+        try:
+            v_socs = self.vehicle_socs[vehicle_id]
+            return v_socs[trip]
+        except KeyError:
+            return vars(self).get("default_soc_" + station_type)
 
 
 class Schedule:
@@ -28,12 +57,12 @@ class Schedule:
         """
 
         self.stations = stations
-        self.rotations = {}
+        self.rotations: Dict[str, simba.rotation.Rotation] = {}
         self.consumption = 0
         self.vehicle_types = vehicle_types
         self.original_rotations = None
         self.station_data = None
-
+        self.soc_dispatcher: SocDispatcher = None
         # mandatory config parameters
         mandatory_options = [
             "min_recharge_deps_oppb",
@@ -72,6 +101,19 @@ class Schedule:
         station_data = dict()
         station_path = kwargs.get("station_data_path")
 
+        level_of_loading_path = kwargs.get("level_of_loading_over_day_path", None)
+
+        if level_of_loading_path is not None:
+            index = "hour"
+            column = "level_of_loading"
+            level_of_loading_dict = cls.get_dict_from_csv(column, level_of_loading_path, index)
+
+        temperature_path = kwargs.get("outside_temperature_over_day_path", None)
+        if temperature_path is not None:
+            index = "hour"
+            column = "temperature"
+            temperature_data_dict = cls.get_dict_from_csv(column, temperature_path, index)
+
         # find the temperature and elevation of the stations by reading the .csv file.
         # this data is stored in the schedule and passed to the trips, which use the information
         # for consumption calculation. Missing station data is handled with default values.
@@ -101,7 +143,39 @@ class Schedule:
                 rotation_id = trip['rotation_id']
                 # trip gets reference to station data and calculates height diff during trip
                 # initialization. Could also get the height difference from here on
-                trip["station_data"] = station_data
+                # get average hour of trip if level of loading or temperature has to be read from
+                # auxiliary tabular data
+                arr_time = datetime.datetime.fromisoformat(trip["arrival_time"])
+                dep_time = datetime.datetime.fromisoformat(trip["departure_time"])
+
+                # get average hour of trip and parse to string, since tabular data has strings
+                # as keys
+                hour = (dep_time + (arr_time - dep_time) / 2).hour
+                # Get height difference from station_data
+                try:
+                    height_diff = station_data[trip["arrival_name"]]["elevation"] \
+                                  - station_data[trip["departure_name"]]["elevation"]
+                except (KeyError, TypeError):
+                    height_diff = 0
+                trip["height_diff"] = height_diff
+
+                # Get level of loading from trips.csv or from file
+                try:
+                    # Clip level of loading to [0,1]
+                    lol = max(0, min(float(trip["level_of_loading"]), 1))
+                # In case of empty temperature column or no column at all
+                except (KeyError, ValueError):
+                    lol = level_of_loading_dict[hour]
+                trip["level_of_loading"] = lol
+
+                # Get temperature from trips.csv or from file
+                try:
+                    # Cast temperature to float
+                    temperature = float(trip["temperature"])
+                # In case of empty temperature column or no column at all
+                except (KeyError, ValueError):
+                    temperature = temperature_data_dict[hour]
+                trip["temperature"] = temperature
                 if rotation_id not in schedule.rotations.keys():
                     schedule.rotations.update({
                         rotation_id: Rotation(id=rotation_id,
@@ -109,7 +183,7 @@ class Schedule:
                                               schedule=schedule)})
                 schedule.rotations[rotation_id].add_trip(trip)
 
-        # set charging type for all rotations without explicitly specified charging type
+        # set charging type for all rotations without explicitly specified charging type.
         # charging type may have been set above if a trip of a rotation has a specified
         # charging type
         for rot in schedule.rotations.values():
@@ -134,6 +208,16 @@ class Schedule:
                           "as check_rotation_consistency is not set to 'true'")
 
         return schedule
+
+    @classmethod
+    def get_dict_from_csv(cls, column, file_path, index):
+        output = dict()
+        with open(file_path, "r") as f:
+            delim = util.get_csv_delim(file_path)
+            reader = csv.DictReader(f, delimiter=delim)
+            for row in reader:
+                output[float(row[index])] = float(row[column])
+        return output
 
     @classmethod
     def check_consistency(cls, schedule):
@@ -185,9 +269,18 @@ class Schedule:
         return inconsistent_rotations
 
     def run(self, args):
-        # each rotation is assigned a vehicle ID
-        self.assign_vehicles()
+        """Runs a schedule without assigning vehicles.
 
+        For external usage the core run functionality is accessible through this function. It
+        allows for defining a custom-made assign_vehicles method for the schedule.
+        :param args: used arguments are rotation_filter, path to rotation ids,
+            and rotation_filter_variable that sets mode (options: include, exclude)
+        :type args: argparse.Namespace
+        :return: scenario
+        :rtype spice_ev.Scenario
+        """
+        # Make sure all rotations have an assigned vehicle
+        assert all([rot.vehicle_id is not None for rot in self.rotations.values()])
         scenario = self.generate_scenario(args)
 
         logging.info("Running SpiceEV...")
@@ -216,10 +309,81 @@ class Schedule:
             if rotation_ids is None or id in rotation_ids:
                 rot.set_charging_type(ct)
 
+    def assign_vehicles_for_django(self, eflips_output: Iterable[dict]):
+        """Assign vehicles based on eflips outputs
+
+        eflips couples vehicles and returns for every rotation the departure soc and vehicle id.
+        This is included into simba by assigning new vehicles with the respective values. I.e. in
+        simba every rotation gets a new vehicle.
+        :param eflips_output: output from eflips meant for simba. Iterable contains
+            rotation_id, vehicle_id and start_soc for each rotation
+        :type eflips_output: iterable of dataclass "simba_input"
+        :raises KeyError: If not every rotation has a vehicle assigned to it
+        """
+        eflips_rot_dict = {d["rot"]: {"v_id": d["v_id"], "soc": d["soc"]} for d in eflips_output}
+        unique_vids = {d["v_id"] for d in eflips_output}
+        vehicle_socs = {v_id: dict() for v_id in unique_vids}
+        eflips_vid_dict = {v_id: sorted([d["rot"] for d in eflips_output
+                                         if d["v_id"] == v_id],
+                                        key=lambda r_id: self.rotations[r_id].departure_time)
+                           for v_id in unique_vids}
+
+        # Calculate vehicle counts
+        # count number of vehicles per type
+        # used for unique vehicle id e.g. vehicletype_chargingtype_id
+        vehicle_type_counts = {f'{vehicle_type}_{charging_type}': 0
+                               for vehicle_type, charging_types in self.vehicle_types.items()
+                               for charging_type in charging_types.keys()}
+        for vid in unique_vids:
+            v_ls = vid.split("_")
+            vehicle_type_counts[f'{v_ls[0]}_{v_ls[1]}'] += 1
+
+        self.vehicle_type_counts = vehicle_type_counts
+
+        rotations = sorted(self.rotations.values(), key=lambda rot: rot.departure_time)
+        for rot in rotations:
+            try:
+                v_id = eflips_rot_dict[rot.id]["v_id"]
+            except KeyError as exc:
+                raise KeyError(f"SoC-data does not include the rotation with the id: {rot.id}. "
+                               "Externally generated vehicles assignments need to include all "
+                               "rotations") from exc
+            rot.vehicle_id = v_id
+            index = eflips_vid_dict[v_id].index(rot.id)
+            # if this rotation is not the first rotation of the vehicle, find the previous trip
+            if index != 0:
+                prev_rot_id = eflips_vid_dict[v_id][index - 1]
+                trip = self.rotations[prev_rot_id].trips[-1]
+            else:
+                # if the rotation has no previous trip, trip is set as None
+                trip = None
+            vehicle_socs[v_id][trip] = eflips_rot_dict[rot.id]["soc"]
+        self.soc_dispatcher.vehicle_socs = vehicle_socs
+
+    def init_soc_dispatcher(self, args):
+        self.soc_dispatcher = SocDispatcher(default_soc_deps=args.desired_soc_deps,
+                                            default_soc_opps=args.desired_soc_opps)
+
+    def assign_only_new_vehicles(self):
+        """ Assign new vehicle IDs to rotations
+        """
+        # count number of vehicles per type
+        # used for unique vehicle id e.g. vehicletype_chargingtype_id
+        vehicle_type_counts = {f'{vehicle_type}_{charging_type}': 0
+                               for vehicle_type, charging_types in self.vehicle_types.items()
+                               for charging_type in charging_types.keys()}
+        rotations = sorted(self.rotations.values(), key=lambda rot: rot.departure_time)
+        for rot in rotations:
+            vt_ct = f"{rot.vehicle_type}_{rot.charging_type}"
+            # no vehicle available for dispatch, generate new one
+            vehicle_type_counts[vt_ct] += 1
+            rot.vehicle_id = f"{vt_ct}_{vehicle_type_counts[vt_ct]}"
+        self.vehicle_type_counts = vehicle_type_counts
+
     def assign_vehicles(self):
         """ Assign vehicle IDs to rotations. A FIFO approach is used.
             For every rotation it is checked whether vehicles with matching type are idle, in which
-            case the one with longest standing time since last rotation is used.
+            case the one with the longest standing time since last rotation is used.
             If no vehicle is available a new vehicle ID is generated.
         """
         rotations_in_progress = []
@@ -515,8 +679,9 @@ class Schedule:
                         # a depot bus cannot charge at an opp station
                         station_type = None
                     else:
-                        # get desired soc by station type
-                        desired_soc = vars(args).get("desired_soc_" + station_type)
+                        # get desired soc by station type and trip
+                        desired_soc = self.soc_dispatcher.get_soc(
+                            vehicle_id=vehicle_id, trip=trip, station_type=station_type)
                 except KeyError:
                     # non-electrified station
                     station_type = None
@@ -607,11 +772,19 @@ class Schedule:
 
                 # initial condition of vehicle
                 if i == 0:
+                    gc_name = trip.departure_name
+                    try:
+                        departure_station_type = self.stations[gc_name]["type"]
+                    except KeyError:
+                        departure_station_type = "deps"
+
                     vehicles[vehicle_id] = {
                         "connected_charging_station": None,
                         "estimated_time_of_departure": trip.departure_time.isoformat(),
                         "desired_soc": None,
-                        "soc": args.desired_soc_deps,
+                        "soc": self.soc_dispatcher.get_soc(vehicle_id=vehicle_id,
+                                                           trip=None,
+                                                           station_type=departure_station_type),
                         "vehicle_type":
                             f"{trip.rotation.vehicle_type}_{trip.rotation.charging_type}"
                     }

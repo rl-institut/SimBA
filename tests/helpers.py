@@ -1,6 +1,7 @@
 """ Reusable functions that support tests
 """
 from simba import schedule, trip, consumption, util
+from simba.data_container import DataContainer
 
 
 def generate_basic_schedule():
@@ -10,9 +11,8 @@ def generate_basic_schedule():
     lol_path = 'data/examples/default_level_of_loading_over_day.csv'
     with open("data/examples/vehicle_types.json", 'r', encoding='utf-8') as f:
         vehicle_types = util.uncomment_json_file(f)
-    trip.Trip.consumption = consumption.Consumption(vehicle_types,
-                                                    outside_temperatures=temperature_path,
-                                                    level_of_loading_over_day=lol_path)
+
+    initialize_consumption(vehicle_types)
 
     mandatory_args = {
         "min_recharge_deps_oppb": 0,
@@ -24,4 +24,16 @@ def generate_basic_schedule():
         "cs_power_deps_oppb": 150
     }
 
-    return schedule.Schedule.from_csv(schedule_path, vehicle_types, station_path, **mandatory_args)
+    return schedule.Schedule.from_csv(schedule_path, vehicle_types, station_path, **mandatory_args,
+                                      outside_temperature_over_day_path=temperature_path,
+                                      level_of_loading_over_day_path=lol_path)
+
+
+def initialize_consumption(vehicle_types):
+    data_container = DataContainer()
+    data_container.add_vehicle_types(vehicle_types)
+    data_container.add_consumption_data_from_vehicle_type_linked_files()
+    trip.Trip.consumption = consumption.Consumption(vehicle_types)
+    for name, df in data_container.consumption_data.items():
+        trip.Trip.consumption.set_consumption_interpolation(name, df)
+    return trip.Trip.consumption

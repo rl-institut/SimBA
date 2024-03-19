@@ -4,8 +4,9 @@ import csv
 import datetime
 import logging
 import matplotlib.pyplot as plt
+import matplotlib
+matplotlib.use('Agg')
 from spice_ev.report import aggregate_global_results, plot, generate_reports
-
 
 def open_for_csv(filepath):
     return open(filepath, "w", newline='', encoding='utf-8')
