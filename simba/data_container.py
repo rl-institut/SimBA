@@ -1,4 +1,5 @@
 """Module to handle data access, by the varying SimBA modules."""
+import csv
 from pathlib import Path
 from typing import Dict
 
@@ -13,6 +14,11 @@ class DataContainer:
     def __init__(self):
         self.vehicle_types_data: Dict[str, any] = {}
         self.consumption_data: Dict[str, pd.DataFrame] = {}
+        self.temperature_data: Dict[int, float] = {}
+        self.level_of_loading_data: Dict[int, float] = {}
+
+    def add_temperature_data_from_json(self, ):
+        to be implemented
 
     def add_vehicle_types(self, data: dict) -> None:
         """Add vehicle_type data to the data container. Vehicle_types will be stored in the
@@ -31,6 +37,8 @@ class DataContainer:
             raise Exception(f"Path to vehicle types ({file_path}) "
                             "does not exist. Exiting...")
         self.add_vehicle_types(vehicle_types)
+        return self
+
 
     def add_consumption_data_from_vehicle_type_linked_files(self):
         assert self.vehicle_types_data, "No vehicle_type data in the data_container"
@@ -42,6 +50,7 @@ class DataContainer:
             delim = util.get_csv_delim(mileage_path)
             df = pd.read_csv(mileage_path, sep=delim)
             self.add_consumption_data(mileage_path, df)
+        return self
 
     def add_consumption_data(self, data_name, df: pd.DataFrame) -> None:
         """Add consumption data to the data container. Consumption data will be used by the
@@ -57,6 +66,8 @@ class DataContainer:
             assert expected_col in df.columns, f"Consumption data is missing {expected_col}"
         assert data_name not in self.consumption_data, f"{data_name} already exists in data"
         self.consumption_data[data_name] = df
+
+        return self
 
     def to_consumption(self) -> Consumption:
         """Build a consumption instance from the stored data
@@ -84,3 +95,12 @@ def get_values_from_nested_key(key, data: dict) -> list:
     for value in data.values():
         if isinstance(value, dict):
             yield from get_values_from_nested_key(key, value)
+
+def get_dict_from_csv(column, file_path, index):
+    output = dict()
+    with open(file_path, "r") as f:
+        delim = util.get_csv_delim(file_path)
+        reader = csv.DictReader(f, delimiter=delim)
+        for row in reader:
+            output[float(row[index])] = float(row[column])
+    return output

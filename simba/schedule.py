@@ -11,6 +11,7 @@ from spice_ev.scenario import Scenario
 
 import simba.rotation
 from simba import util
+from simba.data_container import DataContainer
 from simba.rotation import Rotation
 
 
@@ -79,6 +80,10 @@ class Schedule:
         else:
             for opt in mandatory_options:
                 setattr(self, opt, kwargs.get(opt))
+
+    @classmethod
+    def from_container(self, data_container: DataContainer):
+        to be implemented
 
     @classmethod
     def from_csv(cls, path_to_csv, vehicle_types, stations, **kwargs):
@@ -210,16 +215,6 @@ class Schedule:
                           "as check_rotation_consistency is not set to 'true'")
 
         return schedule
-
-    @classmethod
-    def get_dict_from_csv(cls, column, file_path, index):
-        output = dict()
-        with open(file_path, "r") as f:
-            delim = util.get_csv_delim(file_path)
-            reader = csv.DictReader(f, delimiter=delim)
-            for row in reader:
-                output[float(row[index])] = float(row[column])
-        return output
 
     @classmethod
     def check_consistency(cls, schedule):
