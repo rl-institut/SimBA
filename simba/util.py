@@ -240,8 +240,37 @@ def setup_logging(args, time_str):
     )
     logging.captureWarnings(True)
 
-
 def get_args():
+    parser = get_parser()
+
+    args = parser.parse_args()
+
+    # arguments relevant to SpiceEV, setting automatically to reduce clutter in config
+    mutate_args_for_spiceev(args)
+
+    # If a config is provided, the config will overwrite previously parsed arguments
+    set_options_from_config(args, check=parser, verbose=False)
+
+    # rename special options
+    args.timing = args.eta
+
+    missing = [a for a in ["input_schedule", "electrified_stations"] if vars(args).get(a) is None]
+    if missing:
+        raise Exception("The following arguments are required: {}".format(", ".join(missing)))
+
+    return args
+
+
+def mutate_args_for_spiceev(args):
+    # arguments relevant to SpiceEV, setting automatically to reduce clutter in config
+    args.strategy = 'distributed'
+    args.margin = 1
+    args.ALLOW_NEGATIVE_SOC = True
+    args.PRICE_THRESHOLD = -100  # ignore price for charging decisions
+
+
+
+def get_parser():
     parser = argparse.ArgumentParser(
         description='SimBA - Simulation toolbox for Bus Applications.')
 
@@ -370,22 +399,4 @@ def get_args():
                         Input a path to an .cfg file or use the default_optimizer.cfg")
 
     parser.add_argument('--config', help='Use config file to set arguments')
-
-    args = parser.parse_args()
-
-    # arguments relevant to SpiceEV, setting automatically to reduce clutter in config
-    args.strategy = 'distributed'
-    args.margin = 1
-    args.ALLOW_NEGATIVE_SOC = True
-    args.PRICE_THRESHOLD = -100  # ignore price for charging decisions
-
-    set_options_from_config(args, check=parser, verbose=False)
-
-    # rename special options
-    args.timing = args.eta
-
-    missing = [a for a in ["input_schedule", "electrified_stations"] if vars(args).get(a) is None]
-    if missing:
-        raise Exception("The following arguments are required: {}".format(", ".join(missing)))
-
-    return args
+    return parser
