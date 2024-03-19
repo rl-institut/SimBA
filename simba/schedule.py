@@ -9,6 +9,7 @@ import warnings
 from simba import util
 from simba.rotation import Rotation
 from spice_ev.scenario import Scenario
+import spice_ev.util as spice_ev_util
 
 
 class Schedule:
@@ -651,45 +652,8 @@ class Schedule:
 
         daily = datetime.timedelta(days=1)
         # price events
-        if not args.include_price_csv:
-            random.seed(args.seed)
-            for key in grid_connectors.keys():
-                now = start_simulation - daily
-                while now < stop_simulation + 2 * daily:
-                    now += daily
-                    for v_id, v in vehicles.items():
-                        if now >= stop_simulation:
-                            # after end of scenario: keep generating trips, but don't include in
-                            # scenario
-                            continue
-
-                    # generate prices for the day
-                    if now < stop_simulation:
-                        morning = now + datetime.timedelta(hours=6)
-                        evening_by_month = now + datetime.timedelta(
-                            hours=22 - abs(6 - now.month))
-                        events['grid_operator_signals'] += [{
-                            # day (6-evening): 15ct
-                            "signal_time": max(start_simulation, now - daily).isoformat(),
-                            "grid_connector_id": key,
-                            "start_time": morning.isoformat(),
-                            "cost": {
-                                "type": "fixed",
-                                "value": 0.15 + random.gauss(0, 0.05)
-                            }
-                        }, {
-                            # night (depending on month - 6): 5ct
-                            "signal_time": max(start_simulation, now - daily).isoformat(),
-                            "grid_connector_id": key,
-                            "start_time": evening_by_month.isoformat(),
-                            "cost": {
-                                "type": "fixed",
-                                "value": 0.05 + random.gauss(0, 0.03)
-                            }
-                        }]
-
-        # add timeseries from csv
-        # save path and options for CSV timeseries
+        # SpiceEV CSV: save path and options for CSV timeseries
+        # at the moment, SpiceEV only supports price CSV for one grid connector!
         if args.include_price_csv:
             for filename, gc_name in args.include_price_csv:
                 options = {
@@ -704,9 +668,81 @@ class Schedule:
                         value = int(value)
                     options[key] = value
                 events['energy_price_from_csv'] = options
-                price_csv_path = args.output_directory / filename
-                if not price_csv_path.exists():
-                    logging.warning(f"Price csv file '{price_csv_path}' does not exist yet")
+                if not Path(filename).exists():
+                    logging.warning(f"Price csv file '{filename}' does not exist yet")
+            if len(args.include_price_csv) > 1:
+                logging.warning("include_price_csv: SpiceEV only supports one price CSV")
+        else:
+            # no forwarning of price csv:
+            # read out options from electrified stations
+            random.seed(args.seed)
+            for gc_name in grid_connectors.keys():
+                price_csv = self.stations[gc_name].get("price_csv")
+                if price_csv is not None:
+                    # read out price csv and generate grid operator signals directly
+                    # this circumvents the one GC price limit
+                    try:
+                        start = spice_ev_util.datetime_from_isoformat(price_csv["start_time"])
+                    except KeyError:
+                        # default: simzulation start
+                        start = start_simulation
+                    interval = datetime.timedelta(seconds=price_csv["step_duration_s"])
+                    yesterday = datetime.timedelta(days=1)  # price events known one day in advance
+                    csv_path = Path(price_csv["csv_file"])
+                    if not csv_path.exists():
+                        logging.warning("{} price csv file {} does not exist yet".format(
+                            gc_name, csv_path))
+                    column = price_csv.get("column")
+                    factor = price_csv.get("factor", 1)
+
+                    with csv_path.open(newline='', encoding='utf-8') as csvfile:
+                        reader = csv.DictReader(csvfile, delimiter=',', quotechar='"')
+                        for idx, row in enumerate(reader):
+                            start_time = idx * interval + start
+                            event_time = max(start, start_time-yesterday)
+                            value_str = row[column] if column else list(row.values())[-1]
+                            value = float(value_str) * factor
+                            events["grid_operator_signals"].append({
+                                "start_time": start_time.isoformat(),
+                                "signal_time": event_time.isoformat(),
+                                "grid_connector_id": gc_name,
+                                "cost": {"type": "fixed", "value": value}
+                            })
+                else:
+                    # default: generate random prices
+                    now = start_simulation - daily
+                    while now < stop_simulation + 2 * daily:
+                        now += daily
+                        for v_id, v in vehicles.items():
+                            if now >= stop_simulation:
+                                # after end of scenario: keep generating trips,
+                                # but don't include in scenario
+                                continue
+
+                        # generate prices for the day
+                        if now < stop_simulation:
+                            morning = now + datetime.timedelta(hours=6)
+                            evening_by_month = now + datetime.timedelta(
+                                hours=22 - abs(6 - now.month))
+                            events['grid_operator_signals'] += [{
+                                # day (6-evening): 15ct
+                                "signal_time": max(start_simulation, now - daily).isoformat(),
+                                "grid_connector_id": gc_name,
+                                "start_time": morning.isoformat(),
+                                "cost": {
+                                    "type": "fixed",
+                                    "value": 0.15 + random.gauss(0, 0.05)
+                                }
+                            }, {
+                                # night (depending on month - 6): 5ct
+                                "signal_time": max(start_simulation, now - daily).isoformat(),
+                                "grid_connector_id": gc_name,
+                                "start_time": evening_by_month.isoformat(),
+                                "cost": {
+                                    "type": "fixed",
+                                    "value": 0.05 + random.gauss(0, 0.03)
+                                }
+                            }]
 
         # reformat vehicle types for SpiceEV
         vehicle_types_spiceev = {

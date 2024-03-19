@@ -23,6 +23,13 @@
             "column": "External Load (kW)",  // column name in .csv
             "factor": 2  // factor to multiply column values, eg 0.001 for conversion from W to kW
         },
+        "price_csv": {  // optional: price timeseries for this station
+            "csv_file": "data/examples/price.csv",  // path to price csv
+            "step_duration_s": 3600,  // timestep in seconds
+            "start_time": "2022-03-07T00:00:00",  // optional: start time as YYYY-MM-DDThh:mm:ss. Scenario start if not given
+            "column": "price [euro/kWh]",  // optional: column name in .csv. Defaults to last column
+            "factor": 1  // factor to multiply column values. Simulation expects €/kWh
+        },
         "battery": {  // optional: local stationary battery
             "charging_curve": [[0,50], [1,50]], // piecewise linear function that maps SoC to power, from 0 to 1, required
             "capacity": 300, // kWh, assumed to be infinite if not given
@@ -42,6 +49,11 @@
             "column": "Feed-in Total (kW)",
             "nominal_power": 2,
             "factor": 0.5
+        },
+        "price_csv": {
+            "csv_file": "data/examples/price.csv",
+            "step_duration_s": 3600,
+            "factor": 1.5
         }
     },
     "Station-10": {
