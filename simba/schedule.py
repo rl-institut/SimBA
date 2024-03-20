@@ -673,7 +673,7 @@ class Schedule:
             if len(args.include_price_csv) > 1:
                 logging.warning("include_price_csv: SpiceEV only supports one price CSV")
         else:
-            # no forwarning of price csv:
+            # no forwarding of price csv:
             # read out options from electrified stations
             random.seed(args.seed)
             for gc_name in grid_connectors.keys():
@@ -684,10 +684,9 @@ class Schedule:
                     try:
                         start = spice_ev_util.datetime_from_isoformat(price_csv["start_time"])
                     except KeyError:
-                        # default: simzulation start
+                        # default: simulation start
                         start = start_simulation
-                    interval = datetime.timedelta(seconds=price_csv["step_duration_s"])
-                    yesterday = datetime.timedelta(days=1)  # price events known one day in advance
+                    price_interval = datetime.timedelta(seconds=price_csv["step_duration_s"])
                     csv_path = Path(price_csv["csv_file"])
                     if not csv_path.exists():
                         logging.warning("{} price csv file {} does not exist yet".format(
@@ -698,8 +697,13 @@ class Schedule:
                     with csv_path.open(newline='', encoding='utf-8') as csvfile:
                         reader = csv.DictReader(csvfile, delimiter=',', quotechar='"')
                         for idx, row in enumerate(reader):
-                            start_time = idx * interval + start
-                            event_time = max(start, start_time-yesterday)
+                            start_time = idx * price_interval + start
+                            if start_time > stop_simulation:
+                                # don't generate prices after end of scenario
+                                break
+                            # price events known one day in advance
+                            event_time = start_time - daily
+                            # read value from given column or last column
                             value_str = row[column] if column else list(row.values())[-1]
                             value = float(value_str) * factor
                             events["grid_operator_signals"].append({
@@ -713,12 +717,6 @@ class Schedule:
                     now = start_simulation - daily
                     while now < stop_simulation + 2 * daily:
                         now += daily
-                        for v_id, v in vehicles.items():
-                            if now >= stop_simulation:
-                                # after end of scenario: keep generating trips,
-                                # but don't include in scenario
-                                continue
-
                         # generate prices for the day
                         if now < stop_simulation:
                             morning = now + datetime.timedelta(hours=6)
