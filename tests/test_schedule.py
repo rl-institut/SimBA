@@ -370,11 +370,17 @@ class TestSchedule:
         assert schedule.Schedule.check_consistency(sched)["1"] == error
 
     def test_peak_load_window(self):
+        # generate events to lower GC max power during peak load windows
+        # setup basic schedule (reuse during test)
         generated_schedule = generate_basic_schedule()
         sys.argv = ["foo", "--config", str(example_root / "simba.cfg")]
         args = util.get_args()
+        for station in generated_schedule.stations.values():
+            station["gc_power"] = 1000
+            station.pop("peak_load_window_power", None)
 
         def count_max_power_events(scenario):
+            # count how many grid operator events (re)set GC max_power
             return sum([e.max_power is not None for e in scenario.events.grid_operator_signals])
 
         # no time windows
@@ -386,7 +392,6 @@ class TestSchedule:
         args.time_windows = "does-not-exist"
         with pytest.warns(UserWarning):
             generated_schedule.generate_scenario(args)  # warning, no events
-        assert count_max_power_events(scenario) == 0
 
         # example time windows, but no corresponding grid operators
         args.time_windows = example_root / "time_windows.json"
@@ -394,20 +399,33 @@ class TestSchedule:
             station["grid_operator"] = "wrong-operator"
         with pytest.warns(UserWarning):
             scenario = generated_schedule.generate_scenario(args)
+        # reset grid operator
+        for station in generated_schedule.stations.values():
+            station["grid_operator"] = "default_grid_operator"
         assert count_max_power_events(scenario) == 0
 
         # reduced power too high
-        for station in generated_schedule.stations.values():
-            station["grid_operator"] = "default_grid_operator"
-            station["gc_power"] = 1000
-            station["peak_load_window_power"] = 10000
+        args.peak_load_window_power_deps = 10000
+        args.peak_load_window_power_opps = 10000
         with pytest.warns(UserWarning):
             scenario = generated_schedule.generate_scenario(args)
         assert count_max_power_events(scenario) == 0
 
         # test reduced power events
-        for station in generated_schedule.stations.values():
-            station["gc_power"] = 1000
-            station["peak_load_window_power"] = 100
+        args.peak_load_window_power_deps = 10
+        args.peak_load_window_power_opps = 10
         scenario = generated_schedule.generate_scenario(args)
         assert count_max_power_events(scenario) == 4
+
+        # test that max_power is actually reduced during simulation
+        args.time_windows = None
+        basic_run = generated_schedule.run(args)
+        args.time_windows = example_root / "time_windows.json"
+        args.peak_load_window_power_deps = 75
+        args.peak_load_window_power_opps = 75
+        reduced_run = generated_schedule.run(args)
+        timeseries_no_reduction = getattr(basic_run, "Station-0_timeseries")
+        sum_grid_power_no_red = -sum(timeseries_no_reduction["grid supply [kW]"])
+        timeseries_with_reduction = getattr(reduced_run, "Station-0_timeseries")
+        sum_grid_power_with_red = -sum(timeseries_with_reduction["grid supply [kW]"])
+        assert sum_grid_power_no_red > sum_grid_power_with_red

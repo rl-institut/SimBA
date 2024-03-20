@@ -15,17 +15,17 @@
       "start": "2022-03-01",
       "end": "2022-05-31",
       "windows": {
-        "MV": [["17:00", "20:30"]]  // only relevant time window in example scenario
+        "MV": [["03:00", "04:30"]]  // only relevant time window in example scenario
       }
     },
     "summer": {
-      "start": "2022-03-01",
-      "end": "2022-05-31",
+      "start": "2022-06-01",
+      "end": "2022-08-31",
       "windows": {}
     },
     "fall": {
-      "start": "2022-03-01",
-      "end": "2022-05-31",
+      "start": "2022-09-01",
+      "end": "2022-11-30",
       "windows": {}
     },
     "winter2": {
