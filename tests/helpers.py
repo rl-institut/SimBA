@@ -10,6 +10,8 @@ def generate_basic_schedule():
     lol_path = 'data/examples/default_level_of_loading_over_day.csv'
     with open("data/examples/vehicle_types.json", 'r', encoding='utf-8') as f:
         vehicle_types = util.uncomment_json_file(f)
+    with open(station_path, 'r', encoding='utf-8') as f:
+        stations = util.uncomment_json_file(f)
     trip.Trip.consumption = consumption.Consumption(vehicle_types,
                                                     outside_temperatures=temperature_path,
                                                     level_of_loading_over_day=lol_path)
@@ -24,4 +26,4 @@ def generate_basic_schedule():
         "cs_power_deps_oppb": 150
     }
 
-    return schedule.Schedule.from_csv(schedule_path, vehicle_types, station_path, **mandatory_args)
+    return schedule.Schedule.from_csv(schedule_path, vehicle_types, stations, **mandatory_args)

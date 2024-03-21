@@ -229,7 +229,12 @@ class Mode:
         # create report based on all previous modes
         if args.cost_calculation:
             # cost calculation part of report
-            calculate_costs(args.cost_parameters, scenario, schedule, args)
+            try:
+                calculate_costs(args.cost_parameters, scenario, schedule, args)
+            except Exception as e:
+                logging.warning(f"Cost calculation failed due to {str(e)}")
+                if args.propagate_mode_errors:
+                    raise
         # name: always start with sim, append all prior optimization modes
         create_results_directory(args, i)
         report.generate(schedule, scenario, args)
