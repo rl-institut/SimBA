@@ -121,6 +121,8 @@ class TestSimulate:
         values["output_directory"] = tmp_path
         values["strategy"] = "distributed"
         values["strategy_deps"] = "balanced"
+        values["strategy_opps"] = "greedy"
+
         values["show_plots"] = False
         # tuned so that some rotations don't complete
         values["days"] = .33
