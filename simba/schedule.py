@@ -791,10 +791,13 @@ def update_csv_file_info(file_info, gc_name):
             row = f.readline()
             ts = row.split(',')[0]
             start_time = spice_ev_util.datetime_from_isoformat(ts)
+            # force timezone-unaware (like all SimBA datetimes)
+            start_time = start_time.replace(tzinfo=None)
             # read next timestep to get interval length
             row = f.readline()
             ts = row.split(',')[0]
             time = spice_ev_util.datetime_from_isoformat(ts)
+            time = time.replace(tzinfo=None)
             csv_interval = (time - start_time).total_seconds()
         file_info["start_time"] = start_time.isoformat()
         file_info["step_duration_s"] = round(csv_interval)
