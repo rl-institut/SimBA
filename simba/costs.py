@@ -63,6 +63,7 @@ class Costs:
     """
     CUMULATED = "cumulated"
     GARAGE = "garage"
+    NO_DEPOT = "no_departure_depot"
     # Output is sorted by this parameter
     SORT_COLUMN = "c_invest"
 
@@ -81,15 +82,19 @@ class Costs:
         :type c_params: dict
         """
 
-        self.gcs = scenario.components.grid_connectors
+        # Only look at grid connectors of depot_stations
+        self.gcs = {gc_id: gc for gc_id, gc in scenario.components.grid_connectors.items()
+                    if schedule.stations[gc_id]["type"] == "deps"}
 
         # Make sure CUMULATED and Garage is unique to gc names
-        assert self.CUMULATED not in self.gcs
-        assert self.GARAGE not in self.gcs
+        error_text = " cannot be part of station names"
+        assert self.CUMULATED not in self.gcs, self.CUMULATED + error_text
+        assert self.GARAGE not in self.gcs, self.GARAGE + error_text
+        assert self.NO_DEPOT not in self.gcs, self.NO_DEPOT + error_text
 
-        self.gcs_and_garage = [self.GARAGE] + list(self.gcs)
+        self.gcs_and_garage = [self.GARAGE, self.NO_DEPOT] + list(self.gcs)
         self.costs_per_gc = {gc: {key: 0 for key in self.get_gc_cost_variables()} for gc in
-                             self.gcs_and_garage}
+                             self.gcs_and_garage + [self.CUMULATED]}
         self.units: dict = None
         self.vehicles_per_gc: dict = None
         self.gc_rotations: dict = None
@@ -157,11 +162,11 @@ class Costs:
          :rtype: list
          """
         return [  # investment costs
-            "c_vehicles", "c_gcs", "c_cs", "c_garage_cs", "c_garage",
+            "c_vehicles", "c_gcs", "c_cs", "c_garage_cs",
             "c_garage_workstations",
             "c_stat_storage", "c_feed_in", "c_invest",
             # annual investment costs
-            "c_vehicles_annual", "c_gcs_annual", "c_cs_annual", "c_garage_annual",
+            "c_vehicles_annual", "c_gcs_annual", "c_cs_annual",
             "c_stat_storage_annual", "c_feed_in_annual", "c_invest_annual",
             # annual maintenance costs
             "c_maint_vehicles_annual", "c_maint_gc_annual", "c_maint_cs_annual",
@@ -339,11 +344,12 @@ class Costs:
                 * self.params["garage"]["cost_per_workstation"])
         self.costs_per_gc[self.GARAGE]["c_garage_workstations"] = c_garage_workstations
 
-        self.costs_per_gc[self.GARAGE]["c_garage"] = c_garage_cs + c_garage_workstations
-        self.costs_per_gc[self.GARAGE]["c_garage_annual"] = (
+        self.costs_per_gc[self.GARAGE]["c_invest"] = c_garage_cs + c_garage_workstations
+        self.costs_per_gc[self.GARAGE]["c_invest_annual"] = (
                 c_garage_cs / self.params["cs"]["lifetime_cs"]
                 + c_garage_workstations / self.params["garage"][
                     "lifetime_workstations"])
+
         return self
 
     def set_grid_connection_costs(self):
@@ -442,10 +448,19 @@ class Costs:
         for rot in self.schedule.rotations.values():
             # Get the vehicle_type_name including charging type by removing the number of the id
             vehicle_type_name = "_".join(rot.vehicle_id.split("_")[:-1])
-            vehicles_per_gc[rot.departure_name][vehicle_type_name].add(rot.vehicle_id)
+            try:
+                vehicles_per_gc[rot.departure_name][vehicle_type_name].add(rot.vehicle_id)
+            except KeyError:
+                vehicles_per_gc[self.NO_DEPOT][vehicle_type_name].add(rot.vehicle_id)
+
         self.vehicles_per_gc = {
             gc: {v_type_name: len(s) for v_type_name, s in vehicles_dict.items()} for
             gc, vehicles_dict in vehicles_per_gc.items()}
+
+        self.vehicles_per_gc[self.CUMULATED] = dict()
+        for v_type in v_types:
+            self.vehicles_per_gc[self.CUMULATED][v_type] = self.schedule.vehicle_type_counts[v_type]
+
         return self
 
     def set_vehicle_costs_per_gc(self):
@@ -464,6 +479,7 @@ class Costs:
                     warnings.warn("No capex defined for vehicle type " + v_type +
                                   ". Unable to calculate investment costs for this vehicle type.")
                     continue
+
                 vehicle_lifetime = self.params["vehicles"][v_type]["lifetime"]
                 battery_lifetime = self.params["batteries"]["lifetime_battery"]
                 capacity = self.schedule.scenario["components"]["vehicle_types"][v_type]["capacity"]
@@ -471,8 +487,10 @@ class Costs:
                 c_vehicles_vt = (vehicle_number * (costs_vehicle + (
                         vehicle_lifetime // battery_lifetime) * capacity * cost_per_kWh))
                 c_vehicles_annual = c_vehicles_vt / vehicle_lifetime
+
                 self.costs_per_gc[gc]["c_vehicles"] += c_vehicles_vt
                 self.costs_per_gc[gc]["c_vehicles_annual"] += c_vehicles_annual
+
         return self
 
     def cumulate(self):
@@ -482,22 +500,33 @@ class Costs:
         :return: Updated instance
         :rtype: Costs
         """
-        v_types = self.get_vehicle_types()
-        self.vehicles_per_gc[self.CUMULATED] = dict()
-        for v_type in v_types:
-            self.vehicles_per_gc[self.CUMULATED][v_type] = sum(
-                [self.vehicles_per_gc[gc][v_type] for gc in self.gcs])
-
         # Cumulate gcs variables
-        self.costs_per_gc[self.CUMULATED] = dict()
         for key in self.get_gc_cost_variables():
+            # Vehicle costs can not be cumulated since they might be double counted for vehicles
+            # with multiple depots. Instead the vehicle costs were previously calculated in
+            # set_vehicle_costs_per_gc()
+            if key in ["c_vehicles", "c_vehicles_annual"]:
+                continue
             self.costs_per_gc[self.CUMULATED][key] = 0
-            for gc in self.costs_per_gc.keys()-[self.CUMULATED]:
+            for gc in self.costs_per_gc.keys() - [self.CUMULATED]:
                 self.costs_per_gc[self.CUMULATED][key] += self.costs_per_gc[gc][key]
 
-        self.costs_per_gc[self.CUMULATED]["c_invest"] += self.costs_per_gc[self.GARAGE]["c_garage"]
-        self.costs_per_gc[self.CUMULATED]["c_invest_annual"] += self.costs_per_gc[self.GARAGE][
-            "c_garage_annual"]
+        # Since c_vehicles and c_vehicles_annual might have double counting over the other gcs,
+        # total invest for the cumulated gc is calculated separately
+        self.costs_per_gc[self.CUMULATED]["c_invest"] = (
+                self.costs_per_gc[self.CUMULATED]["c_vehicles"]
+                + self.costs_per_gc[self.CUMULATED]["c_cs"]
+                + self.costs_per_gc[self.CUMULATED]["c_gcs"]
+                + self.costs_per_gc[self.CUMULATED]["c_stat_storage"]
+                + self.costs_per_gc[self.CUMULATED]["c_feed_in"])
+
+        self.costs_per_gc[self.CUMULATED]["c_invest_annual"] = (
+                self.costs_per_gc[self.CUMULATED]["c_vehicles_annual"]
+                + self.costs_per_gc[self.CUMULATED]["c_cs_annual"]
+                + self.costs_per_gc[self.CUMULATED]["c_gcs_annual"]
+                + self.costs_per_gc[self.CUMULATED]["c_stat_storage_annual"]
+                + self.costs_per_gc[self.CUMULATED]["c_feed_in_annual"])
+
         return self
 
     def to_csv_lists(self):
