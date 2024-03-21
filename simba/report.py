@@ -9,6 +9,10 @@ import matplotlib.pyplot as plt
 from spice_ev.report import aggregate_global_results, plot, generate_reports
 
 
+def open_for_csv(filepath):
+    return open(filepath, "w", newline='', encoding='utf-8')
+
+
 def generate_gc_power_overview_timeseries(scenario, args):
     """Generate a csv timeseries with each grid connector's summed up charging station power
 
@@ -23,7 +27,7 @@ def generate_gc_power_overview_timeseries(scenario, args):
     if not gc_list:
         return
 
-    with open(args.results_directory / "gc_power_overview_timeseries.csv", "w", newline='') as f:
+    with open_for_csv(args.results_directory / "gc_power_overview_timeseries.csv") as f:
         csv_writer = csv.writer(f)
         csv_writer.writerow(["time"] + gc_list)
         stations = []
@@ -55,7 +59,7 @@ def generate_gc_overview(schedule, scenario, args):
     used_gc_list = list(scenario.components.grid_connectors.keys())
     stations = getattr(schedule, "stations")
 
-    with open(args.results_directory / "gc_overview.csv", "w", newline='') as f:
+    with open_for_csv(args.results_directory / "gc_overview.csv") as f:
         csv_writer = csv.writer(f)
         csv_writer.writerow(["station_name",
                              "station_type",
@@ -231,7 +235,7 @@ def generate(schedule, scenario, args):
         write_csv(data, args.results_directory / "rotation_socs.csv",
                   propagate_errors=args.propagate_mode_errors)
 
-        with open(args.results_directory / "rotation_summary.csv", "w", newline='') as f:
+        with open_for_csv(args.results_directory / "rotation_summary.csv") as f:
             csv_writer = csv.DictWriter(f, list(rotation_infos[0].keys()))
             csv_writer.writeheader()
             csv_writer.writerows(rotation_infos)
@@ -269,7 +273,7 @@ def write_csv(data: Iterable, file_path, propagate_errors=False):
         logging.debug(f"Writing to {file_path} aborted since no data is passed.")
         return
     try:
-        with open(file_path, "w", newline='', encoding='utf-8') as f:
+        with open_for_csv(file_path) as f:
             csv_writer = csv.writer(f)
             for row in data:
                 csv_writer.writerow(row)

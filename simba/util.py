@@ -224,7 +224,7 @@ def setup_logging(args, time_str):
     # set up logging
     # always to console
     log_handlers = [logging.StreamHandler()]
-    if args.logfile is not None:
+    if args.logfile is not None and args.output_directory is not None:
         # optionally to file in output dir
         if args.logfile:
             log_name = args.logfile
@@ -246,9 +246,9 @@ def get_args():
         description='SimBA - Simulation toolbox for Bus Applications.')
 
     # #### Paths #####
-    parser.add_argument('--input-schedule', nargs='?',
+    parser.add_argument('--input-schedule',
                         help='Path to CSV file containing all trips of schedule to be analyzed.')
-    parser.add_argument('--output-directory', default="data/sim_outputs", nargs='?',
+    parser.add_argument('--output-directory', default="data/sim_outputs",
                         help='Location where all simulation outputs are stored')
     parser.add_argument('--electrified-stations', help='include electrified_stations json')
     parser.add_argument('--vehicle-types', default="data/examples/vehicle_types.json",
