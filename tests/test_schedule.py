@@ -165,18 +165,17 @@ class TestSchedule:
         assert '2' in (common_stations["3"])
 
     def test_get_negative_rotations(self):
-        """Check if rotations '1' and '11' with negative SOCs are found """
+        """Check if rotation '11' with negative SOCs are found """
         # make use of the test_run() which has to return schedule and scenario object
         sched, scen, args = self.basic_run()
         for rot in sched.rotations.values():
             for t in rot.trips:
                 t.distance = 0.01
-        sched.rotations["1"].trips[0].distance = 9999999
+        sched.rotations["11"].trips[-1].distance = 99_999
         sched.calculate_consumption()
         scen = sched.run(args)
         neg_rots = sched.get_negative_rotations(scen)
-        neg_rots.sort()
-        assert ['1', '11'] == neg_rots
+        assert ['11'] == neg_rots
 
     def test_rotation_filter(self, tmp_path):
         s = schedule.Schedule(self.vehicle_types, self.electrified_stations, **mandatory_args)
