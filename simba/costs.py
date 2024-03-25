@@ -63,7 +63,7 @@ class Costs:
     """
     CUMULATED = "cumulated"
     GARAGE = "garage"
-    NO_DEPOT = "no_departure_depot"
+    NOT_ELECTRIFIED = "Non_electrified_station"
     # Output is sorted by this parameter
     SORT_COLUMN = "c_invest"
 
@@ -83,16 +83,15 @@ class Costs:
         """
 
         # Only look at grid connectors of depot_stations
-        self.gcs = {gc_id: gc for gc_id, gc in scenario.components.grid_connectors.items()
-                    if schedule.stations[gc_id]["type"] == "deps"}
+        self.gcs = {gc_id: gc for gc_id, gc in scenario.components.grid_connectors.items()}
 
         # Make sure CUMULATED and Garage is unique to gc names
         error_text = " cannot be part of station names"
         assert self.CUMULATED not in self.gcs, self.CUMULATED + error_text
         assert self.GARAGE not in self.gcs, self.GARAGE + error_text
-        assert self.NO_DEPOT not in self.gcs, self.NO_DEPOT + error_text
+        assert self.NOT_ELECTRIFIED not in self.gcs, self.NOT_ELECTRIFIED + error_text
 
-        self.gcs_and_garage = [self.GARAGE, self.NO_DEPOT] + list(self.gcs)
+        self.gcs_and_garage = [self.GARAGE, self.NOT_ELECTRIFIED] + list(self.gcs)
         self.costs_per_gc = {gc: {key: 0 for key in self.get_gc_cost_variables()} for gc in
                              self.gcs_and_garage + [self.CUMULATED]}
         self.units: dict = None
@@ -451,7 +450,9 @@ class Costs:
             try:
                 vehicles_per_gc[rot.departure_name][vehicle_type_name].add(rot.vehicle_id)
             except KeyError:
-                vehicles_per_gc[self.NO_DEPOT][vehicle_type_name].add(rot.vehicle_id)
+                # Rotations might start and stations which are not electrified and thus are not
+                # found in the gc keys.
+                vehicles_per_gc[self.NOT_ELECTRIFIED][vehicle_type_name].add(rot.vehicle_id)
 
         self.vehicles_per_gc = {
             gc: {v_type_name: len(s) for v_type_name, s in vehicles_dict.items()} for
