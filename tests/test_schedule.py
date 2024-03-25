@@ -1,6 +1,7 @@
+import datetime
 from argparse import Namespace
 from copy import deepcopy
-from datetime import timedelta
+from datetime import timedelta, datetime # noqa
 import pytest
 import sys
 import spice_ev.scenario as scenario
@@ -165,17 +166,17 @@ class TestSchedule:
         assert '2' in (common_stations["3"])
 
     def test_get_negative_rotations(self):
-        """Check if the single rotation '1' with a negative soc is found """
+        """Check if rotation '11' with negative SOCs is found """
         # make use of the test_run() which has to return schedule and scenario object
         sched, scen, args = self.basic_run()
         for rot in sched.rotations.values():
             for t in rot.trips:
                 t.distance = 0.01
-        sched.rotations["1"].trips[0].distance = 9999999
+        sched.rotations["11"].trips[-1].distance = 99_999
         sched.calculate_consumption()
         scen = sched.run(args)
         neg_rots = sched.get_negative_rotations(scen)
-        assert ['1'] == neg_rots
+        assert ['11'] == neg_rots
 
     def test_rotation_filter(self, tmp_path):
         s = schedule.Schedule(self.vehicle_types, self.electrified_stations, **mandatory_args)
@@ -300,7 +301,7 @@ class TestSchedule:
 
     def test_schedule_from_csv(self):
         generated_schedule = generate_basic_schedule()
-        assert len(generated_schedule.rotations) == 4
+        assert len(generated_schedule.rotations) == 8
         assert type(generated_schedule) is schedule.Schedule
 
     def test_consistency(self):
@@ -415,7 +416,7 @@ class TestSchedule:
         args.peak_load_window_power_deps = 10
         args.peak_load_window_power_opps = 10
         scenario = generated_schedule.generate_scenario(args)
-        assert count_max_power_events(scenario) == 4
+        assert count_max_power_events(scenario) == 8
 
         # test that max_power is actually reduced during simulation
         args.time_windows = None
@@ -424,8 +425,14 @@ class TestSchedule:
         args.peak_load_window_power_deps = 75
         args.peak_load_window_power_opps = 75
         reduced_run = generated_schedule.run(args)
+
+        window_start = datetime(year=2022, month=3, day=8, hour=3, minute=0)
+        window_end = datetime(year=2022, month=3, day=8, hour=4, minute=55)
+        start_index = (window_start - scenario.start_time) // scenario.interval
+        end_index = (window_end - scenario.start_time) // scenario.interval
+        idx_slice = slice(start_index, end_index, 1)
         timeseries_no_reduction = getattr(basic_run, "Station-0_timeseries")
-        sum_grid_power_no_red = -sum(timeseries_no_reduction["grid supply [kW]"])
+        sum_grid_power_no_red = -sum(timeseries_no_reduction["grid supply [kW]"][idx_slice])
         timeseries_with_reduction = getattr(reduced_run, "Station-0_timeseries")
-        sum_grid_power_with_red = -sum(timeseries_with_reduction["grid supply [kW]"])
+        sum_grid_power_with_red = -sum(timeseries_with_reduction["grid supply [kW]"][idx_slice])
         assert sum_grid_power_no_red > sum_grid_power_with_red
