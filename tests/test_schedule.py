@@ -165,7 +165,7 @@ class TestSchedule:
         assert '2' in (common_stations["3"])
 
     def test_get_negative_rotations(self):
-        """Check if rotation '11' with negative SOCs are found """
+        """Check if rotation '11' with negative SOCs is found """
         # make use of the test_run() which has to return schedule and scenario object
         sched, scen, args = self.basic_run()
         for rot in sched.rotations.values():
