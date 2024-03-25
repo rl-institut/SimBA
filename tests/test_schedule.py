@@ -1,7 +1,7 @@
 import datetime
 from argparse import Namespace
 from copy import deepcopy
-from datetime import timedelta
+from datetime import timedelta, datetime # noqa
 import pytest
 import sys
 import spice_ev.scenario as scenario
@@ -425,14 +425,12 @@ class TestSchedule:
         args.peak_load_window_power_deps = 75
         args.peak_load_window_power_opps = 75
         reduced_run = generated_schedule.run(args)
-        import datetime
 
-
-        window_start = datetime.datetime(year=2022, month=3, day=8, hour=3,minute=0)
-        window_end = datetime.datetime(year=2022, month=3, day=8, hour=4,minute=55)
-        start_index = (window_start - scenario.start_time)//scenario.interval
-        end_index = (window_end - scenario.start_time)//scenario.interval
-        idx_slice = slice(start_index, end_index,1)
+        window_start = datetime(year=2022, month=3, day=8, hour=3, minute=0)
+        window_end = datetime(year=2022, month=3, day=8, hour=4, minute=55)
+        start_index = (window_start - scenario.start_time) // scenario.interval
+        end_index = (window_end - scenario.start_time) // scenario.interval
+        idx_slice = slice(start_index, end_index, 1)
         timeseries_no_reduction = getattr(basic_run, "Station-0_timeseries")
         sum_grid_power_no_red = -sum(timeseries_no_reduction["grid supply [kW]"][idx_slice])
         timeseries_with_reduction = getattr(reduced_run, "Station-0_timeseries")
