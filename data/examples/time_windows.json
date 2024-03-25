@@ -15,7 +15,7 @@
       "start": "2022-03-01",
       "end": "2022-05-31",
       "windows": {
-        "MV": [["03:00", "04:30"]]  // only relevant time window in example scenario
+        "MV": [["03:00", "04:55"]]  // only relevant time window in example scenario
       }
     },
     "summer": {
