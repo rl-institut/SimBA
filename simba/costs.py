@@ -64,8 +64,6 @@ class Costs:
     CUMULATED = "cumulated"
     GARAGE = "garage"
     NOT_ELECTRIFIED = "Non_electrified_station"
-    # Output is sorted by this parameter
-    SORT_COLUMN = "c_invest"
 
     def __init__(self, schedule: simba.schedule.Schedule, scenario: spice_ev.scenario.Scenario,
                  args, c_params: dict):
@@ -138,8 +136,14 @@ class Costs:
         :return: List of columns
         :rtype: list
         """
-        return list(dict(sorted(self.costs_per_gc.items(), key=lambda x: x[1][self.SORT_COLUMN],
-                                reverse=True)).keys())
+        first_columns = [self.CUMULATED, self.GARAGE, self.NOT_ELECTRIFIED]
+
+        # Use sorting of electrified_stations.json
+        middle_columns = [s for s in self.schedule.stations if s in self.gcs]
+
+        # make sure no gc is missing
+        end_columns = [s for s in self.gcs if s not in middle_columns]
+        return first_columns + middle_columns + end_columns
 
     def set_gc_rotations(self):
         """
@@ -514,19 +518,25 @@ class Costs:
 
         # Since c_vehicles and c_vehicles_annual might have double counting over the other gcs,
         # total invest for the cumulated gc is calculated separately
+        # Garage costs are added separately, since their costs come from the garage_workstation
+        # and garage_cs which are different to "normal" stations
         self.costs_per_gc[self.CUMULATED]["c_invest"] = (
                 self.costs_per_gc[self.CUMULATED]["c_vehicles"]
                 + self.costs_per_gc[self.CUMULATED]["c_cs"]
                 + self.costs_per_gc[self.CUMULATED]["c_gcs"]
                 + self.costs_per_gc[self.CUMULATED]["c_stat_storage"]
-                + self.costs_per_gc[self.CUMULATED]["c_feed_in"])
+                + self.costs_per_gc[self.CUMULATED]["c_feed_in"]
+                + self.costs_per_gc[self.GARAGE]["c_invest"]
+        )
 
         self.costs_per_gc[self.CUMULATED]["c_invest_annual"] = (
                 self.costs_per_gc[self.CUMULATED]["c_vehicles_annual"]
                 + self.costs_per_gc[self.CUMULATED]["c_cs_annual"]
                 + self.costs_per_gc[self.CUMULATED]["c_gcs_annual"]
                 + self.costs_per_gc[self.CUMULATED]["c_stat_storage_annual"]
-                + self.costs_per_gc[self.CUMULATED]["c_feed_in_annual"])
+                + self.costs_per_gc[self.CUMULATED]["c_feed_in_annual"]
+                + self.costs_per_gc[self.GARAGE]["c_invest_annual"]
+        )
 
         return self
 
