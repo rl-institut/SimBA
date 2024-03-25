@@ -224,7 +224,7 @@ def setup_logging(args, time_str):
     # set up logging
     # always to console
     log_handlers = [logging.StreamHandler()]
-    if args.logfile is not None:
+    if args.logfile is not None and args.output_directory is not None:
         # optionally to file in output dir
         if args.logfile:
             log_name = args.logfile
@@ -246,9 +246,9 @@ def get_args():
         description='SimBA - Simulation toolbox for Bus Applications.')
 
     # #### Paths #####
-    parser.add_argument('--input-schedule', nargs='?',
+    parser.add_argument('--input-schedule',
                         help='Path to CSV file containing all trips of schedule to be analyzed.')
-    parser.add_argument('--output-directory', default="data/sim_outputs", nargs='?',
+    parser.add_argument('--output-directory', default="data/sim_outputs",
                         help='Location where all simulation outputs are stored')
     parser.add_argument('--electrified-stations', help='include electrified_stations json')
     parser.add_argument('--vehicle-types', default="data/examples/vehicle_types.json",
@@ -334,6 +334,10 @@ def get_args():
     parser.add_argument('--default-voltage-level', help='Default voltage level for '
                         'charging stations if not set in electrified_stations file',
                         default='MV', choices=['HV', 'HV/MV', 'MV', 'MV/LV', 'LV'])
+    parser.add_argument('--peak-load-window-power-opps', type=float, default=1000,
+                        help='reduced power of opp stations during peak load windows')
+    parser.add_argument('--peak-load-window-power-deps', type=float, default=1000,
+                        help='reduced power of depot stations during peak load windows')
 
     # #### Simulation Parameters #####
     parser.add_argument('--days', metavar='N', type=int, default=None,
@@ -368,6 +372,9 @@ def get_args():
     parser.add_argument('--optimizer_config', default=None,
                         help="For station_optimization an optimizer_config is needed. \
                         Input a path to an .cfg file or use the default_optimizer.cfg")
+    parser.add_argument('--time-windows', metavar='FILE',
+                        help='use peak load windows to force lower power '
+                        'during times of high grid load')
 
     parser.add_argument('--config', help='Use config file to set arguments')
 
