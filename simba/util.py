@@ -363,6 +363,10 @@ def get_parser():
     parser.add_argument('--default-voltage-level', help='Default voltage level for '
                         'charging stations if not set in electrified_stations file',
                         default='MV', choices=['HV', 'HV/MV', 'MV', 'MV/LV', 'LV'])
+    parser.add_argument('--peak-load-window-power-opps', type=float, default=1000,
+                        help='reduced power of opp stations during peak load windows')
+    parser.add_argument('--peak-load-window-power-deps', type=float, default=1000,
+                        help='reduced power of depot stations during peak load windows')
 
     # #### Simulation Parameters #####
     parser.add_argument('--days', metavar='N', type=int, default=None,
@@ -397,6 +401,9 @@ def get_parser():
     parser.add_argument('--optimizer_config', default=None,
                         help="For station_optimization an optimizer_config is needed. \
                         Input a path to an .cfg file or use the default_optimizer.cfg")
+    parser.add_argument('--time-windows', metavar='FILE',
+                        help='use peak load windows to force lower power '
+                        'during times of high grid load')
 
     parser.add_argument('--config', help='Use config file to set arguments')
     return parser

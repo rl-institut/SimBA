@@ -108,7 +108,7 @@ class Rotation:
         # consumption may have changed with new charging type
         self.consumption = self.calculate_consumption()
 
-        # recalculate consumption
+        # recalculate schedule consumption: update for new rotation consumption
         self.schedule.consumption += self.consumption - old_consumption
 
     @property
