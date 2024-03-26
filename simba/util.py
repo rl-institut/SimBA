@@ -268,7 +268,7 @@ def get_args():
     # #### Modes #####
     mode_choices = [
         'sim', 'neg_depb_to_oppb', 'neg_oppb_to_depb', 'service_optimization',
-        'station_optimization', 'remove_negative', 'report']
+        'station_optimization', 'remove_negative', 'recombination', 'report']
     parser.add_argument('--mode', default=['sim', 'report'], nargs='*', choices=mode_choices,
                         help=f"Specify what you want to do. Choose one or more from \
                         {', '.join(mode_choices)}. \
@@ -278,6 +278,7 @@ def get_args():
                         service optimization finds the largest set of electrified rotations. \
                         station_optimization finds the smallest set of electrified stations.\
                         remove_negative removes all negative rotations.\
+                        recombination splits and merges rotations. \
                         report generates simulation output files.")
 
     # #### Flags #####
