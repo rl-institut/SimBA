@@ -141,8 +141,8 @@ class Costs:
         # Use sorting of electrified_stations.json
         middle_columns = [s for s in self.schedule.stations if s in self.gcs]
 
-        # make sure no gc is missing
-        end_columns = [s for s in self.gcs if s not in middle_columns]
+        # if there are gcs that are not a station, add them at the end
+        end_columns = [s for s in self.gcs if s not in self.schedule.stations]
         return first_columns + middle_columns + end_columns
 
     def set_gc_rotations(self):
