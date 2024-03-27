@@ -80,7 +80,7 @@ class Costs:
         :type c_params: dict
         """
 
-        # Only look at grid connectors of depot_stations
+        # Only look at grid connectors
         self.gcs = {gc_id: gc for gc_id, gc in scenario.components.grid_connectors.items()}
 
         # Make sure CUMULATED and Garage is unique to gc names
@@ -454,8 +454,7 @@ class Costs:
             try:
                 vehicles_per_gc[rot.departure_name][vehicle_type_name].add(rot.vehicle_id)
             except KeyError:
-                # Rotations might start and stations which are not electrified and thus are not
-                # found in the gc keys.
+                # Rotations might start at non-electrified stations, therefore not found in gc keys.
                 vehicles_per_gc[self.NOT_ELECTRIFIED][vehicle_type_name].add(rot.vehicle_id)
 
         self.vehicles_per_gc = {
