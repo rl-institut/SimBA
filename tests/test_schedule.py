@@ -435,13 +435,13 @@ class TestSchedule:
         generated_schedule = generate_basic_schedule()
         sys.argv = ["", "--config", str(example_root / "simba.cfg")]
         args = util.get_args()
-        # only test individual price CSV and reandom price generation
+        # only test individual price CSV and random price generation
         args.include_price_csv = None
         # Station-0: all options
         generated_schedule.stations["Station-0"]["price_csv"] = {
             "csv_file": example_root / "price_timeseries.csv",
             "start_time": "2022-03-07 00:00:00",
-            "step_duration_s": 3600,
+            "step_duration_s": 21600,
             "column": "price",
             "factor": 2
         }
@@ -474,3 +474,15 @@ class TestSchedule:
         assert len(events_by_gc["Station-10"]) == 0
         # after scenario: no events
         assert len(events_by_gc["Station-21"]) == 0
+
+        # run schedule and check prices
+        # example scenario covers 20:16 - 04:59
+        scenario = generated_schedule.run(args)
+        # Station-0: price change every 6h, starting midnight => one price change at midnight
+        assert set(scenario.prices["Station-0"]) == {0.34856, 0.45592}
+        assert scenario.prices["Station-0"][223:225] == [0.34856, 0.45592]
+        # Station-3: price change every hour, starting 04:00 (from csv timestamp)
+        # => 8 price changes
+        assert len(set(scenario.prices["Station-3"])) == 9
+        # same price for last 59 minutes
+        assert set(scenario.prices["Station-3"][-59:]) == {0.19496}
