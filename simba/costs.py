@@ -560,7 +560,7 @@ class Costs:
             # The first two columns contain the parameter and unit
             row = [key, self.get_annual_or_not(key)]
             for col in self.get_columns():
-                # Get the number of vehicles at this gc. Stations which have no gc get 0
+                # Get the cost at this gc. Stations which have no gc get 0
                 num = self.costs_per_gc.get(col, {}).get(key, 0)
                 row.append(round(num, self.rounding_precision))
             output.append(row)
