@@ -278,13 +278,9 @@ def recombination(schedule, args, trips, depot_trips):
 
         # initial check: can bus reach depot again?
         soc = args.desired_soc_deps
-        # trip.calculate_consumption does not return delta_soc, just consumption:
-        # use Trip.consumption.calculate_consumption directly (should exist, because of initial sim)
-        for trip in rotation.trips:
-            _, delta_soc = Trip.consumption.calculate_consumption(
-                trip.arrival_time, trip.distance, vehicle_type, charging_type,
-                trip.temperature, trip.height_diff, trip.level_of_loading, trip.mean_speed)
-            soc += delta_soc
+        rotation.calculate_consumption()
+        soc += sum([trip.delta_soc for trip in rotation.trips])
+
         # soc now contains battery level after first proper trip
         # it will be updated with every trip added to the new rotation
         # probe return trip (same depot)
@@ -294,6 +290,8 @@ def recombination(schedule, args, trips, depot_trips):
                 - schedule.station_data[depot_trip["name"]]["elevation"])
         except (KeyError, ValueError):
             height_diff = 0
+        # trip.calculate_consumption does not return delta_soc, just consumption:
+        # use Trip.consumption.calculate_consumption directly (should exist, because of initial sim)
         _, delta_soc = Trip.consumption.calculate_consumption(
             trip.departure_time, depot_trip["distance"], vehicle_type, charging_type,
             trip.temperature, height_diff, level_of_loading=0, mean_speed=DEFAULT_MEAN_SPEED)
@@ -322,12 +320,9 @@ def recombination(schedule, args, trips, depot_trips):
                 trip_idx += 1
                 continue
 
-            # can bus come back from this station?
+            # probe new trip: can bus come back from this station?
             trip = trips[trip_idx]
-            _, delta_soc_trip = Trip.consumption.calculate_consumption(
-                trip.departure_time, trip.distance, vehicle_type, charging_type,
-                trip.temperature, trip.height_diff, trip.level_of_loading, trip.mean_speed)
-
+            # find depot trip delta soc (new station to depot)
             depot_trip = generate_depot_trip(trip.arrival_name, depot_trips)
             depot_trip_time = depot_trip["distance"] / (DEFAULT_MEAN_SPEED * 1000)
             try:
@@ -339,18 +334,19 @@ def recombination(schedule, args, trips, depot_trips):
             _, delta_soc_depot = Trip.consumption.calculate_consumption(
                 trip.departure_time, depot_trip["distance"], vehicle_type, charging_type,
                 trip.temperature, height_diff, level_of_loading=0, mean_speed=DEFAULT_MEAN_SPEED)
-            if soc < -(delta_soc_trip + delta_soc_depot):
+            # remaining soc must be enough for new trip and depot trip
+            if soc < -(trip.delta_soc + delta_soc_depot):
                 # can't return from this station: skip
                 trip_idx += 1
                 continue
 
-            # add trip to rotation
+            # soc sufficient: add new trip to rotation, remove from trips list
             trip = trips.pop(trip_idx)
             trip_dict = vars(trip)
             del trip_dict["rotation"]
             trip_dict["charging_type"] = charging_type
             rotation.add_trip(trip_dict)
-            soc += delta_soc_trip
+            soc += trip.delta_soc
             last_depot_trip = depot_trip
 
             arrival_time = trip.arrival_time
