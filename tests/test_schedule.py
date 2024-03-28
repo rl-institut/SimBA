@@ -1,6 +1,7 @@
+import datetime
 from argparse import Namespace
 from copy import deepcopy
-from datetime import timedelta
+from datetime import timedelta, datetime # noqa
 import pytest
 import sys
 import spice_ev.scenario as scenario
@@ -165,17 +166,17 @@ class TestSchedule:
         assert '2' in (common_stations["3"])
 
     def test_get_negative_rotations(self):
-        """Check if the single rotation '1' with a negative soc is found """
+        """Check if rotation '11' with negative SOCs is found """
         # make use of the test_run() which has to return schedule and scenario object
         sched, scen, args = self.basic_run()
         for rot in sched.rotations.values():
             for t in rot.trips:
                 t.distance = 0.01
-        sched.rotations["1"].trips[0].distance = 9999999
+        sched.rotations["11"].trips[-1].distance = 99_999
         sched.calculate_consumption()
         scen = sched.run(args)
         neg_rots = sched.get_negative_rotations(scen)
-        assert ['1'] == neg_rots
+        assert ['11'] == neg_rots
 
     def test_rotation_filter(self, tmp_path):
         s = schedule.Schedule(self.vehicle_types, self.electrified_stations, **mandatory_args)
@@ -294,13 +295,13 @@ class TestSchedule:
             except FileNotFoundError:
                 user_warning_count = sum([1 for warning in record.list
                                           if warning.category == UserWarning])
-                assert user_warning_count == 2
+                assert user_warning_count == 3
             else:
                 assert 0, "No error despite wrong file paths"
 
     def test_schedule_from_csv(self):
         generated_schedule = generate_basic_schedule()
-        assert len(generated_schedule.rotations) == 4
+        assert len(generated_schedule.rotations) == 8
         assert type(generated_schedule) is schedule.Schedule
 
     def test_consistency(self):
@@ -368,3 +369,70 @@ class TestSchedule:
         departure_trip = faulty_rot.trips[0]
         faulty_rot.departure_time = departure_trip.departure_time - timedelta(minutes=1)
         assert schedule.Schedule.check_consistency(sched)["1"] == error
+
+    def test_peak_load_window(self):
+        # generate events to lower GC max power during peak load windows
+        # setup basic schedule (reuse during test)
+        generated_schedule = generate_basic_schedule()
+        sys.argv = ["foo", "--config", str(example_root / "simba.cfg")]
+        args = util.get_args()
+        for station in generated_schedule.stations.values():
+            station["gc_power"] = 1000
+            station.pop("peak_load_window_power", None)
+
+        def count_max_power_events(scenario):
+            # count how many grid operator events (re)set GC max_power
+            return sum([e.max_power is not None for e in scenario.events.grid_operator_signals])
+
+        # no time windows
+        args.time_windows = None
+        scenario = generated_schedule.generate_scenario(args)
+        assert count_max_power_events(scenario) == 0
+
+        # wrong time windows file
+        args.time_windows = "does-not-exist"
+        with pytest.warns(UserWarning):
+            generated_schedule.generate_scenario(args)  # warning, no events
+
+        # example time windows, but no corresponding grid operators
+        args.time_windows = example_root / "time_windows.json"
+        for station in generated_schedule.stations.values():
+            station["grid_operator"] = "wrong-operator"
+        with pytest.warns(UserWarning):
+            scenario = generated_schedule.generate_scenario(args)
+        # reset grid operator
+        for station in generated_schedule.stations.values():
+            station["grid_operator"] = "default_grid_operator"
+        assert count_max_power_events(scenario) == 0
+
+        # reduced power too high
+        args.peak_load_window_power_deps = 10000
+        args.peak_load_window_power_opps = 10000
+        with pytest.warns(UserWarning):
+            scenario = generated_schedule.generate_scenario(args)
+        assert count_max_power_events(scenario) == 0
+
+        # test reduced power events
+        args.peak_load_window_power_deps = 10
+        args.peak_load_window_power_opps = 10
+        scenario = generated_schedule.generate_scenario(args)
+        assert count_max_power_events(scenario) == 8
+
+        # test that max_power is actually reduced during simulation
+        args.time_windows = None
+        basic_run = generated_schedule.run(args)
+        args.time_windows = example_root / "time_windows.json"
+        args.peak_load_window_power_deps = 75
+        args.peak_load_window_power_opps = 75
+        reduced_run = generated_schedule.run(args)
+
+        window_start = datetime(year=2022, month=3, day=8, hour=3, minute=0)
+        window_end = datetime(year=2022, month=3, day=8, hour=4, minute=55)
+        start_index = (window_start - scenario.start_time) // scenario.interval
+        end_index = (window_end - scenario.start_time) // scenario.interval
+        idx_slice = slice(start_index, end_index, 1)
+        timeseries_no_reduction = getattr(basic_run, "Station-0_timeseries")
+        sum_grid_power_no_red = -sum(timeseries_no_reduction["grid supply [kW]"][idx_slice])
+        timeseries_with_reduction = getattr(reduced_run, "Station-0_timeseries")
+        sum_grid_power_with_red = -sum(timeseries_with_reduction["grid supply [kW]"][idx_slice])
+        assert sum_grid_power_no_red > sum_grid_power_with_red

@@ -136,9 +136,10 @@ def modes_simulation(schedule, scenario, args):
             if scenario is not None and scenario.step_i > 0:
                 # generate plot of failed scenario
                 args.mode = args.mode[:i] + ["ABORTED"]
-                create_results_directory(args, i+1)
-                report.generate_plots(scenario, args)
-                logging.info(f"Created plot of failed scenario in {args.results_directory}")
+                if args.output_directory is None:
+                    create_results_directory(args, i+1)
+                    report.generate_plots(scenario, args)
+                    logging.info(f"Created plot of failed scenario in {args.results_directory}")
             # continue with other modes after error
 
     # all modes done
@@ -222,10 +223,18 @@ class Mode:
         return schedule, scenario
 
     def report(schedule, scenario, args, i):
+        if args.output_directory is None:
+            return schedule, scenario
+
         # create report based on all previous modes
         if args.cost_calculation:
             # cost calculation part of report
-            calculate_costs(args.cost_parameters, scenario, schedule, args)
+            try:
+                calculate_costs(args.cost_parameters, scenario, schedule, args)
+            except Exception as e:
+                logging.warning(f"Cost calculation failed due to {str(e)}")
+                if args.propagate_mode_errors:
+                    raise
         # name: always start with sim, append all prior optimization modes
         create_results_directory(args, i)
         report.generate(schedule, scenario, args)
@@ -240,6 +249,9 @@ def create_results_directory(args, i):
     :param i: iteration number of loop
     :type i: int
     """
+
+    if args.output_directory is None:
+        return
 
     prior_reports = sum([m.count('report') for m in args.mode[:i]])
     report_name = f"report_{prior_reports+1}"
