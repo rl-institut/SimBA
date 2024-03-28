@@ -80,14 +80,11 @@ class Costs:
         :type c_params: dict
         """
 
-        # Only look at grid connectors
-        self.gcs = {gc_id: gc for gc_id, gc in scenario.components.grid_connectors.items()}
+        self.gcs = scenario.components.grid_connectors
 
-        # Make sure CUMULATED and Garage is unique to gc names
-        error_text = " cannot be part of station names"
-        assert self.CUMULATED not in self.gcs, self.CUMULATED + error_text
-        assert self.GARAGE not in self.gcs, self.GARAGE + error_text
-        assert self.NOT_ELECTRIFIED not in self.gcs, self.NOT_ELECTRIFIED + error_text
+        # Make sure station names are not reserved keywords
+        for reserved in [self.CUMULATED, self.GARAGE, self.NOT_ELECTRIFIED]:
+            assert reserved not in self.gcs, f"{reserved} must not be part of station names"
 
         self.gcs_and_garage = [self.GARAGE, self.NOT_ELECTRIFIED] + list(self.gcs)
         self.costs_per_gc = {gc: {key: 0 for key in self.get_gc_cost_variables()} for gc in
@@ -142,8 +139,8 @@ class Costs:
         middle_columns = [s for s in self.schedule.stations if s in self.gcs]
 
         # if there are gcs that are not a station, add them at the end
-        end_columns = [s for s in self.gcs if s not in self.schedule.stations]
-        return first_columns + middle_columns + end_columns
+        trailing_columns = [s for s in self.gcs if s not in self.schedule.stations]
+        return first_columns + middle_columns + trailing_columns
 
     def set_gc_rotations(self):
         """
@@ -454,7 +451,7 @@ class Costs:
             try:
                 vehicles_per_gc[rot.departure_name][vehicle_type_name].add(rot.vehicle_id)
             except KeyError:
-                # Rotations might start at non-electrified stations, therefore not found in gc keys.
+                # rotation might start at non-electrified station, therefore not found in gc keys.
                 vehicles_per_gc[self.NOT_ELECTRIFIED][vehicle_type_name].add(rot.vehicle_id)
 
         self.vehicles_per_gc = {
@@ -506,8 +503,8 @@ class Costs:
         """
         # Cumulate gcs variables
         for key in self.get_gc_cost_variables():
-            # Vehicle costs can not be cumulated since they might be double counted for vehicles
-            # with multiple depots. Instead the vehicle costs were previously calculated in
+            # Vehicle costs cannot be cumulated since they might be double counted for vehicles
+            # with multiple depots. Instead, the vehicle costs were previously calculated in
             # set_vehicle_costs_per_gc()
             if key in ["c_vehicles", "c_vehicles_annual"]:
                 continue
