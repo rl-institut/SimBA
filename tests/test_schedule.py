@@ -24,7 +24,7 @@ mandatory_args = {
 }
 
 
-class TestSchedule:
+class BasicSchedule:
     temperature_path = example_root / 'default_temp_winter.csv'
     lol_path = example_root / 'default_level_of_loading_over_day.csv'
 
@@ -53,6 +53,8 @@ class TestSchedule:
         scen = sched.run(args)
         return sched, scen, args
 
+
+class TestSchedule(BasicSchedule):
     def test_mandatory_options_exit(self):
         """
         Check if the schedule creation properly throws an error in case of missing mandatory options
@@ -448,7 +450,7 @@ class TestSchedule:
         generated_schedule.stations["Station-0"]["price_csv"] = {
             "csv_file": example_root / "price_timeseries.csv",
             "start_time": "2022-03-07 00:00:00",
-            "step_duration_s": 21600,
+            "step_duration_s": 86400,
             "column": "price",
             "factor": 2
         }
@@ -483,13 +485,13 @@ class TestSchedule:
         assert len(events_by_gc["Station-21"]) == 0
 
         # run schedule and check prices
-        # example scenario covers 20:16 - 04:59
+        # example scenario covers 2022-03-07 20:16 - 2022-03-09 04:59
         scenario = generated_schedule.run(args)
-        # Station-0: price change every 6h, starting midnight => one price change at midnight
-        assert set(scenario.prices["Station-0"]) == {0.34856, 0.45592}
-        assert scenario.prices["Station-0"][223:225] == [0.34856, 0.45592]
+        # Station-0: price change every 24h, starting midnight => two price changes at midnight
+        assert set(scenario.prices["Station-0"]) == {0.1599, 0.18404, 0.23492}
+        assert scenario.prices["Station-0"][223:225] == [0.1599, 0.18404]
         # Station-3: price change every hour, starting 04:00 (from csv timestamp)
-        # => 8 price changes
-        assert len(set(scenario.prices["Station-3"])) == 9
+        # => 32 price changes
+        assert len(set(scenario.prices["Station-3"])) == 33
         # same price for last 59 minutes
-        assert set(scenario.prices["Station-3"][-59:]) == {0.19496}
+        assert set(scenario.prices["Station-3"][-59:]) == {0.15501}
