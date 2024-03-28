@@ -24,7 +24,7 @@ mandatory_args = {
 }
 
 
-class TestSchedule:
+class BasicSchedule:
     temperature_path = example_root / 'default_temp_winter.csv'
     lol_path = example_root / 'default_level_of_loading_over_day.csv'
 
@@ -53,6 +53,8 @@ class TestSchedule:
         scen = sched.run(args)
         return sched, scen, args
 
+
+class TestSchedule(BasicSchedule):
     def test_mandatory_options_exit(self):
         """
         Check if the schedule creation properly throws an error in case of missing mandatory options
@@ -436,3 +438,60 @@ class TestSchedule:
         timeseries_with_reduction = getattr(reduced_run, "Station-0_timeseries")
         sum_grid_power_with_red = -sum(timeseries_with_reduction["grid supply [kW]"][idx_slice])
         assert sum_grid_power_no_red > sum_grid_power_with_red
+
+    def test_generate_price_lists(self):
+        # setup basic schedule
+        generated_schedule = generate_basic_schedule()
+        sys.argv = ["", "--config", str(example_root / "simba.cfg")]
+        args = util.get_args()
+        # only test individual price CSV and random price generation
+        args.include_price_csv = None
+        # Station-0: all options
+        generated_schedule.stations["Station-0"]["price_csv"] = {
+            "csv_file": example_root / "price_timeseries.csv",
+            "start_time": "2022-03-07 00:00:00",
+            "step_duration_s": 86400,
+            "column": "price",
+            "factor": 2
+        }
+        # Station-3: minimal options (only CSV path)
+        generated_schedule.stations["Station-3"]["price_csv"] = {
+            "csv_file": example_root / "price_timeseries.csv"
+        }
+        # Station-10: wrong option (wrong CSV file)
+        generated_schedule.stations["Station-10"]["price_csv"] = {
+            "csv_file": example_root / "does-not-exist.csv"
+        }
+        # Station-21: start after end of schedule
+        generated_schedule.stations["Station-21"]["price_csv"] = {
+            "csv_file": example_root / "price_timeseries.csv",
+            "start_time": "3333-03-03 00:00:00",
+            "step_duration_s": 3600
+        }
+        scenario = generated_schedule.generate_scenario(args)
+        events = [e for e in scenario.events.grid_operator_signals if e.cost is not None]
+        events_by_gc = {
+            gc: [e for e in events if e.grid_connector_id == gc]
+            for gc in generated_schedule.stations.keys()}
+        assert len(events_by_gc["Station-0"]) > 0
+        # first entry is 0.07995, factor is 2
+        assert events_by_gc["Station-0"][0].cost["value"] == 0.1599
+        assert len(events_by_gc["Station-3"]) > 0
+        # default factor of 1
+        assert events_by_gc["Station-3"][0].cost["value"] == 0.07995
+        # wrong file: no events
+        assert len(events_by_gc["Station-10"]) == 0
+        # after scenario: no events
+        assert len(events_by_gc["Station-21"]) == 0
+
+        # run schedule and check prices
+        # example scenario covers 2022-03-07 20:16 - 2022-03-09 04:59
+        scenario = generated_schedule.run(args)
+        # Station-0: price change every 24h, starting midnight => two price changes at midnight
+        assert set(scenario.prices["Station-0"]) == {0.1599, 0.18404, 0.23492}
+        assert scenario.prices["Station-0"][223:225] == [0.1599, 0.18404]
+        # Station-3: price change every hour, starting 04:00 (from csv timestamp)
+        # => 32 price changes
+        assert len(set(scenario.prices["Station-3"])) == 33
+        # same price for last 59 minutes
+        assert set(scenario.prices["Station-3"][-59:]) == {0.15501}
