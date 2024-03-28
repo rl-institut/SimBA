@@ -135,8 +135,9 @@ class Costs:
         """
         first_columns = [self.CUMULATED, self.GARAGE, self.NOT_ELECTRIFIED]
 
-        # Use sorting of electrified_stations.json
-        middle_columns = [s for s in self.schedule.stations if s in self.gcs]
+        # Use sorting of electrified_stations.json. Return all stations, even if they have no gc
+        # in the scenario to allow for consistent output generation
+        middle_columns = list(self.schedule.stations.keys())
 
         # if there are gcs that are not a station, add them at the end
         trailing_columns = [s for s in self.gcs if s not in self.schedule.stations]
@@ -549,7 +550,8 @@ class Costs:
             row = [key, "vehicles"]
 
             for col in self.get_columns():
-                row.append(self.vehicles_per_gc[col][key])
+                # Get the number of vehicles at this gc. Stations which have no gc get 0
+                row.append(self.vehicles_per_gc.get(col, {}).get(key, 0))
             output.append(row)
 
         # Take a single station and take the cost parameters
@@ -558,6 +560,8 @@ class Costs:
             # The first two columns contain the parameter and unit
             row = [key, self.get_annual_or_not(key)]
             for col in self.get_columns():
-                row.append(round(self.costs_per_gc[col][key], self.rounding_precision))
+                # Get the number of vehicles at this gc. Stations which have no gc get 0
+                num = self.costs_per_gc.get(col, {}).get(key, 0)
+                row.append(round(num, self.rounding_precision))
             output.append(row)
         return output
