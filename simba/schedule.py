@@ -850,9 +850,9 @@ def generate_event_list_from_prices(
     :param gc_name: grid connector ID
     :type gc_name: string
     :param start_simulation: start of simulation
-    :type start_simulation: datetime
+    :type start_simulation: datetime.datetime
     :param stop_simulation: end of simulation
-    :type stop_simulation: datetime
+    :type stop_simulation: datetime.datetime
     :param start_events: timestamp of first event in list (optional). Read from list if not given
     :type start_events: string (ISO-format)
     :param price_interval_s: interval between list entries in seconds (only with start_events)
