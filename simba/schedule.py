@@ -716,40 +716,23 @@ class Schedule:
         # ######## END OF VEHICLE EVENTS ########## #
 
         # price events
-        # SpiceEV CSV: save path and options for CSV timeseries
-        # at the moment, SpiceEV only supports price CSV for one grid connector!
         if args.include_price_csv:
-            for filename, gc_name in args.include_price_csv:
-                options = {
-                    "csv_file": filename,
-                    "start_time": start_simulation.isoformat(),
-                    "step_duration_s": 3600,  # 60 minutes
-                    "grid_connector_id": gc_name,
-                    "column": "price [ct/kWh]"
-                }
-                for key, value in args.include_price_csv_option:
-                    if key == "step_duration_s":
-                        value = int(value)
-                    options[key] = value
-                events['energy_price_from_csv'] = options
-                if not Path(filename).exists():
-                    logging.warning(f"Price csv file '{filename}' does not exist yet")
-            if len(args.include_price_csv) > 1:
-                logging.warning("include_price_csv: SpiceEV only supports one price CSV")
-        else:
-            # no forwarding of price csv: generate price events
-            # this circumvents the one GC price limit
-            random.seed(args.seed)
-            for gc_name in grid_connectors.keys():
-                price_csv = self.stations[gc_name].get("price_csv")
-                if price_csv is None:
-                    events["grid_operator_signals"] += generate_random_price_list(
-                        gc_name, start_simulation, stop_simulation)
-                else:
-                    prices = get_price_list_from_csv(price_csv)
-                    events["grid_operator_signals"] += generate_event_list_from_prices(
-                        prices, gc_name, start_simulation, stop_simulation,
-                        price_csv.get('start_time'), price_csv.get('step_duration_s'))
+            # SpiceEV's include_price_csv supports only one grid connector
+            # declare price input files for each station in electrified stations instead
+            logging.warning("Unsupported SpiceEV option: include_price_csv. Use at your own risk!")
+        random.seed(args.seed)
+        for gc_name in grid_connectors.keys():
+            price_csv = self.stations[gc_name].get("price_csv")
+            if price_csv is None:
+                # generate pseudo-random price events
+                events["grid_operator_signals"] += generate_random_price_list(
+                    gc_name, start_simulation, stop_simulation)
+            else:
+                # read prices from CSV, convert to events
+                prices = get_price_list_from_csv(price_csv)
+                events["grid_operator_signals"] += generate_event_list_from_prices(
+                    prices, gc_name, start_simulation, stop_simulation,
+                    price_csv.get('start_time'), price_csv.get('step_duration_s'))
 
         # reformat vehicle types for SpiceEV
         vehicle_types_spiceev = {
