@@ -1,4 +1,5 @@
 import logging
+import traceback
 import warnings
 
 import spice_ev.scenario
@@ -296,33 +297,40 @@ class Costs:
             timeseries = vars(self.scenario).get(f"{gcID}_timeseries")
 
             # calculate costs for electricity
-            costs_electricity = calc_costs_spice_ev(
-                strategy=vars(self.args)["strategy_" + station.get("type")],
-                voltage_level=gc.voltage_level,
-                interval=self.scenario.interval,
-                timestamps_list=timeseries.get("time"),
-                power_grid_supply_list=timeseries.get("grid supply [kW]"),
-                price_list=timeseries.get("price [EUR/kWh]"),
-                power_fix_load_list=timeseries.get("fixed load [kW]"),
-                power_generation_feed_in_list=timeseries.get("generation feed-in [kW]"),
-                power_v2g_feed_in_list=timeseries.get("V2G feed-in [kW]"),
-                power_battery_feed_in_list=timeseries.get("battery feed-in [kW]"),
-                charging_signal_list=timeseries.get("window signal [-]"),
-                price_sheet_path=self.args.cost_parameters_file,
-                grid_operator=gc.grid_operator,
-                power_pv_nominal=pv,
-            )
-            self.costs_per_gc[gcID]["c_el_procurement_annual"] = costs_electricity[
-                'power_procurement_costs_per_year']
-            self.costs_per_gc[gcID]["c_el_power_price_annual"] = costs_electricity[
-                'capacity_costs_eur']
-            self.costs_per_gc[gcID]["c_el_energy_price_annual"] = costs_electricity[
-                'commodity_costs_eur_per_year']
-            self.costs_per_gc[gcID]["c_el_taxes_annual"] = costs_electricity[
-                'levies_fees_and_taxes_per_year']
-            self.costs_per_gc[gcID]["c_el_feed_in_remuneration_annual"] = costs_electricity[
-                'feed_in_remuneration_per_year']
-            self.costs_per_gc[gcID]["c_el_annual"] = costs_electricity['total_costs_per_year']
+            try:
+                costs_electricity = calc_costs_spice_ev(
+                    strategy=vars(self.args)["strategy_" + station.get("type")],
+                    voltage_level=gc.voltage_level,
+                    interval=self.scenario.interval,
+                    timestamps_list=timeseries.get("time"),
+                    power_grid_supply_list=timeseries.get("grid supply [kW]"),
+                    price_list=timeseries.get("price [EUR/kWh]"),
+                    power_fix_load_list=timeseries.get("fixed load [kW]"),
+                    power_generation_feed_in_list=timeseries.get("generation feed-in [kW]"),
+                    power_v2g_feed_in_list=timeseries.get("V2G feed-in [kW]"),
+                    power_battery_feed_in_list=timeseries.get("battery feed-in [kW]"),
+                    charging_signal_list=timeseries.get("window signal [-]"),
+                    price_sheet_path=self.args.cost_parameters_file,
+                    grid_operator=gc.grid_operator,
+                    power_pv_nominal=pv,
+                )
+            except Exception:
+                costs_electricity = dict()
+                logging.warning(f"SpiceEV calculation of costs for {gcID} failed due to "
+                                f"{traceback.format_exc()}.")
+            error_value = 0
+            self.costs_per_gc[gcID]["c_el_procurement_annual"] = costs_electricity.get(
+                'power_procurement_costs_per_year', error_value)
+            self.costs_per_gc[gcID]["c_el_power_price_annual"] = costs_electricity.get(
+                'capacity_costs_eur', error_value)
+            self.costs_per_gc[gcID]["c_el_energy_price_annual"] = costs_electricity.get(
+                'commodity_costs_eur_per_year', error_value)
+            self.costs_per_gc[gcID]["c_el_taxes_annual"] = costs_electricity.get(
+                'levies_fees_and_taxes_per_year', error_value)
+            self.costs_per_gc[gcID]["c_el_feed_in_remuneration_annual"] = costs_electricity.get(
+                'feed_in_remuneration_per_year', error_value)
+            self.costs_per_gc[gcID]["c_el_annual"] = costs_electricity.get('total_costs_per_year',
+                                                                           error_value)
         return self
 
     def set_garage_costs(self):
