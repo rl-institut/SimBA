@@ -1,4 +1,3 @@
-import datetime
 from argparse import Namespace
 from copy import deepcopy
 from datetime import timedelta, datetime # noqa
