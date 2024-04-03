@@ -11,8 +11,7 @@ from simba.trip import Trip
 
 
 def simulate(args):
-    """
-    High-level function to create and run a scenario.
+    """ High-level function to create and run a scenario.
 
     Use the parsed scenario arguments to prepare the schedule,
     run the basic simulation and different modes of SimBA.
@@ -29,8 +28,7 @@ def simulate(args):
 
 
 def pre_simulation(args):
-    """
-    Prepare simulation.
+    """ Prepare simulation.
 
     Read in files, generate consumption info, create and filter schedule.
 
@@ -84,8 +82,7 @@ def pre_simulation(args):
 
 
 def modes_simulation(schedule, scenario, args):
-    """
-    Run the mode(s) specified in config.
+    """ Run the mode(s) specified in config.
 
     Ignores unknown and "sim" modes.
     On error, create a report and continue with next mode.
@@ -147,8 +144,7 @@ def modes_simulation(schedule, scenario, args):
 
 
 class Mode:
-    """
-    Container for simulation modes.
+    """ Container for simulation modes.
 
     Each function takes a schedule, the corresponding scenario and arguments Namespace.
     Optionally, an index of the current mode in the modelist can be given.
