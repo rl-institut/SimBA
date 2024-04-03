@@ -11,7 +11,7 @@
         "peak_load_window_power": 100,  // optional: power during peak load window (if time_windowds file given), default defined in config
         "energy_feed_in": {  // optional: energy feed in e.g. by local renewables
             "csv_file": "data/examples/example_pv_feedin.csv",  // path to feedin.csv
-            "start_time": "2022-03-07T00:00:00",  // start time as YYYY-MM-DDThh:mm:ss
+            "start_time": "2022-03-07 00:00:00",  // optional: start time as YYYY-MM-DD hh:mm:ss (defaults to first timestamp in CSV)
             "step_duration_s": 3600,  // timestep in seconds
             "column": "Feed-in Total (kW)",  // column name in .csv
             "nominal_power": 10,  // nominal power in kW, needed for calculation of PV remuneration and cost of feed-in
@@ -19,10 +19,17 @@
         },
         "external_load": {  // optional: local external loads
             "csv_file": "data/examples/example_external_load.csv",  // path to external_load.csv
-            "start_time": "2022-03-07T00:00:00",  // start time as YYYY-MM-DDThh:mm:ss
+            "start_time": "2022-03-07 00:00:00",  // optional: start time as YYYY-MM-DD hh:mm:ss (defaults to first timestamp in CSV)
             "step_duration_s": 3600,  // timestep in seconds
             "column": "External Load (kW)",  // column name in .csv
             "factor": 2  // factor to multiply column values, eg 0.001 for conversion from W to kW
+        },
+        "price_csv": {  // optional: price timeseries for this station
+            "csv_file": "data/examples/price_timeseries.csv",  // path to price csv
+            "start_time": "2022-03-07 00:00:00",  // optional: start time as YYYY-MM-DD hh:mm:ss. If not given, use CSV timestamps (first column)
+            "step_duration_s": 3600,  // timestep in seconds, required if start_time is given
+            "column": "price",  // optional: column name in .csv. Defaults to last column
+            "factor": 0.01  // optional: factor to multiply column values, default 1. Simulation expects €/kWh
         },
         "battery": {  // optional: local stationary battery
             "charging_curve": [[0,50], [1,50]], // piecewise linear function that maps SoC to power, from 0 to 1, required
@@ -38,11 +45,12 @@
         "n_charging_stations": 3,
         "energy_feed_in": {
             "csv_file": "data/examples/example_pv_feedin.csv",
-            "start_time": "2022-03-08T00:00:00",
-            "step_duration_s": 3600,
             "column": "Feed-in Total (kW)",
             "nominal_power": 2,
             "factor": 0.5
+        },
+        "price_csv": {
+            "csv_file": "data/examples/price_timeseries.csv"
         }
     },
     "Station-10": {
