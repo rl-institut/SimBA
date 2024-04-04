@@ -1,4 +1,5 @@
 import logging
+import traceback
 import warnings
 
 import spice_ev.scenario
@@ -62,8 +63,7 @@ class Costs:
     """
     CUMULATED = "cumulated"
     GARAGE = "garage"
-    # Output is sorted by this parameter
-    SORT_COLUMN = "c_invest"
+    NOT_ELECTRIFIED = "Non_electrified_station"
 
     def __init__(self, schedule: simba.schedule.Schedule, scenario: spice_ev.scenario.Scenario,
                  args, c_params: dict):
@@ -81,13 +81,13 @@ class Costs:
 
         self.gcs = scenario.components.grid_connectors
 
-        # Make sure CUMULATED and Garage is unique to gc names
-        assert self.CUMULATED not in self.gcs
-        assert self.GARAGE not in self.gcs
+        # Make sure station names are not reserved keywords
+        for reserved in [self.CUMULATED, self.GARAGE, self.NOT_ELECTRIFIED]:
+            assert reserved not in self.gcs, f"{reserved} must not be part of station names"
 
-        self.gcs_and_garage = [self.GARAGE] + list(self.gcs)
+        self.gcs_and_garage = [self.GARAGE, self.NOT_ELECTRIFIED] + list(self.gcs)
         self.costs_per_gc = {gc: {key: 0 for key in self.get_gc_cost_variables()} for gc in
-                             self.gcs_and_garage}
+                             self.gcs_and_garage + [self.CUMULATED]}
         self.units: dict = None
         self.vehicles_per_gc: dict = None
         self.gc_rotations: dict = None
@@ -129,8 +129,15 @@ class Costs:
         :return: List of columns
         :rtype: list
         """
-        return list(dict(sorted(self.costs_per_gc.items(), key=lambda x: x[1][self.SORT_COLUMN],
-                                reverse=True)).keys())
+        first_columns = [self.CUMULATED, self.GARAGE, self.NOT_ELECTRIFIED]
+
+        # Use sorting of electrified_stations.json. Return all stations, even if they have no gc
+        # in the scenario to allow for consistent output generation
+        middle_columns = list(self.schedule.stations.keys())
+
+        # if there are gcs that are not a station, add them at the end
+        trailing_columns = [s for s in self.gcs if s not in self.schedule.stations]
+        return first_columns + middle_columns + trailing_columns
 
     def set_gc_rotations(self):
         """ Set grid connector rotations.
@@ -150,11 +157,11 @@ class Costs:
          :rtype: list
          """
         return [  # investment costs
-            "c_vehicles", "c_gcs", "c_cs", "c_garage_cs", "c_garage",
+            "c_vehicles", "c_gcs", "c_cs", "c_garage_cs",
             "c_garage_workstations",
             "c_stat_storage", "c_feed_in", "c_invest",
             # annual investment costs
-            "c_vehicles_annual", "c_gcs_annual", "c_cs_annual", "c_garage_annual",
+            "c_vehicles_annual", "c_gcs_annual", "c_cs_annual",
             "c_stat_storage_annual", "c_feed_in_annual", "c_invest_annual",
             # annual maintenance costs
             "c_maint_vehicles_annual", "c_maint_gc_annual", "c_maint_cs_annual",
@@ -280,33 +287,40 @@ class Costs:
             timeseries = vars(self.scenario).get(f"{gcID}_timeseries")
 
             # calculate costs for electricity
-            costs_electricity = calc_costs_spice_ev(
-                strategy=vars(self.args)["strategy_" + station.get("type")],
-                voltage_level=gc.voltage_level,
-                interval=self.scenario.interval,
-                timestamps_list=timeseries.get("time"),
-                power_grid_supply_list=timeseries.get("grid supply [kW]"),
-                price_list=timeseries.get("price [EUR/kWh]"),
-                power_fix_load_list=timeseries.get("fixed load [kW]"),
-                power_generation_feed_in_list=timeseries.get("generation feed-in [kW]"),
-                power_v2g_feed_in_list=timeseries.get("V2G feed-in [kW]"),
-                power_battery_feed_in_list=timeseries.get("battery feed-in [kW]"),
-                charging_signal_list=timeseries.get("window signal [-]"),
-                price_sheet_path=self.args.cost_parameters_file,
-                grid_operator=gc.grid_operator,
-                power_pv_nominal=pv,
-            )
-            self.costs_per_gc[gcID]["c_el_procurement_annual"] = costs_electricity[
-                'power_procurement_costs_per_year']
-            self.costs_per_gc[gcID]["c_el_power_price_annual"] = costs_electricity[
-                'capacity_costs_eur']
-            self.costs_per_gc[gcID]["c_el_energy_price_annual"] = costs_electricity[
-                'commodity_costs_eur_per_year']
-            self.costs_per_gc[gcID]["c_el_taxes_annual"] = costs_electricity[
-                'levies_fees_and_taxes_per_year']
-            self.costs_per_gc[gcID]["c_el_feed_in_remuneration_annual"] = costs_electricity[
-                'feed_in_remuneration_per_year']
-            self.costs_per_gc[gcID]["c_el_annual"] = costs_electricity['total_costs_per_year']
+            try:
+                costs_electricity = calc_costs_spice_ev(
+                    strategy=vars(self.args)["strategy_" + station.get("type")],
+                    voltage_level=gc.voltage_level,
+                    interval=self.scenario.interval,
+                    timestamps_list=timeseries.get("time"),
+                    power_grid_supply_list=timeseries.get("grid supply [kW]"),
+                    price_list=timeseries.get("price [EUR/kWh]"),
+                    power_fix_load_list=timeseries.get("fixed load [kW]"),
+                    power_generation_feed_in_list=timeseries.get("generation feed-in [kW]"),
+                    power_v2g_feed_in_list=timeseries.get("V2G feed-in [kW]"),
+                    power_battery_feed_in_list=timeseries.get("battery feed-in [kW]"),
+                    charging_signal_list=timeseries.get("window signal [-]"),
+                    price_sheet_path=self.args.cost_parameters_file,
+                    grid_operator=gc.grid_operator,
+                    power_pv_nominal=pv,
+                )
+            except Exception:
+                costs_electricity = dict()
+                logging.warning(f"SpiceEV calculation of costs for {gcID} failed due to "
+                                f"{traceback.format_exc()}.")
+            error_value = 0
+            self.costs_per_gc[gcID]["c_el_procurement_annual"] = costs_electricity.get(
+                'power_procurement_costs_per_year', error_value)
+            self.costs_per_gc[gcID]["c_el_power_price_annual"] = costs_electricity.get(
+                'capacity_costs_eur', error_value)
+            self.costs_per_gc[gcID]["c_el_energy_price_annual"] = costs_electricity.get(
+                'commodity_costs_eur_per_year', error_value)
+            self.costs_per_gc[gcID]["c_el_taxes_annual"] = costs_electricity.get(
+                'levies_fees_and_taxes_per_year', error_value)
+            self.costs_per_gc[gcID]["c_el_feed_in_remuneration_annual"] = costs_electricity.get(
+                'feed_in_remuneration_per_year', error_value)
+            self.costs_per_gc[gcID]["c_el_annual"] = costs_electricity.get('total_costs_per_year',
+                                                                           error_value)
         return self
 
     def set_garage_costs(self):
@@ -328,11 +342,12 @@ class Costs:
                 * self.params["garage"]["cost_per_workstation"])
         self.costs_per_gc[self.GARAGE]["c_garage_workstations"] = c_garage_workstations
 
-        self.costs_per_gc[self.GARAGE]["c_garage"] = c_garage_cs + c_garage_workstations
-        self.costs_per_gc[self.GARAGE]["c_garage_annual"] = (
+        self.costs_per_gc[self.GARAGE]["c_invest"] = c_garage_cs + c_garage_workstations
+        self.costs_per_gc[self.GARAGE]["c_invest_annual"] = (
                 c_garage_cs / self.params["cs"]["lifetime_cs"]
                 + c_garage_workstations / self.params["garage"][
                     "lifetime_workstations"])
+
         return self
 
     def set_grid_connection_costs(self):
@@ -432,10 +447,20 @@ class Costs:
         for rot in self.schedule.rotations.values():
             # Get the vehicle_type_name including charging type by removing the number of the id
             vehicle_type_name = "_".join(rot.vehicle_id.split("_")[:-1])
-            vehicles_per_gc[rot.departure_name][vehicle_type_name].add(rot.vehicle_id)
+            try:
+                vehicles_per_gc[rot.departure_name][vehicle_type_name].add(rot.vehicle_id)
+            except KeyError:
+                # rotation might start at non-electrified station, therefore not found in gc keys.
+                vehicles_per_gc[self.NOT_ELECTRIFIED][vehicle_type_name].add(rot.vehicle_id)
+
         self.vehicles_per_gc = {
             gc: {v_type_name: len(s) for v_type_name, s in vehicles_dict.items()} for
             gc, vehicles_dict in vehicles_per_gc.items()}
+
+        self.vehicles_per_gc[self.CUMULATED] = dict()
+        for v_type in v_types:
+            self.vehicles_per_gc[self.CUMULATED][v_type] = self.schedule.vehicle_type_counts[v_type]
+
         return self
 
     def set_vehicle_costs_per_gc(self):
@@ -453,6 +478,7 @@ class Costs:
                     warnings.warn("No capex defined for vehicle type " + v_type +
                                   ". Unable to calculate investment costs for this vehicle type.")
                     continue
+
                 vehicle_lifetime = self.params["vehicles"][v_type]["lifetime"]
                 battery_lifetime = self.params["batteries"]["lifetime_battery"]
                 capacity = self.schedule.scenario["components"]["vehicle_types"][v_type]["capacity"]
@@ -460,8 +486,10 @@ class Costs:
                 c_vehicles_vt = (vehicle_number * (costs_vehicle + (
                         vehicle_lifetime // battery_lifetime) * capacity * cost_per_kWh))
                 c_vehicles_annual = c_vehicles_vt / vehicle_lifetime
+
                 self.costs_per_gc[gc]["c_vehicles"] += c_vehicles_vt
                 self.costs_per_gc[gc]["c_vehicles_annual"] += c_vehicles_annual
+
         return self
 
     def cumulate(self):
@@ -470,22 +498,39 @@ class Costs:
         :return: Updated instance
         :rtype: Costs
         """
-        v_types = self.get_vehicle_types()
-        self.vehicles_per_gc[self.CUMULATED] = dict()
-        for v_type in v_types:
-            self.vehicles_per_gc[self.CUMULATED][v_type] = sum(
-                [self.vehicles_per_gc[gc][v_type] for gc in self.gcs])
-
         # Cumulate gcs variables
-        self.costs_per_gc[self.CUMULATED] = dict()
         for key in self.get_gc_cost_variables():
+            # Vehicle costs cannot be cumulated since they might be double counted for vehicles
+            # with multiple depots. Instead, the vehicle costs were previously calculated in
+            # set_vehicle_costs_per_gc()
+            if key in ["c_vehicles", "c_vehicles_annual"]:
+                continue
             self.costs_per_gc[self.CUMULATED][key] = 0
-            for gc in self.costs_per_gc.keys()-[self.CUMULATED]:
+            for gc in self.costs_per_gc.keys() - [self.CUMULATED]:
                 self.costs_per_gc[self.CUMULATED][key] += self.costs_per_gc[gc][key]
 
-        self.costs_per_gc[self.CUMULATED]["c_invest"] += self.costs_per_gc[self.GARAGE]["c_garage"]
-        self.costs_per_gc[self.CUMULATED]["c_invest_annual"] += self.costs_per_gc[self.GARAGE][
-            "c_garage_annual"]
+        # Since c_vehicles and c_vehicles_annual might have double counting over the other gcs,
+        # total invest for the cumulated gc is calculated separately
+        # Garage costs are added separately, since their costs come from the garage_workstation
+        # and garage_cs which are different to "normal" stations
+        self.costs_per_gc[self.CUMULATED]["c_invest"] = (
+                self.costs_per_gc[self.CUMULATED]["c_vehicles"]
+                + self.costs_per_gc[self.CUMULATED]["c_cs"]
+                + self.costs_per_gc[self.CUMULATED]["c_gcs"]
+                + self.costs_per_gc[self.CUMULATED]["c_stat_storage"]
+                + self.costs_per_gc[self.CUMULATED]["c_feed_in"]
+                + self.costs_per_gc[self.GARAGE]["c_invest"]
+        )
+
+        self.costs_per_gc[self.CUMULATED]["c_invest_annual"] = (
+                self.costs_per_gc[self.CUMULATED]["c_vehicles_annual"]
+                + self.costs_per_gc[self.CUMULATED]["c_cs_annual"]
+                + self.costs_per_gc[self.CUMULATED]["c_gcs_annual"]
+                + self.costs_per_gc[self.CUMULATED]["c_stat_storage_annual"]
+                + self.costs_per_gc[self.CUMULATED]["c_feed_in_annual"]
+                + self.costs_per_gc[self.GARAGE]["c_invest_annual"]
+        )
+
         return self
 
     def to_csv_lists(self):
@@ -500,7 +545,8 @@ class Costs:
             row = [key, "vehicles"]
 
             for col in self.get_columns():
-                row.append(self.vehicles_per_gc[col][key])
+                # Get the number of vehicles at this gc. Stations which have no gc get 0
+                row.append(self.vehicles_per_gc.get(col, {}).get(key, 0))
             output.append(row)
 
         # Take a single station and take the cost parameters
@@ -509,6 +555,12 @@ class Costs:
             # The first two columns contain the parameter and unit
             row = [key, self.get_annual_or_not(key)]
             for col in self.get_columns():
-                row.append(round(self.costs_per_gc[col][key], self.rounding_precision))
+                # Get the cost at this gc. Stations which have no gc get 0
+                num = self.costs_per_gc.get(col, {}).get(key, 0)
+                row.append(round(num, self.rounding_precision))
             output.append(row)
-        return output
+
+        transposed_output = []
+        for column, _ in enumerate(output[0]):
+            transposed_output.append([row[column] for row in output])
+        return transposed_output
