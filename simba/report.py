@@ -175,20 +175,16 @@ def generate(schedule, scenario, args):
         # get SOC timeseries for this rotation
         vehicle_id = rotation.vehicle_id
 
-        # get soc timeseries for current rotation
-        try:
-            vehicle_soc = scenario.vehicle_socs[vehicle_id]
-        except KeyError:
-            # SpiceEV did not simulate this vehicle. Maybe simulation time is reduced.
-            logging.warning(f"{vehicle_id} was not found for rotation {id}")
-            incomplete_rotations.append(id)
-            continue
         start_idx = (rotation.departure_time - sim_start_time) // interval
         end_idx = start_idx + ((rotation.arrival_time - rotation.departure_time) // interval)
         if end_idx > scenario.n_intervals:
             # SpiceEV stopped before rotation was fully simulated
             incomplete_rotations.append(id)
             continue
+
+        # get soc timeseries for current rotation
+        vehicle_soc = scenario.vehicle_socs[vehicle_id]
+
         rotation_soc_ts = vehicle_soc[start_idx:end_idx]
 
         # bus does not return before simulation end
