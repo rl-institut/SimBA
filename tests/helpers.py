@@ -23,10 +23,11 @@ def generate_basic_schedule():
         "cs_power_deps_depb": 50,
         "cs_power_deps_oppb": 150
     }
-
-    return schedule.Schedule.from_csv(schedule_path, vehicle_types, station_path, **mandatory_args,
-                                      outside_temperature_over_day_path=temperature_path,
-                                      level_of_loading_over_day_path=lol_path)
+    generated_schedule = schedule.Schedule.from_csv(schedule_path, vehicle_types, station_path, **mandatory_args,
+                               outside_temperature_over_day_path=temperature_path,
+                               level_of_loading_over_day_path=lol_path)
+    generated_schedule.assign_vehicles()
+    return generated_schedule
 
 
 def initialize_consumption(vehicle_types):

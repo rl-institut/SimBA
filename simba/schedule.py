@@ -5,6 +5,7 @@ import logging
 from pathlib import Path
 import random
 import warnings
+from typing import Dict, Type, Iterable
 
 from spice_ev.scenario import Scenario
 import spice_ev.util as spice_ev_util
@@ -81,9 +82,9 @@ class Schedule:
             for opt in mandatory_options:
                 setattr(self, opt, kwargs.get(opt))
 
-    @classmethod
-    def from_container(self, data_container: DataContainer):
-        to be implemented
+    # @classmethod
+    # def from_container(self, data_container: DataContainer):
+    #     to be implemented
 
     @classmethod
     def from_csv(cls, path_to_csv, vehicle_types, stations, **kwargs):
@@ -100,8 +101,15 @@ class Schedule:
         :return: Returns a new instance of Schedule with all trips from csv loaded.
         :rtype: Schedule
         """
+        if isinstance(stations, (str, Path)):
+            with open(Path(stations), "r") as f:
+                stations_dict = util.uncomment_json_file(f)
+        elif isinstance(stations, dict):
+            stations_dict = stations
+        else:
+            raise NotImplementedError
 
-        schedule = cls(vehicle_types, stations, **kwargs)
+        schedule = cls(vehicle_types, stations_dict , **kwargs)
 
         station_data = dict()
         station_path = kwargs.get("station_data_path")
@@ -892,7 +900,15 @@ class Schedule:
                 json.dump(self.scenario, f, indent=2)
         return Scenario(self.scenario, Path())
 
-
+    @classmethod
+    def get_dict_from_csv(cls, column, file_path, index):
+        output = dict()
+        with open(file_path, "r") as f:
+            delim = util.get_csv_delim(file_path)
+            reader = csv.DictReader(f, delimiter=delim)
+            for row in reader:
+                output[float(row[index])] = float(row[column])
+        return output
 def update_csv_file_info(file_info, gc_name):
     """
     add infos to csv information dictionary from electrified station

@@ -388,6 +388,7 @@ class TestSchedule(BasicSchedule):
         generated_schedule = generate_basic_schedule()
         sys.argv = ["foo", "--config", str(example_root / "simba.cfg")]
         args = util.get_args()
+        generated_schedule.init_soc_dispatcher(args)
         for station in generated_schedule.stations.values():
             station["gc_power"] = 1000
             station.pop("peak_load_window_power", None)
@@ -454,6 +455,10 @@ class TestSchedule(BasicSchedule):
         generated_schedule = generate_basic_schedule()
         sys.argv = ["", "--config", str(example_root / "simba.cfg")]
         args = util.get_args()
+
+        generated_schedule.init_soc_dispatcher(args)
+
+
         # only test individual price CSV and random price generation
         args.include_price_csv = None
         # Station-0: all options

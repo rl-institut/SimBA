@@ -83,8 +83,10 @@ class TestSocDispatcher:
         # eflipsoutput
         eflips_output = []
 
+        eflips_output.append(dict(rot="41", v_id="AB_depb_1", soc=1))
         eflips_output.append(dict(rot="4", v_id="AB_depb_1", soc=1))
         eflips_output.append(dict(rot="3", v_id="AB_depb_2", soc=0.8))
+        eflips_output.append(dict(rot="31", v_id="AB_depb_2", soc=0.8))
         eflips_output.append(dict(rot="21", v_id="AB_depb_3", soc=0.69))
         eflips_output.append(dict(rot="2", v_id="AB_depb_3", soc=1))
         eflips_output.append(dict(rot="1", v_id="AB_oppb_1", soc=1))

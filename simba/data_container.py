@@ -17,8 +17,8 @@ class DataContainer:
         self.temperature_data: Dict[int, float] = {}
         self.level_of_loading_data: Dict[int, float] = {}
 
-    def add_temperature_data_from_json(self, ):
-        to be implemented
+    # def add_temperature_data_from_csv(self, ):
+    #     to be implemented
 
     def add_vehicle_types(self, data: dict) -> None:
         """Add vehicle_type data to the data container. Vehicle_types will be stored in the

@@ -221,7 +221,7 @@ class Mode:
                             "Since no path was given, station optimization is skipped")
             return schedule, scenario
         conf = read_optimizer_config(args.optimizer_config)
-        # Get Copies of the original schedule and scenario. In case of an exception the outer
+        # Get copies of the original schedule and scenario. In case of an exception the outer
         # schedule and scenario stay intact.
         original_schedule = deepcopy(schedule)
         original_scenario = deepcopy(scenario)
