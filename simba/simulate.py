@@ -231,8 +231,8 @@ class Mode:
             # cost calculation part of report
             try:
                 calculate_costs(args.cost_parameters, scenario, schedule, args)
-            except Exception as e:
-                logging.warning(f"Cost calculation failed due to {str(e)}")
+            except Exception:
+                logging.warning(f"Cost calculation failed due to {traceback.print_exc()}")
                 if args.propagate_mode_errors:
                     raise
         # name: always start with sim, append all prior optimization modes
