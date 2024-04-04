@@ -572,4 +572,8 @@ class Costs:
                 num = self.costs_per_gc.get(col, {}).get(key, 0)
                 row.append(round(num, self.rounding_precision))
             output.append(row)
-        return output
+
+        transposed_output = []
+        for column, _ in enumerate(output[0]):
+            transposed_output.append([row[column] for row in output])
+        return transposed_output
