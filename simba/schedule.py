@@ -15,7 +15,7 @@ import spice_ev.util as spice_ev_util
 class Schedule:
 
     def __init__(self, vehicle_types, stations, **kwargs):
-        """Constructs Schedule object from CSV file containing all trips of schedule
+        """ Constructs Schedule object from CSV file containing all trips of schedule
 
         :param vehicle_types: Collection of vehicle types and their properties.
         :type vehicle_types: dict
@@ -54,7 +54,7 @@ class Schedule:
 
     @classmethod
     def from_csv(cls, path_to_csv, vehicle_types, stations, **kwargs):
-        """Constructs Schedule object from CSV file containing all trips of schedule.
+        """ Constructs Schedule object from CSV file containing all trips of schedule.
 
         :param path_to_csv: Path to csv file containing trip data
         :type path_to_csv: str
@@ -138,8 +138,8 @@ class Schedule:
 
     @classmethod
     def check_consistency(cls, schedule):
-        """
-        Check rotation expectations, such as
+        """ Check rotation expectations.
+
         - the rotation starts and ends at the same station
         - every trip within a rotation starts where the previous trip ended
         - trips are chronologically sorted
@@ -201,8 +201,9 @@ class Schedule:
         return scenario
 
     def set_charging_type(self, ct, rotation_ids=None):
-        """ Change charging type of either all or specified rotations. Adjust minimum standing time
-        at depot after completion of rotation.
+        """ Change charging type of either all or specified rotations.
+
+        Adjust minimum standing time at depot after completion of rotation.
 
         :param ct: Choose this charging type wheneever possible. Either 'depb' or 'oppb'.
         :type ct: str
@@ -218,10 +219,12 @@ class Schedule:
                 rot.set_charging_type(ct)
 
     def assign_vehicles(self):
-        """ Assign vehicle IDs to rotations. A FIFO approach is used.
-            For every rotation it is checked whether vehicles with matching type are idle, in which
-            case the one with longest standing time since last rotation is used.
-            If no vehicle is available a new vehicle ID is generated.
+        """ Assign vehicle IDs to rotations.
+
+        A FIFO approach is used.
+        For every rotation it is checked whether vehicles with matching type are idle,
+        in which case the one with longest standing time since last rotation is used.
+        If no vehicle is available, a new vehicle ID is generated.
         """
         rotations_in_progress = []
         idle_vehicles = []
@@ -288,7 +291,8 @@ class Schedule:
 
     def calculate_consumption(self):
         """ Computes consumption for all trips of all rotations.
-            Depends on vehicle type only, not on charging type.
+
+        Depends on vehicle type only, not on charging type.
 
         :return: Total consumption for entire schedule [kWh]
         :rtype: float
@@ -311,7 +315,7 @@ class Schedule:
         return sorted_rotations[0].departure_time
 
     def get_arrival_of_last_trip(self):
-        """Finds latest arrival time among all rotations.
+        """ Finds latest arrival time among all rotations.
 
         :return: Date and time of latest arrival of schedule. None if rotations are empty.
         :rtype: datetime.datetime
@@ -322,12 +326,12 @@ class Schedule:
         return sorted_rotations[-1].arrival_time
 
     def get_common_stations(self, only_opps=True):
-        """
-        for each rotation key, return set of rotations
-            that share a station during any trip (with time info)
+        """ For each rotation key, return set of rotations that share a station during any trip.
+
         :param only_opps: only search for opps stations
         :type only_opps: boolean
-        :return: dictionary of rotations
+        :return: rotations with time info
+        :rtype: dict
         """
 
         # rot -> stations with timings
@@ -369,8 +373,7 @@ class Schedule:
         return rot_set
 
     def get_negative_rotations(self, scenario):
-        """
-        Get rotations with negative soc from SpiceEV outputs
+        """ Get rotations with negative SoC from SpiceEV outputs.
 
         :param scenario: Simulation scenario containing simulation results
                          including the SoC of all vehicles over time
@@ -407,7 +410,7 @@ class Schedule:
         return list(negative_rotations)
 
     def rotation_filter(self, args, rf_list=[]):
-        """Edits rotations according to args.rotation_filter_variable.
+        """ Edits rotations according to args.rotation_filter_variable.
 
         :param args: used arguments are rotation_filter, path to rotation ids,
                      and rotation_filter_variable that sets mode (options: include, exclude)
@@ -442,7 +445,7 @@ class Schedule:
             self.rotations = {k: v for k, v in self.rotations.items() if k in rf_list}
 
     def generate_scenario(self, args):
-        """ Generate scenario.json for SpiceEV
+        """ Generate SpiceEV Scenario.
 
         :param args: Command line arguments and/or arguments from config file.
         :type args: argparse.Namespace
@@ -819,8 +822,7 @@ def generate_time_window_event_list(time_windows, gc_name, voltage_level, power_
 
 
 def generate_random_price_list(gc_name, start_simulation, stop_simulation):
-    """
-    generate random price events
+    """ Generate random price events.
 
     :param gc_name: grid connector ID
     :type gc_name: string
@@ -864,8 +866,7 @@ def generate_random_price_list(gc_name, start_simulation, stop_simulation):
 
 
 def get_price_list_from_csv(price_csv_dict):
-    """
-    read out price csv
+    """ Read out price CSV.
 
     :param price_csv_dict: price CSV info
     :type price_csv_dict: dict
@@ -895,8 +896,7 @@ def get_price_list_from_csv(price_csv_dict):
 def generate_event_list_from_prices(
         prices, gc_name, start_simulation, stop_simulation,
         start_events=None, price_interval_s=None):
-    """
-    generate grid operator signals from price list
+    """ Generate grid operator signals from price list.
 
     :param prices: price timestamp and values
     :type prices: list of tuples

@@ -51,8 +51,7 @@ def calculate_costs(c_params, scenario, schedule, args):
 
 
 class Costs:
-    """
-    Class representing costs associated with vehicles and infrastructure
+    """ Class representing costs associated with vehicles and infrastructure.
 
     :param schedule: Simulation schedule
     :type schedule: simba.schedule.Schedule
@@ -68,8 +67,7 @@ class Costs:
 
     def __init__(self, schedule: simba.schedule.Schedule, scenario: spice_ev.scenario.Scenario,
                  args, c_params: dict):
-        """
-        Initialize the Costs instance.
+        """ Initialize the Costs instance.
 
         :param schedule: Simulation schedule
         :type schedule: simba.schedule.Schedule
@@ -100,8 +98,7 @@ class Costs:
         self.rounding_precision = 2
 
     def info(self):
-        """
-        Provide information about the total costs.
+        """ Provide information about the total costs.
 
         :return: Formatted string containing information about total costs
         :rtype: str
@@ -114,8 +111,7 @@ class Costs:
                 f"Annual costs for electricity: {cumulated['c_el_annual']} €/a.\n")
 
     def get_annual_or_not(self, key):
-        """
-        Get the unit for annual or non-annual costs.
+        """ Get the unit for annual or non-annual costs.
 
         :param key: Key to get the unit for
         :type key: str
@@ -128,8 +124,7 @@ class Costs:
             return "€"
 
     def get_columns(self):
-        """
-        Get the sorted columns for cost calculations.
+        """ Get the sorted columns for cost calculations.
 
         :return: List of columns
         :rtype: list
@@ -145,8 +140,7 @@ class Costs:
         return first_columns + middle_columns + trailing_columns
 
     def set_gc_rotations(self):
-        """
-        Set grid connector rotations.
+        """ Set grid connector rotations.
 
         :return: Updated instance
         :rtype: Costs
@@ -157,8 +151,7 @@ class Costs:
         return self
 
     def get_gc_cost_variables(self):
-        """
-         Get the list of variables representing different cost types.
+        """ Get the list of variables representing different cost types.
 
          :return: List of cost variables
          :rtype: list
@@ -181,8 +174,7 @@ class Costs:
             "c_el_taxes_annual", "c_el_feed_in_remuneration_annual", "c_el_annual"]
 
     def get_vehicle_types(self):
-        """
-         Get the types of vehicles used.
+        """ Get the types of vehicles used.
 
          :return: Vehicle types
          :rtype: list
@@ -190,8 +182,7 @@ class Costs:
         return [k for k, v in self.schedule.vehicle_type_counts.items() if v > 0]
 
     def set_charging_infrastructure_costs(self):
-        """
-        Calculate the costs associated with charging infrastructure at each grid connector.
+        """ Calculate the costs associated with charging infrastructure at each grid connector.
 
         :return: self
         :rtype: Costs
@@ -284,8 +275,7 @@ class Costs:
         return self
 
     def set_electricity_costs(self):
-        """
-        Calculate the electricity costs at each grid connector.
+        """ Calculate the electricity costs at each grid connector.
 
         :return: self
         :rtype: Costs
@@ -334,8 +324,7 @@ class Costs:
         return self
 
     def set_garage_costs(self):
-        """
-        Calculate the costs associated with the garage.
+        """ Calculate the costs associated with the garage.
 
         Note that although a garage can have charging stations, electricity costs are not used.
 
@@ -362,7 +351,7 @@ class Costs:
         return self
 
     def set_grid_connection_costs(self):
-        """Calculate the costs of each grid connection
+        """ Calculate the costs of each grid connection.
 
         :raises Exception: If grid operator of grid connector cannot be found in cost params
         :return: self
@@ -444,8 +433,9 @@ class Costs:
         return self
 
     def set_vehicles_per_gc(self):
-        """Calculate vehicle numbers and set vehicles_per_gc before vehicle costs can be calculated.
-        Calculate the number of vehicles at each grid connector.
+        """ Calculate the number of vehicles at each grid connector.
+
+        Calculate vehicle numbers and set vehicles_per_gc before vehicle costs can be calculated.
 
         :return: self
         :rtype: Costs
@@ -474,8 +464,7 @@ class Costs:
         return self
 
     def set_vehicle_costs_per_gc(self):
-        """
-        Calculate and set the costs associated with vehicles at each grid connector.
+        """ Calculate and set the costs associated with vehicles at each grid connector.
 
         :return: self
         :rtype: Costs
@@ -504,8 +493,7 @@ class Costs:
         return self
 
     def cumulate(self):
-        """
-        Cumulate the costs of vehicles and infrastructure.
+        """ Cumulate the costs of vehicles and infrastructure.
 
         :return: Updated instance
         :rtype: Costs
@@ -546,8 +534,7 @@ class Costs:
         return self
 
     def to_csv_lists(self):
-        """
-        Convert costs to a list of lists easily convertible to a csv.
+        """ Convert costs to a list of lists easily convertible to a CSV.
 
         :return: List of lists of parameters, units and costs per gc
         :rtype: list

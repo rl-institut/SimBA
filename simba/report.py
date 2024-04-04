@@ -1,5 +1,4 @@
-""" Module to generate meaningful output files and/or figures to describe simulation process
-"""
+""" Module to generate meaningful output files and/or figures to describe simulation process. """
 import csv
 import datetime
 import logging
@@ -10,11 +9,18 @@ from spice_ev.report import aggregate_global_results, plot, generate_reports
 
 
 def open_for_csv(filepath):
+    """ Create a file handle to write to.
+
+    :param filepath: Path to new file, overwritten if existing
+    :type filepath: string or pathlib.Path
+    :return: Function to open file
+    :rtype: function
+    """
     return open(filepath, "w", newline='', encoding='utf-8')
 
 
 def generate_gc_power_overview_timeseries(scenario, args):
-    """Generate a csv timeseries with each grid connector's summed up charging station power
+    """ Generate a csv timeseries with each grid connector's summed up charging station power.
 
     :param scenario: Scenario for with to generate timeseries.
     :type scenario: spice_ev.Scenario
@@ -42,7 +48,7 @@ def generate_gc_power_overview_timeseries(scenario, args):
 
 
 def generate_gc_overview(schedule, scenario, args):
-    """Generate a csv file with information regarding electrified stations.
+    """ Generate a csv file with information regarding electrified stations.
 
     For each electrified station, the name, type, max. power, max. number of occupied
     charging stations, sum of charged energy and use factors of least used stations is saved.
@@ -102,7 +108,7 @@ def generate_gc_overview(schedule, scenario, args):
 
 
 def generate_plots(scenario, args):
-    """Save plots as png and pdf.
+    """ Save plots as png and pdf.
 
     :param scenario: Scenario to plot.
     :type scenario: spice_ev.Scenario
@@ -125,7 +131,7 @@ def generate_plots(scenario, args):
 
 
 def generate(schedule, scenario, args):
-    """Generates all output files/ plots and saves them in the output directory.
+    """ Generates all output files/ plots and saves them in the output directory.
 
     :param schedule: Driving schedule for the simulation.
     :type schedule: simba.Schedule
@@ -257,9 +263,10 @@ def generate(schedule, scenario, args):
 
 
 def write_csv(data: Iterable, file_path, propagate_errors=False):
-    """Write iterable data to .csv file.
+    """ Write iterable data to CSV file.
 
     Errors are caught if propagate_errors=False. If data is None, no file is created.
+
     :param data: data which is written to a file
     :type data: Iterable
     :param file_path: file_path for file creation

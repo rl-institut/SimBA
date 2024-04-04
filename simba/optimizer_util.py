@@ -1,4 +1,4 @@
-""" Module for LowSocEvent, ChargingEvent, OptimizerConfig and utility functionality"""
+""" Module for LowSocEvent, ChargingEvent, OptimizerConfig and utility functionality """
 import logging
 import math
 import os
@@ -25,7 +25,7 @@ from spice_ev.report import generate_soc_timeseries
 
 
 class ChargingEvent:
-    """Class to gather information about a charging event"""
+    """ Class to gather information about a charging event """
 
     def __init__(self, start_idx, end_idx, arrival_time, start_time, end_time, buffer_time,
                  vehicle_id, capacity,
@@ -43,7 +43,7 @@ class ChargingEvent:
 
 
 class LowSocEvent:
-    """Class to gather information about a low soc event"""
+    """ Class to gather information about a low soc event """
     event_counter = 0
 
     def __init__(self, start_idx, end_idx, min_soc, stations, vehicle_id, trip, rot,
@@ -64,7 +64,7 @@ class LowSocEvent:
 
 
 class OptimizerConfig:
-    """Class for the configuration file"""
+    """ Class for the configuration file """
 
     def __init__(self):
         self.debug_level = None
@@ -105,14 +105,14 @@ class OptimizerConfig:
 
 
 def time_it(function, timers={}):
-    """Decorator function to time the duration and number of function calls.
+    """ Decorator function to time the duration and number of function calls.
 
     :param function: function do be decorated
     :type function: function
     :param timers: storage for cumulated time and call number
     :type timers: dict
     :return: decorated function or timer if given function is None
-    :rtype function or dict
+    :rtype: function or dict
 
     """
     if function:
@@ -231,7 +231,7 @@ def get_charging_time(trip1, trip2, args):
 
 
 def get_charging_start(trip1, args):
-    """ Returns the possible start time of charging.
+    """ Return the possible start time of charging.
 
     This function considers the buffer times before charging can take place
 
@@ -246,7 +246,7 @@ def get_charging_start(trip1, args):
 
 
 def get_buffer_time(trip, default_buffer_time_opps):
-    """  Return the buffer time as timedelta object
+    """ Return the buffer time as timedelta object.
 
     :param trip: trip to be checked
     :type trip: simba.trip.Trip
@@ -273,7 +273,7 @@ def get_index_by_time(scenario, search_time):
 
 
 def get_rotation_soc_util(rot_id, schedule, scenario, soc_data: dict = None):
-    """Returns the soc time series with start and end index for a given rotation id.
+    """ Return the SoC time series with start and end index for a given rotation ID.
 
     :param rot_id: rotation_id
     :type rot_id: str
@@ -295,7 +295,7 @@ def get_rotation_soc_util(rot_id, schedule, scenario, soc_data: dict = None):
 
 
 def get_delta_soc(soc_over_time_curve, soc, time_delta, optimizer: 'StationOptimizer'):
-    """Return expected soc lift for a given soc charging time series, start_soc and time_delta.
+    """ Return expected SoC lift for a given SoC charging time series, start_soc and time_delta.
 
     :param soc_over_time_curve: Data with columns: time, soc and n rows
     :type soc_over_time_curve: np.array() with shape(n, 2)
@@ -344,7 +344,7 @@ class AllCombinationsCheckedException(Exception):
 @time_it
 def evaluate(events: typing.Iterable[LowSocEvent],
              optimizer: 'StationOptimizer', **kwargs):
-    """Analyse stations for useful energy supply.
+    """ Analyse stations for useful energy supply.
 
     Energy supply is helpful if the minimal soc of an event is raised (up to a minimal soc
     (probably zero)). The supplied energy is approximated by  charging power, standing time at a
@@ -414,10 +414,10 @@ def get_groups_from_events(events, impossible_stations=None, could_not_be_electr
                            optimizer=None):
     """ Create groups from events which need to be optimized together.
 
-    First it creates a simple list of station sets for single events. They are connected if they
-    share possible stations.
-    Electrified and non-electrifiable stations are ignored, i.e. will not show up as possible
-    station
+    First it creates a simple list of station sets for single events.
+    They are connected if they share possible stations.
+    Electrified and non-electrifiable stations are ignored,
+    i.e. will not show up as a possible station.
 
     :param events: events for a given state of a scenario
     :type events: list(simba.optimizer_util.LowSocEvent)
@@ -469,7 +469,7 @@ def get_groups_from_events(events, impossible_stations=None, could_not_be_electr
 
 
 def join_all_subsets(subsets):
-    """Return sets which are joined together if they have any intersections.
+    """ Return sets which are joined together if they have any intersections.
 
     :param subsets: sets to be joined
     :type subsets: iterable
@@ -506,6 +506,27 @@ def join_subsets(subsets: typing.Iterable[set]):
     return False, subsets
 
 
+def toolbox_from_pickle(sched_name, scen_name, args_name):
+    """ Load the 3 files from pickle.
+
+    :param sched_name: name of schedule file
+    :type sched_name: str
+    :param scen_name: name of scenario file
+    :type scen_name: str
+    :param args_name: name of args file
+    :type args_name: str
+    :return: schedule, scenario and arguments
+    :rtype: (simba.schedule.Schedule, spice_ev.Scenario, Namespace)
+    """
+    with open(args_name, "rb") as file:
+        args = pickle.load(file)
+    with open(scen_name, "rb") as file:
+        scen = pickle.load(file)
+    with open(sched_name, "rb") as file:
+        sched = pickle.load(file)
+    return sched, scen, args
+
+
 def toolbox_to_pickle(name, sched, scen, args):
     """ Dump the 3 files to pickle files.
 
@@ -534,7 +555,7 @@ def toolbox_to_pickle(name, sched, scen, args):
 def charging_curve_to_soc_over_time(
         charging_curve, capacity, args, max_charge_from_grid=float('inf'), time_step=0.1,
         efficiency=1, eps=0.001, logger: logging.Logger = None):
-    """Create charging curve as np.array with soc and time as two columns of an np.array.
+    """ Create charging curve as np.array with soc and time as two columns of an np.array.
 
     :param logger: logger
     :type logger: logging.Logger
@@ -601,7 +622,7 @@ def charging_curve_to_soc_over_time(
 
 
 def get_missing_energy(events, min_soc=0):
-    """Sum up all the missing energies of the given events.
+    """ Sum up all the missing energies of the given events.
 
     :param events: events to be checked
     :type events: list(simba.optimizer_util.LowSocEvent)
@@ -619,7 +640,7 @@ def get_missing_energy(events, min_soc=0):
 
 
 def stations_hash(stations_set):
-    """ Create a simple str as hash for a set of stations.
+    """ Create a simple string as hash for a set of stations.
 
     :param stations_set: stations to be hashed
     :type stations_set: set
@@ -630,7 +651,7 @@ def stations_hash(stations_set):
 
 
 def recursive_dict_updater(dict_to_change, filter_function, modify_function):
-    """ Change nested dictionary in place given a filter and modify function
+    """ Change nested dictionary in place given a filter and modify function.
 
     Goes through all values of a dictionary and modifies the value when filter criteria are met.
     The filter criteria are checked by the filter_function which gets the arguments key and value.
@@ -685,32 +706,12 @@ def combination_generator(iterable: typing.Iterable, amount: int):
                 yield [item] + gen
 
 
-def toolbox_from_pickle(sched_name, scen_name, args_name):
-    """Load the 3 files from pickle.
-
-    :param sched_name: name of schedule file
-    :type sched_name: str
-    :param scen_name: name of scenario file
-    :type scen_name: str
-    :param args_name: name of args file
-    :type args_name: str
-    :return: schedule, scenario and arguments
-    :rtype: (simba.schedule.Schedule, spice_ev.Scenario, Namespace)
-    """
-    with open(args_name, "rb") as file:
-        args = pickle.load(file)
-    with open(scen_name, "rb") as file:
-        scen = pickle.load(file)
-    with open(sched_name, "rb") as file:
-        sched = pickle.load(file)
-    return sched, scen, args
-
-
 def combs_unordered_no_putting_back(n: int, k: int):
     """ Return number of combinations of choosing an amount, without putting back and without order.
 
-    Returns amount of combinations for pulling k elements out of n, without putting elements
-    back or looking at the order. This is equal to n over k
+    Returns amount of combinations for pulling k elements out of n,
+    without putting elements back or looking at the order. This is equal to n over k.
+
     :param n: number of elements to chose from
     :type n: int
     :param k: number of elements in the sub group of picked elements
@@ -726,7 +727,7 @@ def combs_unordered_no_putting_back(n: int, k: int):
 
 
 def run_schedule(sched, args, electrified_stations=None):
-    """Run a given schedule and electrify stations if need be.
+    """ Run a given schedule and electrify stations if needed.
 
     :param sched: schedule object
     :type sched: simba.schedule.Schedule
@@ -759,9 +760,6 @@ def run_schedule(sched, args, electrified_stations=None):
 def preprocess_schedule(sched, args, electrified_stations=None):
     """ Calculate consumption, set electrified stations and assign vehicles.
 
-    Prepare the schedule by calculating consumption, setting electrified stations and assigning
-    vehicles
-
     :param sched: schedule containing the rotations
     :type sched: simba.schedule.Schedule
     :param args: arguments for simulation
@@ -783,7 +781,7 @@ def preprocess_schedule(sched, args, electrified_stations=None):
 
 
 def get_time(start=[]):
-    """Prints the time which passed since the first function call.
+    """ Prints the time which passed since the first function call.
 
     :param start: start time
     :type start: list(float)
@@ -840,7 +838,7 @@ def plot_rot(rot_id, sched, scen, axis=None, rot_only=True):
     :param rot_only: show only the rot or the whole vehicle socs
     :type rot_only: bool
     :return: axis of the plot
-    :rtype matplotlib.axes
+    :rtype: matplotlib.axes
     """
     soc, start, end = get_rotation_soc_util(rot_id, sched, scen)
     if not rot_only:
