@@ -24,7 +24,7 @@ class Rotation:
         self.arrival_name = None
 
     def add_trip(self, trip):
-        """Create a trip object and append to rotations trip set
+        """ Create a trip object and append to rotations trip set.
 
         :param trip: Information on trip to be added to rotation
         :type trip: dict
@@ -89,10 +89,11 @@ class Rotation:
         return rotation_consumption
 
     def set_charging_type(self, ct):
-        """ Change charging type of either all or specified rotations. Adjust minimum standing time
-            at depot after completion of rotation.
+        """ Change charging type of either all or specified rotations.
 
-        :param ct: Choose this charging type wheneever possible. Either 'depb' or 'oppb'.
+        This may also change the minimum standing time at depot after completion of rotation.
+
+        :param ct: Choose this charging type if possible. Either 'depb' or 'oppb'.
         :type ct: str
         """
         assert ct in ["oppb", "depb"], f"Invalid charging type: {ct}"
@@ -113,10 +114,14 @@ class Rotation:
 
     @property
     def earliest_departure_next_rot(self):
+        """Earliest possible departure of next rotation as datetime."""
+        # noqa: DAR201
         return self.arrival_time + datetime.timedelta(hours=self.min_standing_time)
 
     @property
     def min_standing_time(self):
+        """Minimum duration of standing time in minutes."""
+        # noqa: DAR201
         assert self.charging_type in ["depb", "oppb"]
         if self.charging_type == "depb":
             capacity_depb = self.schedule.vehicle_types[self.vehicle_type]["depb"]["capacity"]

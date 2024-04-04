@@ -1,5 +1,4 @@
-""" Collection of procedures optimizing arbitrary parameters of a bus schedule or infrastructure.
-"""
+""" Collection of procedures optimizing arbitrary parameters of a bus schedule or infrastructure """
 from copy import deepcopy
 import datetime
 import logging
@@ -15,7 +14,8 @@ DEFAULT_MEAN_SPEED = 30  # km/h
 
 def service_optimization(schedule, scenario, args):
     """ Optimize rotations based on feasability.
-        Try to find sets of rotations that produce no negative SoC
+
+    Try to find sets of rotations that produce no negative SoC.
 
     :param schedule: Schedule to be optimized
     :type schedule: simba.Schedule

@@ -8,14 +8,14 @@ import warnings
 
 from simba import util
 from simba.rotation import Rotation
-import spice_ev.util as spice_ev_util
 from spice_ev.scenario import Scenario
+import spice_ev.util as spice_ev_util
 
 
 class Schedule:
 
     def __init__(self, vehicle_types, stations, **kwargs):
-        """Constructs Schedule object from CSV file containing all trips of schedule
+        """ Constructs Schedule object from CSV file containing all trips of schedule
 
         :param vehicle_types: Collection of vehicle types and their properties.
         :type vehicle_types: dict
@@ -54,7 +54,7 @@ class Schedule:
 
     @classmethod
     def from_csv(cls, path_to_csv, vehicle_types, stations, **kwargs):
-        """Constructs Schedule object from CSV file containing all trips of schedule.
+        """ Constructs Schedule object from CSV file containing all trips of schedule.
 
         :param path_to_csv: Path to csv file containing trip data
         :type path_to_csv: str
@@ -138,8 +138,8 @@ class Schedule:
 
     @classmethod
     def check_consistency(cls, schedule):
-        """
-        Check rotation expectations, such as
+        """ Check rotation expectations.
+
         - the rotation starts and ends at the same station
         - every trip within a rotation starts where the previous trip ended
         - trips are chronologically sorted
@@ -201,8 +201,9 @@ class Schedule:
         return scenario
 
     def set_charging_type(self, ct, rotation_ids=None):
-        """ Change charging type of either all or specified rotations. Adjust minimum standing time
-        at depot after completion of rotation.
+        """ Change charging type of either all or specified rotations.
+
+        Adjust minimum standing time at depot after completion of rotation.
 
         :param ct: Choose this charging type wheneever possible. Either 'depb' or 'oppb'.
         :type ct: str
@@ -218,10 +219,12 @@ class Schedule:
                 rot.set_charging_type(ct)
 
     def assign_vehicles(self):
-        """ Assign vehicle IDs to rotations. A FIFO approach is used.
-            For every rotation it is checked whether vehicles with matching type are idle, in which
-            case the one with longest standing time since last rotation is used.
-            If no vehicle is available a new vehicle ID is generated.
+        """ Assign vehicle IDs to rotations.
+
+        A FIFO approach is used.
+        For every rotation it is checked whether vehicles with matching type are idle,
+        in which case the one with longest standing time since last rotation is used.
+        If no vehicle is available, a new vehicle ID is generated.
         """
         rotations_in_progress = []
         idle_vehicles = []
@@ -288,7 +291,8 @@ class Schedule:
 
     def calculate_consumption(self):
         """ Computes consumption for all trips of all rotations.
-            Depends on vehicle type only, not on charging type.
+
+        Depends on vehicle type only, not on charging type.
 
         :return: Total consumption for entire schedule [kWh]
         :rtype: float
@@ -311,7 +315,7 @@ class Schedule:
         return sorted_rotations[0].departure_time
 
     def get_arrival_of_last_trip(self):
-        """Finds latest arrival time among all rotations.
+        """ Finds latest arrival time among all rotations.
 
         :return: Date and time of latest arrival of schedule. None if rotations are empty.
         :rtype: datetime.datetime
@@ -322,12 +326,12 @@ class Schedule:
         return sorted_rotations[-1].arrival_time
 
     def get_common_stations(self, only_opps=True):
-        """
-        for each rotation key, return set of rotations
-            that share a station during any trip (with time info)
+        """ For each rotation key, return set of rotations that share a station during any trip.
+
         :param only_opps: only search for opps stations
         :type only_opps: boolean
-        :return: dictionary of rotations
+        :return: rotations with time info
+        :rtype: dict
         """
 
         # rot -> stations with timings
@@ -369,8 +373,7 @@ class Schedule:
         return rot_set
 
     def get_negative_rotations(self, scenario):
-        """
-        Get rotations with negative soc from SpiceEV outputs
+        """ Get rotations with negative SoC from SpiceEV outputs.
 
         :param scenario: Simulation scenario containing simulation results
                          including the SoC of all vehicles over time
@@ -407,7 +410,7 @@ class Schedule:
         return list(negative_rotations)
 
     def rotation_filter(self, args, rf_list=[]):
-        """Edits rotations according to args.rotation_filter_variable.
+        """ Edits rotations according to args.rotation_filter_variable.
 
         :param args: used arguments are rotation_filter, path to rotation ids,
                      and rotation_filter_variable that sets mode (options: include, exclude)
@@ -442,7 +445,7 @@ class Schedule:
             self.rotations = {k: v for k, v in self.rotations.items() if k in rf_list}
 
     def generate_scenario(self, args):
-        """ Generate scenario.json for SpiceEV
+        """ Generate SpiceEV Scenario.
 
         :param args: Command line arguments and/or arguments from config file.
         :type args: argparse.Namespace
@@ -478,7 +481,6 @@ class Schedule:
             start_simulation = datetime.datetime.fromtimestamp(0)
             stop_simulation = datetime.datetime.fromtimestamp(0)
 
-        daily = datetime.timedelta(days=1)
         # read in time windows file
         time_windows = None
         if vars(args).get('time_windows'):
@@ -604,72 +606,32 @@ class Schedule:
                             batteries[f"{gc_name} storage"] = battery
 
                         # add feed-in name and power at grid connector if exists
-                        feed_in = station.get("energy_feed_in")
-                        if feed_in:
-                            feed_in_path = Path(feed_in["csv_file"])
-                            if not feed_in_path.exists():
-                                warnings.warn("feed-in csv file '{}' does not exist".format(
-                                    feed_in_path), category=UserWarning)
-                            feed_in["grid_connector_id"] = gc_name
-                            feed_in["csv_file"] = str(feed_in_path)
-                            events["local_generation"][gc_name + " feed-in"] = feed_in
+                        local_generation = station.get("energy_feed_in")
+                        if local_generation:
+                            local_generation = update_csv_file_info(local_generation, gc_name)
+                            events["local_generation"][gc_name + " feed-in"] = local_generation
                             # add PV component
                             photovoltaics[gc_name] = {
                                 "parent": gc_name,
-                                "nominal_power": feed_in.get("nominal_power", 0)
+                                "nominal_power": local_generation.get("nominal_power", 0)
                             }
 
                         # add external load if exists
-                        ext_load = station.get("external_load")
-                        if ext_load:
-                            ext_load_path = Path(ext_load["csv_file"])
-                            if not ext_load_path.exists():
-                                warnings.warn("external load csv file '{}' does not exist".format(
-                                    ext_load_path), category=UserWarning)
-                            ext_load["grid_connector_id"] = gc_name
-                            ext_load["csv_file"] = str(ext_load_path)
-                            events["fixed_load"][gc_name + " ext. load"] = ext_load
+                        fixed_load = station.get("external_load")
+                        if fixed_load:
+                            fixed_load = update_csv_file_info(fixed_load, gc_name)
+                            events["fixed_load"][gc_name + " ext. load"] = fixed_load
 
                         # temporary lowering of grid connector max power during peak load windows
                         if time_windows is not None:
-                            generate_events = True  # avoid if-else bloat
                             # get relevant peak load windows
                             windows = time_windows.get(grid_operator)
-                            if windows is None:
-                                warnings.warn(f'{gc_name}: grid operator {grid_operator} '
-                                              'not in time windows')
-                                generate_events = False
-                            if generate_events:
-                                # check reduced power
-                                # if higher than GC normal max power, don't generate events
-                                logging.debug(f"{gc_name} time windows: {windows}")
-                                reduced_power = station.get(
-                                    'peak_load_window_power',
-                                    vars(args).get('peak_load_window_power_' + station_type))
-                                if reduced_power > gc_power:
-                                    warnings.warn(f"{gc_name}: maximum power is not "
-                                                  "reduced during peak load windows")
-                                    generate_events = False
-                            if generate_events:
-                                in_window = False
-                                # can't directly iterate over datetimes:
-                                # get number of simulation timesteps (round up)
-                                n_intervals = -((start_simulation - stop_simulation) // interval)
-                                for t_idx in range(n_intervals):
-                                    cur_time = start_simulation + t_idx * interval
-                                    cur_window = spice_ev_util.datetime_within_time_window(
-                                        cur_time, windows, voltage_level)
-                                    if cur_window ^ in_window:
-                                        # window change: generate event
-                                        events["grid_operator_signals"].append({
-                                            # known one day in advance
-                                            "signal_time": (cur_time - daily).isoformat(),
-                                            "start_time": cur_time.isoformat(),
-                                            "grid_connector_id": gc_name,
-                                            "max_power": (
-                                                reduced_power if cur_window else gc_power),
-                                        })
-                                        in_window = cur_window
+                            reduced_power = station.get(
+                                'peak_load_window_power',
+                                vars(args).get('peak_load_window_power_' + station_type))
+                            events["grid_operator_signals"] += generate_time_window_event_list(
+                                windows, gc_name, voltage_level, (gc_power, reduced_power),
+                                (start_simulation, stop_simulation, interval))
 
                 # initial condition of vehicle
                 if i == 0:
@@ -716,62 +678,23 @@ class Schedule:
         # ######## END OF VEHICLE EVENTS ########## #
 
         # price events
-        if not args.include_price_csv:
-            random.seed(args.seed)
-            for key in grid_connectors.keys():
-                now = start_simulation - daily
-                while now < stop_simulation + 2 * daily:
-                    now += daily
-                    for v_id, v in vehicles.items():
-                        if now >= stop_simulation:
-                            # after end of scenario: keep generating trips, but don't include in
-                            # scenario
-                            continue
-
-                    # generate prices for the day
-                    if now < stop_simulation:
-                        morning = now + datetime.timedelta(hours=6)
-                        evening_by_month = now + datetime.timedelta(
-                            hours=22 - abs(6 - now.month))
-                        events['grid_operator_signals'] += [{
-                            # day (6-evening): 15ct
-                            "signal_time": max(start_simulation, now - daily).isoformat(),
-                            "grid_connector_id": key,
-                            "start_time": morning.isoformat(),
-                            "cost": {
-                                "type": "fixed",
-                                "value": 0.15 + random.gauss(0, 0.05)
-                            }
-                        }, {
-                            # night (depending on month - 6): 5ct
-                            "signal_time": max(start_simulation, now - daily).isoformat(),
-                            "grid_connector_id": key,
-                            "start_time": evening_by_month.isoformat(),
-                            "cost": {
-                                "type": "fixed",
-                                "value": 0.05 + random.gauss(0, 0.03)
-                            }
-                        }]
-
-        # add timeseries from csv
-        # save path and options for CSV timeseries
         if args.include_price_csv:
-            for filename, gc_name in args.include_price_csv:
-                options = {
-                    "csv_file": filename,
-                    "start_time": start_simulation.isoformat(),
-                    "step_duration_s": 3600,  # 60 minutes
-                    "grid_connector_id": gc_name,
-                    "column": "price [ct/kWh]"
-                }
-                for key, value in args.include_price_csv_option:
-                    if key == "step_duration_s":
-                        value = int(value)
-                    options[key] = value
-                events['energy_price_from_csv'] = options
-                price_csv_path = args.output_directory / filename
-                if not price_csv_path.exists():
-                    logging.warning(f"Price csv file '{price_csv_path}' does not exist yet")
+            # SpiceEV's include_price_csv supports only one grid connector
+            # declare price input files for each station in electrified stations instead
+            logging.warning("Unsupported SpiceEV option: include_price_csv. Use at your own risk!")
+        random.seed(args.seed)
+        for gc_name in grid_connectors.keys():
+            price_csv = self.stations[gc_name].get("price_csv")
+            if price_csv is None:
+                # generate pseudo-random price events
+                events["grid_operator_signals"] += generate_random_price_list(
+                    gc_name, start_simulation, stop_simulation)
+            else:
+                # read prices from CSV, convert to events
+                prices = get_price_list_from_csv(price_csv)
+                events["grid_operator_signals"] += generate_event_list_from_prices(
+                    prices, gc_name, start_simulation, stop_simulation,
+                    price_csv.get('start_time'), price_csv.get('step_duration_s'))
 
         # reformat vehicle types for SpiceEV
         vehicle_types_spiceev = {
@@ -802,3 +725,245 @@ class Schedule:
             with p.open('w', encoding='utf-8') as f:
                 json.dump(self.scenario, f, indent=2)
         return Scenario(self.scenario, Path())
+
+
+def update_csv_file_info(file_info, gc_name):
+    """
+    add infos to csv information dictionary from electrified station
+
+    - set grid_connector_id
+    - update csv_file path
+    - set start_time and step_duration_s from CSV information if not given
+    :param file_info: csv information from electrified station
+    :type file_info: dict
+    :param gc_name: station name
+    :type gc_name: string
+    :return: updated file_info
+    :rtype: dict
+    """
+    file_path = Path(file_info["csv_file"])
+    start_time = file_info.get("start_time")
+    if not file_path.exists():
+        warnings.warn("csv file '{}' does not exist".format(file_info))
+    elif start_time is None:
+        # start_time is optional (read from first line), but file must exist
+        with file_path.open('r', encoding='utf-8') as f:
+            # skip header
+            f.readline()
+            # start timestep in first column, second row
+            row = f.readline()
+            ts = row.split(',')[0]
+            start_time = spice_ev_util.datetime_from_isoformat(ts)
+            # force timezone-unaware (like all SimBA datetimes)
+            start_time = start_time.replace(tzinfo=None)
+            # read next timestep to get interval length
+            row = f.readline()
+            ts = row.split(',')[0]
+            time = spice_ev_util.datetime_from_isoformat(ts)
+            time = time.replace(tzinfo=None)
+            csv_interval = (time - start_time).total_seconds()
+        file_info["start_time"] = start_time.isoformat()
+        file_info["step_duration_s"] = round(csv_interval)
+
+    file_info["grid_connector_id"] = gc_name
+    file_info["csv_file"] = str(file_path)
+    return file_info
+
+
+def generate_time_window_event_list(time_windows, gc_name, voltage_level, power_levels, time_info):
+    """
+    generate grid operator signals to lower station power during peak load windows
+
+    :param time_windows: grid operator time window information
+    :type time_windows: dict
+    :param gc_name: station name
+    :type gc_name: string
+    :param voltage_level: station voltage level
+    :type voltage_level: string
+    :param power_levels: (normal power, reduced power)
+    :type power_levels: tuple
+    :param time_info: (start of simulation, end of simulation, interval)
+    :type time_info: triple
+    :return: grid operator signals
+    :rtype: list
+    """
+    if time_windows is None:
+        warnings.warn(f'{gc_name}: grid operator not in time windows')
+        return []
+    logging.debug(f"{gc_name} time windows: {time_windows}")
+
+    # check reduced power
+    # if higher than normal max power, don't generate events
+    if power_levels[1] > power_levels[0]:
+        warnings.warn(f"{gc_name}: maximum power is not reduced during peak load windows")
+        return []
+
+    events = []
+    in_window = False
+    day = datetime.timedelta(days=1)
+    start_simulation, stop_simulation, interval = time_info
+    # can't directly iterate over datetimes:
+    # get number of simulation timesteps (round up)
+    n_intervals = -((start_simulation - stop_simulation) // interval)
+    for t_idx in range(n_intervals):
+        time = start_simulation + t_idx * interval
+        cur_window = spice_ev_util.datetime_within_time_window(time, time_windows, voltage_level)
+        if cur_window ^ in_window:
+            # window change: generate event
+            events.append({
+                # known one day in advance
+                "signal_time": (time - day).isoformat(),
+                "start_time": time.isoformat(),
+                "grid_connector_id": gc_name,
+                "max_power": power_levels[cur_window],
+            })
+            in_window = cur_window
+    return events
+
+
+def generate_random_price_list(gc_name, start_simulation, stop_simulation):
+    """ Generate random price events.
+
+    :param gc_name: grid connector ID
+    :type gc_name: string
+    :param start_simulation: start of simulation
+    :type start_simulation: datetime
+    :param stop_simulation: end of simulation
+    :type stop_simulation: datetime
+    :return: newly generated grid operator signals
+    :rtype: list
+    """
+    day = datetime.timedelta(days=1)
+    events = []
+    now = start_simulation - day
+    while now < stop_simulation + 2 * day:
+        now += day
+        # generate prices for the day
+        if now < stop_simulation:
+            morning = now + datetime.timedelta(hours=6)
+            evening_by_month = now + datetime.timedelta(
+                hours=22 - abs(6 - now.month))
+            events += [{
+                # day (6 to evening): 15ct
+                "signal_time": max(start_simulation, now - day).isoformat(),
+                "grid_connector_id": gc_name,
+                "start_time": morning.isoformat(),
+                "cost": {
+                    "type": "fixed",
+                    "value": 0.15 + random.gauss(0, 0.05)
+                }
+            }, {
+                # night (evening to 6 ): 5ct
+                "signal_time": max(start_simulation, now - day).isoformat(),
+                "grid_connector_id": gc_name,
+                "start_time": evening_by_month.isoformat(),
+                "cost": {
+                    "type": "fixed",
+                    "value": 0.05 + random.gauss(0, 0.03)
+                }
+            }]
+    return events
+
+
+def get_price_list_from_csv(price_csv_dict):
+    """ Read out price CSV.
+
+    :param price_csv_dict: price CSV info
+    :type price_csv_dict: dict
+    :return: price timestamp (if in first column of CSV) and values
+    :rtype: list of tuples
+    """
+    csv_path = Path(price_csv_dict["csv_file"])
+    if not csv_path.exists():
+        logging.error(f"price csv file {csv_path} does not exist, skipping price generation")
+        return []
+
+    prices = []
+    column = price_csv_dict.get("column")
+    factor = price_csv_dict.get("factor", 1)
+    with csv_path.open('r', newline='', encoding='utf-8') as csvfile:
+        reader = csv.DictReader(csvfile, delimiter=',', quotechar='"')
+        for idx, row in enumerate(reader):
+            row_values = list(row.values())
+            # read value from given column or last column
+            value_str = row[column] if column else row_values[-1]
+            value = float(value_str) * factor
+            # add entry: first cell (may contain datetime), value
+            prices.append((row_values[0], value))
+    return prices
+
+
+def generate_event_list_from_prices(
+        prices, gc_name, start_simulation, stop_simulation,
+        start_events=None, price_interval_s=None):
+    """ Generate grid operator signals from price list.
+
+    :param prices: price timestamp and values
+    :type prices: list of tuples
+    :param gc_name: grid connector ID
+    :type gc_name: string
+    :param start_simulation: start of simulation
+    :type start_simulation: datetime.datetime
+    :param stop_simulation: end of simulation
+    :type stop_simulation: datetime.datetime
+    :param start_events: timestamp of first event in list (optional). Read from list if not given
+    :type start_events: string (ISO-format)
+    :param price_interval_s: interval between list entries in seconds (only with start_events)
+    :type price_interval_s: number
+    :return: grid operator signals
+    :rtype: list
+    """
+    if start_events is None:
+        assert price_interval_s is None, (
+            f"{gc_name} price CSV: must have start_time if price_interval is given")
+        logging.debug(f"{gc_name} price CSV: using timestamps from file")
+    else:
+        start_events = spice_ev_util.datetime_from_isoformat(start_events)
+        price_interval = datetime.timedelta(seconds=price_interval_s)
+
+    day = datetime.timedelta(days=1)
+    event = None
+    events = []
+    stop = None
+
+    for idx, price in enumerate(prices):
+        if price_interval_s is None:
+            # default: use CSV timestamps in first column
+            event_time = spice_ev_util.datetime_from_isoformat(price[0])
+            if start_events is None:
+                # keep track of first event time
+                start_events = event_time
+        else:
+            # compute event timestamp from given arguments
+            event_time = idx * price_interval + start_events
+        if stop is None or stop < event_time:
+            # keep track of last event time
+            stop = event_time
+        if event_time > stop_simulation:
+            # don't generate prices after stop of scenario
+            break
+        if event_time >= start_simulation and len(events) == 0 and event is not None:
+            # first event within scenario time, but there were events before: add prior event
+            events.append(event)
+        # price events known one day in advance
+        signal_time = event_time - day
+        # read value from given column or last column
+        event = {
+            "start_time": event_time.isoformat(),
+            "signal_time": signal_time.isoformat(),
+            "grid_connector_id": gc_name,
+            "cost": {"type": "fixed", "value": price[1]},
+        }
+        if event_time >= start_simulation:
+            # event within scenario time: add to list
+            events.append(event)
+    # post check: events before scenario start?
+    if len(events) == 0 and event is not None:
+        # prior events: add last
+        events.append(event)
+
+    if events:
+        # check if CSV timestamps cover simulation time
+        if start_events > start_simulation or stop < stop_simulation:
+            logging.info(f"{gc_name} price csv does not cover simulation time")
+    return events

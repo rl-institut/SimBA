@@ -17,28 +17,23 @@ def save_version(file_path):
 
 
 def get_buffer_time(trip, default=0):
-    """
-    Get buffer time at arrival station of a trip. Buffer_time is an abstraction of delays like
+    """ Get buffer time at arrival station of a trip.
+
+    Buffer time is an abstraction of delays like
     docking procedures and is added to the planned arrival time.
 
-    :param trip: The of buffer time of this trips arrival is returned.
+    :param trip: trip to calculate buffer time for
     :type trip: simba.Trip
     :param default: Default buffer time if no station specific buffer time is given. [minutes]
     :type default: dict, numeric
-    :return: Buffer time
-    :rtype: numeric
+    :return: buffer time in minutes
+    :rtype: dict or int
 
-        NOTE: Buffertime dictionaries map hours of the day to a buffer time.
+    NOTE: Buffer time dictionaries map hours of the day to a buffer time.
     Keys are ranges of hours and corresponding values provide buffer time in
     minutes for that time range.
-    An entry with key "else" is a must if not all
-    hours of the day are covered.
-    E.g.
-    buffer_time = {
-    "10-22": 2,
-    "22-6": 3,
-    "else": 1
-    }
+    An entry with key "else" is a must if not all hours of the day are covered.
+    Example: ``buffer_time = {"10-22": 2, "22-6": 3, "else": 1}``
     """
 
     schedule = trip.rotation.schedule
@@ -64,16 +59,15 @@ def get_buffer_time(trip, default=0):
                     if start_hour <= current_hour < end_hour:
                         buffer_time = buffer
                         break
-
     return buffer_time
 
 
 def uncomment_json_file(f, char='//'):
-    """
-    Remove comments from JSON file.
+    """ Remove comments from JSON file.
 
     Wouldn't it be nice to have comments in JSON data? Now you can!
     Both full-line comments and trailing lines are supported.
+
     :param f: file to read
     :type f: JSON file handle
     :param char: char sequence used for commenting, defaults to '//'
@@ -144,9 +138,12 @@ def get_csv_delim(path, other_delims=set()):
 
 
 def nd_interp(input_values, lookup_table):
-    """ Get the interpolated output value for a given input value of n dimensions and a given
-    lookup table with n+1 columns. Input values outside of the lookup table are
-    clipped to the bounds.
+    """ Interpolates a value from a table.
+
+    Get the interpolated output value for a given input value of n dimensions
+    and a given lookup table with n+1 columns.
+    Input values outside of the lookup table are clipped to the bounds.
+
     :param input_values: tuple with n input values
     :type input_values: tuple(floats)
     :param lookup_table: Table with n+1 columns, with the output values in the (n+1)th column
@@ -221,7 +218,13 @@ def nd_interp(input_values, lookup_table):
 
 
 def setup_logging(args, time_str):
-    # set up logging
+    """ Setup logging.
+
+    :param args: command line arguments. Used: logfile, loglevel, output_directory
+    :type args: argparse.Namespace
+    :param time_str: log file name if args.logfile is not given
+    :type time_str: str
+    """
     # always to console
     log_handlers = [logging.StreamHandler()]
     if args.logfile is not None and args.output_directory is not None:

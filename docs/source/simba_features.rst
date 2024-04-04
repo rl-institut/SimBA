@@ -76,7 +76,7 @@ Cost calculation
 ################
 | **Cost calculation (summary_vehicles_costs.csv)**
 | This is an optional output which calculates investment and maintenance costs of the infrastructure as well as energy costs in the scenario. The costs are calculated based on the price sheet, given as input in the :ref:`cost_params`.
-| The energy costs and the grid connector costs are spefific for each grid operator, as given by the :ref:`cost_params`.
+| The energy costs and the grid connector costs are specific for each grid operator, as given by the :ref:`cost_params`.
 | The following costs are calculated as both total and annual, depending on the lifetime of each component. See `SpiceEV documentation <https://spice-ev.readthedocs.io/en/latest/charging_strategies_incentives.html#incentive-scheme>`_ for the calculation of electricity costs.
 
 * Investment
@@ -94,7 +94,11 @@ Cost calculation
     * **Taxes**: Taxes like electricity taxes, depending on given taxes by price sheet.
     * **Feed-in remuneration**: Remuneration for electricity fed into the grid.
 
-As result the following table is saved as CSV:
+As result the following table is saved as CSV. The first two columns of the csv file are "parameter" and "unit" as descibed below. The third column "cumulated" returns the results for the whole scenario. In the consecutive columns, the results for each electrified station are displayed separately. Be aware that:
+
+* Busses, that start or stop at more then one depot are displayed in each column of the respective electrified station, but only once in the column "cumulated", so the sum of all depots in not necessarily equal to the sum of all electrified stations. This is valid for both number of vehicles and investment costs.
+* Costs are only calculated for :ref:`electrified_stations`. Vehicles for rotations starting at non electrified stations get added to the column "Non_elctrified_station".
+
 
 +---------------------------------+----------+-----------------------------------------------------------------------+
 |**parameter**                    | **unit** | **description**                                                       |
