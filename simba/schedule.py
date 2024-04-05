@@ -1,4 +1,4 @@
-import csv # noqa
+import csv
 import datetime
 import json
 import logging
@@ -301,7 +301,6 @@ class Schedule:
         rotations_in_progress = []
         standing_vehicles = []
         vehicle_data = dict()
-        print("Assigning")
         initial_soc = args.desired_soc_deps
 
         # count number of vehicles per type
@@ -361,7 +360,6 @@ class Schedule:
                     delta_soc = rot.calculate_consumption() / self.vehicle_types[vt][ct]["capacity"]
                     end_soc = charged_soc - delta_soc
                     if end_soc > 0 or charged_soc >= initial_soc:
-                        print(delta_soc, charged_soc)
                         rot.vehicle_id = vehicle_id
                         standing_vehicles.remove(item)
                         vehicle_data[vehicle_id] = {"soc": end_soc,
@@ -378,7 +376,6 @@ class Schedule:
                 vehicle_data[vehicle_id] = {"soc": end_soc,
                                             "arrival_time": rot.arrival_time}
 
-            print(f"assigned {vehicle_id} to {rot.id} with {start_soc=} and {end_soc=}")
 
             # keep list of rotations in progress sorted
             def sort_by_soc_at_next_rot_departure(rot):
