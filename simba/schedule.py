@@ -185,9 +185,24 @@ class Schedule:
                 inconsistent_rotations[rot_id] = str(e)
         return inconsistent_rotations
 
+
     def run(self, args):
         # each rotation is assigned a vehicle ID
-        self.assign_vehicles(args)
+        import time
+        args.new_assign = True
+        s = time.perf_counter()
+        if args.new_assign:
+            pass
+        self.new_assign_vehicles(args)
+        print(time.perf_counter() - s)
+        # vehicles = sum([count for count in self.vehicle_type_counts.values()])
+        # print(f"{vehicles=}")
+
+        s = time.perf_counter()
+        # self.assign_vehicles()
+        print(time.perf_counter()-s)
+        vehicles = sum([count for count in self.vehicle_type_counts.values()])
+        print(f"{vehicles=}")
 
         scenario = self.generate_scenario(args)
 
@@ -218,7 +233,76 @@ class Schedule:
             if rotation_ids is None or id in rotation_ids:
                 rot.set_charging_type(ct)
 
-    def assign_vehicles(self, args):
+    def assign_vehicles(self):
+        """ Assign vehicle IDs to rotations. A FIFO approach is used.
+            For every rotation it is checked whether vehicles with matching type are idle, in which
+            case the one with the longest standing time since last rotation is used.
+            If no vehicle is available a new vehicle ID is generated.
+        """
+        rotations_in_progress = []
+        idle_vehicles = []
+        # count number of vehicles per type
+        # used for unique vehicle id e.g. vehicletype_chargingtype_id
+        vehicle_type_counts = {f'{vehicle_type}_{charging_type}': 0
+                               for vehicle_type, charging_types in self.vehicle_types.items()
+                               for charging_type in charging_types.keys()}
+
+        rotations = sorted(self.rotations.values(), key=lambda rot: rot.departure_time)
+
+        for rot in rotations:
+            # find vehicles that have completed rotation and stood for a minimum standing time
+            # mark those vehicle as idle
+            while rotations_in_progress:
+                # calculate min_standing_time deps
+                r = rotations_in_progress.pop(0)
+                if rot.departure_time > r.earliest_departure_next_rot:
+                    idle_vehicles.append((r.vehicle_id, r.arrival_name))
+                else:
+                    rotations_in_progress.insert(0, r)
+                    break
+
+            # find idle vehicle for rotation if exists
+            # else generate new vehicle id
+            vt_ct = f"{rot.vehicle_type}_{rot.charging_type}"
+            for item in idle_vehicles:
+                id, deps = item
+                if vt_ct in id and deps == rot.departure_name:
+                    rot.vehicle_id = id
+                    idle_vehicles.remove(item)
+                    break
+            else:
+                # no vehicle available for dispatch, generate new one
+                vehicle_type_counts[vt_ct] += 1
+                rot.vehicle_id = f"{vt_ct}_{vehicle_type_counts[vt_ct]}"
+
+            # keep list of rotations in progress sorted
+            i = 0
+            for i, r in enumerate(rotations_in_progress):
+                # go through rotations in order, stop at same or higher departure
+                if r.earliest_departure_next_rot >= rot.earliest_departure_next_rot:
+                    break
+            else:
+                # highest departure, insert at
+                i = i + 1
+            # insert at calculated index
+            rotations_in_progress.insert(i, rot)
+
+        # update vehicle ID for nice natural sorting
+        for rot in rotations:
+            # get old vehicle id (vehicle type + charging type, sequential number)
+            vt_ct, old_num = rot.vehicle_id.rsplit('_', 1)
+            # how many vehicles of this type?
+            vt_cnt = vehicle_type_counts[vt_ct]
+            # easy log10 to get max needed number of digits
+            digits = len(str(vt_cnt))
+            # how many digits have to be added for this vehicle ID?
+            missing = digits - len(str(old_num))
+            # assign new zero-padded ID (all of same vehicle type have same length)
+            rot.vehicle_id = f"{vt_ct}_{'0' * missing}{old_num}"
+
+        self.vehicle_type_counts = vehicle_type_counts
+
+    def new_assign_vehicles(self, args):
         """ Assign vehicle IDs to rotations.
 
         A FIFO approach is used.
@@ -288,6 +372,7 @@ class Schedule:
                     delta_soc = rot.calculate_consumption() / self.vehicle_types[vt][ct]["capacity"]
                     end_soc = charged_soc - delta_soc
                     if end_soc > 0 or charged_soc >= initial_soc:
+                        print(delta_soc, charged_soc)
                         rot.vehicle_id = vehicle_id
                         standing_vehicles.remove(item)
                         vehicle_data[vehicle_id] = {"soc": end_soc,
@@ -310,7 +395,7 @@ class Schedule:
             i = 0
             for i, r in enumerate(rotations_in_progress):
                 # go through rotations in order, stop at same or higher departure
-                if earliest_full_departures[r] >= earliest_full_departures[rot]:
+                if earliest_full_departures[r] <= earliest_full_departures[rot]:
                     break
             else:
                 # highest departure, insert at
