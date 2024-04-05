@@ -326,7 +326,7 @@ def get_delta_soc(soc_over_time_curve, soc, time_delta, max_soc: float):
 
     # make sure to limit delta soc to 1 if negative socs are given. They are possible during
     # the optimization process but will be continuously raised until they are >0.
-    return min(max_soc, max_soc - start_soc,end_soc - start_soc)
+    return min(max_soc, max_soc - start_soc, end_soc - start_soc)
 
 
 class InfiniteLoopException(Exception):

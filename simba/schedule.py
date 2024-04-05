@@ -12,6 +12,7 @@ from spice_ev.battery import Battery
 from spice_ev.scenario import Scenario
 import spice_ev.util as spice_ev_util
 
+
 class Schedule:
 
     def __init__(self, vehicle_types, stations, **kwargs):
@@ -185,7 +186,6 @@ class Schedule:
                 inconsistent_rotations[rot_id] = str(e)
         return inconsistent_rotations
 
-
     def run(self, args):
         # each rotation is assigned a vehicle ID
         import time
@@ -309,6 +309,8 @@ class Schedule:
         For every rotation it is checked whether vehicles with matching type are idle,
         in which case the one with longest standing time since last rotation is used.
         If no vehicle is available, a new vehicle ID is generated.
+        :param args: arguments
+        :type args: Namespace
         """
         rotations_in_progress = []
         standing_vehicles = []
@@ -365,8 +367,9 @@ class Schedule:
                     # When arriving the vehicle has this soc
                     start_soc = vehicle_data[vehicle_id]["soc"]
                     # This soc is reached when leaving for the current rotation
-                    charge_delta_soc = get_charge_delta_soc(charge_curves, vt, ct, station_power, duration_in_m,
-                                              start_soc, max_soc=initial_soc)
+                    charge_delta_soc = get_charge_delta_soc(charge_curves, vt, ct, station_power,
+                                                            duration_in_m,
+                                                            start_soc, max_soc=initial_soc)
                     # Assign vehicles
                     charged_soc = max(start_soc, 0) + charge_delta_soc
                     delta_soc = rot.calculate_consumption() / self.vehicle_types[vt][ct]["capacity"]
@@ -385,7 +388,7 @@ class Schedule:
                 rot.vehicle_id = vehicle_id
                 start_soc = initial_soc
                 delta_soc = rot.calculate_consumption() / self.vehicle_types[vt][ct]["capacity"]
-                end_soc = start_soc -delta_soc
+                end_soc = start_soc - delta_soc
                 vehicle_data[vehicle_id] = {"soc": end_soc,
                                             "arrival_time": rot.arrival_time}
 
@@ -1124,7 +1127,7 @@ def generate_event_list_from_prices(
 
 
 def get_charge_delta_soc(charge_curves: dict, vt: str, ct: str, max_power: float,
-                    time_delta: datetime.timedelta, start_soc: float, max_soc: float) -> float:
+                         time_delta: datetime.timedelta, start_soc: float, max_soc: float) -> float:
     charge_curve = charge_curves[vt][ct][max_power]
     d_soc = optimizer_util.get_delta_soc(charge_curve, start_soc, time_delta=time_delta,
                                          max_soc=max_soc)
