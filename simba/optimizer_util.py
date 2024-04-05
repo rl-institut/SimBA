@@ -294,25 +294,26 @@ def get_rotation_soc_util(rot_id, schedule, scenario, soc_data: dict = None):
     return scenario.vehicle_socs[rot.vehicle_id], rot_start_idx, rot_end_idx
 
 
-def get_delta_soc(soc_over_time_curve, soc, time_delta, optimizer: 'StationOptimizer'):
+def get_delta_soc(soc_over_time_curve, soc, time_delta, max_soc: float):
     """ Return expected SoC lift for a given SoC charging time series, start_soc and time_delta.
 
     :param soc_over_time_curve: Data with columns: time, soc and n rows
     :type soc_over_time_curve: np.array() with shape(n, 2)
     :param soc: start socs
     :type soc: float
-    :param time_delta: time of charging
+    :param time_delta: duration of charging in minutes
     :type time_delta: float
-    :param optimizer: optimizer object
-    :type optimizer: simba.station_optimizer.StationOptimizer
+    :param max_soc: maximum soc for charging
+    :type max_soc: float
     :return: positive delta of the soc
     :rtype: float
     """
     # units for time_delta and time_curve are assumed to be the same, e.g. minutes
     # first element which is bigger than current soc
+
     if time_delta == 0:
         return 0
-    soc = max(min(optimizer.args.desired_soc_opps, soc), 0)
+    soc = max(min(max_soc, soc), 0)
     idx = np.searchsorted(soc_over_time_curve[:, 1], soc, side='left')
     first_time, start_soc = soc_over_time_curve[idx, :]
     second_time = first_time + time_delta
@@ -325,8 +326,7 @@ def get_delta_soc(soc_over_time_curve, soc, time_delta, optimizer: 'StationOptim
 
     # make sure to limit delta soc to 1 if negative socs are given. They are possible during
     # the optimization process but will be continuously raised until they are >0.
-    return min(optimizer.args.desired_soc_opps, optimizer.args.desired_soc_opps - start_soc,
-               end_soc - start_soc)
+    return min(max_soc, max_soc - start_soc,end_soc - start_soc)
 
 
 class InfiniteLoopException(Exception):
@@ -395,7 +395,8 @@ def evaluate(events: typing.Iterable[LowSocEvent],
             except IndexError:
                 standing_time_min = 0
 
-            pot_kwh = get_delta_soc(soc_over_time, soc, standing_time_min, optimizer) * e.capacity
+            desired_soc = optimizer.args.desired_soc_opps
+            pot_kwh = get_delta_soc(soc_over_time, soc, standing_time_min, desired_soc) * e.capacity
 
             # potential is at max the minimum between the useful delta soc * capacity or the
             # energy provided by charging for the full standing time
@@ -561,15 +562,15 @@ def charging_curve_to_soc_over_time(
     :type logger: logging.Logger
     :param eps: smallest normalized power, where charging curve will stop
     :type eps: float
-    :param charging_curve: the charging curve with power over soc
+    :param charging_curve: the charging curve with power in kw over soc
     :type charging_curve: list(float,float)
-    :param capacity: capacity of the vehicle
+    :param capacity: capacity of the vehicle in kwh
     :type capacity: float
     :param final_value: soc value until the curve is simulated
     :type final_value: float
-    :param max_charge_from_grid: maximum amount of charge from grid / connector
+    :param max_charge_from_grid: maximum amount of charge from grid / connector in kw
     :type max_charge_from_grid: float
-    :param time_step: time step for simulation
+    :param time_step: time step in minutes for simulation
     :type time_step: float
     :param efficiency: efficiency of charging
     :type efficiency: float

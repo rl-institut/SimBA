@@ -494,7 +494,7 @@ class StationOptimizer:
                     standing_time_min = 0
 
                 d_soc = opt_util.get_delta_soc(
-                    soc_over_time_curve, soc[idx], standing_time_min, self)
+                    soc_over_time_curve, soc[idx], standing_time_min, self.args.desired_soc_opps)
                 buffer_idx = int(
                     (opt_util.get_buffer_time(trip, self.args.default_buffer_time_opps))
                     / timedelta(minutes=1))
