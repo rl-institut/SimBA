@@ -219,9 +219,8 @@ class Mode:
         return schedule, scenario
 
     def recombination(schedule, scenario, args, _i):
-        separated_trips, depot_trips = optimization.split_trips(schedule)
-        recombined_schedule = optimization.recombination(
-            schedule, args, separated_trips, depot_trips)
+        trips, depot_trips = optimization.prepare_trips(schedule)
+        recombined_schedule = optimization.recombination(schedule, args, trips, depot_trips)
         # re-run schedule
         scenario = recombined_schedule.run(args)
         return recombined_schedule, scenario

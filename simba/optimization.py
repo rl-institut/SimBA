@@ -132,24 +132,23 @@ def service_optimization(schedule, scenario, args):
     }
 
 
-def split_trips(schedule):
-    """
-    Split all rotations into their individual trips.
+def prepare_trips(schedule):
+    """ Find trips to/from depots, generate dictionary from rotations to their non-depot trips.
 
-    Preparation for recombination. Extracts all trips from or to a depot into their own dictionary.
+    An original rotation may be split if it temporarily returns to a depot.
+
     :param schedule: Schedule to be optimized
     :type schedule: simba.Schedule
-    :return: individual trips between stations (no depot trips), dict of depot trips
-    :rtype: tuple
+    :return: rotation ID -> trip list (without depot trips)
+    :rtype: dict
     """
-    trips = []
+    trips = {}  # structure: rotation ID -> trip list
     depot_trips = {}  # take note of trips from/to depots. station -> depot -> trip
-    # iterate over all trips of schedule
-    for rot in schedule.rotations.values():
-        for trip_idx, trip in enumerate(rot.trips):
-            if trip.delta_soc > 1:
-                logging.info(f"Trip {trip_idx} of rotation {rot.id} too long, discarded")
-                continue
+    for rot_id, rot in schedule.rotations.items():
+        trip_list = []
+        rot_counter = 0  # count depot returns, used for unique naming
+        rot_name = rot_id
+        for trip in rot.trips:
             # check if trip starts or ends in depot
             departure_station = schedule.stations.get(trip.departure_name)
             arrival_station = schedule.stations.get(trip.arrival_name)
@@ -163,10 +162,11 @@ def split_trips(schedule):
                 trip_station = trip.departure_name
             if depot_station is None:
                 # not a depot trip: add to trips for recombination
-                trips.append(trip)
+                trip_list.append(trip)
             else:
-                # trip starts or ends in depot: save trip for later, but do not add to trips
+                # trip starts or ends in depot: save trip in depot_trips, but do not add to trips
                 if trip_station not in depot_trips:
+                    # new depot
                     depot_trips[trip_station] = {}
                 try:
                     old_trip = depot_trips[trip_station][depot_station]
@@ -182,11 +182,18 @@ def split_trips(schedule):
                         logging.error(f"Depot trips {depot_station} - {trip_station} "
                                       f"differ in duration: {t1} / {t2}")
                 except KeyError:
-                    # trip to depot not yet known
-                    if depot_trips[trip_station]:
-                        # but there is a trip to another depot
-                        logging.info(f"Multiple depot trips for {trip_station}")
+                    # trip from current station to depot not yet known
                     depot_trips[trip_station][depot_station] = trip
+                # rotation is finished once it reaches depot again:
+                # save list, prepare to fill a new one
+                if trip_list:
+                    trips[rot_name] = trip_list
+                    rot_counter += 1
+                    rot_name = f"{rot_id}_{rot_counter}"
+                    trip_list = []
+        # all trips of a rotation done, but may not end in depot: add final trips
+        if trip_list:
+            trips[rot_name] = trip_list
     return (trips, depot_trips)
 
 
@@ -207,8 +214,10 @@ def generate_depot_trip(station, depot_trips):
         depots = sorted(depot_trips[station].items(), key=lambda x: x[1].distance)
         depot_trip = depots[0]
         return {
-            "name": depot_trip[0],
-            "distance": depot_trip[1].distance,
+            "name": depot_trip[0],  # depot station key
+            "distance": depot_trip[1].distance,  # in meters
+            "mean_speed": depot_trip[1].mean_speed,  # in km/h
+            "travel_time": depot_trip[1].arrival_time - depot_trip[1].departure_time,  # timedelta,
         }
     except KeyError:
         # no trip from depot to departure station known: assume defaults
@@ -216,6 +225,8 @@ def generate_depot_trip(station, depot_trips):
         return {
             "name": list(depot_trips)[0],  # get first depot
             "distance": DEFAULT_DEPOT_DISTANCE * 1000,
+            "mean_speed": DEFAULT_MEAN_SPEED,
+            "travel_time": datetime.timedelta(hours=DEFAULT_DEPOT_DISTANCE/DEFAULT_MEAN_SPEED),
         }
 
 
@@ -223,151 +234,121 @@ def recombination(schedule, args, trips, depot_trips):
     """
     Recombine individual trips to new rotations.
 
-    Gathers rotations greedy from given trips. Checks if rotation can be done at all.
+    Gathers rotations greedy from given trips.
+    Rotations are not mixed, keep trips together if possible.
+    Checks if rotation can be done at all.
+
     :param schedule: Schedule to be recombined
     :type schedule: simba.Schedule
     :param args: Command line arguments
     :type args: argparse.Namespace
-    :param trips: individual trips
-    :type trips: list of simba.Trip
+    :param trips: look-up-table rotation ID -> trip list
+    :type trips: dict
     :param depot_trips: look-up-table for depot trips
     :type depot_trips: dict
     :return: recombined schedule
     :rtype: simba.Schedule
     """
     rotations = {}
-    # sort trips by departure time
-    trips.sort(key=lambda t: t.departure_time)
+    for rot_id, trip_list in trips.items():
+        # examine single rotation: which trips can be made safely with a single battery charge?
+        # generate initial trip from depot to first station,
+        # then add trips from original rotation until soc is too low to reach a depot again
 
-    while trips:
-        # still trips to be done: new rotation, get earliest trip
-        trip = trips.pop(0)
-        rotation = Rotation(
-            id=f"recombination_{len(rotations) + 1}",
-            vehicle_type=trip.rotation.vehicle_type,
-            schedule=schedule,
-        )
-        vehicle_type = rotation.vehicle_type
-        charging_type = trip.rotation.charging_type
-        rotation.set_charging_type(charging_type)
+        # sort trips by departure time
+        trip_list.sort(key=lambda t: t.departure_time)
 
-        # begin rotation in depot: add initial trip
-        depot_trip = generate_depot_trip(trip.departure_name, depot_trips)
-        depot_trip_time = depot_trip["distance"] / (DEFAULT_MEAN_SPEED * 1000)
-        rotation.add_trip({
-            "departure_time": trip.departure_time - datetime.timedelta(hours=depot_trip_time),
-            "departure_name": depot_trip["name"],
-            "arrival_time": trip.departure_time,
-            "arrival_name": trip.departure_name,
-            "distance": depot_trip["distance"],
-            "line": trip.line,
-            "charging_type": charging_type,
-            "temperature": trip.temperature,
-            # "height_difference": None,  # compute from station data
-            "level_of_loading": 0,  # no passengers from depot
-            "mean_speed": DEFAULT_MEAN_SPEED,
-            "station_data": schedule.station_data,
-        })
+        # initial values
+        rotation = None  # new rotation is generated during first trip
+        rot_name = f"{rot_id}_r"  # new rotation name, if it needs to be split a counter is added
+        rot_counter = 0  # into how many rotations has the original already been split?
+        soc = None  # remaining soc of new rotation
+        last_depot_trip = None  # keep track of last possible depot trip
 
-        # add first trip to rotation
-        # use info from original trip
-        trip_dict = vars(trip)
-        del trip_dict["rotation"]
-        trip_dict["charging_type"] = charging_type
-        rotation.add_trip(trip_dict)
+        while trip_list:
+            # probe next trip
+            trip = trip_list.pop(0)
+            if rotation is None:
+                # first trip of new rotation: generate new rotation
+                rotation = Rotation(
+                    id=rot_name,
+                    vehicle_type=trip.rotation.vehicle_type,
+                    schedule=schedule,
+                )
+                charging_type = trip.rotation.charging_type
+                rotation.set_charging_type(charging_type)
 
-        # initial check: can bus reach depot again?
-        soc = args.desired_soc_deps
-        rotation.calculate_consumption()
-        soc += sum([trip.delta_soc for trip in rotation.trips])
+                # begin rotation in depot: add initial trip
+                depot_trip = generate_depot_trip(trip.departure_name, depot_trips)
+                rotation.add_trip({
+                    "departure_time": trip.departure_time - depot_trip["travel_time"],
+                    "departure_name": depot_trip["name"],
+                    "arrival_time": trip.departure_time,
+                    "arrival_name": trip.departure_name,
+                    "distance": depot_trip["distance"],
+                    "line": trip.line,
+                    "charging_type": charging_type,
+                    "temperature": trip.temperature,
+                    # "height_difference": None,  # compute from station data
+                    "level_of_loading": 0,  # no passengers from depot
+                    "mean_speed": depot_trip["mean_speed"],
+                    "station_data": schedule.station_data,
+                })
 
-        # soc now contains battery level after first proper trip
-        # it will be updated with every trip added to the new rotation
-        # probe return trip (same depot)
-        try:
-            height_diff = (
-                schedule.station_data[trip.arrival_name]["elevation"]
-                - schedule.station_data[depot_trip["name"]]["elevation"])
-        except (KeyError, ValueError):
-            height_diff = 0
-        # trip.calculate_consumption does not return delta_soc, just consumption:
-        # use Trip.consumption.calculate_consumption directly (should exist, because of initial sim)
-        _, delta_soc = Trip.consumption.calculate_consumption(
-            trip.departure_time, depot_trip["distance"], vehicle_type, charging_type,
-            trip.temperature, height_diff, level_of_loading=0, mean_speed=DEFAULT_MEAN_SPEED)
-        if -delta_soc > soc:
-            logging.info(f"Trip of line {trip.line} between {trip.departure_name} "
-                         f"and {trip.arrival_name} too long with added depot trips, discarded")
-            # ignore new rotation
-            continue
+                # calculate consumption for initial trip
+                soc = args.desired_soc_deps  # vehicle leaves depot with this soc
+                rotation.calculate_consumption()
+                soc += rotation.trips[0].delta_soc  # new soc after initial trip
 
-        # initial trip can come back to depot: make rotation official
-        rotations[rotation.id] = rotation
-        last_depot_trip = depot_trip
-
-        # add further trips
-        trip_idx = 0
-        arrival_time = trip.arrival_time
-        current_name = trip.arrival_name
-        while trip_idx < len(trips):
-            trip = trips[trip_idx]
-            # find next trip from same station with same vehicle type
-            if (
-                    trip.departure_name != current_name or
-                    trip.rotation.vehicle_type != vehicle_type or
-                    arrival_time > trip.departure_time
-            ):
-                trip_idx += 1
-                continue
-
-            # probe new trip: can bus come back from this station?
-            trip = trips[trip_idx]
-            # find depot trip delta soc (new station to depot)
+            # can trip be completed while having enough energy to reach depot again?
+            # probe return trip
             depot_trip = generate_depot_trip(trip.arrival_name, depot_trips)
-            depot_trip_time = depot_trip["distance"] / (DEFAULT_MEAN_SPEED * 1000)
-            try:
-                height_diff = (
-                    schedule.station_data[trip.arrival_name]["elevation"]
-                    - schedule.station_data[depot_trip["name"]]["elevation"])
-            except (KeyError, ValueError):
-                height_diff = 0
-            _, delta_soc_depot = Trip.consumption.calculate_consumption(
-                trip.departure_time, depot_trip["distance"], vehicle_type, charging_type,
-                trip.temperature, height_diff, level_of_loading=0, mean_speed=DEFAULT_MEAN_SPEED)
-            # remaining soc must be enough for new trip and depot trip
-            if soc < -(trip.delta_soc + delta_soc_depot):
-                # can't return from this station: skip
-                trip_idx += 1
-                continue
-
-            # soc sufficient: add new trip to rotation, remove from trips list
-            trip = trips.pop(trip_idx)
-            trip_dict = vars(trip)
-            del trip_dict["rotation"]
-            trip_dict["charging_type"] = charging_type
-            rotation.add_trip(trip_dict)
-            soc += trip.delta_soc
-            last_depot_trip = depot_trip
-
-            arrival_time = trip.arrival_time
-            current_name = trip.arrival_name
-        else:
-            # add final depot trip after no more possible trips remain
-            last_trip = rotation.trips[-1]
-            depot_trip_time = last_depot_trip["distance"] / (DEFAULT_MEAN_SPEED * 1000)
-            rotation.add_trip({
-                "departure_time": arrival_time,
-                "departure_name": current_name,
-                "arrival_time": arrival_time + datetime.timedelta(hours=depot_trip_time),
-                "arrival_name": last_depot_trip["name"],
-                "distance": last_depot_trip["distance"],
-                "line": last_trip.line,
+            depot_trip = {
+                "departure_time": trip.arrival_time,
+                "departure_name": trip.arrival_name,
+                "arrival_time": trip.arrival_time + depot_trip["travel_time"],
+                "arrival_name": depot_trip["name"],
+                "distance": depot_trip["distance"],
+                "line": trip.line,
                 "charging_type": charging_type,
-                "temperature": last_trip.temperature,
-                "level_of_loading": 0,  # no passengers to depot
-                "mean_speed": DEFAULT_MEAN_SPEED,
+                "temperature": trip.temperature,
+                "level_of_loading": 0,
+                "mean_speed": depot_trip["mean_speed"],
                 "station_data": schedule.station_data,
-            })
+            }
+            # rotation.add_trip needs dict, but consumption calculation is better done on Trip obj:
+            # create temporary depot trip object for consumption calculation
+            tmp_trip = Trip(rotation, **depot_trip)
+            tmp_trip.calculate_consumption()
+            if soc >= -(trip.delta_soc + tmp_trip.delta_soc):
+                # next trip is possible: add trip, use info from original trip
+                trip_dict = vars(trip)
+                del trip_dict["rotation"]
+                trip_dict["charging_type"] = charging_type
+                rotation.add_trip(trip_dict)
+                last_depot_trip = depot_trip
+                soc += trip.delta_soc
+            else:
+                # next trip is not safely possible
+                if last_depot_trip is None:
+                    # this was initial trip: discard rotation
+                    logging.info(f"Trip of line {trip.line} between {trip.departure_name} and "
+                                 f"{trip.arrival_name} too long with added depot trips, discarded")
+                else:
+                    # not initial trip: add last possible depot trip
+                    rotation.add_trip(last_depot_trip)
+                    rotations[rotation.id] = rotation
+                    last_depot_trip = None
+                    rot_counter += 1
+                    rot_name = f"{rot_id}_r_{rot_counter}"
+                # prepare for new rotation with next trip
+                rotation = None
+            # end of trip
+        # rotation finished (trip list empty): add final depot trip, if needed
+        if last_depot_trip is not None:
+            rotation.add_trip(last_depot_trip)
+            rotations[rotation.id] = rotation
+
     schedule.rotations = rotations
     schedule.calculate_consumption()
     return schedule
