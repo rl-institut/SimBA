@@ -1,4 +1,4 @@
-import csv
+import csv # noqa
 import datetime
 import json
 import logging
