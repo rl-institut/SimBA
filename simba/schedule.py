@@ -188,8 +188,8 @@ class Schedule:
 
     def run(self, args):
         # each rotation is assigned a vehicle ID
-        self.assign_vehicles()
-        # self.new_assign_vehicles(args)
+        # self.assign_vehicles()
+        self.new_assign_vehicles(args)
 
         scenario = self.generate_scenario(args)
 
@@ -324,8 +324,7 @@ class Schedule:
         charge_curves = self.get_charge_curves(charge_levels, time_step=1)
 
         rotations = sorted(self.rotations.values(), key=lambda rot: rot.departure_time)
-        earliest_full_departures = {rot: rot.earliest_departure_next_rot for rot in rotations}
-        for rot in rotations:
+        for k, rot in enumerate(rotations):
 
             # find vehicles that have completed rotation and stood for a minimum standing time
             # mark those vehicle as idle
@@ -346,13 +345,14 @@ class Schedule:
             for item in standing_vehicles:
                 vehicle_id, deps = item
                 if vt_ct in vehicle_id and deps == rot.departure_name:
+                    start_soc = vehicle_data[vehicle_id]["soc"]
+
                     station_power = self.stations[deps].get(f"cs_power_deps_{ct}",
                                                             vars(args).get(f"cs_power_deps_{ct}"))
                     buffer_time = datetime.timedelta(minutes=util.get_buffer_time(rot.trips[0]))
                     duration_in_m = (rot.departure_time - vehicle_data[vehicle_id][
                         "arrival_time"] - buffer_time) / datetime.timedelta(minutes=1)
                     # When arriving the vehicle has this soc
-                    start_soc = vehicle_data[vehicle_id]["soc"]
                     # This soc is reached when leaving for the current rotation
                     charge_delta_soc = get_charge_delta_soc(charge_curves, vt, ct, station_power,
                                                             duration_in_m,
@@ -382,16 +382,29 @@ class Schedule:
             print(f"assigned {vehicle_id} to {rot.id} with {start_soc=} and {end_soc=}")
 
             # keep list of rotations in progress sorted
-            i = 0
-            for i, r in enumerate(rotations_in_progress):
-                # go through rotations in order, stop at same or higher departure
-                if earliest_full_departures[r] <= earliest_full_departures[rot]:
-                    break
+            def sort_by_soc_at_next_rot_departure(rot):
+                vt = rot.vehicle_type
+                ct = rot.charging_type
+                start_soc = vehicle_data[rot.vehicle_id]["soc"]
+                station_power = self.stations[rot.arrival_name].get(f"cs_power_deps_{ct}",
+                                                                    vars(args).get(
+                                                                        f"cs_power_deps_{ct}"))
+                buffer_time = datetime.timedelta(minutes=util.get_buffer_time(rot.trips[0]))
+                duration_in_m = (next_rot.departure_time - vehicle_data[vehicle_id][
+                    "arrival_time"] - buffer_time) / datetime.timedelta(minutes=1)
+                charge_delta_soc = get_charge_delta_soc(charge_curves, vt, ct, station_power,
+                                                        duration_in_m,
+                                                        start_soc, max_soc=initial_soc)
+                return max(0, start_soc) + charge_delta_soc
+
+            rotations_in_progress.append(rot)
+            try:
+                next_rot = rotations[k + 1]
+            except IndexError:
+                pass
             else:
-                # highest departure, insert at
-                i = i + 1
-            # insert at calculated index
-            rotations_in_progress.insert(i, rot)
+                rotations_in_progress = sorted(rotations_in_progress,
+                                               key=sort_by_soc_at_next_rot_departure)
 
         # update vehicle ID for nice natural sorting
         for rot in rotations:
@@ -401,10 +414,8 @@ class Schedule:
             vt_cnt = vehicle_type_counts[vt_ct]
             # easy log10 to get max needed number of digits
             digits = len(str(vt_cnt))
-            # how many digits have to be added for this vehicle ID?
-            missing = digits - len(str(old_num))
             # assign new zero-padded ID (all of same vehicle type have same length)
-            rot.vehicle_id = f"{vt_ct}_{'0'*missing}{old_num}"
+            rot.vehicle_id = f"{vt_ct}_{old_num:0{digits}}"
         self.vehicle_type_counts = vehicle_type_counts
 
     def get_charge_curves(self, charge_levels, time_step):

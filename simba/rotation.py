@@ -130,7 +130,8 @@ class Rotation:
         stations = self.schedule.stations
         try:
             charge_power = stations[self.arrival_name].get(f"cs_power_deps_{ct}",
-                                                       vars(self.schedule)[f"cs_power_deps_{ct}"])
+                                                           vars(self.schedule)[
+                                                               f"cs_power_deps_{ct}"])
         except KeyError:
             logging.warning(f"Rotation {self.id} ends at a non electrified station.")
             return float("inf")
