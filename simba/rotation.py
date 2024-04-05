@@ -1,4 +1,5 @@
 import datetime
+import logging
 
 from simba.trip import Trip
 
@@ -127,8 +128,12 @@ class Rotation:
 
         min_recharge_soc = vars(self.schedule)[f"min_recharge_deps_{ct}"]
         stations = self.schedule.stations
-        charge_power = stations[self.arrival_name].get(f"cs_power_deps_{ct}",
+        try:
+            charge_power = stations[self.arrival_name].get(f"cs_power_deps_{ct}",
                                                        vars(self.schedule)[f"cs_power_deps_{ct}"])
+        except KeyError:
+            logging.warning(f"Rotation {self.id} ends at a non electrified station.")
+            return float("inf")
 
         capacity = self.schedule.vehicle_types[self.vehicle_type][ct]["capacity"]
 
