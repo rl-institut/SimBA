@@ -188,21 +188,8 @@ class Schedule:
 
     def run(self, args):
         # each rotation is assigned a vehicle ID
-        import time
-        args.new_assign = True
-        s = time.perf_counter()
-        if args.new_assign:
-            pass
-        self.new_assign_vehicles(args)
-        print(time.perf_counter() - s)
-        # vehicles = sum([count for count in self.vehicle_type_counts.values()])
-        # print(f"{vehicles=}")
-
-        s = time.perf_counter()
-        # self.assign_vehicles()
-        print(time.perf_counter()-s)
-        vehicles = sum([count for count in self.vehicle_type_counts.values()])
-        print(f"{vehicles=}")
+        self.assign_vehicles()
+        # self.new_assign_vehicles(args)
 
         scenario = self.generate_scenario(args)
 
