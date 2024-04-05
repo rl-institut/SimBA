@@ -415,7 +415,7 @@ class Schedule:
             # easy log10 to get max needed number of digits
             digits = len(str(vt_cnt))
             # assign new zero-padded ID (all of same vehicle type have same length)
-            rot.vehicle_id = f"{vt_ct}_{old_num:0{digits}}"
+            rot.vehicle_id = f"{vt_ct}_{int(old_num):0{digits}}"
         self.vehicle_type_counts = vehicle_type_counts
 
     def get_charge_curves(self, charge_levels, time_step):
