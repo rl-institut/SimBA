@@ -5,7 +5,6 @@ import logging
 from pathlib import Path
 import random
 import warnings
-
 from simba import util, optimizer_util
 from simba.rotation import Rotation
 from spice_ev.battery import Battery
