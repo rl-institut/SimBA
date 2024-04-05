@@ -6,11 +6,11 @@ from pathlib import Path
 import random
 import warnings
 
-from simba import util
+from simba import util, optimizer_util
 from simba.rotation import Rotation
+from spice_ev.battery import Battery
 from spice_ev.scenario import Scenario
 import spice_ev.util as spice_ev_util
-
 
 class Schedule:
 
@@ -227,23 +227,52 @@ class Schedule:
         If no vehicle is available, a new vehicle ID is generated.
         """
         rotations_in_progress = []
+        standing_vehicles = []
         idle_vehicles = []
+        vehicle_socs = dict()
         # count number of vehicles per type
         # used for unique vehicle id e.g. vehicletype_chargingtype_id
         vehicle_type_counts = {f'{vehicle_type}_{charging_type}': 0
                                for vehicle_type, charging_types in self.vehicle_types.items()
                                for charging_type in charging_types.keys()}
 
-        rotations = sorted(self.rotations.values(), key=lambda rot: rot.departure_time)
+        charge_levels = {station[param] for station in self.stations
+                         for param in ["cs_power_deps_oppb", "cs_power_deps_depb"]
+                         if station["type"] == "deps"}
 
+        charge_curves = dict()
+        for vehicle_name, vehicle_type in self.vehicle_types.items():
+            charge_curves[vehicle_name] = dict()
+            for ct_name, v_info in vehicle_type.items():
+                charge_curves[vehicle_name][ct_name] = dict()
+                default_eff = Battery(1, [[0, 1], [1, 1]], 0).efficiency
+                eff = v_info.get("battery_efficiency", default_eff)
+                for charge_level in charge_levels:
+                    if ct_name == "depb":
+                        final_value = self.min_recharge_deps_depb
+                    else:
+                        assert ct_name == "oppb"
+                        final_value = self.min_recharge_deps_oppb
+                    curve = optimizer_util.charging_curve_to_soc_over_time(
+                        v_info["charging_curve"],
+                        v_info["capacity"],
+                        final_value,
+                        charge_level,
+                        time_step=1,
+                        efficiency=eff,
+                        logger=logging.getLogger())
+                    charge_curves[vehicle_name][ct_name][charge_level] = curve
+
+        rotations = sorted(self.rotations.values(), key=lambda rot: rot.departure_time)
+        earliest_departures = {rot: rot.earliest_departure_next_rot for rot in rotations}
         for rot in rotations:
             # find vehicles that have completed rotation and stood for a minimum standing time
             # mark those vehicle as idle
             while rotations_in_progress:
                 # calculate min_standing_time deps
                 r = rotations_in_progress.pop(0)
-                if rot.departure_time > r.earliest_departure_next_rot:
-                    idle_vehicles.append((r.vehicle_id, r.arrival_name))
+                if rot.departure_time > r.arrival_time:
+                    standing_vehicles.append((r.vehicle_id, r.arrival_name))
                 else:
                     rotations_in_progress.insert(0, r)
                     break
@@ -251,10 +280,10 @@ class Schedule:
             # find idle vehicle for rotation if exists
             # else generate new vehicle id
             vt_ct = f"{rot.vehicle_type}_{rot.charging_type}"
-            for item in idle_vehicles:
-                id, deps = item
-                if vt_ct in id and deps == rot.departure_name:
-                    rot.vehicle_id = id
+            for item in standing_vehicles:
+                vehicle_id, deps = item
+                if vt_ct in vehicle_id and deps == rot.departure_name:
+                    rot.vehicle_id = vehicle_id
                     idle_vehicles.remove(item)
                     break
             else:

@@ -122,18 +122,22 @@ class Rotation:
     def min_standing_time(self):
         """Minimum duration of standing time in minutes."""
         # noqa: DAR201
-        assert self.charging_type in ["depb", "oppb"]
-        if self.charging_type == "depb":
-            capacity_depb = self.schedule.vehicle_types[self.vehicle_type]["depb"]["capacity"]
-            # minimum time needed to recharge consumed power from depot charger
-            min_standing_time = (self.consumption / self.schedule.cs_power_deps_depb)
-            # time to charge battery from 0 to desired SOC
-            desired_max_standing_time = ((capacity_depb / self.schedule.cs_power_deps_depb)
-                                         * self.schedule.min_recharge_deps_depb)
-            if min_standing_time > desired_max_standing_time:
-                min_standing_time = desired_max_standing_time
-        elif self.charging_type == "oppb":
-            capacity_oppb = self.schedule.vehicle_types[self.vehicle_type]["oppb"]["capacity"]
-            min_standing_time = ((capacity_oppb / self.schedule.cs_power_deps_oppb)
-                                 * self.schedule.min_recharge_deps_oppb)
+        ct = self.charging_type
+        assert ct in ["depb", "oppb"]
+        if ct == "depb":
+            min_recharge_soc = self.schedule.min_recharge_deps_depb
+            charge_power = self.schedule.cs_power_deps_depb
+        else:
+            min_recharge_soc = self.schedule.min_recharge_deps_oppb
+            charge_power = self.schedule.cs_power_deps_oppb
+
+        capacity = self.schedule.vehicle_types[self.vehicle_type][ct]["capacity"]
+
+        # minimum time needed to recharge consumed power
+        min_standing_time = (self.consumption / charge_power)
+        # time to charge battery from 0 to desired SOC
+        desired_max_standing_time = ((capacity / self.schedule.cs_power_deps_depb)
+                                     * min_recharge_soc)
+        if min_standing_time > desired_max_standing_time:
+            min_standing_time = desired_max_standing_time
         return min_standing_time

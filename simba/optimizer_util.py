@@ -553,8 +553,8 @@ def toolbox_to_pickle(name, sched, scen, args):
 
 
 def charging_curve_to_soc_over_time(
-        charging_curve, capacity, args, max_charge_from_grid=float('inf'), time_step=0.1,
-        efficiency=1, eps=0.001, logger: logging.Logger = None):
+        charging_curve, capacity, final_value: float, max_charge_from_grid=float('inf'),
+        time_step=0.1, efficiency=1, eps=0.001, logger: logging.Logger = None):
     """ Create charging curve as np.array with soc and time as two columns of an np.array.
 
     :param logger: logger
@@ -565,8 +565,8 @@ def charging_curve_to_soc_over_time(
     :type charging_curve: list(float,float)
     :param capacity: capacity of the vehicle
     :type capacity: float
-    :param args: simulation arguments
-    :type args: Namespace
+    :param final_value: soc value until the curve is simulated
+    :type final_value: float
     :param max_charge_from_grid: maximum amount of charge from grid / connector
     :type max_charge_from_grid: float
     :param time_step: time step for simulation
@@ -582,7 +582,6 @@ def charging_curve_to_soc_over_time(
     charge_time = 0
     socs = []
     times = []
-    final_value = args.desired_soc_opps
 
     starting_power = min(
         np.interp(soc, normalized_curve[:, 0], normalized_curve[:, 1]),
@@ -592,7 +591,7 @@ def charging_curve_to_soc_over_time(
         socs.append(soc)
         return np.array((times, socs)).T
 
-    while soc < args.desired_soc_opps:
+    while soc < final_value:
         times.append(charge_time)
         socs.append(soc)
         power1 = min(
@@ -612,7 +611,7 @@ def charging_curve_to_soc_over_time(
                 logger.warning(
                     "charging_curve_to_soc_over_time stopped early, because the charging power of "
                     "%s was to low for eps: %s at an soc of %s an a desired soc of %s", power, eps,
-                    soc, args.desired_soc_opps)
+                    soc, final_value)
             final_value = soc
             break
     # fill the soc completely in last time step
