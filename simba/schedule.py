@@ -376,7 +376,6 @@ class Schedule:
                 vehicle_data[vehicle_id] = {"soc": end_soc,
                                             "arrival_time": rot.arrival_time}
 
-
             # keep list of rotations in progress sorted
             def sort_by_soc_at_next_rot_departure(rot):
                 vt = rot.vehicle_type
