@@ -187,7 +187,7 @@ class TestSchedule(BasicSchedule):
         })
         # add dummy rotations
         s.rotations = {
-            str(i): rotation.Rotation(id=str(i), vehicle_type="", schedule=None)
+            str(i): rotation.Rotation(id=str(i), schedule=None)
             for i in range(6)
         }
         s.original_rotations = deepcopy(s.rotations)

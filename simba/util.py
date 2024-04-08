@@ -16,52 +16,6 @@ def save_version(file_path):
         f.write("Git Hash SimBA:" + get_git_revision_hash())
 
 
-def get_buffer_time(trip, default=0):
-    """ Get buffer time at arrival station of a trip.
-
-    Buffer time is an abstraction of delays like
-    docking procedures and is added to the planned arrival time.
-
-    :param trip: trip to calculate buffer time for
-    :type trip: simba.Trip
-    :param default: Default buffer time if no station specific buffer time is given. [minutes]
-    :type default: dict, numeric
-    :return: buffer time in minutes
-    :rtype: dict or int
-
-    NOTE: Buffer time dictionaries map hours of the day to a buffer time.
-    Keys are ranges of hours and corresponding values provide buffer time in
-    minutes for that time range.
-    An entry with key "else" is a must if not all hours of the day are covered.
-    Example: ``buffer_time = {"10-22": 2, "22-6": 3, "else": 1}``
-    """
-
-    schedule = trip.rotation.schedule
-    buffer_time = schedule.stations.get(trip.arrival_name, {}).get('buffer_time', default)
-
-    # distinct buffer times depending on time of day can be provided
-    # in that case buffer time is of type dict instead of int
-    if isinstance(buffer_time, dict):
-        # sort dict to make sure 'else' key is last key
-        buffer_time = {key: buffer_time[key] for key in sorted(buffer_time)}
-        current_hour = trip.arrival_time.hour
-        for time_range, buffer in buffer_time.items():
-            if time_range == 'else':
-                buffer_time = buffer
-                break
-            else:
-                start_hour, end_hour = [int(t) for t in time_range.split('-')]
-                if end_hour < start_hour:
-                    if current_hour >= start_hour or current_hour < end_hour:
-                        buffer_time = buffer
-                        break
-                else:
-                    if start_hour <= current_hour < end_hour:
-                        buffer_time = buffer
-                        break
-    return buffer_time
-
-
 def uncomment_json_file(f, char='//'):
     """ Remove comments from JSON file.
 

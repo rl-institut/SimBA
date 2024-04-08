@@ -98,17 +98,14 @@ class Schedule:
 
         with open(path_to_csv, 'r', encoding='utf-8') as trips_file:
             trip_reader = csv.DictReader(trips_file)
-            for trip in trip_reader:
-                rotation_id = trip['rotation_id']
-                # trip gets reference to station data and calculates height diff during trip
-                # initialization. Could also get the height difference from here on
-                trip["station_data"] = station_data
+            for trip_dict in trip_reader:
+                rotation_id = trip_dict['rotation_id']
+                # add reference to station data to calculates height diff if not known
+                trip_dict["station_data"] = station_data
                 if rotation_id not in schedule.rotations.keys():
                     schedule.rotations.update({
-                        rotation_id: Rotation(id=rotation_id,
-                                              vehicle_type=trip['vehicle_type'],
-                                              schedule=schedule)})
-                schedule.rotations[rotation_id].add_trip(trip)
+                        rotation_id: Rotation(id=rotation_id, schedule=schedule)})
+                schedule.rotations[rotation_id].add_trip_from_dict(trip_dict)
 
         # set charging type for all rotations without explicitly specified charging type
         # charging type may have been set above if a trip of a rotation has a specified
@@ -553,8 +550,7 @@ class Schedule:
                 # ignore buffer time for end of last trip to make sure vehicles arrive
                 # before simulation ends
                 if i < len(vehicle_trips) - 1:
-                    buffer_time = util.get_buffer_time(trip=trip,
-                                                       default=args.default_buffer_time_opps)
+                    buffer_time = trip.get_buffer_time(default=args.default_buffer_time_opps)
                 else:
                     buffer_time = 0
                 # arrival event must occur no later than next departure and
@@ -734,6 +730,7 @@ def update_csv_file_info(file_info, gc_name):
     - set grid_connector_id
     - update csv_file path
     - set start_time and step_duration_s from CSV information if not given
+
     :param file_info: csv information from electrified station
     :type file_info: dict
     :param gc_name: station name

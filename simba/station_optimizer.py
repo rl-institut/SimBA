@@ -3,7 +3,7 @@
 import logging
 import pickle
 from copy import deepcopy, copy
-from datetime import datetime, timedelta
+from datetime import datetime
 from pathlib import Path
 import numpy as np
 
@@ -495,9 +495,7 @@ class StationOptimizer:
 
                 d_soc = opt_util.get_delta_soc(
                     soc_over_time_curve, soc[idx], standing_time_min, self)
-                buffer_idx = int(
-                    (opt_util.get_buffer_time(trip, self.args.default_buffer_time_opps))
-                    / timedelta(minutes=1))
+                buffer_idx = int(trip.get_buffer_time(default=self.args.default_buffer_time_opps))
                 delta_idx = int(standing_time_min) + 1
                 old_soc = soc[idx + buffer_idx:idx + buffer_idx + delta_idx].copy()
                 soc[idx + buffer_idx:] += d_soc

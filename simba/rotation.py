@@ -5,13 +5,13 @@ from simba.trip import Trip
 
 class Rotation:
 
-    def __init__(self, id, vehicle_type, schedule) -> None:
+    def __init__(self, id, schedule) -> None:
         self.id = id
         self.trips = []
         self.schedule = schedule
 
-        self.vehicle_type = vehicle_type
         self.vehicle_id = None
+        self.vehicle_type = None
         self.charging_type = None
 
         self.consumption = 0
@@ -27,52 +27,80 @@ class Rotation:
         """ Create a trip object and append to rotations trip set.
 
         :param trip: Information on trip to be added to rotation
-        :type trip: dict
-        :raises Exception: if charging type of trip and rotation differ
+        :type trip: simba.trip.Trip
+        :raises ValueError: if rotation has two trips of different charging type
         """
-        new_trip = Trip(self, **trip)
-
-        self.distance += new_trip.distance
-        if new_trip.line:
-            self.lines.add(new_trip.line)
+        self.distance += trip.distance
+        if trip.line:
+            self.lines.add(trip.line)
 
         if self.departure_time is None and self.arrival_time is None:
             # first trip added
-            self.departure_time = new_trip.departure_time
-            self.departure_name = new_trip.departure_name
-            self.arrival_time = new_trip.arrival_time
-            self.arrival_name = new_trip.arrival_name
+            self.departure_time = trip.departure_time
+            self.departure_name = trip.departure_name
+            self.arrival_time = trip.arrival_time
+            self.arrival_name = trip.arrival_name
         else:
-            if self.departure_time > new_trip.departure_time:
+            if self.departure_time > trip.departure_time:
                 # first of rotation found (for now)
-                self.departure_time = new_trip.departure_time
-                self.departure_name = new_trip.departure_name
+                self.departure_time = trip.departure_time
+                self.departure_name = trip.departure_name
             # '<=' instead of '<' since last trip of rotation has no duration
             # in the sample data. The trips are however chronologically
             # sorted which is why this approach works for sample data.
             # Will also work if one only relies on timestamps!
-            elif self.arrival_time <= new_trip.arrival_time:
+            elif self.arrival_time <= trip.arrival_time:
                 # last trip of rotation (for now)
-                self.arrival_time = new_trip.arrival_time
-                self.arrival_name = new_trip.arrival_name
+                self.arrival_time = trip.arrival_time
+                self.arrival_name = trip.arrival_name
 
-        # set charging type if given
-        charging_type = trip.get('charging_type')
-        self.trips.append(new_trip)
-        if charging_type in ['depb', 'oppb']:
-            assert self.schedule.vehicle_types.get(
-                self.vehicle_type, {}).get(charging_type) is not None, (
-                f"The required vehicle type {self.vehicle_type}({charging_type}) "
-                "is not given in the vehicle_types.json file.")
-            if self.charging_type is None:
-                # set CT for whole rotation
-                self.set_charging_type(charging_type)
-            elif self.charging_type == charging_type:
-                # same CT as other trips: just add trip consumption
-                self.consumption += new_trip.calculate_consumption()
-            else:
-                # different CT than rotation: error
-                raise Exception(f"Two trips of rotation {self.id} have distinct charging types")
+        if self.vehicle_type is None:
+            self.vehicle_type = trip.vehicle_type
+            for prior_trip in self.trips:
+                prior_trip.vehicle_type = trip.vehicle_type
+        else:
+            assert self.vehicle_type == trip.vehicle_type, (
+                f"Two trips of rotation {self.id} have distinct vehicle types")
+
+        if self.charging_type is not None and self.charging_type != trip.charging_type:
+            raise ValueError(f"Two trips of rotation {self.id} have distinct charging types")
+
+        # (re)calculate consumption
+        # might change if charging_type changes
+        # therefore, add new trip only after charging_type is set
+        trip.rotation = self
+        if trip.charging_type is None:
+            trip.charging_type = self.charging_type
+        if trip.charging_type in ["oppb", "depb"]:
+            self.set_charging_type(trip.charging_type)
+            self.consumption += trip.calculate_consumption()
+
+        self.trips.append(trip)
+
+    def add_trip_from_dict(self, trip_dict):
+        """ Create a trip object from dictionary and append to rotations trip set.
+
+        See :py:class:`~simba.trip.Trip` for arguments and defaults.
+
+        :param trip_dict: vars of Trip
+        :type trip_dict: dict
+        """
+        trip = Trip(
+            departure_time=trip_dict["departure_time"],
+            departure_name=trip_dict["departure_name"],
+            arrival_time=trip_dict["arrival_time"],
+            arrival_name=trip_dict["arrival_name"],
+            distance=trip_dict["distance"],
+            line=trip_dict.get("line"),
+            temperature=trip_dict.get("temperature"),
+            level_of_loading=trip_dict.get("level_of_loading"),
+            mean_speed=trip_dict.get("mean_speed"),
+            height_diff=trip_dict.get("height_diff"),
+            station_data=trip_dict.get("station_data"),
+            charging_type=trip_dict.get("charging_type"),
+            vehicle_type=trip_dict.get("vehicle_type"),
+        )
+        self.add_trip(trip)
 
     def calculate_consumption(self):
         """ Calculate consumption of this rotation and all its trips.
@@ -89,20 +117,24 @@ class Rotation:
         return rotation_consumption
 
     def set_charging_type(self, ct):
-        """ Change charging type of either all or specified rotations.
+        """ Change charging type of this rotation.
 
         This may also change the minimum standing time at depot after completion of rotation.
 
         :param ct: Choose this charging type if possible. Either 'depb' or 'oppb'.
         :type ct: str
         """
-        assert ct in ["oppb", "depb"], f"Invalid charging type: {ct}"
-
         if ct == self.charging_type:
             return
 
+        assert ct in ["oppb", "depb"], f"Invalid charging type '{ct}' for rotation {self.id}"
+
         assert self.schedule.vehicle_types.get(self.vehicle_type, {}).get(ct), (
             f"Combination of vehicle type {self.vehicle_type} and {ct} not defined.")
+
+        # update associated trips
+        for trip in self.trips:
+            trip.charging_type = ct
 
         old_consumption = self.consumption
         self.charging_type = ct
