@@ -355,9 +355,13 @@ class Schedule:
             ct = rot.charging_type
             vt_ct = f"{vt}_{ct}"
 
-            station_power = self.stations[rot.departure_name].get(f"cs_power_deps_{ct}",
-                                                                  vars(args).get(
-                                                                      f"cs_power_deps_{ct}"))
+            station_is_electrified = True
+            try:
+                self.stations[rot.departure_name]
+            except KeyError:
+                logging.warning(f"Rotation {rot.id} ends at a non electrified station.")
+                station_is_electrified = False
+
             buffer_time = datetime.timedelta(minutes=args.default_buffer_time_deps)
 
             # filter vehicles of the right vehicle type and right location
@@ -368,7 +372,7 @@ class Schedule:
                 """ get the partial function of soc_at_departure_time
 
                 :param v_id_deps: vehicle_id and depot name
-                :type v_id_deps: tuple
+                :type v_id_deps: tuple(str, str)
                 :returns: partial function
                 :rtype: Callable
                 """
@@ -386,9 +390,12 @@ class Schedule:
                 # end soc of vehicle if it services this rotation
                 end_soc = soc - consumption_soc
 
-                if end_soc > 0 or soc >= initial_soc:
-                    # assign vehicles if end_soc is positive or soc has initial_soc.
+                if end_soc > 0 or soc >= initial_soc or not station_is_electrified:
+                    # assign vehicles if end_soc is positive or
+                    # if soc has initial_soc.
                     # in this case generating a new vehicle would not make a difference.
+                    # or station is not electrified. in this case vehicles should not strand there
+                    # even if rotations are not possible
                     rot.vehicle_id = vehicle_id
                     all_standing_vehicles.remove((vehicle_id, depot))
                     vehicle_data[vehicle_id] = {"soc": end_soc,

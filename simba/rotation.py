@@ -134,7 +134,9 @@ class Rotation:
                                                                f"cs_power_deps_{ct}"])
         except KeyError:
             logging.warning(f"Rotation {self.id} ends at a non electrified station.")
-            return float("inf")
+            # min_standing_time set to zero, so if another rotation starts here, the vehicle
+            # can always be used.
+            return 0
 
         capacity = self.schedule.vehicle_types[self.vehicle_type][ct]["capacity"]
 
