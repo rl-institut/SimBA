@@ -369,11 +369,11 @@ class Schedule:
             standing_vehicles = list(filter(lambda x: vt_ct in x[0] * (x[1] == rot.departure_name),
                                             all_standing_vehicles))
 
-            def partial_function(v_id_deps: tuple[str, str]):
+            def partial_function(v_id_deps: tuple):
                 """ get the partial function of soc_at_departure_time
 
                 :param v_id_deps: vehicle_id and depot name
-                :type v_id_deps: tuple[str,str]
+                :type v_id_deps: tuple
                 :returns: partial function
                 :rtype: Callable
                 """
