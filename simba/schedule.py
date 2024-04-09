@@ -223,9 +223,11 @@ class Schedule:
         :param args: Arguments with attribute assign_strategy
         :type args: Namespace
         """
-        if args.assign_strategy == "adaptive":
+        assign_strategy = vars(args).get("assign_strategy")
+
+        if assign_strategy is None or assign_strategy == "adaptive":
             self.assign_vehicles_w_adaptive_soc(args)
-        elif args.assign_strategy == "fixed_recharge":
+        elif assign_strategy == "fixed_recharge":
             self.assign_vehicles_w_min_recharge_soc()
         else:
             logging.error('Allowed values for assign_strategy are "adaptive" and "fixed_recharge"')
@@ -331,12 +333,12 @@ class Schedule:
         # Remove None as charge level
         charge_levels = charge_levels.difference([None])
         # Add default values from arguments
-        charge_levels.add(args.cs_power_deps_depb)
-        charge_levels.add(args.cs_power_deps_oppb)
+        charge_levels.add(self.cs_power_deps_depb)
+        charge_levels.add(self.cs_power_deps_oppb)
 
         # Calculates numeric charge curves for each charge_level. The charge levels might clip the
         # charge curve of the vehicle.
-        charge_curves = self.get_charge_curves(charge_levels, time_step=1)
+        charge_curves = self.get_charge_curves(charge_levels, initial_soc, time_step_min=1)
 
         rotations = sorted(self.rotations.values(), key=lambda rot: rot.departure_time)
         for k, rot in enumerate(rotations):
@@ -361,8 +363,6 @@ class Schedule:
             except KeyError:
                 logging.warning(f"Rotation {rot.id} ends at a non electrified station.")
                 station_is_electrified = False
-
-            buffer_time = datetime.timedelta(minutes=args.default_buffer_time_deps)
 
             # filter vehicles of the right vehicle type and right location
             standing_vehicles = list(filter(lambda x: vt_ct in x[0] * (x[1] == rot.departure_name),
@@ -433,13 +433,13 @@ class Schedule:
             rot.vehicle_id = f"{vt_ct}_{int(old_num):0{digits}}"
         self.vehicle_type_counts = vehicle_type_counts
 
-    def get_charge_curves(self, charge_levels, time_step) -> dict:
+    def get_charge_curves(self, charge_levels, final_value: float, time_step_min: float) -> dict:
         """ Get the numeric charge curves.
 
         :param charge_levels: different power levels which clip the charge curves
         :type charge_levels: set[float]
-        :param time_step: time_step in minutes for the numeric calculation
-        :type time_step: float
+        :param time_step_min: time_step in minutes for the numeric calculation
+        :type time_step_min: float
         :return: Total consumption for entire schedule [kWh]
         :rtype: float
         """
@@ -451,17 +451,12 @@ class Schedule:
                 default_eff = Battery(1, [[0, 1], [1, 1]], 0).efficiency
                 eff = v_info.get("battery_efficiency", default_eff)
                 for charge_level in charge_levels:
-                    if ct_name == "depb":
-                        final_value = self.min_recharge_deps_depb
-                    else:
-                        assert ct_name == "oppb"
-                        final_value = self.min_recharge_deps_oppb
                     curve = optimizer_util.charging_curve_to_soc_over_time(
                         v_info["charging_curve"],
                         v_info["capacity"],
                         final_value,
                         charge_level,
-                        time_step=time_step,
+                        time_step=time_step_min,
                         efficiency=eff,
                         logger=logging.getLogger())
                     charge_curves[vehicle_name][ct_name][charge_level] = curve
@@ -1186,10 +1181,10 @@ def soc_at_departure_time(v_id_deps: tuple, departure_time, vehicle_data, statio
     station_power = stations[deps]. \
         get(f"cs_power_deps_{ct}", vars(args).get(f"cs_power_deps_{ct}"))
 
-    buffer_time = datetime.timedelta(minutes=args.default_buffer_time_deps)
+    buffer_time = datetime.timedelta(minutes=vars(args).get("default_buffer_time_deps", 0))
     duration_in_m = (departure_time - vehicle_data[vehicle_id][
         "arrival_time"] - buffer_time) / datetime.timedelta(minutes=1)
-    if ct =="oppb":
+    if ct == "oppb":
         # for opportunity chargers assume a minimal soc>0
         start_soc = max(start_soc, 0)
     charge_delta_soc = \

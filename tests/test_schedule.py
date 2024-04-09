@@ -19,7 +19,7 @@ mandatory_args = {
     "gc_power_deps": 1000,
     "cs_power_opps": 100,
     "cs_power_deps_depb": 50,
-    "cs_power_deps_oppb": 150
+    "cs_power_deps_oppb": 150,
 }
 
 
@@ -33,10 +33,12 @@ class BasicSchedule:
     with open(example_root / "vehicle_types.json", "r", encoding='utf-8') as file:
         vehicle_types = util.uncomment_json_file(file)
 
-    def basic_run(self):
+    def basic_run(self, cache=[]):
         """Returns a schedule, scenario and args after running SimBA.
         :return: schedule, scenario, args
         """
+        if cache:
+            return deepcopy(cache[0]) ,deepcopy(cache[1]) ,deepcopy(cache[2])
         # set the system variables to imitate the console call with the config argument.
         # first element has to be set to something or error is thrown
         sys.argv = ["foo", "--config", str(example_root / "simba.cfg")]
@@ -50,6 +52,7 @@ class BasicSchedule:
 
         sched = pre_simulation(args)
         scen = sched.run(args)
+        cache.extend((sched, scen, args))
         return sched, scen, args
 
 
@@ -116,7 +119,8 @@ class TestSchedule(BasicSchedule):
         path_to_trips = file_root / "trips_assign_vehicles.csv"
         generated_schedule = schedule.Schedule.from_csv(
             path_to_trips, self.vehicle_types, self.electrified_stations, **mandatory_args)
-        generated_schedule.assign_vehicles()
+        args = Namespace(**{"desired_soc_deps": 1})
+        generated_schedule.assign_vehicles(args)
         gen_rotations = generated_schedule.rotations
         assert gen_rotations["1"].vehicle_id == gen_rotations["2"].vehicle_id
         assert gen_rotations["1"].vehicle_id != gen_rotations["3"].vehicle_id

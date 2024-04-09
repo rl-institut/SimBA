@@ -315,11 +315,16 @@ def get_delta_soc(soc_over_time_curve, soc, duration_min: float, max_soc: float)
         return 0
     search_soc = min(max_soc, soc)
     if soc < 0:
-        gradient = soc_over_time_curve[1, 1] - soc_over_time_curve[0, 1]
+        try:
+            gradient = soc_over_time_curve[1, 1] - soc_over_time_curve[0, 1]
+        except IndexError:
+            # If no charge curve exists, i.e. less than 2 elements
+            return 0
         charge_duration_till_0 = -soc / gradient
         if charge_duration_till_0 > duration_min:
             return duration_min * gradient
         duration_min = duration_min - charge_duration_till_0
+        search_soc = 0
 
     idx = np.searchsorted(soc_over_time_curve[:, 1], search_soc, side='left')
     first_time, start_soc = soc_over_time_curve[idx, :]
