@@ -294,15 +294,15 @@ def get_rotation_soc_util(rot_id, schedule, scenario, soc_data: dict = None):
     return scenario.vehicle_socs[rot.vehicle_id], rot_start_idx, rot_end_idx
 
 
-def get_delta_soc(soc_over_time_curve, soc, time_delta, max_soc: float):
+def get_delta_soc(soc_over_time_curve, soc, duration_min: float, max_soc: float):
     """ Return expected SoC lift for a given SoC charging time series, start_soc and time_delta.
 
     :param soc_over_time_curve: Data with columns: time, soc and n rows
     :type soc_over_time_curve: np.array() with shape(n, 2)
     :param soc: start socs
     :type soc: float
-    :param time_delta: duration of charging in minutes
-    :type time_delta: float
+    :param duration_min: duration of charging in minutes
+    :type duration_min: float
     :param max_soc: maximum soc for charging
     :type max_soc: float
     :return: positive delta of the soc
@@ -311,16 +311,24 @@ def get_delta_soc(soc_over_time_curve, soc, time_delta, max_soc: float):
     # units for time_delta and time_curve are assumed to be the same, e.g. minutes
     # first element which is bigger than current soc
 
-    if time_delta == 0:
+    if duration_min == 0:
         return 0
-    soc = max(min(max_soc, soc), 0)
-    idx = np.searchsorted(soc_over_time_curve[:, 1], soc, side='left')
+    search_soc = min(max_soc, soc)
+    if soc < 0:
+        gradient = soc_over_time_curve[1, 1] - soc_over_time_curve[0, 1]
+        charge_duration_till_0 = -soc / gradient
+        if charge_duration_till_0 > duration_min:
+            return duration_min * gradient
+        duration_min = duration_min - charge_duration_till_0
+
+    idx = np.searchsorted(soc_over_time_curve[:, 1], search_soc, side='left')
     first_time, start_soc = soc_over_time_curve[idx, :]
-    second_time = first_time + time_delta
+    second_time = first_time + duration_min
     # catch out of bounds if time of charging end is bigger than table values
 
     if second_time >= soc_over_time_curve[-1, 0]:
         end_soc = soc_over_time_curve[-1, 1]
+        start_soc = soc
     else:
         end_soc = soc_over_time_curve[soc_over_time_curve[:, 0] >= second_time][0, 1]
 
@@ -396,6 +404,7 @@ def evaluate(events: typing.Iterable[LowSocEvent],
                 standing_time_min = 0
 
             desired_soc = optimizer.args.desired_soc_opps
+            soc = max(soc, 0)
             pot_kwh = get_delta_soc(soc_over_time, soc, standing_time_min, desired_soc) * e.capacity
 
             # potential is at max the minimum between the useful delta soc * capacity or the
@@ -566,7 +575,7 @@ def charging_curve_to_soc_over_time(
     :type charging_curve: list(float,float)
     :param capacity: capacity of the vehicle in kwh
     :type capacity: float
-    :param final_value: soc value until the curve is simulated
+    :param final_value: soc value to which the curve is simulated
     :type final_value: float
     :param max_charge_from_grid: maximum amount of charge from grid / connector in kw
     :type max_charge_from_grid: float
@@ -775,7 +784,7 @@ def preprocess_schedule(sched, args, electrified_stations=None):
 
     sched.stations = electrified_stations
     sched.calculate_consumption()
-    sched.assign_vehicles()
+    sched.assign_vehicles(args)
 
     return sched, sched.generate_scenario(args)
 

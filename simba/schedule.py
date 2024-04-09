@@ -83,7 +83,7 @@ class Schedule:
                     reader = csv.DictReader(f, delimiter=delim)
                     for row in reader:
                         station_data.update({str(row['Endhaltestelle']):
-                                            {"elevation": float(row['elevation'])}})
+                                                 {"elevation": float(row['elevation'])}})
             except FileNotFoundError or KeyError:
                 warnings.warn("Warning: external csv file '{}' not found or not named properly "
                               "(Needed column names are 'Endhaltestelle' and 'elevation')".
@@ -187,8 +187,7 @@ class Schedule:
 
     def run(self, args):
         # each rotation is assigned a vehicle ID
-        # self.assign_vehicles()
-        self.new_assign_vehicles(args)
+        self.assign_vehicles(args)
 
         scenario = self.generate_scenario(args)
 
@@ -219,11 +218,27 @@ class Schedule:
             if rotation_ids is None or id in rotation_ids:
                 rot.set_charging_type(ct)
 
-    def assign_vehicles(self):
-        """ Assign vehicle IDs to rotations. A FIFO approach is used.
-            For every rotation it is checked whether vehicles with matching type are idle, in which
-            case the one with the longest standing time since last rotation is used.
-            If no vehicle is available a new vehicle ID is generated.
+    def assign_vehicles(self, args):
+        """ Assign vehicles using the strategy given in the arguments
+        :param args: Arguments with attribute assign_strategy
+        :type args: Namespace
+        """
+        if args.assign_strategy == "adaptive":
+            self.assign_vehicles_w_adaptive_soc(args)
+        elif args.assign_strategy == "fixed_recharge":
+            self.assign_vehicles_w_min_recharge_soc()
+        else:
+            logging.error('Allowed values for assign_strategy are "adaptive" and "fixed_recharge"')
+            raise NotImplementedError
+
+    def assign_vehicles_w_min_recharge_soc(self):
+        """ Assign vehicle IDs to rotations.
+
+        A FIFO approach is used.
+        A vehicle is added to the idle stack if the min_recharge_soc is roughly reached.
+        For every rotation it is checked whether vehicles with matching type are idle,
+        in which case the one with longest standing time since last rotation is used.
+        If no vehicle is available, a new vehicle ID is generated.
         """
         rotations_in_progress = []
         idle_vehicles = []
@@ -288,18 +303,19 @@ class Schedule:
 
         self.vehicle_type_counts = vehicle_type_counts
 
-    def new_assign_vehicles(self, args):
+    def assign_vehicles_w_adaptive_soc(self, args):
         """ Assign vehicle IDs to rotations.
 
-        A FIFO approach is used.
-        For every rotation it is checked whether vehicles with matching type are idle,
-        in which case the one with longest standing time since last rotation is used.
+        A greedy approach is used.
+        For every rotation it is checked if an existing vehicle of the same type at the same
+        location has enough energy to service the rotation, not accounting for possible opportunity
+        charging of the next rotation. If multiple such vehicles exist, the one with the lowest soc is used.
         If no vehicle is available, a new vehicle ID is generated.
         :param args: arguments
         :type args: Namespace
         """
         rotations_in_progress = []
-        standing_vehicles = []
+        all_standing_vehicles = []
         vehicle_data = dict()
         initial_soc = args.desired_soc_deps
 
@@ -314,92 +330,89 @@ class Schedule:
                          if station["type"] == "deps"}
         # Remove None as charge level
         charge_levels = charge_levels.difference([None])
-
+        # Add default values from arguments
         charge_levels.add(args.cs_power_deps_depb)
         charge_levels.add(args.cs_power_deps_oppb)
 
-        # Calculates numeric charge curve
+        # Calculates numeric charge curves for each charge_level. The charge levels might clip the
+        # charge curve of the vehicle.
         charge_curves = self.get_charge_curves(charge_levels, time_step=1)
 
         rotations = sorted(self.rotations.values(), key=lambda rot: rot.departure_time)
         for k, rot in enumerate(rotations):
-
-            # find vehicles that have completed rotation and stood for a minimum standing time
-            # mark those vehicle as idle
+            # find vehicles that have completed their rotation
             while rotations_in_progress:
-                # calculate min_standing_time deps
                 r = rotations_in_progress.pop(0)
                 if rot.departure_time > r.arrival_time:
-                    standing_vehicles.append((r.vehicle_id, r.arrival_name))
+                    all_standing_vehicles.append((r.vehicle_id, r.arrival_name))
                 else:
                     rotations_in_progress.insert(0, r)
                     break
 
-            # find idle vehicle for rotation if exists
+            # find standing vehicle for rotation if exists
             # else generate new vehicle id
             vt = rot.vehicle_type
             ct = rot.charging_type
             vt_ct = f"{vt}_{ct}"
-            for item in standing_vehicles:
-                vehicle_id, deps = item
-                if vt_ct in vehicle_id and deps == rot.departure_name:
-                    start_soc = vehicle_data[vehicle_id]["soc"]
 
-                    station_power = self.stations[deps].get(f"cs_power_deps_{ct}",
-                                                            vars(args).get(f"cs_power_deps_{ct}"))
-                    buffer_time = datetime.timedelta(minutes=util.get_buffer_time(rot.trips[0]))
-                    duration_in_m = (rot.departure_time - vehicle_data[vehicle_id][
-                        "arrival_time"] - buffer_time) / datetime.timedelta(minutes=1)
-                    # When arriving the vehicle has this soc
-                    # This soc is reached when leaving for the current rotation
-                    charge_delta_soc = get_charge_delta_soc(charge_curves, vt, ct, station_power,
-                                                            duration_in_m,
-                                                            start_soc, max_soc=initial_soc)
-                    # Assign vehicles
-                    charged_soc = max(start_soc, 0) + charge_delta_soc
-                    delta_soc = rot.calculate_consumption() / self.vehicle_types[vt][ct]["capacity"]
-                    end_soc = charged_soc - delta_soc
-                    if end_soc > 0 or charged_soc >= initial_soc:
-                        rot.vehicle_id = vehicle_id
-                        standing_vehicles.remove(item)
-                        vehicle_data[vehicle_id] = {"soc": end_soc,
-                                                    "arrival_time": rot.arrival_time}
-                        break
+            station_power = self.stations[rot.departure_name].get(f"cs_power_deps_{ct}",
+                                                                  vars(args).get(
+                                                                      f"cs_power_deps_{ct}"))
+            buffer_time = datetime.timedelta(minutes=args.default_buffer_time_deps)
+
+            # filter vehicles of the right vehicle type and right location
+            standing_vehicles = list(filter(lambda x: vt_ct in x[0] * (x[1] == rot.departure_name),
+                                            all_standing_vehicles))
+
+            def partial_function(v_id_deps: tuple):
+                """ get the partial function of soc_at_departure_time
+
+                :param v_id_deps: vehicle_id and depot name
+                :type v_id_deps: tuple
+                :returns: partial function
+                :rtype: Callable
+                """
+                return soc_at_departure_time(v_id_deps, departure_time, vehicle_data, self.stations,
+                                             charge_curves, args)
+
+            # Add the expected soc at departure time, if greedy charging would be applied
+            socs = list(map(lambda x: partial_function(x), standing_vehicles))
+            # Pair with socs
+            standing_vehicles_w_soc = [(*v, k) for v, k in zip(standing_vehicles, socs)]
+
+            standing_vehicles_w_soc = sorted(standing_vehicles_w_soc, key=lambda x: x[-1])
+            consumption_soc = rot.calculate_consumption() / self.vehicle_types[vt][ct]["capacity"]
+            for vehicle_id, depot, soc in standing_vehicles_w_soc:
+                # end soc of vehicle if it services this rotation
+                end_soc = soc - consumption_soc
+
+                if end_soc > 0 or soc >= initial_soc:
+                    # assign vehicles if end_soc is positive or soc has initial_soc.
+                    # in this case generating a new vehicle would not make a difference.
+                    rot.vehicle_id = vehicle_id
+                    all_standing_vehicles.remove((vehicle_id, depot))
+                    vehicle_data[vehicle_id] = {"soc": end_soc,
+                                                "arrival_time": rot.arrival_time}
+                    break
             else:
                 # no vehicle available for dispatch, generate new one
                 vehicle_type_counts[vt_ct] += 1
                 vehicle_id = f"{vt_ct}_{vehicle_type_counts[vt_ct]}"
                 rot.vehicle_id = vehicle_id
-                start_soc = initial_soc
-                delta_soc = rot.calculate_consumption() / self.vehicle_types[vt][ct]["capacity"]
-                end_soc = start_soc - delta_soc
+                end_soc = initial_soc - consumption_soc
                 vehicle_data[vehicle_id] = {"soc": end_soc,
                                             "arrival_time": rot.arrival_time}
-
-            # keep list of rotations in progress sorted
-            def sort_by_soc_at_next_rot_departure(rot):
-                vt = rot.vehicle_type
-                ct = rot.charging_type
-                start_soc = vehicle_data[rot.vehicle_id]["soc"]
-                station_power = self.stations[rot.arrival_name].get(f"cs_power_deps_{ct}",
-                                                                    vars(args).get(
-                                                                        f"cs_power_deps_{ct}"))
-                buffer_time = datetime.timedelta(minutes=util.get_buffer_time(rot.trips[0]))
-                duration_in_m = (next_rot.departure_time - vehicle_data[vehicle_id][
-                    "arrival_time"] - buffer_time) / datetime.timedelta(minutes=1)
-                charge_delta_soc = get_charge_delta_soc(charge_curves, vt, ct, station_power,
-                                                        duration_in_m,
-                                                        start_soc, max_soc=initial_soc)
-                return max(0, start_soc) + charge_delta_soc
 
             rotations_in_progress.append(rot)
             try:
                 next_rot = rotations[k + 1]
+                departure_time = next_rot.departure_time
             except IndexError:
                 pass
             else:
-                rotations_in_progress = sorted(rotations_in_progress,
-                                               key=sort_by_soc_at_next_rot_departure)
+                # keep list of rotations in progress sorted by soc reached at the time of the next
+                # departure.
+                rotations_in_progress = sorted(rotations_in_progress, key=lambda x: x.arrival_time)
 
         # update vehicle ID for nice natural sorting
         for rot in rotations:
@@ -413,7 +426,16 @@ class Schedule:
             rot.vehicle_id = f"{vt_ct}_{int(old_num):0{digits}}"
         self.vehicle_type_counts = vehicle_type_counts
 
-    def get_charge_curves(self, charge_levels, time_step):
+    def get_charge_curves(self, charge_levels, time_step) -> dict:
+        """ Get the numeric charge curves.
+
+        :param charge_levels: different power levels which clip the charge curves
+        :type charge_levels: set[float]
+        :param time_step: time_step in minutes for the numeric calculation
+        :type time_step: float
+        :return: Total consumption for entire schedule [kWh]
+        :rtype: float
+        """
         charge_curves = dict()
         for vehicle_name, vehicle_type in self.vehicle_types.items():
             charge_curves[vehicle_name] = dict()
@@ -675,7 +697,7 @@ class Schedule:
 
                 # departure time of next trip for standing time calculation
                 try:
-                    next_departure_time = vehicle_trips[i+1].departure_time
+                    next_departure_time = vehicle_trips[i + 1].departure_time
                 except IndexError:
                     # last trip
                     next_departure_time = trip.arrival_time + datetime.timedelta(hours=8)
@@ -1120,8 +1142,50 @@ def generate_event_list_from_prices(
 
 
 def get_charge_delta_soc(charge_curves: dict, vt: str, ct: str, max_power: float,
-                         time_delta: datetime.timedelta, start_soc: float, max_soc: float) -> float:
+                         duration_min: float, start_soc: float, max_soc: float) -> float:
     charge_curve = charge_curves[vt][ct][max_power]
-    d_soc = optimizer_util.get_delta_soc(charge_curve, start_soc, time_delta=time_delta,
+    d_soc = optimizer_util.get_delta_soc(charge_curve, start_soc, duration_min=duration_min,
                                          max_soc=max_soc)
     return d_soc
+
+
+def soc_at_departure_time(v_id_deps: tuple, departure_time, vehicle_data, stations, charge_curves,
+                          args):
+    """ Get the possible soc of the vehicle of a rotation at a specified departure_time
+    :param v_id_deps: vehicle_id and depot name
+    :type v_id_deps: tuple
+    :param departure_time: time for which the soc is evaluated
+    :type departure_time: datetime.datetime
+    :param vehicle_data: data of used vehicles including soc and arrival_times
+    :type vehicle_data: dict
+    :param stations: station data from schedule
+    :type stations: dict
+    :param charge_curves: numeric charge_curves with soc over time in minutes
+    :type charge_curves:  dict
+    :param args: Arguments
+    :type args: Namespace
+    :return:
+
+
+    """
+    vehicle_id = v_id_deps[0]
+    deps = v_id_deps[1]
+
+    vt = vehicle_id.split("_")[0]
+    ct = vehicle_id.split("_")[1]
+
+    start_soc = vehicle_data[vehicle_id]["soc"]
+
+    station_power = stations[deps]. \
+        get(f"cs_power_deps_{ct}", vars(args).get(f"cs_power_deps_{ct}"))
+
+    buffer_time = datetime.timedelta(minutes=args.default_buffer_time_deps)
+    duration_in_m = (departure_time - vehicle_data[vehicle_id][
+        "arrival_time"] - buffer_time) / datetime.timedelta(minutes=1)
+    if ct =="oppb":
+        # for opportunity chargers assume a minimal soc>0
+        start_soc = max(start_soc, 0)
+    charge_delta_soc = \
+        get_charge_delta_soc(charge_curves, vt, ct, station_power, duration_in_m,
+                             start_soc, max_soc=args.desired_soc_deps)
+    return start_soc + charge_delta_soc

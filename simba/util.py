@@ -326,14 +326,20 @@ def get_args():
                         help='set minimum desired SOC (0 - 1) for depot charging')
     parser.add_argument('--desired-soc-opps', metavar='SOC', type=float, default=1.0,
                         help='set minimum desired SOC (0 - 1) for opportunity charging')
+    # Disposition in depots
     parser.add_argument('--min-recharge-deps-oppb', default=1,
                         help='Minimum fraction of capacity for recharge when leaving the depot.')
     parser.add_argument('--min-recharge-deps-depb', default=1,
                         help='Minimum fraction of capacity for recharge when leaving the depot.')
     parser.add_argument('--min-charging-time', help='define minimum time of charging',
                         default=0)
+    parser.add_argument('--assign-strategy', default='adaptive',
+                        choices=['adaptive', 'fixed_recharge'], help='Strategy which defines which '
+                        'soc vehicles need to be assigned to a rotation.')
     parser.add_argument('--default-buffer-time-opps', help='time to subtract off of standing time '
                         'at opp station to simulate docking procedure.', default=0)
+    parser.add_argument('--default-buffer-time-deps', help='time to subtract off of standing time '
+                        'at depot station to simulate docking procedure.', default=0)
     parser.add_argument('--default-voltage-level', help='Default voltage level for '
                         'charging stations if not set in electrified_stations file',
                         default='MV', choices=['HV', 'HV/MV', 'MV', 'MV/LV', 'LV'])
