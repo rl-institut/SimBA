@@ -83,7 +83,7 @@ class Schedule:
                     reader = csv.DictReader(f, delimiter=delim)
                     for row in reader:
                         station_data.update({str(row['Endhaltestelle']):
-                                                 {"elevation": float(row['elevation'])}})
+                                            {"elevation": float(row['elevation'])}})
             except FileNotFoundError or KeyError:
                 warnings.warn("Warning: external csv file '{}' not found or not named properly "
                               "(Needed column names are 'Endhaltestelle' and 'elevation')".
@@ -222,6 +222,7 @@ class Schedule:
         """ Assign vehicles using the strategy given in the arguments
         :param args: Arguments with attribute assign_strategy
         :type args: Namespace
+        :raises NotImplementedError: if args.assign_strategy has a no allowed value
         """
         assign_strategy = vars(args).get("assign_strategy")
 
@@ -311,8 +312,8 @@ class Schedule:
         A greedy approach is used.
         For every rotation it is checked if an existing vehicle of the same type at the same
         location has enough energy to service the rotation, not accounting for possible opportunity
-        charging of the next rotation. If multiple such vehicles exist, the one with the lowest soc is used.
-        If no vehicle is available, a new vehicle ID is generated.
+        charging of the next rotation. If multiple such vehicles exist, the one with the lowest soc
+        is used. If no vehicle is available, a new vehicle ID is generated.
         :param args: arguments
         :type args: Namespace
         """
@@ -368,11 +369,11 @@ class Schedule:
             standing_vehicles = list(filter(lambda x: vt_ct in x[0] * (x[1] == rot.departure_name),
                                             all_standing_vehicles))
 
-            def partial_function(v_id_deps: tuple):
+            def partial_function(v_id_deps: tuple[str, str]):
                 """ get the partial function of soc_at_departure_time
 
                 :param v_id_deps: vehicle_id and depot name
-                :type v_id_deps: tuple(str, str)
+                :type v_id_deps: tuple[str,str]
                 :returns: partial function
                 :rtype: Callable
                 """
@@ -438,10 +439,12 @@ class Schedule:
 
         :param charge_levels: different power levels which clip the charge curves
         :type charge_levels: set[float]
+        :param final_value: soc value at which the numeric calculation stops
+        :type final_value: float
         :param time_step_min: time_step in minutes for the numeric calculation
         :type time_step_min: float
-        :return: Total consumption for entire schedule [kWh]
-        :rtype: float
+        :return: soc over time curves
+        :rtype: dict
         """
         charge_curves = dict()
         for vehicle_name, vehicle_type in self.vehicle_types.items():
@@ -1154,6 +1157,7 @@ def get_charge_delta_soc(charge_curves: dict, vt: str, ct: str, max_power: float
 def soc_at_departure_time(v_id_deps: tuple, departure_time, vehicle_data, stations, charge_curves,
                           args):
     """ Get the possible soc of the vehicle of a rotation at a specified departure_time
+
     :param v_id_deps: vehicle_id and depot name
     :type v_id_deps: tuple
     :param departure_time: time for which the soc is evaluated
@@ -1166,7 +1170,8 @@ def soc_at_departure_time(v_id_deps: tuple, departure_time, vehicle_data, statio
     :type charge_curves:  dict
     :param args: Arguments
     :type args: Namespace
-    :return:
+    :return: soc at departure time for the given vehicle
+    :rtype: float
 
 
     """
