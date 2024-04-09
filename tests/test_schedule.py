@@ -33,12 +33,10 @@ class BasicSchedule:
     with open(example_root / "vehicle_types.json", "r", encoding='utf-8') as file:
         vehicle_types = util.uncomment_json_file(file)
 
-    def basic_run(self, cache=[]):
+    def basic_run(self):
         """Returns a schedule, scenario and args after running SimBA.
         :return: schedule, scenario, args
         """
-        if cache:
-            return deepcopy(cache[0]) ,deepcopy(cache[1]) ,deepcopy(cache[2])
         # set the system variables to imitate the console call with the config argument.
         # first element has to be set to something or error is thrown
         sys.argv = ["foo", "--config", str(example_root / "simba.cfg")]
@@ -52,7 +50,6 @@ class BasicSchedule:
 
         sched = pre_simulation(args)
         scen = sched.run(args)
-        cache.extend((sched, scen, args))
         return sched, scen, args
 
 
