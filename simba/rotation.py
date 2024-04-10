@@ -28,8 +28,10 @@ class Rotation:
 
         :param trip: Information on trip to be added to rotation
         :type trip: simba.trip.Trip
-        :raises ValueError: if rotation has two trips of different charging type
+        :raises ValueError: if rotation has two trips of different charging or vehicle type
         """
+        self.trips.append(trip)
+        trip.rotation = self
         self.distance += trip.distance
         if trip.line:
             self.lines.add(trip.line)
@@ -58,24 +60,15 @@ class Rotation:
             self.vehicle_type = trip.vehicle_type
             for prior_trip in self.trips:
                 prior_trip.vehicle_type = trip.vehicle_type
-        else:
-            assert self.vehicle_type == trip.vehicle_type, (
-                f"Two trips of rotation {self.id} have distinct vehicle types")
+        elif self.vehicle_type != trip.vehicle_type:
+            raise ValueError(f"Two trips of rotation {self.id} have distinct vehicle types")
 
-        if self.charging_type is not None and self.charging_type != trip.charging_type:
+        if self.charging_type is None:
+            self.charging_type = trip.charging_type
+            for prior_trip in self.trips:
+                prior_trip.charging_type = trip.charging_type
+        elif self.charging_type != trip.charging_type:
             raise ValueError(f"Two trips of rotation {self.id} have distinct charging types")
-
-        # (re)calculate consumption
-        # might change if charging_type changes
-        # therefore, add new trip only after charging_type is set
-        trip.rotation = self
-        if trip.charging_type is None:
-            trip.charging_type = self.charging_type
-        if trip.charging_type in ["oppb", "depb"]:
-            self.set_charging_type(trip.charging_type)
-            self.consumption += trip.calculate_consumption()
-
-        self.trips.append(trip)
 
     def add_trip_from_dict(self, trip_dict):
         """ Create a trip object from dictionary and append to rotations trip set.
@@ -85,20 +78,44 @@ class Rotation:
         :param trip_dict: vars of Trip
         :type trip_dict: dict
         """
+        # cast times to datetime
+        departure_time = trip_dict["departure_time"]
+        if type(departure_time) is str:
+            departure_time = datetime.datetime.fromisoformat(departure_time)
+        arrival_time = trip_dict["arrival_time"]
+        if type(arrival_time) is str:
+            arrival_time = datetime.datetime.fromisoformat(arrival_time)
+
+        # cast temperature to float
+        temperature = trip_dict.get("temperature")
+        try:
+            temperature = float(temperature)
+        except (TypeError, ValueError):
+            # no value, invalid value: ignore temperature
+            temperature = None
+
+        # charging/vehicle type read from file: might be empty string -> cast to None
+        charging_type = trip_dict.get("charging_type")
+        if charging_type not in ["oppb", "depb"]:
+            charging_type = None
+        vehicle_type = trip_dict.get("vehicle_type")
+        if not vehicle_type:
+            vehicle_type = None
+
         trip = Trip(
-            departure_time=trip_dict["departure_time"],
+            departure_time=departure_time,
             departure_name=trip_dict["departure_name"],
-            arrival_time=trip_dict["arrival_time"],
+            arrival_time=arrival_time,
             arrival_name=trip_dict["arrival_name"],
             distance=trip_dict["distance"],
             line=trip_dict.get("line"),
-            temperature=trip_dict.get("temperature"),
+            temperature=temperature,
             level_of_loading=trip_dict.get("level_of_loading"),
             mean_speed=trip_dict.get("mean_speed"),
             height_diff=trip_dict.get("height_diff"),
             station_data=trip_dict.get("station_data"),
-            charging_type=trip_dict.get("charging_type"),
-            vehicle_type=trip_dict.get("vehicle_type"),
+            charging_type=charging_type,
+            vehicle_type=vehicle_type,
         )
         self.add_trip(trip)
 

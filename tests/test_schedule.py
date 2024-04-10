@@ -264,6 +264,7 @@ class TestSchedule(BasicSchedule):
         generated_schedule = schedule.Schedule.from_csv(
             path_to_trips, self.vehicle_types, electrified_stations, **mandatory_args,
             station_data_path=path_to_all_station_data)
+        generated_schedule.calculate_consumption()
 
         set_options_from_config(args, verbose=False)
         args.ALLOW_NEGATIVE_SOC = True
@@ -286,6 +287,7 @@ class TestSchedule(BasicSchedule):
         generated_schedule = schedule.Schedule.from_csv(
             path_to_trips, self.vehicle_types, electrified_stations, **mandatory_args,
             station_data_path=path_to_all_station_data)
+        generated_schedule.calculate_consumption()
 
         set_options_from_config(args, verbose=False)
 

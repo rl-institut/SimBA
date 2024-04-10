@@ -1,7 +1,23 @@
-from datetime import datetime
-
-
 class Trip:
+    """ Trip class
+
+    :ivar departure_time: datetime of departure
+    :ivar departure_name: departure station name
+    :ivar arrival_time: datetime of arrival
+    :ivar arrival_name: arrival station name
+    :ivar distance: length of trip in meters
+    :ivar line: line name, optional
+    :ivar temperature: outside temperature during trip in deg C, optional
+    :ivar level_of_loading: relative number of passengers to max allowed [0..1], optional
+    :ivar mean_speed: average speed during trip in km/h, optional
+    :ivar height_diff: height difference during trip, optional
+    :ivar station_data: information about stations. Optional only if height_diff is given
+    :ivar charging_type: charging type of vehicle, optional (depb or oppb)
+    :ivar vehicle_type: vehicle type used for trip, optional
+    :ivar rotation: associated rotation, set with Rotation.add_trip
+    :ivar consumption: consumption in kWh, set during calculate_consumption
+    :ivar delta_soc: change of SoC during trip, normally negative. Set during calculate_consumption
+    """
     def __init__(self, departure_time, departure_name,
                  arrival_time, arrival_name, distance,
                  line=None, temperature=None, level_of_loading=None, mean_speed=None,
@@ -34,20 +50,7 @@ class Trip:
         self.consumption = None  # kWh
         self.delta_soc = None
 
-        # ---- cast / compute options ---- #
-        # cast times to datetime
-        if type(departure_time) is str:
-            self.departure_time = datetime.fromisoformat(departure_time)
-        if type(arrival_time) is str:
-            self.arrival_time = datetime.fromisoformat(arrival_time)
-
-        # cast temperature to float
-        try:
-            self.temperature = float(self.temperature)
-            # In case of empty temperature column or no column at all
-        except (TypeError, ValueError):
-            self.temperature = None
-
+        # ---- compute optional attributes ---- #
         # get height difference from station data if not given
         assert height_diff is not None or station_data is not None, (
             "New trip: need either height_diff or station_data")
@@ -67,10 +70,10 @@ class Trip:
 
         # mean speed in km/h from distance and travel time if not given
         if mean_speed is None:
-            travel_time = (self.arrival_time - self.departure_time).total_seconds()
+            travel_time_s = (self.arrival_time - self.departure_time).total_seconds()
             # travel time is at least 1 min
-            travel_time = max(travel_time, 60)
-            mean_speed = self.distance * travel_time  # m/s
+            travel_time_s = max(travel_time_s, 60)
+            mean_speed = self.distance / travel_time_s  # m/s
             self.mean_speed = mean_speed * 3.6  # km/h
 
     def calculate_consumption(self):
