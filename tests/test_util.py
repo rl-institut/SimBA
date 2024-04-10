@@ -49,28 +49,33 @@ class TestUtil:
         assert type(git_hash) is str
 
     def test_get_buffer_time(self):
+        # used to be in util, now a Trip function
         schedule, scenario, _ = BasicSchedule().basic_run()
         trip = next(iter(schedule.rotations.values())).trips.pop(0)
-        util.get_buffer_time(trip)
-        buffer_time = {"10-22": 2,
-                       "22-6": 3,
-                       "else": 1
-                       }
+        trip.get_buffer_time()
+        default_buffer_time = {"10-22": 2, "22-6": 3, "else": 1}
+        time = datetime(year=2023, month=1, day=1)
 
-        trip.arrival_time = datetime(year=2023, month=1, day=1, hour=10)
-        assert util.get_buffer_time(trip, default=buffer_time) == 2
+        # 10:00 is start of first interval: value 2
+        trip.arrival_time = time.replace(hour=10)
+        assert trip.get_buffer_time(default=default_buffer_time) == 2
 
-        trip.arrival_time = datetime(year=2023, month=1, day=1, hour=21, minute=59, second=59)
-        assert util.get_buffer_time(trip, default=buffer_time) == 2
+        # 21:59:59 is before end of first interval: value 2
+        trip.arrival_time = time.replace(hour=21, minute=59, second=59)
+        assert trip.get_buffer_time(default=default_buffer_time) == 2
 
-        trip.arrival_time = datetime(year=2023, month=1, day=1, hour=22)
-        assert util.get_buffer_time(trip, default=buffer_time) == 3
+        # 22:00 is start of second interval: value 3
+        trip.arrival_time = time.replace(hour=22)
+        assert trip.get_buffer_time(default=default_buffer_time) == 3
 
-        trip.arrival_time = datetime(year=2023, month=1, day=1, hour=22, second=1)
-        assert util.get_buffer_time(trip, default=buffer_time) == 3
+        # 22:00:01 is within second interval: value 3
+        trip.arrival_time = time.replace(hour=22, second=1)
+        assert trip.get_buffer_time(default=default_buffer_time) == 3
 
-        trip.arrival_time = datetime(year=2023, month=1, day=2, hour=0, second=1)
-        assert util.get_buffer_time(trip, default=buffer_time) == 3
+        # 00:01 is within second interval (day is ignored), value 3
+        trip.arrival_time = time.replace(day=2, hour=0, second=1)
+        assert trip.get_buffer_time(default=default_buffer_time) == 3
 
-        trip.arrival_time = datetime(year=2023, month=1, day=2, hour=6, second=1)
-        assert util.get_buffer_time(trip, default=buffer_time) == 1
+        # 06:01 is outside of intervals, so else-value 1 is used
+        trip.arrival_time = time.replace(hour=6, second=1)
+        assert trip.get_buffer_time(default=default_buffer_time) == 1

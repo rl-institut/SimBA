@@ -20,7 +20,6 @@ if typing.TYPE_CHECKING:
 
 from simba.consumption import Consumption
 from simba.trip import Trip
-from simba.util import get_buffer_time as get_buffer_time_util
 from spice_ev.report import generate_soc_timeseries
 
 
@@ -222,7 +221,7 @@ def get_charging_time(trip1, trip2, args):
     :rtype: float
     """
     standing_time_min = (trip2.departure_time - trip1.arrival_time) / timedelta(minutes=1)
-    buffer_time = (get_buffer_time(trip1, args.default_buffer_time_opps) / timedelta(minutes=1))
+    buffer_time = trip1.get_buffer_time(default=args.default_buffer_time_opps)
     standing_time_min -= buffer_time
 
     if args.min_charging_time > standing_time_min:
@@ -230,31 +229,19 @@ def get_charging_time(trip1, trip2, args):
     return max(0, standing_time_min)
 
 
-def get_charging_start(trip1, args):
+def get_charging_start(trip, args):
     """ Return the possible start time of charging.
 
     This function considers the buffer times before charging can take place
 
-    :param trip1: trip to be checked
-    :type trip1: simba.trip.Trip
+    :param trip: trip to be checked
+    :type trip: simba.trip.Trip
     :param args: arguments including default buffer time
     :type args: Namespace
     :return: First possible charging time as datetime object
     """
-    buffer_time = get_buffer_time(trip1, args.default_buffer_time_opps)
-    return trip1.arrival_time+buffer_time
-
-
-def get_buffer_time(trip, default_buffer_time_opps):
-    """ Return the buffer time as timedelta object.
-
-    :param trip: trip to be checked
-    :type trip: simba.trip.Trip
-    :param default_buffer_time_opps: the default buffer time at opps charging stations
-    :return: buffer time
-    :rtype: datetime.timedelta
-    """
-    return timedelta(minutes=get_buffer_time_util(trip, default_buffer_time_opps))
+    buffer_time = trip.get_buffer_time(default=args.default_buffer_time_opps)
+    return trip.arrival_time + buffer_time
 
 
 def get_index_by_time(scenario, search_time):

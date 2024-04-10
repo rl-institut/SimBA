@@ -26,4 +26,7 @@ def generate_basic_schedule():
         "cs_power_deps_oppb": 150
     }
 
-    return schedule.Schedule.from_csv(schedule_path, vehicle_types, stations, **mandatory_args)
+    s = schedule.Schedule.from_csv(schedule_path, vehicle_types, stations, **mandatory_args)
+    s.calculate_consumption()
+
+    return s
