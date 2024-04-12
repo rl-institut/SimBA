@@ -117,10 +117,23 @@ class TestSchedule(BasicSchedule):
         generated_schedule = schedule.Schedule.from_csv(
             path_to_trips, self.vehicle_types, self.electrified_stations, **mandatory_args)
         args = Namespace(**{"desired_soc_deps": 1})
+        args.assign_strategy = None
         generated_schedule.assign_vehicles(args)
         gen_rotations = generated_schedule.rotations
-        assert gen_rotations["1"].vehicle_id == gen_rotations["2"].vehicle_id
-        assert gen_rotations["1"].vehicle_id != gen_rotations["3"].vehicle_id
+        vehicle_ids = {rot.vehicle_id for key, rot in gen_rotations.items()}
+        assert len(vehicle_ids) == 4
+
+        # Two opp rotations which match
+        assert gen_rotations["1_1"].vehicle_id == gen_rotations["2_1"].vehicle_id
+        # longer rotation which cant be serviced by the previous
+        assert gen_rotations["3_1a"].vehicle_id != gen_rotations["1_1"].vehicle_id
+        # first vehicle charged enough
+        assert gen_rotations["1_1"].vehicle_id == gen_rotations["3_1b"].vehicle_id
+        assert gen_rotations["1_1"].vehicle_id == gen_rotations["3_1c"].vehicle_id
+
+
+
+
 
     def test_calculate_consumption(self):
         """ Test if calling the consumption calculation works
