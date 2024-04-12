@@ -1151,10 +1151,9 @@ def generate_event_list_from_prices(
 
 
 def get_charge_delta_soc(charge_curves: dict, vt: str, ct: str, max_power: float,
-                         duration_min: float, start_soc: float, max_soc: float) -> float:
+                         duration_min: float, start_soc: float) -> float:
     charge_curve = charge_curves[vt][ct][max_power]
-    d_soc = optimizer_util.get_delta_soc(charge_curve, start_soc, duration_min=duration_min,
-                                         max_soc=max_soc)
+    d_soc = optimizer_util.get_delta_soc(charge_curve, start_soc, duration_min=duration_min)
     return d_soc
 
 
@@ -1198,5 +1197,5 @@ def soc_at_departure_time(v_id_deps: tuple, departure_time, vehicle_data, statio
         start_soc = max(start_soc, 0)
     charge_delta_soc = \
         get_charge_delta_soc(charge_curves, vt, ct, station_power, duration_in_m,
-                             start_soc, max_soc=args.desired_soc_deps)
-    return start_soc + charge_delta_soc
+                             start_soc)
+    return min(start_soc + charge_delta_soc, args.desired_soc_deps)

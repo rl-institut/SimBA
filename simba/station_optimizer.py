@@ -493,8 +493,12 @@ class StationOptimizer:
                 except IndexError:
                     standing_time_min = 0
                 search_soc = max(0, soc[idx])
+                # get the soc lift
                 d_soc = opt_util.get_delta_soc(
-                    soc_over_time_curve, search_soc, standing_time_min, self.args.desired_soc_opps)
+                    soc_over_time_curve, search_soc, standing_time_min)
+                # clip the soc lift to the desired_soc_deps, which is the maximum that can be
+                # reached when the rotation stays positive
+                d_soc = min(d_soc, self.args.desired_soc_opps)
                 buffer_idx = int(
                     (opt_util.get_buffer_time(trip, self.args.default_buffer_time_opps))
                     / timedelta(minutes=1))
