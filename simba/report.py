@@ -1,15 +1,26 @@
-""" Module to generate meaningful output files and/or figures to describe simulation process
-"""
+""" Module to generate meaningful output files and/or figures to describe simulation process. """
 import csv
 import datetime
 import logging
+from typing import Iterable
+
 import matplotlib.pyplot as plt
-import warnings
 from spice_ev.report import aggregate_global_results, plot, generate_reports
 
 
+def open_for_csv(filepath):
+    """ Create a file handle to write to.
+
+    :param filepath: Path to new file, overwritten if existing
+    :type filepath: string or pathlib.Path
+    :return: Function to open file
+    :rtype: function
+    """
+    return open(filepath, "w", newline='', encoding='utf-8')
+
+
 def generate_gc_power_overview_timeseries(scenario, args):
-    """Generate a csv timeseries with each grid connector's summed up charging station power
+    """ Generate a csv timeseries with each grid connector's summed up charging station power.
 
     :param scenario: Scenario for with to generate timeseries.
     :type scenario: spice_ev.Scenario
@@ -22,7 +33,7 @@ def generate_gc_power_overview_timeseries(scenario, args):
     if not gc_list:
         return
 
-    with open(args.results_directory / "gc_power_overview_timeseries.csv", "w", newline='') as f:
+    with open_for_csv(args.results_directory / "gc_power_overview_timeseries.csv") as f:
         csv_writer = csv.writer(f)
         csv_writer.writerow(["time"] + gc_list)
         stations = []
@@ -37,7 +48,7 @@ def generate_gc_power_overview_timeseries(scenario, args):
 
 
 def generate_gc_overview(schedule, scenario, args):
-    """Generate a csv file with information regarding electrified stations.
+    """ Generate a csv file with information regarding electrified stations.
 
     For each electrified station, the name, type, max. power, max. number of occupied
     charging stations, sum of charged energy and use factors of least used stations is saved.
@@ -54,7 +65,7 @@ def generate_gc_overview(schedule, scenario, args):
     used_gc_list = list(scenario.components.grid_connectors.keys())
     stations = getattr(schedule, "stations")
 
-    with open(args.results_directory / "gc_overview.csv", "w", newline='') as f:
+    with open_for_csv(args.results_directory / "gc_overview.csv") as f:
         csv_writer = csv.writer(f)
         csv_writer.writerow(["station_name",
                              "station_type",
@@ -97,7 +108,7 @@ def generate_gc_overview(schedule, scenario, args):
 
 
 def generate_plots(scenario, args):
-    """Save plots as png and pdf.
+    """ Save plots as png and pdf.
 
     :param scenario: Scenario to plot.
     :type scenario: spice_ev.Scenario
@@ -120,7 +131,7 @@ def generate_plots(scenario, args):
 
 
 def generate(schedule, scenario, args):
-    """Generates all output files/ plots and saves them in the output directory.
+    """ Generates all output files/ plots and saves them in the output directory.
 
     :param schedule: Driving schedule for the simulation.
     :type schedule: simba.Schedule
@@ -128,19 +139,19 @@ def generate(schedule, scenario, args):
     :type scenario: spice_ev.Scenario
     :param args: Configuration arguments specified in config files contained in configs directory.
     :type args: argparse.Namespace
+    :raises Exception: if cost calculation cannot be written to file and
+        args.propagate_mode_errors=True
     """
 
-    # generate simulation_timeseries.csv, simulation.json and vehicle_socs.csv in spiceEV
-    with warnings.catch_warnings():
-        warnings.simplefilter('ignore', UserWarning)
-        # re-route output paths
-        args.save_soc = args.results_directory / "vehicle_socs.csv"
-        args.save_results = args.results_directory / "simulation.json"
-        args.save_timeseries = args.results_directory / "simulation_timeseries.csv"
-        generate_reports(scenario, vars(args).copy())
-        args.save_timeseries = None
-        args.save_results = None
-        args.save_soc = None
+    # generate simulation_timeseries.csv, simulation.json and vehicle_socs.csv in SpiceEV
+    # re-route output paths
+    args.save_soc = args.results_directory / "vehicle_socs.csv"
+    args.save_results = args.results_directory / "info.json"
+    args.save_timeseries = args.results_directory / "ts.csv"
+    generate_reports(scenario, vars(args).copy())
+    args.save_timeseries = None
+    args.save_results = None
+    args.save_soc = None
 
     # generate gc power overview
     generate_gc_power_overview_timeseries(scenario, args)
@@ -170,14 +181,16 @@ def generate(schedule, scenario, args):
         # get SOC timeseries for this rotation
         vehicle_id = rotation.vehicle_id
 
-        # get soc timeseries for current rotation
-        vehicle_soc = scenario.vehicle_socs[vehicle_id]
         start_idx = (rotation.departure_time - sim_start_time) // interval
         end_idx = start_idx + ((rotation.arrival_time - rotation.departure_time) // interval)
         if end_idx > scenario.n_intervals:
             # SpiceEV stopped before rotation was fully simulated
             incomplete_rotations.append(id)
             continue
+
+        # get soc timeseries for current rotation
+        vehicle_soc = scenario.vehicle_socs[vehicle_id]
+
         rotation_soc_ts = vehicle_soc[start_idx:end_idx]
 
         # bus does not return before simulation end
@@ -216,30 +229,64 @@ def generate(schedule, scenario, args):
             "Omit parameter <days> to simulate entire schedule.")
 
     if rotation_infos:
-        with open(args.results_directory / "rotation_socs.csv", "w", newline='') as f:
-            csv_writer = csv.writer(f)
-            csv_writer.writerow(("time",) + tuple(rotation_socs.keys()))
-            for i, row in enumerate(zip(*rotation_socs.values())):
-                t = sim_start_time + i * scenario.interval
-                csv_writer.writerow((t,) + row)
+        try:
+            # order rotations naturally
+            rotations = sorted(rotation_socs.keys(), key=lambda k: int(k))
+        except ValueError:
+            # Some strings cannot be cast to int and throw a value error
+            rotations = sorted(rotation_socs.keys(), key=lambda k: k)
+        data = [["time"] + rotations]
+        for i in range(scenario.n_intervals):
+            t = sim_start_time + i * scenario.interval
+            socs = [str(rotation_socs[k][i]) for k in rotations]
+            data.append([str(t)] + socs)
+        write_csv(data, args.results_directory / "rotation_socs.csv",
+                  propagate_errors=args.propagate_mode_errors)
 
-        with open(args.results_directory / "rotation_summary.csv", "w", newline='') as f:
+        with open_for_csv(args.results_directory / "rotation_summary.csv") as f:
             csv_writer = csv.DictWriter(f, list(rotation_infos[0].keys()))
             csv_writer.writeheader()
             csv_writer.writerows(rotation_infos)
 
     # summary of used vehicle types and all costs
     if args.cost_calculation:
-        with open(args.results_directory / "summary_vehicles_costs.csv", "w", newline='') as f:
-            csv_writer = csv.writer(f)
-            csv_writer.writerow(["parameter", "value", "unit"])
-            for key, value in schedule.vehicle_type_counts.items():
-                if value > 0:
-                    csv_writer.writerow([key, value, "vehicles"])
-            for key, value in scenario.costs.items():
-                if "annual" in key:
-                    csv_writer.writerow([key, round(value, 2), "€/year"])
-                else:
-                    csv_writer.writerow([key, round(value, 2), "€"])
+        file_path = args.results_directory / "summary_vehicles_costs.csv"
+        csv_report = None
+        try:
+            csv_report = scenario.costs.to_csv_lists()
+        except Exception as e:
+            logging.warning(f"Generating the cost calculation to {file_path} calculation failed "
+                            f"due to {str(e)}")
+            if args.propagate_mode_errors:
+                raise
+        write_csv(csv_report, file_path, propagate_errors=args.propagate_mode_errors)
 
     logging.info(f"Plots and output files saved in {args.results_directory}")
+
+
+def write_csv(data: Iterable, file_path, propagate_errors=False):
+    """ Write iterable data to CSV file.
+
+    Errors are caught if propagate_errors=False. If data is None, no file is created.
+
+    :param data: data which is written to a file
+    :type data: Iterable
+    :param file_path: file_path for file creation
+    :type file_path: str or Path
+    :param propagate_errors: should errors be propagated?
+    :type propagate_errors: bool
+    :raises Exception: if file cannot be written and propagate_errors=True
+    """
+
+    if data is None:
+        logging.debug(f"Writing to {file_path} aborted since no data is passed.")
+        return
+    try:
+        with open_for_csv(file_path) as f:
+            csv_writer = csv.writer(f)
+            for row in data:
+                csv_writer.writerow(row)
+    except Exception as e:
+        logging.warning(f"Writing to {file_path} failed due to {str(e)}")
+        if propagate_errors:
+            raise

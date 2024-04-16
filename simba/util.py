@@ -3,6 +3,7 @@ import json
 import logging
 import subprocess
 
+from spice_ev.strategy import STRATEGIES
 from spice_ev.util import set_options_from_config
 
 
@@ -17,28 +18,24 @@ def save_version(file_path):
 
 def get_buffer_time(trip, default=0):
     """ Get buffer time at arrival station of a trip.
-        Buffer_time is an abstraction of delays like docking procedures and
-        is added to the planned arrival time
 
-    :param trip: The of buffer time of this trips arrival is returned.
+    Buffer time is an abstraction of delays like
+    docking procedures and is added to the planned arrival time.
+
+    :param trip: trip to calculate buffer time for
     :type trip: simba.Trip
     :param default: Default buffer time if no station specific buffer time is given. [minutes]
     :type default: dict, numeric
-    :return: Buffer time
-    :rtype: numeric
+    :return: buffer time in minutes
+    :rtype: dict or int
 
-    NOTE: Buffertime dictionaries map hours of the day to a buffer time.
+    NOTE: Buffer time dictionaries map hours of the day to a buffer time.
     Keys are ranges of hours and corresponding values provide buffer time in
     minutes for that time range.
-    An entry with key "else" is a must if not all
-    hours of the day are covered.
-    E.g.
-        buffer_time = {
-            "10-22": 2,
-            "22-6": 3,
-            "else": 1
-        }
+    An entry with key "else" is a must if not all hours of the day are covered.
+    Example: ``buffer_time = {"10-22": 2, "22-6": 3, "else": 1}``
     """
+
     schedule = trip.rotation.schedule
     buffer_time = schedule.stations.get(trip.arrival_name, {}).get('buffer_time', default)
 
@@ -62,16 +59,15 @@ def get_buffer_time(trip, default=0):
                     if start_hour <= current_hour < end_hour:
                         buffer_time = buffer
                         break
-
     return buffer_time
 
 
 def uncomment_json_file(f, char='//'):
-    """
-    Remove comments from JSON file.
+    """ Remove comments from JSON file.
 
     Wouldn't it be nice to have comments in JSON data? Now you can!
     Both full-line comments and trailing lines are supported.
+
     :param f: file to read
     :type f: JSON file handle
     :param char: char sequence used for commenting, defaults to '//'
@@ -142,9 +138,12 @@ def get_csv_delim(path, other_delims=set()):
 
 
 def nd_interp(input_values, lookup_table):
-    """ Get the interpolated output value for a given input value of n dimensions and a given
-    lookup table with n+1 columns. Input values outside of the lookup table are
-    clipped to the bounds.
+    """ Interpolates a value from a table.
+
+    Get the interpolated output value for a given input value of n dimensions
+    and a given lookup table with n+1 columns.
+    Input values outside of the lookup table are clipped to the bounds.
+
     :param input_values: tuple with n input values
     :type input_values: tuple(floats)
     :param lookup_table: Table with n+1 columns, with the output values in the (n+1)th column
@@ -219,13 +218,19 @@ def nd_interp(input_values, lookup_table):
 
 
 def setup_logging(args, time_str):
-    # set up logging
+    """ Setup logging.
+
+    :param args: command line arguments. Used: logfile, loglevel, output_directory
+    :type args: argparse.Namespace
+    :param time_str: log file name if args.logfile is not given
+    :type time_str: str
+    """
     # always to console
     log_level = vars(logging)[args.loglevel.upper()]
     console = logging.StreamHandler()
     console.setLevel(log_level)
     log_handlers = [console]
-    if args.logfile is not None:
+    if args.logfile is not None and args.output_directory is not None:
         # optionally to file in output dir
         if args.logfile:
             log_name = args.logfile
@@ -251,9 +256,9 @@ def get_args():
         description='SimBA - Simulation toolbox for Bus Applications.')
 
     # #### Paths #####
-    parser.add_argument('--input-schedule', nargs='?',
+    parser.add_argument('--input-schedule',
                         help='Path to CSV file containing all trips of schedule to be analyzed.')
-    parser.add_argument('--output-directory', default="data/sim_outputs", nargs='?',
+    parser.add_argument('--output-directory', default="data/sim_outputs",
                         help='Location where all simulation outputs are stored')
     parser.add_argument('--electrified-stations', help='include electrified_stations json')
     parser.add_argument('--vehicle-types', default="data/examples/vehicle_types.json",
@@ -294,10 +299,26 @@ def get_args():
                         help='Remove rotations from schedule that violate assumptions. ')
     parser.add_argument('--show-plots', action='store_true',
                         help='show plots for users to view in "report" mode')
-    # #### Physical setup of environment #####
+    parser.add_argument('--propagate-mode-errors', default=False,
+                        help='Re-raise errors instead of continuing during simulation modes')
+    parser.add_argument('--create-scenario-file', help='Write scenario.json to file')
+
+    # #### Charging strategy #####
     parser.add_argument('--preferred-charging-type', '-pct', default='depb',
                         choices=['depb', 'oppb'], help="Preferred charging type. Choose one\
                         from {depb, oppb}. opp stands for opportunity.")
+    parser.add_argument('--strategy-deps', default='balanced', choices=STRATEGIES,
+                        help='strategy to use in depot')
+    parser.add_argument('--strategy-opps', default='greedy', choices=STRATEGIES,
+                        help='strategy to use at station')
+    parser.add_argument('--strategy-options-deps', default={},
+                        type=lambda s: s if type(s) is dict else json.loads(s),
+                        help='special strategy options to use in depot')
+    parser.add_argument('--strategy-options-opps', default={},
+                        type=lambda s: s if type(s) is dict else json.loads(s),
+                        help='special strategy options to use at electrified station')
+
+    # #### Physical setup of environment #####
     parser.add_argument('--gc-power-opps', metavar='POPP', type=float, default=100000,
                         help='max power of grid connector at opp stations')
     parser.add_argument('--gc-power-deps', metavar='PDEP', type=float, default=100000,
@@ -323,8 +344,12 @@ def get_args():
     parser.add_argument('--default-voltage-level', help='Default voltage level for '
                         'charging stations if not set in electrified_stations file',
                         default='MV', choices=['HV', 'HV/MV', 'MV', 'MV/LV', 'LV'])
+    parser.add_argument('--peak-load-window-power-opps', type=float, default=1000,
+                        help='reduced power of opp stations during peak load windows')
+    parser.add_argument('--peak-load-window-power-deps', type=float, default=1000,
+                        help='reduced power of depot stations during peak load windows')
 
-    # #### SIMULATION PARAMETERS #####
+    # #### Simulation Parameters #####
     parser.add_argument('--days', metavar='N', type=int, default=None,
                         help='set duration of scenario as number of days')
     parser.add_argument('--interval', metavar='MIN', type=int, default=1,
@@ -358,8 +383,11 @@ def get_args():
                         nargs=2, default=[], action='append',
                         help='append additional argument to price signals')
     parser.add_argument('--optimizer_config', default=None,
-                        help="For station_optimization a optimizer_config is needed. \
+                        help="For station_optimization an optimizer_config is needed. \
                         Input a path to an .cfg file or use the default_optimizer.cfg")
+    parser.add_argument('--time-windows', metavar='FILE',
+                        help='use peak load windows to force lower power '
+                        'during times of high grid load')
 
     parser.add_argument('--config', help='Use config file to set arguments')
 
