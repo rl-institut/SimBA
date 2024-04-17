@@ -199,4 +199,4 @@ Before all rotations specified in the :ref:`schedule` are simulated, there is th
 Logging
 -------
 
-SimBA uses the "logging" package for logging. All logging messages are both displayed in the Terminal and written to a .log file. The filepath and the loglevel can be defined in the :ref:`config`. Four log levels are available in the following order: DEBUG, INFO, WARN and ERROR. INFO includes INFO, WARN and ERROR but excludes DEBUG.
+SimBA uses the "logging" package for logging. All logging messages are both displayed in the console and written to a log file. The filepath and the loglevel can be defined in the :ref:`config`. Four log levels are available in the following order: DEBUG, INFO, WARN and ERROR. INFO includes INFO, WARN and ERROR but excludes DEBUG. Console and file can have a different log level.
