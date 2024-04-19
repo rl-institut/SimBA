@@ -151,8 +151,6 @@ class TestSchedule(BasicSchedule):
         # depot Rotation
         assert gen_rotations["4_1"].vehicle_id == gen_rotations["5_1"].vehicle_id
 
-
-
     def test_assign_vehicles_adaptive(self):
         """ Test if assigning vehicles works as intended.
 
