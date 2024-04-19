@@ -102,18 +102,14 @@ class TestSchedule(BasicSchedule):
         assert type(scen) is scenario.Scenario
 
     def test_assign_vehicles_fixed_recharge(self):
-        """ Test if assigning vehicles works as intended.
-
-        Use a trips csv with two rotations ("1","2") a day apart.
-        SimBA should assign the same vehicle to both of them.
-        Rotation "3" starts shortly after "2" and should be a new vehicle.
+        """ Test if assigning vehicles works as intended using the fixed_recharge strategy
         """
 
         trip.Trip.consumption = consumption.Consumption(self.vehicle_types,
                                                         outside_temperatures=self.temperature_path,
                                                         level_of_loading_over_day=self.lol_path)
 
-        path_to_trips = file_root / "trips_assign_vehicles.csv"
+        path_to_trips = file_root / "trips_assign_vehicles_extended.csv"
         generated_schedule = schedule.Schedule.from_csv(
             path_to_trips, self.vehicle_types, self.electrified_stations, **mandatory_args)
         all_rotations = [r for r in generated_schedule.rotations]
@@ -152,18 +148,14 @@ class TestSchedule(BasicSchedule):
         assert gen_rotations["4_1"].vehicle_id == gen_rotations["5_1"].vehicle_id
 
     def test_assign_vehicles_adaptive(self):
-        """ Test if assigning vehicles works as intended.
-
-        Use a trips csv with two rotations ("1","2") a day apart.
-        SimBA should assign the same vehicle to both of them.
-        Rotation "3" starts shortly after "2" and should be a new vehicle.
+        """ Test if assigning vehicles works as intended using the adaptive strategy
         """
 
         trip.Trip.consumption = consumption.Consumption(self.vehicle_types,
                                                         outside_temperatures=self.temperature_path,
                                                         level_of_loading_over_day=self.lol_path)
 
-        path_to_trips = file_root / "trips_assign_vehicles.csv"
+        path_to_trips = file_root / "trips_assign_vehicles_extended.csv"
         generated_schedule = schedule.Schedule.from_csv(
             path_to_trips, self.vehicle_types, self.electrified_stations, **mandatory_args)
         args = Namespace(**{"desired_soc_deps": 1})
@@ -203,9 +195,9 @@ class TestSchedule(BasicSchedule):
         assert gen_rotations["6_3b"].vehicle_id == gen_rotations["7_3b"].vehicle_id
 
         # depot rotations are not assigned when their charged energy is above the next rotations
-        # energy consumption, but only when they reach an soc which is enough or full
-        assert gen_rotations["6_3c"].vehicle_id != gen_rotations["7_3c"]
-        assert gen_rotations["6_3c"].vehicle_id == gen_rotations["8_3c"]
+        # energy consumption, but only when they reach a soc which is enough or full
+        assert gen_rotations["6_3c"].vehicle_id != gen_rotations["7_3c"].vehicle_id
+        assert gen_rotations["6_3c"].vehicle_id == gen_rotations["8_3c"].vehicle_id
 
     def test_calculate_consumption(self):
         """ Test if calling the consumption calculation works
