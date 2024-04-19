@@ -733,7 +733,7 @@ class Schedule:
                     buffer_time = 0
                 elif station_type == "deps":
                     buffer_time = util.get_buffer_time(trip=trip,
-                                                       default=args.default_buffer_time_opps)
+                                                       default=args.default_buffer_time_deps)
                 else:
                     assert station_type == "opps"
                     buffer_time = util.get_buffer_time(trip=trip,
