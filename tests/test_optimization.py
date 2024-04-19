@@ -38,25 +38,26 @@ class TestOptimization:
         trip2 = schedule.rotations["1"].trips[-1]
         trip2.distance = trip1.distance / 2
         depot_trips = {
-            "station-0": {
-                "depot-1": trip1,
+            "opps-1": {
+                "Station-0": trip1,  # is name of depot in example schedule
             },
-            "station-1": {
-                "depot-1": trip1,
-                "depot-2": trip2,
+            "opps-2": {
+                "Station-0": trip1,
+                "Station-3": trip2,
             }
         }
         # station known, only one trip
-        trip_dict = optimization.generate_depot_trip("station-0", depot_trips)
-        assert trip_dict["name"] == "depot-1" and trip_dict["distance"] == trip1.distance
+        trip_dict = optimization.generate_depot_trip("opps-1", depot_trips)
+        assert trip_dict["name"] == "Station-0" and trip_dict["distance"] == trip1.distance
 
         # station known, two depot trips: use trip with lower distance
-        trip_dict = optimization.generate_depot_trip("station-1", depot_trips)
-        assert trip_dict["name"] == "depot-2" and trip_dict["distance"] == trip2.distance
+        trip_dict = optimization.generate_depot_trip("opps-2", depot_trips)
+        assert trip_dict["name"] == "Station-3" and trip_dict["distance"] == trip2.distance
 
         # station unknown: use defaults for any depot
         trip_dict = optimization.generate_depot_trip("station-unknown", depot_trips)
-        assert trip_dict["name"] in depot_trips.keys()
+        depot_station = schedule.stations[trip_dict["name"]]
+        assert depot_station["type"] == "deps"
         assert trip_dict["distance"] == optimization.DEFAULT_DEPOT_DISTANCE * 1000
 
     def test_recombination(self):

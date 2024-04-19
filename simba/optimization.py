@@ -222,8 +222,11 @@ def generate_depot_trip(station, depot_trips):
     except KeyError:
         # no trip from depot to departure station known: assume defaults
         assert len(depot_trips) > 0, "No depot trips known"
+        # get any depot key from any station in depot_trips
+        any_station = next(iter(depot_trips.values()))
+        depot_name = next(iter(any_station.keys()))
         return {
-            "name": list(depot_trips)[0],  # get first depot
+            "name": depot_name,
             "distance": DEFAULT_DEPOT_DISTANCE * 1000,
             "mean_speed": DEFAULT_MEAN_SPEED,
             "travel_time": datetime.timedelta(hours=DEFAULT_DEPOT_DISTANCE/DEFAULT_MEAN_SPEED),
