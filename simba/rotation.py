@@ -124,6 +124,7 @@ class Rotation:
         """Minimum duration of standing time in minutes.
 
         No consideration of depot buffer time or charging curve.
+        :return: Minimum duration of standing time in minutes.
         """
         # noqa: DAR201
         ct = self.charging_type

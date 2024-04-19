@@ -303,8 +303,6 @@ def get_delta_soc(soc_over_time_curve, soc, duration_min: float):
     :type soc: float
     :param duration_min: duration of charging in minutes
     :type duration_min: float
-    :param max_soc: maximum soc for charging
-    :type max_soc: float
     :return: positive delta of the soc
     :rtype: float
     """
@@ -414,7 +412,7 @@ def evaluate(events: typing.Iterable[LowSocEvent],
             desired_soc = optimizer.args.desired_soc_opps
             soc = max(soc, 0)
             d_soc = get_delta_soc(soc_over_time, soc, standing_time_min) * e.capacity
-            pot_kwh = min(d_soc,desired_soc) * e.capacity
+            pot_kwh = min(d_soc, desired_soc) * e.capacity
 
             # potential is at max the minimum between the useful delta soc * capacity or the
             # energy provided by charging for the full standing time

@@ -83,8 +83,6 @@ class TestSchedule(BasicSchedule):
 
         # check if reading a non valid station.csv throws warnings
         with pytest.warns(Warning) as record:
-
-
             path_to_all_station_data = file_root / "not_existent_file"
             schedule.Schedule.from_csv(
                 path_to_trips, self.vehicle_types, self.electrified_stations, **mandatory_args,
@@ -210,7 +208,6 @@ class TestSchedule(BasicSchedule):
         # energy consumption, but only when they reach an soc which is enough or full
         assert gen_rotations["6_3c"].vehicle_id != gen_rotations["7_3c"]
         assert gen_rotations["6_3c"].vehicle_id == gen_rotations["8_3c"]
-
 
     def test_calculate_consumption(self):
         """ Test if calling the consumption calculation works
