@@ -121,7 +121,10 @@ class Rotation:
 
     @property
     def min_standing_time(self):
-        """Minimum duration of standing time in minutes."""
+        """Minimum duration of standing time in minutes.
+
+        No consideration of depot buffer time or charging curve.
+        """
         # noqa: DAR201
         ct = self.charging_type
         assert ct in ["depb", "oppb"]
