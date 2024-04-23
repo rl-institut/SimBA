@@ -117,6 +117,9 @@ class StationOptimizer:
 
             list_greedy_sets[group_nr] = self.electrified_station_set.copy()
 
+            if self.config.early_return:
+                break
+
         # if no deep analysis is needed, return here and part further down is skipped
         # if deep analysis is needed run can continue
         if opt_type != "deep":
@@ -215,7 +218,7 @@ class StationOptimizer:
             for stat in single_set:
                 self.electrify_station(stat, self.electrified_station_set)
         # dump the measured running times of the functions
-        self.logger.debug(opt_util.time_it(None))
+        self.logger.debug("Durations of Optimization: ", opt_util.time_it(None))
         return self.electrified_stations, self.electrified_station_set
 
     def get_negative_rotations_all_electrified(self, rel_soc=False):
@@ -369,6 +372,9 @@ class StationOptimizer:
         # by the choose_station_function
         if not recursive:
             raise opt_util.SuboptimalSimulationException
+
+        if self.config.early_return:
+            return self.electrified_stations
 
         # check if the events can be divided into subgroups which are independent
         groups = opt_util.get_groups_from_events(

@@ -83,6 +83,7 @@ class OptimizerConfig:
         self.rebase_scenario = None
         self.pickle_rebased = None
         self.pickle_rebased_name = None
+        self.early_return = False
         self.opt_type = None
         self.remove_impossible_rotations = None
         self.node_choice = None
@@ -183,6 +184,8 @@ def read_config(config_path):
     conf.solver = default.get("solver", "spiceev")
     conf.rebase_scenario = default.getboolean("rebase_scenario", True)
     conf.pickle_rebased = default.getboolean("pickle_rebased", False)
+    # used for gradual scenario analysis in django-simba
+    conf.pickle_rebased = default.getboolean("early_return", False)
     conf.pickle_rebased_name = default.get(
         "pickle_rebased_name", "rebased_" + datetime.now().isoformat(sep='-', timespec='seconds'))
     conf.opt_type = default.get("opt_type", "greedy")
