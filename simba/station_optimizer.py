@@ -10,7 +10,6 @@ import numpy as np
 import simba.optimizer_util as opt_util
 from spice_ev import scenario
 from simba import rotation, schedule
-from simba.util import uncomment_json_file
 
 
 class StationOptimizer:
