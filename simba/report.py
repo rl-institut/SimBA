@@ -3,6 +3,8 @@
 import csv
 import datetime
 import logging
+import traceback
+
 import matplotlib.pyplot as plt
 import matplotlib
 import warnings
@@ -109,14 +111,18 @@ def generate_plots(scenario, args):
     aggregate_global_results(scenario)
     # disable DEBUG logging from matplotlib
     logging.disable(logging.INFO)
-    with plt.ion():  # make plotting temporarily interactive, so plt.show does not block
-        plt.clf()
-        plot(scenario)
-        plt.gcf().set_size_inches(10, 10)
-        plt.savefig(args.results_directory / "run_overview.png")
-        plt.savefig(args.results_directory / "run_overview.pdf")
-    if args.show_plots:
-        plt.show()
+    try:
+        with plt.ion():  # make plotting temporarily interactive, so plt.show does not block
+            plt.clf()
+            plot(scenario)
+            plt.gcf().set_size_inches(10, 10)
+            plt.savefig(args.results_directory / "run_overview.png")
+            plt.savefig(args.results_directory / "run_overview.pdf")
+        if args.show_plots:
+            plt.show()
+    except:
+        traceback.print_exc()
+        logging.warning("Failed to generate plots.")
     # revert logging override
     logging.disable(logging.NOTSET)
 
