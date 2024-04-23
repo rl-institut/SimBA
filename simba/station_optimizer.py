@@ -32,8 +32,7 @@ class StationOptimizer:
         self.logger = logger
         self.config = config
         self.electrified_station_set = set()
-        with open(self.args.electrified_stations, "r", encoding="utf-8", ) as file:
-            self.electrified_stations = uncomment_json_file(file)
+        self.electrified_stations = deepcopy(self.schedule.stations)
         self.base_stations = self.electrified_stations.copy()
         self.base_electrified_station_set = set()
 
