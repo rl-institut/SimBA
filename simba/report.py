@@ -120,7 +120,7 @@ def generate_plots(scenario, args):
             plt.savefig(args.results_directory / "run_overview.pdf")
         if args.show_plots:
             plt.show()
-    except:
+    except:  # noqa
         traceback.print_exc()
         logging.warning("Failed to generate plots.")
     # revert logging override
