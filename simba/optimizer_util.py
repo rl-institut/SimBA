@@ -294,7 +294,7 @@ def get_rotation_soc_util(rot_id, schedule, scenario, soc_data: dict = None):
     return scenario.vehicle_socs[rot.vehicle_id], rot_start_idx, rot_end_idx
 
 
-def get_delta_soc(soc_over_time_curve, soc, duration_min: float, max_soc: float):
+def get_delta_soc(soc_over_time_curve, soc, duration_min: float):
     """ Return expected SoC lift for a given SoC charging time series, start_soc and time_delta.
 
     :param soc_over_time_curve: Data with columns: time, soc and n rows
@@ -303,8 +303,6 @@ def get_delta_soc(soc_over_time_curve, soc, duration_min: float, max_soc: float)
     :type soc: float
     :param duration_min: duration of charging in minutes
     :type duration_min: float
-    :param max_soc: maximum soc for charging
-    :type max_soc: float
     :return: positive delta of the soc
     :rtype: float
     """
@@ -313,8 +311,10 @@ def get_delta_soc(soc_over_time_curve, soc, duration_min: float, max_soc: float)
 
     if duration_min == 0:
         return 0
-    search_soc = min(max_soc, soc)
+    negative_soc = 0
     if soc < 0:
+        # keep track of the negative soc to add it later
+        negative_soc = -soc
         try:
             gradient = soc_over_time_curve[1, 1] - soc_over_time_curve[0, 1]
         except IndexError:
@@ -324,22 +324,23 @@ def get_delta_soc(soc_over_time_curve, soc, duration_min: float, max_soc: float)
         if charge_duration_till_0 > duration_min:
             return duration_min * gradient
         duration_min = duration_min - charge_duration_till_0
-        search_soc = 0
+        soc = 0
 
-    idx = np.searchsorted(soc_over_time_curve[:, 1], search_soc, side='left')
+    idx = np.searchsorted(soc_over_time_curve[:, 1], soc, side='left')
     first_time, start_soc = soc_over_time_curve[idx, :]
     second_time = first_time + duration_min
     # catch out of bounds if time of charging end is bigger than table values
 
     if second_time >= soc_over_time_curve[-1, 0]:
         end_soc = soc_over_time_curve[-1, 1]
+        # this makes sure the battery is actually at 100%
         start_soc = soc
     else:
         end_soc = soc_over_time_curve[soc_over_time_curve[:, 0] >= second_time][0, 1]
 
     # make sure to limit delta soc to 1 if negative socs are given. They are possible during
     # the optimization process but will be continuously raised until they are >0.
-    return min(max_soc, max_soc - start_soc, end_soc - start_soc)
+    return end_soc - start_soc + negative_soc
 
 
 class InfiniteLoopException(Exception):
@@ -410,7 +411,8 @@ def evaluate(events: typing.Iterable[LowSocEvent],
 
             desired_soc = optimizer.args.desired_soc_opps
             soc = max(soc, 0)
-            pot_kwh = get_delta_soc(soc_over_time, soc, standing_time_min, desired_soc) * e.capacity
+            d_soc = get_delta_soc(soc_over_time, soc, standing_time_min) * e.capacity
+            pot_kwh = min(d_soc, desired_soc) * e.capacity
 
             # potential is at max the minimum between the useful delta soc * capacity or the
             # energy provided by charging for the full standing time

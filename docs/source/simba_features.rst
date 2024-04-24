@@ -21,7 +21,25 @@ The level_of_loading describes the share between an empty vehicle (0) and a full
 Vehicle Dispatch
 ----------------
 
-To allocate the rotations to vehicles, vehicles of the needed type to fulfil the rotation are used. If no suitable vehicle is available, a new vehicle is created. A vehicle is defined as "available" if it is currently not serving another rotation, has the same depot and if it had enough time after return to the depot to be charged. This "minimum standing time" at the depot is calculated using the variable min_recharge_deps_oppb or min_recharge_deps_depb from the :ref`config` together with the respective battery capacity of the vehicle and assuming the maximum available power of the depot charging stations.
+To allocate the rotations to vehicles, vehicles of the needed type to fulfil the rotation are used. If no suitable vehicle is available, a new vehicle is created. The suitability depends on the chosen value of assign_strategy. Possible options are "adaptive" and "fixed_recharge". If no value is provided "adaptive" is used.
+
+
+adaptive
+###############
+A vehicle is defined as "available" if it is currently not serving another rotation, is of the same vehicle type, has the same depot and if it had approximately enough time after return to the depot to be charged to service the next rotation. If multiple vehicles can service the same rotation, the vehicle with a lower expected soc is used. The dispatch differs between opportunity and depot rotations. A vehicle is only assigned to a depot rotation if its expected soc at time of departure is bigger than the needed soc or if the expected soc is >= desired_soc from :ref`config`. A vehicle can be assigned to an opportunity rotation if its soc is smaller than the needed soc, if the charge during the last standing time is big enough to service the rotation or >= desired_soc from :ref`config`. This can happen when the previous rotation ended with a negative soc. This design decision is made to simplify the expected workflow.
+
+Simulation with mixed charging types -> switch negative depot rotations to opportunity chargers -> station optimization -> report
+
+This way depot rotations can not be negative because of their previous rotation and therefore not wrongly switched to opportunity rotations. Opportunity rotations can be negative because of their previous rotation, but this is handled during station_optimization. In these cases the rotation will not be negative when the previous rotation can be made positive by adding electrified stations.
+
+The strategy considers the maximum available power of the current depot charging station, the default_buffer_time_deps and the charging curve of the vehicle. Since socs are calculated numerically which is different from SpiceEV the vehicle dispatch can lead to slightly negative rotations. The error is not expected to exceed -1%.
+
+
+fixed recharge
+###############
+A vehicle is defined as "available" if it is currently not serving another rotation, has the same depot and if it had approximately enough time after return to the depot to be charged to a fixed value defined by min_recharge_deps_oppb or min_recharge_deps_depb from the :ref`config` together with the respective battery capacity of the vehicle and assuming the maximum available power of the current depot charging station. The default_buffer_time_deps and charging curve of the vehicle is not considered. This can lead to the dispatch of vehicles with less than the min_recharge values.
+
+
 
 Charging simulation
 -------------------

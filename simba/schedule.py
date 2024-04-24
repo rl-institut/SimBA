@@ -652,7 +652,8 @@ class Schedule:
         if self.rotations:
             start_simulation = self.get_departure_of_first_trip()
             start_simulation -= datetime.timedelta(minutes=args.signal_time_dif)
-            stop_simulation = self.get_arrival_of_last_trip() + interval
+            arrival_of_last_trip = self.get_arrival_of_last_trip()
+            stop_simulation = arrival_of_last_trip + interval
             if args.days is not None:
                 stop_simulation = min(
                     stop_simulation, start_simulation + datetime.timedelta(days=args.days))
@@ -730,17 +731,20 @@ class Schedule:
                 # get buffer time from user configuration
                 # buffer_time is an abstraction of delays like docking procedures and
                 # is added to the planned arrival time
-                # ignore buffer time for end of last trip to make sure vehicles arrive
-                # before simulation ends
-                if i < len(vehicle_trips) - 1:
+                # arrival + buffer time is clipped to the arrival of last trip and next departure
+                if not station_type:
+                    buffer_time = 0
+                elif station_type == "deps":
+                    buffer_time = util.get_buffer_time(trip=trip,
+                                                       default=args.default_buffer_time_deps)
+                else:
+                    assert station_type == "opps"
                     buffer_time = util.get_buffer_time(trip=trip,
                                                        default=args.default_buffer_time_opps)
-                else:
-                    buffer_time = 0
                 # arrival event must occur no later than next departure and
                 # one step before simulation terminates for arrival event to be taken into account
                 arrival_time = min(trip.arrival_time + datetime.timedelta(minutes=buffer_time),
-                                   next_departure_time)
+                                   next_departure_time, arrival_of_last_trip)
 
                 # total minutes spend at station
                 standing_time = (next_departure_time - arrival_time).total_seconds() / 60
@@ -1150,10 +1154,9 @@ def generate_event_list_from_prices(
 
 
 def get_charge_delta_soc(charge_curves: dict, vt: str, ct: str, max_power: float,
-                         duration_min: float, start_soc: float, max_soc: float) -> float:
+                         duration_min: float, start_soc: float) -> float:
     charge_curve = charge_curves[vt][ct][max_power]
-    d_soc = optimizer_util.get_delta_soc(charge_curve, start_soc, duration_min=duration_min,
-                                         max_soc=max_soc)
+    d_soc = optimizer_util.get_delta_soc(charge_curve, start_soc, duration_min=duration_min)
     return d_soc
 
 
@@ -1197,5 +1200,5 @@ def soc_at_departure_time(v_id_deps: tuple, departure_time, vehicle_data, statio
         start_soc = max(start_soc, 0)
     charge_delta_soc = \
         get_charge_delta_soc(charge_curves, vt, ct, station_power, duration_in_m,
-                             start_soc, max_soc=args.desired_soc_deps)
-    return start_soc + charge_delta_soc
+                             start_soc)
+    return min(start_soc + charge_delta_soc, args.desired_soc_deps)
