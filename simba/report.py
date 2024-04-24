@@ -157,7 +157,8 @@ def generate(schedule, scenario, args):
     generate_gc_overview(schedule, scenario, args)
 
     # save plots as png and pdf
-    generate_plots(scenario, args)
+    if not args.skip_plots:
+        generate_plots(scenario, args)
 
     # calculate SOCs for each rotation
     rotation_infos = []

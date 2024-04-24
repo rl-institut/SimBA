@@ -152,7 +152,8 @@ def modes_simulation(schedule, scenario, args):
                 # generate plot of failed scenario
                 args.mode = args.mode[:i] + ["ABORTED"]
                 create_results_directory(args, i+1)
-                report.generate_plots(scenario, args)
+                if not args.skip_plots:
+                    report.generate_plots(scenario, args)
                 logging.info(f"Created plot of failed scenario in {args.results_directory}")
             # continue with other modes after error
 
