@@ -225,8 +225,6 @@ class Schedule:
         :raises NotImplementedError: if args.assign_strategy has a no allowed value
         """
         assign_strategy = vars(args).get("assign_strategy")
-        import time
-        t = time.time()
         if assign_strategy is None or assign_strategy == "adaptive":
             self.assign_vehicles_w_adaptive_soc(args)
         elif assign_strategy == "fixed_recharge":
@@ -234,8 +232,6 @@ class Schedule:
         else:
             logging.error('Allowed values for assign_strategy are "adaptive" and "fixed_recharge"')
             raise NotImplementedError
-        print(time.time()-t)
-        print(self.vehicle_type_counts)
 
     def assign_vehicles_w_min_recharge_soc(self):
         """ Assign vehicle IDs to rotations.
