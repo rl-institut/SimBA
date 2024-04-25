@@ -835,15 +835,17 @@ def generate_random_price_list(gc_name, start_simulation, stop_simulation):
     """
     day = datetime.timedelta(days=1)
     events = []
-    # First price events on the day before the simulation. This is needed if the simulation start
-    # is between 00:00 and 06:00
-    now = start_simulation - day
-    # Reset now to 00:00
-    now = now.replace(hour=0, minute=0, second=0)
+    MORNING_HOUR = 6
+    # First price events on the day before the simulation.
+    # This is needed if the simulation start time is between 00:00 and 06:00
+    first_day = start_simulation - datetime.timedelta(hours=MORNING_HOUR)
+    # Reset beginning to midnight,
+    # so price events always start at 6:00 and get signaled at midnight each day
+    first_day = first_day.replace(hour=0, minute=0, second=0)
     # Iterate over the simulation duration
-    for current_time in util.daterange(now, stop_simulation, day):
+    for current_time in util.daterange(first_day, stop_simulation, day):
         # create price events covering 24h from 6am onwards
-        morning = current_time + datetime.timedelta(hours=6)
+        morning = current_time + datetime.timedelta(hours=MORNING_HOUR)
         evening_by_month = current_time + datetime.timedelta(
             hours=22 - abs(6 - current_time.month))
         events += [{
