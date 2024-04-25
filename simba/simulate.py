@@ -233,6 +233,26 @@ class Mode:
                             'Optimization was skipped'.format(err))
             return original_schedule, original_scenario
 
+    def station_optimization_single_step(schedule, scenario, args, i):
+        """ Electrify only the station with the highest potential"""
+        if not args.optimizer_config:
+            logging.warning("Station optimization needs an optimization config file. "
+                            "Since no path was given, station optimization is skipped")
+            return schedule, scenario
+        conf = read_optimizer_config(args.optimizer_config)
+        conf.early_return = True
+        # Work on copies of the original schedule and scenario. In case of an exception the outer
+        # schedule and scenario stay intact.
+        original_schedule = deepcopy(schedule)
+        original_scenario = deepcopy(scenario)
+        try:
+            create_results_directory(args, i+1)
+            return run_optimization(conf, sched=schedule, scen=scenario, args=args)
+        except Exception as err:
+            logging.warning('During Station optimization an error occurred {0}. '
+                            'Optimization was skipped'.format(err))
+            return original_schedule, original_scenario
+
     def remove_negative(schedule, scenario, args, _i):
         neg_rot = schedule.get_negative_rotations(scenario)
         if neg_rot:
