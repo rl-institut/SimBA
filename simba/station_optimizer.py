@@ -34,6 +34,7 @@ class StationOptimizer:
         self.electrified_stations = deepcopy(self.schedule.stations)
         self.base_stations = self.electrified_stations.copy()
         self.base_electrified_station_set = set()
+        self.combination_generators = dict()
 
         # stations which are included can not be included again. Therefore they go into
         # the set of not possible stations together with excluded stations
@@ -74,6 +75,11 @@ class StationOptimizer:
         groups = opt_util.get_groups_from_events(
             base_events, self.not_possible_stations,
             could_not_be_electrified=self.could_not_be_electrified, optimizer=self)
+
+        # sort groups by highest potential of a single electrification. Used if partial
+        # electrification is relevant
+        groups = sorted(groups, key=lambda group: opt_util.evaluate(
+            group[0], self, soc_data=self.scenario.vehicle_socs)[0][1])
 
         # storage for the sets of stations which will be generated
         list_greedy_sets = [set()] * len(groups)
@@ -619,8 +625,7 @@ class StationOptimizer:
 
     @opt_util.time_it
     def choose_station_brute(self, station_eval,
-                             pre_optimized_set=None, missing_energy=0,
-                             gens=dict()):
+                             pre_optimized_set=None, missing_energy=0):
         """Return a possible set of stations to electrify which has not been tried yet.
 
         Gives back a possible set of stations to electrify which shows potential and has not been
@@ -640,11 +645,14 @@ class StationOptimizer:
         """
 
         station_ids = [x[0] for x in station_eval]
+        # Name of the generator including the name of all stations and the number of stations to
+        # pick
+        generator_name = str(station_ids) + str(len(pre_optimized_set) - 1)
         try:
-            generator = gens[str(station_ids) + str(len(pre_optimized_set) - 1)]
+            generator = self.combination_generators[generator_name]
         except KeyError:
             generator = opt_util.combination_generator(station_ids, len(pre_optimized_set) - 1)
-            gens[str(station_ids) + str(len(pre_optimized_set) - 1)] = generator
+            self.combination_generators[generator_name]= generator
         station_eval_dict = {stat[0]: stat[1] for stat in station_eval}
         for comb in generator:
             node_name = opt_util.stations_hash(comb)

@@ -114,7 +114,7 @@ class TestStationOptimization:
 
     def test_basic_optimization(self):
         """ Test if the base optimization finishes without raising errors"""
-        trips_file_name = "trips_for_optimizer.csv"
+        trips_file_name = "trips_for_optimizer_deep.csv"
         sched, scen, args = self.basic_run(trips_file_name)
         config_path = example_root / "default_optimizer.cfg"
         conf = opt_util.read_config(config_path)
