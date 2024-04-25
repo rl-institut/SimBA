@@ -842,7 +842,6 @@ def generate_random_price_list(gc_name, start_simulation, stop_simulation):
     now = now.replace(hour=0, minute=0, second=0)
     # Iterate over the simulation duration
     for current_time in util.daterange(now, stop_simulation, day):
-        print(current_time)
         # create price events covering 24h from 6am onwards
         morning = current_time + datetime.timedelta(hours=6)
         evening_by_month = current_time + datetime.timedelta(
