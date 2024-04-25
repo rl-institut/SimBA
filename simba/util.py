@@ -399,3 +399,21 @@ def get_args():
         raise Exception("The following arguments are required: {}".format(", ".join(missing)))
 
     return args
+
+
+def daterange(start_date, end_date, time_delta):
+    """ Iterate over a datetime range using a time_delta step.
+
+    Like range(), the end_value is excluded.
+    :param start_date: first value of iteration
+    :type start_date: datetime.datetime
+    :param end_date: excluded end value of iteration
+    :type end_date: datetime.datetime
+    :param time_delta: step size of iteration
+    :type time_delta: datetime.timedelta
+    :yields: iterated value
+    :rtype: Iterator[datetime.datetime]
+    """
+    while start_date < end_date:
+        yield start_date
+        start_date += time_delta
