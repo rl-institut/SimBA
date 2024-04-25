@@ -234,7 +234,7 @@ class Mode:
             return original_schedule, original_scenario
 
     def station_optimization_single_step(schedule, scenario, args, i):
-        """ Electrify only the station with the highest potential"""
+        """ Electrify only the station with the highest potential"""  # noqa
         if not args.optimizer_config:
             logging.warning("Station optimization needs an optimization config file. "
                             "Since no path was given, station optimization is skipped")

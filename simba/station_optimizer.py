@@ -637,8 +637,6 @@ class StationOptimizer:
         :type pre_optimized_set: set
         :param missing_energy: missing energy in this branch before electrification
         :type missing_energy: float
-        :param gens: generators for brute force generation
-        :type gens: dict
         :return: combination of stations to electrify and
             false since this function does not support recursive calling
         :raises AllCombinationsCheckedException: If all combinations have been checked
@@ -652,7 +650,7 @@ class StationOptimizer:
             generator = self.combination_generators[generator_name]
         except KeyError:
             generator = opt_util.combination_generator(station_ids, len(pre_optimized_set) - 1)
-            self.combination_generators[generator_name]= generator
+            self.combination_generators[generator_name] = generator
         station_eval_dict = {stat[0]: stat[1] for stat in station_eval}
         for comb in generator:
             node_name = opt_util.stations_hash(comb)

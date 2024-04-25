@@ -140,7 +140,6 @@ class TestStationOptimization:
         assert "Station-2" in opt_sched.stations
         assert "Station-3" in opt_sched.stations
 
-
     def test_schedule_consistency(self):
         """ Test if the optimization returns all rotations even when some filters are active"""
         trips_file_name = "trips_for_optimizer.csv"
