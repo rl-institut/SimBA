@@ -121,6 +121,7 @@ class TestSimulate:
         values["output_directory"] = tmp_path
         values["strategy"] = "distributed"
         values["show_plots"] = False
+        values["skip_plots"] = False
         # tuned so that some rotations don't complete
         values["days"] = .33
         with warnings.catch_warnings():
