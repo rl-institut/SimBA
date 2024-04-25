@@ -138,6 +138,7 @@ class TestSimulate:
             "output_directory": tmp_path,
             "strategy": "distributed",
             "show_plots": False,
+            "skip_plots": False,
         })
         with warnings.catch_warnings():
             warnings.simplefilter("ignore")
