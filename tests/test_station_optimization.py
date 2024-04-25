@@ -123,6 +123,24 @@ class TestStationOptimization:
         conf.solver = "spiceev"
         opt_sched, opt_scen = run_optimization(conf, sched=sched, scen=scen, args=args)
 
+    def test_single_step_optimization(self):
+        """ Test if the base optimization finishes without raising errors"""
+        trips_file_name = "trips_for_optimizer_deep.csv"
+        sched, scen, args = self.basic_run(trips_file_name)
+        config_path = example_root / "default_optimizer.cfg"
+        conf = opt_util.read_config(config_path)
+        conf.early_return = True
+        opt_sched, opt_scen = run_optimization(conf, sched=sched, scen=scen, args=args)
+        assert "Station-1" in opt_sched.stations
+        opt_sched, opt_scen = run_optimization(conf, sched=opt_sched, scen=opt_scen, args=args)
+        assert "Station-1" in opt_sched.stations
+        assert "Station-2" in opt_sched.stations
+        opt_sched, opt_scen = run_optimization(conf, sched=opt_sched, scen=opt_scen, args=args)
+        assert "Station-1" in opt_sched.stations
+        assert "Station-2" in opt_sched.stations
+        assert "Station-3" in opt_sched.stations
+
+
     def test_schedule_consistency(self):
         """ Test if the optimization returns all rotations even when some filters are active"""
         trips_file_name = "trips_for_optimizer.csv"
