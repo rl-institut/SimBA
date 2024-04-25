@@ -142,6 +142,10 @@ def run_optimization(conf, sched=None, scen=None, args=None):
     # remove none values from socs in the vehicle_socs
     optimizer.replace_socs_from_none_to_value()
 
+    # Remove already electrified stations from possible stations
+    optimizer.not_possible_stations = set(optimizer.electrified_stations.keys()).union(
+        optimizer.not_possible_stations)
+
     # all stations electrified: are there still negative rotations?
     if conf.remove_impossible_rotations:
         neg_rots = optimizer.get_negative_rotations_all_electrified()
