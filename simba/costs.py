@@ -110,6 +110,7 @@ class Costs:
         return ("\nTotal costs:\n"
                 f"Investment cost: {cumulated['c_invest']} €. \n"
                 f"Annual investment costs: {cumulated['c_invest_annual']} €/a. \n"
+                f"Annual investment costs per km: {cumulated['c_invest_annual_per_km']} €/a. \n"
                 f"Annual maintenance costs: {cumulated['c_maint_annual']} €/a. \n"
                 f"Annual costs for electricity: {cumulated['c_el_annual']} €/a.\n")
 
