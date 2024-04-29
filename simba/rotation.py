@@ -133,13 +133,12 @@ class Rotation:
         min_recharge_soc = vars(self.schedule)[f"min_recharge_deps_{ct}"]
         stations = self.schedule.stations
         try:
-            charge_power = stations[self.arrival_name].get(f"cs_power_deps_{ct}",
-                                                           vars(self.schedule)[
-                                                               f"cs_power_deps_{ct}"])
+            charge_power = stations[self.arrival_name].get(
+                f"cs_power_deps_{ct}", vars(self.schedule)[f"cs_power_deps_{ct}"])
         except KeyError:
-            logging.warning(f"Rotation {self.id} ends at a non electrified station.")
-            # min_standing_time set to zero, so if another rotation starts here, the vehicle
-            # can always be used.
+            logging.warning(f"Rotation {self.id} ends at a non-electrified station.")
+            # min_standing_time set to zero, so if another rotation starts here,
+            # the vehicle can always be used.
             return 0
 
         capacity = self.schedule.vehicle_types[self.vehicle_type][ct]["capacity"]
@@ -147,8 +146,7 @@ class Rotation:
         # minimum time needed to recharge consumed power
         min_standing_time = (self.consumption / charge_power)
         # time to charge battery from 0 to desired SOC
-        desired_max_standing_time = ((capacity / charge_power)
-                                     * min_recharge_soc)
+        desired_max_standing_time = ((capacity / charge_power) * min_recharge_soc)
         if min_standing_time > desired_max_standing_time:
             min_standing_time = desired_max_standing_time
         return min_standing_time
