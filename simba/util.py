@@ -334,12 +334,13 @@ def get_args():
     parser.add_argument('--min-charging-time', help='define minimum time of charging',
                         default=0)
     parser.add_argument('--assign-strategy', default='adaptive',
-                        choices=['adaptive', 'fixed_recharge'], help='Strategy which defines which '
-                        'soc vehicles need to be assigned to a rotation.')
-    parser.add_argument('--default-buffer-time-opps', help='time to subtract off of standing time '
+                        choices=['adaptive', 'fixed_recharge'],
+                        help='Strategy for vehicle disposition.')
+    parser.add_argument('--default-buffer-time-opps', help='time to subtract from of standing time '
                         'at opp station to simulate docking procedure.', default=0)
-    parser.add_argument('--default-buffer-time-deps', help='time to subtract off of standing time '
-                        'at depot station to simulate docking procedure.', default=0)
+    parser.add_argument('--default-buffer-time-deps', default=0,
+                        help='time to subtract from of standing time '
+                        'at depot station to simulate docking procedure.')
     parser.add_argument('--default-voltage-level', help='Default voltage level for '
                         'charging stations if not set in electrified_stations file',
                         default='MV', choices=['HV', 'HV/MV', 'MV', 'MV/LV', 'LV'])
