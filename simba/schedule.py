@@ -7,7 +7,6 @@ import random
 import warnings
 from simba import util, optimizer_util
 from simba.rotation import Rotation
-from spice_ev.battery import Battery
 from spice_ev.components import VehicleType
 from spice_ev.scenario import Scenario
 import spice_ev.util as spice_ev_util
@@ -225,7 +224,7 @@ class Schedule:
         :type args: Namespace
         :raises NotImplementedError: if args.assign_strategy has a no allowed value
         """
-        assign_strategy = vars(args).get("assign_strategy", "adaptive")
+        assign_strategy = vars(args).get("assign_strategy") or "adaptive"
 
         if assign_strategy == "adaptive":
             self.assign_vehicles_w_adaptive_soc(args)
@@ -440,7 +439,8 @@ class Schedule:
             charge_curves[vehicle_name] = dict()
             for ct_name, v_info in vehicle_type.items():
                 charge_curves[vehicle_name][ct_name] = dict()
-                default_eff = VehicleType(name="default", capacity=1, charging_curve=[[0, 1], [1, 1]]).efficiency
+                obj = {"name": "default", "capacity": 1, "charging_curve": [[0, 1], [1, 1]]}
+                default_eff = VehicleType(obj).battery_efficiency
                 eff = v_info.get("battery_efficiency", default_eff)
                 for charge_level in charge_levels:
                     curve = optimizer_util.charging_curve_to_soc_over_time(
