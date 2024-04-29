@@ -65,6 +65,8 @@ class Costs:
     GARAGE = "garage"
     NOT_ELECTRIFIED = "Non_electrified_station"
 
+    DAYS_PER_YEAR = 365.2422
+
     def __init__(self, schedule: simba.schedule.Schedule, scenario: spice_ev.scenario.Scenario,
                  args, c_params: dict):
         """ Initialize the Costs instance.
@@ -96,6 +98,7 @@ class Costs:
         self.args = args
         self.params = c_params
         self.rounding_precision = 2
+        self.total_annual_km = self.get_total_annual_km()
 
     def info(self):
         """ Provide information about the total costs.
@@ -163,6 +166,9 @@ class Costs:
             # annual investment costs
             "c_vehicles_annual", "c_gcs_annual", "c_cs_annual",
             "c_stat_storage_annual", "c_feed_in_annual", "c_invest_annual",
+            # annual investment costs per km
+            "c_vehicles_annual_per_km", "c_gcs_annual_per_km", "c_cs_annual_per_km",
+            "c_stat_storage_annual_per_km", "c_feed_in_annual_per_km", "c_invest_annual_per_km",
             # annual maintenance costs
             "c_maint_vehicles_annual", "c_maint_gc_annual", "c_maint_cs_annual",
             "c_maint_stat_storage_annual", "c_maint_feed_in_annual",
@@ -230,6 +236,9 @@ class Costs:
 
             # calculate annual cost of charging stations, depending on their lifetime
             self.costs_per_gc[gcID]["c_cs_annual"] = c_cs / self.params["cs"]["lifetime_cs"]
+            self.costs_per_gc[gcID]["c_cs_annual_per_km"] = (
+                    self.costs_per_gc[gcID]["c_cs_annual"] /
+                    self.total_annual_km)
 
             self.costs_per_gc[gcID]["c_maint_cs_annual"] = c_cs * self.params["cs"][
                 "c_maint_cs_per_year"]
@@ -248,6 +257,12 @@ class Costs:
                     + self.costs_per_gc[gcID]["c_gcs_annual"]
                     + self.costs_per_gc[gcID]["c_stat_storage_annual"]
                     + self.costs_per_gc[gcID]["c_feed_in_annual"])
+            self.costs_per_gc[gcID]["c_invest_annual_per_km"] = (
+                    self.costs_per_gc[gcID]["c_vehicles_annual_per_km"]
+                    + self.costs_per_gc[gcID]["c_cs_annual_per_km"]
+                    + self.costs_per_gc[gcID]["c_gcs_annual_per_km"]
+                    + self.costs_per_gc[gcID]["c_stat_storage_annual_per_km"]
+                    + self.costs_per_gc[gcID]["c_feed_in_annual_per_km"])
 
             # MAINTENANCE COSTS #
             self.costs_per_gc[gcID]["c_maint_infrastructure_annual"] = (
@@ -347,6 +362,9 @@ class Costs:
                 c_garage_cs / self.params["cs"]["lifetime_cs"]
                 + c_garage_workstations / self.params["garage"][
                     "lifetime_workstations"])
+        self.costs_per_gc[self.GARAGE]["c_invest_annual_per_km"] = (
+                self.costs_per_gc[self.GARAGE]["c_invest_annual"] /
+                self.total_annual_km)
 
         return self
 
@@ -394,6 +412,9 @@ class Costs:
             # Store the individual costs of the GC as well
             self.costs_per_gc[gcID]["c_gcs"] = c_gc + c_transformer
             self.costs_per_gc[gcID]["c_gcs_annual"] = c_gc_annual
+            self.costs_per_gc[gcID]["c_gcs_annual_per_km"] = (
+                    self.costs_per_gc[gcID]["c_gcs_annual"] /
+                    self.total_annual_km)
             self.costs_per_gc[gcID]["c_maint_gc_annual"] = c_maint_gc_annual
 
             # STATIONARY STORAGE
@@ -408,6 +429,9 @@ class Costs:
 
                 self.costs_per_gc[gcID]["c_stat_storage_annual"] = c_stat_storage / self.params[
                     "stationary_storage"]["lifetime_stat_storage"]
+                self.costs_per_gc[gcID]["c_stat_storage_annual_per_km"] = (
+                        self.costs_per_gc[gcID]["c_stat_storage_annual"] /
+                        self.total_annual_km)
                 self.costs_per_gc[gcID]["c_maint_stat_storage_annual"] = (
                         c_stat_storage * self.params["stationary_storage"][
                             "c_maint_stat_storage_per_year"])
@@ -425,6 +449,9 @@ class Costs:
                 self.costs_per_gc[gcID]["c_feed_in"] = c_feed_in
                 self.costs_per_gc[gcID]["c_feed_in_annual"] = (
                         c_feed_in / self.params["feed_in"]["lifetime_feed_in"])
+                self.costs_per_gc[gcID]["c_feed_in_annual_per_km"] = (
+                        self.costs_per_gc[gcID]["c_feed_in_annual"] /
+                        self.total_annual_km)
                 self.costs_per_gc[gcID]["c_maint_feed_in_annual"] = (
                         c_feed_in * self.params["feed_in"]["c_maint_feed_in_per_year"])
             except KeyError:
@@ -489,6 +516,9 @@ class Costs:
 
                 self.costs_per_gc[gc]["c_vehicles"] += c_vehicles_vt
                 self.costs_per_gc[gc]["c_vehicles_annual"] += c_vehicles_annual
+        self.costs_per_gc[gc]["c_vehicles_annual_per_km"] = (
+                self.costs_per_gc[gc]["c_vehicles_annual"] /
+                self.total_annual_km)
 
         return self
 
@@ -531,7 +561,25 @@ class Costs:
                 + self.costs_per_gc[self.GARAGE]["c_invest_annual"]
         )
 
+        self.costs_per_gc[self.CUMULATED]["c_invest_annual_per_km"] = (
+                self.costs_per_gc[self.CUMULATED]["c_vehicles_annual_per_km"]
+                + self.costs_per_gc[self.CUMULATED]["c_cs_annual_per_km"]
+                + self.costs_per_gc[self.CUMULATED]["c_gcs_annual_per_km"]
+                + self.costs_per_gc[self.CUMULATED]["c_stat_storage_annual_per_km"]
+                + self.costs_per_gc[self.CUMULATED]["c_feed_in_annual_per_km"]
+                + self.costs_per_gc[self.GARAGE]["c_invest_annual_per_km"]
+        )
+
         return self
+
+    def get_total_annual_km(self):
+        # calculate yearly driven kilometers
+        total_km = self.schedule.get_total_distance() / 1000
+        # use full days to caclulate yearly km, since schedules can overlap with ones from next day
+        simulated_days = max(
+            round(self.scenario.n_intervals / self.scenario.stepsPerHour / 24, 0),
+            1)
+        return self.DAYS_PER_YEAR / simulated_days * total_km
 
     def to_csv_lists(self):
         """ Convert costs to a list of lists easily convertible to a CSV.
