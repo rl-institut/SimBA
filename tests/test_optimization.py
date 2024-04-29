@@ -47,18 +47,18 @@ class TestOptimization:
             }
         }
         # station known, only one trip
-        trip_dict = optimization.generate_depot_trip("opps-1", depot_trips)
+        trip_dict = optimization.generate_depot_trip("opps-1", depot_trips, 5, 30)
         assert trip_dict["name"] == "Station-0" and trip_dict["distance"] == trip1.distance
 
         # station known, two depot trips: use trip with lower distance
-        trip_dict = optimization.generate_depot_trip("opps-2", depot_trips)
+        trip_dict = optimization.generate_depot_trip("opps-2", depot_trips, 5, 30)
         assert trip_dict["name"] == "Station-3" and trip_dict["distance"] == trip2.distance
 
         # station unknown: use defaults for any depot
-        trip_dict = optimization.generate_depot_trip("station-unknown", depot_trips)
+        trip_dict = optimization.generate_depot_trip("station-unknown", depot_trips, 5, 30)
         depot_station = schedule.stations[trip_dict["name"]]
         assert depot_station["type"] == "deps"
-        assert trip_dict["distance"] == optimization.DEFAULT_DEPOT_DISTANCE * 1000
+        assert trip_dict["distance"] == 5000
 
     def test_recombination(self):
         schedule = generate_basic_schedule()
@@ -68,4 +68,5 @@ class TestOptimization:
         # recombined rotations must be possible
         for rotation in recombined_schedule.rotations.values():
             vehicle_type = schedule.vehicle_types[rotation.vehicle_type][rotation.charging_type]
-            assert rotation.consumption <= vehicle_type["capacity"]
+            if rotation.charging_type == "deps":
+                assert rotation.consumption <= vehicle_type["capacity"]

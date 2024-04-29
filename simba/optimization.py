@@ -7,11 +7,6 @@ from simba.rotation import Rotation
 from simba.trip import Trip
 
 
-# defaults
-DEFAULT_DEPOT_DISTANCE = 5  # km
-DEFAULT_MEAN_SPEED = 30  # km/h
-
-
 def service_optimization(schedule, scenario, args):
     """ Optimize rotations based on feasability.
 
@@ -132,24 +127,35 @@ def service_optimization(schedule, scenario, args):
     }
 
 
-def prepare_trips(schedule):
-    """ Find trips to/from depots, generate dictionary from rotations to their non-depot trips.
+def prepare_trips(schedule, negative_rotations=None):
+    """ Prepares schedule for recombination.
 
-    An original rotation may be split if it temporarily returns to a depot.
+    Find empty trips to/from depots (Ein/Aussetzfahrten) for negative depb rotations.
 
     :param schedule: Schedule to be optimized
     :type schedule: simba.Schedule
+    :param negative_rotations: ID of negative rotations
+    :type negative_rotations: iterable
     :return: rotation ID -> trip list (without depot trips)
     :rtype: dict
     """
     trips = {}  # structure: rotation ID -> trip list
     depot_trips = {}  # take note of trips from/to depots. station -> depot -> trip
     for rot_id, rot in schedule.rotations.items():
+        # add initial trip from depot to depot_trips
+        first_trip = rot.trips[0]
+        assert schedule.stations[first_trip.departure_name]["type"] == "deps"
+        add_depot_trip(first_trip.arrival_name, first_trip.departure_name, first_trip, depot_trips)
+        # add final trip to depot_trips
+        last_trip = rot.trips[-1]
+        assert schedule.stations[last_trip.arrival_name]["type"] == "deps"
+        add_depot_trip(last_trip.departure_name, last_trip.arrival_name, last_trip, depot_trips)
+
         trip_list = []
-        rot_counter = 0  # count depot returns, used for unique naming
-        rot_name = rot_id
-        for trip in rot.trips:
-            # check if trip starts or ends in depot
+        # look at all trips except first and last
+        for trip in rot.trips[1:-1]:
+            trip_list.append(trip)
+            # check if intermediate trip starts or ends in depot
             departure_station = schedule.stations.get(trip.departure_name)
             arrival_station = schedule.stations.get(trip.arrival_name)
             depot_station = None
@@ -160,44 +166,49 @@ def prepare_trips(schedule):
             elif arrival_station is not None and arrival_station["type"] == "deps":
                 depot_station = trip.arrival_name
                 trip_station = trip.departure_name
-            if depot_station is None:
-                # not a depot trip: add to trips for recombination
-                trip_list.append(trip)
-            else:
-                # trip starts or ends in depot: save trip in depot_trips, but do not add to trips
-                if trip_station not in depot_trips:
-                    # new depot
-                    depot_trips[trip_station] = {}
-                try:
-                    old_trip = depot_trips[trip_station][depot_station]
-                    # trip to depot already known:
-                    # must have same distance and duration
-                    # consumption can be different, as it depends on environment
-                    if trip.distance != old_trip.distance:
-                        logging.error(f"Depot trips {depot_station} - {trip_station} "
-                                      f"differ in distance: {old_trip.distance} / {trip.distance}")
-                    t1 = (trip.arrival_time - trip.departure_time).total_seconds() // 60
-                    t2 = (old_trip.arrival_time - old_trip.departure_time).total_seconds() // 60
-                    if t1 != t2:
-                        logging.error(f"Depot trips {depot_station} - {trip_station} "
-                                      f"differ in duration: {t1} / {t2}")
-                except KeyError:
-                    # trip from current station to depot not yet known
-                    depot_trips[trip_station][depot_station] = trip
-                # rotation is finished once it reaches depot again:
-                # save list, prepare to fill a new one
-                if trip_list:
-                    trips[rot_name] = trip_list
-                    rot_counter += 1
-                    rot_name = f"{rot_id}_{rot_counter}"
-                    trip_list = []
-        # all trips of a rotation done, but may not end in depot: add final trips
-        if trip_list:
-            trips[rot_name] = trip_list
+            if depot_station is not None:
+                # trip starts or ends in depot: save trip in depot_trips
+                add_depot_trip(trip_station, depot_station, trip, depot_trips)
+                # dummy trip from depot to same depot for lookup
+                depot_trip = Trip(
+                    rotation=rot,
+                    departure_time=trip.arrival_time,
+                    departure_name=depot_station,
+                    arrival_time=trip.arrival_time,
+                    arrival_name=depot_station,
+                    distance=0.1,  # must not be zero?
+                    line=None,
+                    temperature=trip.temperature,
+                    height_difference=0,
+                    level_of_loading=0,
+                    mean_speed=18,
+                )
+                add_depot_trip(depot_station, depot_station, depot_trip, depot_trips)
+        # all trips done
+
+        # make note of trips from negative depot rotations
+        qualified_id = negative_rotations is None or rot_id in negative_rotations
+        if rot.charging_type == "depb" and qualified_id:
+            trips[rot_id] = trip_list
     return (trips, depot_trips)
 
 
-def generate_depot_trip(station, depot_trips):
+def add_depot_trip(station_name, depot_name, trip, depot_trips):
+    if station_name in depot_trips:
+        if depot_name in depot_trips[station_name]:
+            # trip from station to depot already known: use trip with lesser distance
+            if trip.distance < depot_trips[station_name][depot_name].distance:
+                depot_trips[station_name][depot_name] = trip
+        else:
+            # trip from station to depot unknown: save trip as reference
+            depot_trips[station_name][depot_name] = trip
+    else:
+        # no trip to any depot known for this station: save trip as reference
+        depot_trips[station_name] = {depot_name: trip}
+    return depot_trips
+
+
+def generate_depot_trip(station, depot_trips, default_depot_distance, default_mean_speed):
     """
     Look up closest depot to a station.
 
@@ -206,6 +217,10 @@ def generate_depot_trip(station, depot_trips):
     :type station: str
     :param depot_trips: look-up-table for depot trips
     :type depot_trips: dict
+    :param default_depot_distance: default assumed average distance from any station to a depot [km]
+    :type default_depot_distance: numeric
+    :param default_mean_speed: default assumed average speed for busses [km/h]
+    :type default_mean_speed: numeric
     :return: name and distance to closest depot
     :rtype: dict
     """
@@ -227,9 +242,9 @@ def generate_depot_trip(station, depot_trips):
         depot_name = next(iter(any_station.keys()))
         return {
             "name": depot_name,
-            "distance": DEFAULT_DEPOT_DISTANCE * 1000,
-            "mean_speed": DEFAULT_MEAN_SPEED,
-            "travel_time": datetime.timedelta(hours=DEFAULT_DEPOT_DISTANCE/DEFAULT_MEAN_SPEED),
+            "distance": default_depot_distance * 1000,
+            "mean_speed": default_mean_speed,
+            "travel_time": datetime.timedelta(hours=default_depot_distance/default_mean_speed),
         }
 
 
@@ -245,15 +260,22 @@ def recombination(schedule, args, trips, depot_trips):
     :type schedule: simba.Schedule
     :param args: Command line arguments
     :type args: argparse.Namespace
-    :param trips: look-up-table rotation ID -> trip list
+    :param trips: look-up-table depb rotation ID -> trip list
     :type trips: dict
     :param depot_trips: look-up-table for depot trips
     :type depot_trips: dict
     :return: recombined schedule
     :rtype: simba.Schedule
     """
-    rotations = {}
-    for rot_id, trip_list in trips.items():
+    new_rotations = dict()
+    for rot_id, rot in schedule.rotations.items():
+        try:
+            trip_list = trips[rot_id]
+        except KeyError:
+            # no info, no change
+            new_rotations[rot_id] = rot
+            continue
+
         # examine single rotation: which trips can be made safely with a single battery charge?
         # generate initial trip from depot to first station,
         # then add trips from original rotation until soc is too low to reach a depot again
@@ -282,7 +304,9 @@ def recombination(schedule, args, trips, depot_trips):
                 rotation.set_charging_type(charging_type)
 
                 # begin rotation in depot: add initial trip
-                depot_trip = generate_depot_trip(trip.departure_name, depot_trips)
+                depot_trip = generate_depot_trip(
+                    trip.departure_name, depot_trips,
+                    args.default_depot_distance, args.default_mean_speed)
                 rotation.add_trip({
                     "departure_time": trip.departure_time - depot_trip["travel_time"],
                     "departure_name": depot_trip["name"],
@@ -303,9 +327,17 @@ def recombination(schedule, args, trips, depot_trips):
                 rotation.calculate_consumption()
                 soc += rotation.trips[0].delta_soc  # new soc after initial trip
 
+                if rot_counter > 0:
+                    logging.info(
+                        f'{rot_id}: Neue Einsetzfahrt '
+                        f'{trip.departure_time - depot_trip["travel_time"]} '
+                        f'{depot_trip["name"]} - {trip.departure_name}')
+
             # can trip be completed while having enough energy to reach depot again?
             # probe return trip
-            depot_trip = generate_depot_trip(trip.arrival_name, depot_trips)
+            depot_trip = generate_depot_trip(
+                trip.arrival_name, depot_trips,
+                args.default_depot_distance, args.default_mean_speed)
             depot_trip = {
                 "departure_time": trip.arrival_time,
                 "departure_name": trip.arrival_name,
@@ -340,7 +372,11 @@ def recombination(schedule, args, trips, depot_trips):
                 else:
                     # not initial trip: add last possible depot trip
                     rotation.add_trip(last_depot_trip)
-                    rotations[rotation.id] = rotation
+                    logging.info(
+                        f'{rot_id}: Neue Aussetzfahrt '
+                        f'{last_depot_trip["departure_time"]} '
+                        f'{last_depot_trip["departure_name"]} - {last_depot_trip["arrival_name"]}')
+                    new_rotations[rotation.id] = rotation
                     last_depot_trip = None
                     rot_counter += 1
                     rot_name = f"{rot_id}_r_{rot_counter}"
@@ -350,8 +386,8 @@ def recombination(schedule, args, trips, depot_trips):
         # rotation finished (trip list empty): add final depot trip, if needed
         if last_depot_trip is not None:
             rotation.add_trip(last_depot_trip)
-            rotations[rotation.id] = rotation
+            new_rotations[rotation.id] = rotation
 
-    schedule.rotations = rotations
+    schedule.rotations = new_rotations
     schedule.calculate_consumption()
     return schedule

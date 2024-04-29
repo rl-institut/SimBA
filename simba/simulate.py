@@ -218,8 +218,9 @@ class Mode:
             logging.info('No negative rotations to remove')
         return schedule, scenario
 
-    def recombination(schedule, scenario, args, _i):
-        trips, depot_trips = optimization.prepare_trips(schedule)
+    def split_negative_depb(schedule, scenario, args, _i):
+        negative_rotations = schedule.get_negative_rotations(scenario)
+        trips, depot_trips = optimization.prepare_trips(schedule, negative_rotations)
         recombined_schedule = optimization.recombination(schedule, args, trips, depot_trips)
         # re-run schedule
         scenario = recombined_schedule.run(args)
