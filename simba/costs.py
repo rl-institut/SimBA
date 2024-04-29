@@ -259,11 +259,8 @@ class Costs:
                     + self.costs_per_gc[gcID]["c_stat_storage_annual"]
                     + self.costs_per_gc[gcID]["c_feed_in_annual"])
             self.costs_per_gc[gcID]["c_invest_annual_per_km"] = (
-                    self.costs_per_gc[gcID]["c_vehicles_annual_per_km"]
-                    + self.costs_per_gc[gcID]["c_cs_annual_per_km"]
-                    + self.costs_per_gc[gcID]["c_gcs_annual_per_km"]
-                    + self.costs_per_gc[gcID]["c_stat_storage_annual_per_km"]
-                    + self.costs_per_gc[gcID]["c_feed_in_annual_per_km"])
+                self.costs_per_gc[gcID]["c_invest_annual"] /
+                self.total_annual_km)
 
             # MAINTENANCE COSTS #
             self.costs_per_gc[gcID]["c_maint_infrastructure_annual"] = (
@@ -517,9 +514,9 @@ class Costs:
 
                 self.costs_per_gc[gc]["c_vehicles"] += c_vehicles_vt
                 self.costs_per_gc[gc]["c_vehicles_annual"] += c_vehicles_annual
-        self.costs_per_gc[gc]["c_vehicles_annual_per_km"] = (
-                self.costs_per_gc[gc]["c_vehicles_annual"] /
-                self.total_annual_km)
+            self.costs_per_gc[gc]["c_vehicles_annual_per_km"] = (
+                    self.costs_per_gc[gc]["c_vehicles_annual"] /
+                    self.total_annual_km)
 
         return self
 
@@ -563,12 +560,8 @@ class Costs:
         )
 
         self.costs_per_gc[self.CUMULATED]["c_invest_annual_per_km"] = (
-                self.costs_per_gc[self.CUMULATED]["c_vehicles_annual_per_km"]
-                + self.costs_per_gc[self.CUMULATED]["c_cs_annual_per_km"]
-                + self.costs_per_gc[self.CUMULATED]["c_gcs_annual_per_km"]
-                + self.costs_per_gc[self.CUMULATED]["c_stat_storage_annual_per_km"]
-                + self.costs_per_gc[self.CUMULATED]["c_feed_in_annual_per_km"]
-                + self.costs_per_gc[self.GARAGE]["c_invest_annual_per_km"]
+                self.costs_per_gc[self.CUMULATED]["c_invest_annual"] /
+                self.total_annual_km
         )
 
         return self
