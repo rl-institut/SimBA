@@ -419,7 +419,6 @@ class Schedule:
             digits = len(str(vt_cnt))
             # assign new zero-padded ID (all of same vehicle type have same length)
             rot.vehicle_id = f"{vt_ct}_{int(old_num):0{digits}}"
-            rot.vehicle_id = f"{vt_ct}_{'0' * (digits - len(old_num))}{old_num}"
         self.vehicle_type_counts = vehicle_type_counts
 
     def get_charge_curves(self, charge_levels, final_value: float, time_step_min: float) -> dict:
@@ -1184,8 +1183,8 @@ def soc_at_departure_time(v_id, deps, departure_time, vehicle_data, stations, ch
     :rtype: float
     """
 
-    vt = v_id.split("_")[0]
-    ct = v_id.split("_")[1]
+    vt = "_".join(v_id.split("_")[:-2])
+    ct = v_id.split("_")[-2]
 
     start_soc = vehicle_data[v_id]["soc"]
 
