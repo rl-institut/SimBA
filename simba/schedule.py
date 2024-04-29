@@ -309,11 +309,11 @@ class Schedule:
     def assign_vehicles_w_adaptive_soc(self, args):
         """ Assign vehicle IDs to rotations.
 
-        A greedy approach is used.
-        For every rotation it is checked if an existing vehicle of the same type at the same
-        location has enough energy to service the rotation, not accounting for possible opportunity
-        charging of the next rotation. If multiple such vehicles exist, the one with the lowest soc
-        is used. If no vehicle is available, a new vehicle ID is generated.
+        A greedy approach is used to assign a vehicle to every rotation.
+        If an existing vehicle of the same type and location has enough soc to service the rotation,
+        not accounting for possible opportunity charging of the next rotation it is used.
+        If multiple such vehicles exist, the one with the lowest soc is used.
+        If no vehicle is available, a new vehicle ID is generated.
         :param args: arguments
         :type args: Namespace
         """
@@ -337,8 +337,8 @@ class Schedule:
         charge_levels.add(self.cs_power_deps_depb)
         charge_levels.add(self.cs_power_deps_oppb)
 
-        # Calculates numeric charge curves for each charge_level. The charge levels might clip the
-        # charge curve of the vehicle.
+        # Calculates numeric charge curves for each charge_level.
+        # The charge levels might clip the charge curve of the vehicle.
         charge_curves = self.get_charge_curves(charge_levels, initial_soc, time_step_min=1)
 
         rotations = sorted(self.rotations.values(), key=lambda rot: rot.departure_time)
