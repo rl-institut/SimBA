@@ -147,6 +147,5 @@ class Rotation:
         min_standing_time = (self.consumption / charge_power)
         # time to charge battery from 0 to desired SOC
         desired_max_standing_time = ((capacity / charge_power) * min_recharge_soc)
-        if min_standing_time > desired_max_standing_time:
-            min_standing_time = desired_max_standing_time
+        min_standing_time = min(min_standing_time, desired_max_standing_time)
         return min_standing_time
