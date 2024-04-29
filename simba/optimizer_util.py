@@ -338,8 +338,6 @@ def get_delta_soc(soc_over_time_curve, soc, duration_min: float):
     else:
         end_soc = soc_over_time_curve[soc_over_time_curve[:, 0] >= second_time][0, 1]
 
-    # make sure to limit delta soc to 1 if negative socs are given. They are possible during
-    # the optimization process but will be continuously raised until they are >0.
     return end_soc - start_soc + negative_soc
 
 
