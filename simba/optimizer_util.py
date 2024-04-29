@@ -625,7 +625,7 @@ def charging_curve_to_soc_over_time(
                 warnings.warn("charging_curve_to_soc_over_time stopped early")
                 logger.warning(
                     "charging_curve_to_soc_over_time stopped early, because the charging power of "
-                    "%s was to low for eps: %s at an soc of %s an a desired soc of %s", power, eps,
+                    "%s was to low for eps: %s at an soc of %s and a desired soc of %s", power, eps,
                     soc, final_value)
             final_value = soc
             break
