@@ -366,7 +366,6 @@ class Schedule:
             standing_vehicles = list(filter(lambda x: vt_ct in x[0] * (x[1] == rot.departure_name),
                                             all_standing_vehicles))
 
-
             # join standing vehicles with their expected soc and sort by soc
             socs = list(map(lambda v_id_deps: soc_at_departure_time(v_id_deps[0], v_id_deps[1],
                                                                     departure_time, vehicle_data,
@@ -1159,7 +1158,6 @@ def get_charge_delta_soc(charge_curves: dict, vt: str, ct: str, max_power: float
     """
     charge_curve = charge_curves[vt][ct][max_power]
     return optimizer_util.get_delta_soc(charge_curve, start_soc, duration_min=duration_min)
-
 
 
 def soc_at_departure_time(v_id, deps, departure_time, vehicle_data, stations, charge_curves, args):
