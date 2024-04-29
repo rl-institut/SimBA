@@ -403,6 +403,12 @@ class Schedule:
                     negative_rotations.add(last_rot_id)
 
         return list(negative_rotations)
+    
+    def get_total_distance(self):
+        total_distance = 0
+        for rotation in self.rotations.values():
+            total_distance += rotation.distance
+        return total_distance
 
     def rotation_filter(self, args, rf_list=[]):
         """Edits rotations according to args.rotation_filter_variable.

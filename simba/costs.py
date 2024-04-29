@@ -26,6 +26,9 @@ def calculate_costs(c_params, scenario, schedule, args):
         # annual investment costs
         "c_vehicles_annual", "c_gcs_annual", "c_cs_annual", "c_garage_annual",
         "c_stat_storage_annual", "c_feed_in_annual", "c_invest_annual",
+        # annual investment costs per km
+        "c_vehicles_annual_per_km", "c_gcs_annual_per_km", "c_cs_annual_per_km", "c_garage_annual_per_km",
+        "c_stat_storage_annual_per_km", "c_feed_in_annual_per_km", "c_invest_annual_per_km",
         # annual maintenance costs
         "c_maint_vehicles_annual", "c_maint_gc_annual", "c_maint_cs_annual",
         "c_maint_stat_storage_annual", "c_maint_feed_in_annual", "c_maint_infrastructure_annual",
@@ -33,6 +36,13 @@ def calculate_costs(c_params, scenario, schedule, args):
         # annual electricity costs
         "c_el_procurement_annual", "c_el_power_price_annual", "c_el_energy_price_annual",
         "c_el_taxes_annual", "c_el_feed_in_remuneration_annual", "c_el_annual"]}
+    
+    # calculate yearly driven kilometers
+    DAYS_PER_YEAR = 365.2422
+    total_km = schedule.get_total_distance() / 1000
+    # use full days to caclulate yearly km, since schedules might overlap with ones from next day or week
+    simulated_days = max(round(scenario.n_intervals / scenario.stepsPerHour / 24, 0), 1)
+    total_yearly_km = DAYS_PER_YEAR / simulated_days * total_km
 
     # INVESTMENT COSTS #
 
@@ -56,6 +66,7 @@ def calculate_costs(c_params, scenario, schedule, args):
             costs["c_vehicles"] += c_vehicles_vt
             # calculate annual cost of vehicles of this type, depending on their lifetime
             costs["c_vehicles_annual"] += c_vehicles_vt / c_params["vehicles"][v_type]["lifetime"]
+    costs["c_vehicles_annual_per_km"] = costs["c_vehicles_annual"] / total_yearly_km
 
     # GRID CONNECTION POINTS
     gc_in_use = scenario.components.grid_connectors
@@ -122,9 +133,13 @@ def calculate_costs(c_params, scenario, schedule, args):
         except KeyError:
             # if no feed in at grid connector: cost is 0
             pass
+    # calculate costs per year and kilometer
+    costs["c_gcs_annual_per_km"] = costs["c_gcs_annual"] / total_yearly_km
+    costs["c_feed_in_annual_per_km"] = costs["c_feed_in_annual"] / total_yearly_km
 
     costs["c_stat_storage_annual"] = (
         costs["c_stat_storage"] / c_params["stationary_storage"]["lifetime_stat_storage"])
+    costs["c_stat_storage_annual_per_km"] = costs["c_stat_storage_annual"] / total_yearly_km
     costs["c_maint_stat_storage_annual"] = (
         costs["c_stat_storage"] * c_params["stationary_storage"]["c_maint_stat_storage_per_year"])
 
@@ -166,6 +181,7 @@ def calculate_costs(c_params, scenario, schedule, args):
 
     # calculate annual cost of charging stations, depending on their lifetime
     costs["c_cs_annual"] = costs["c_cs"] / c_params["cs"]["lifetime_cs"]
+    costs["c_cs_annual_per_km"] = costs["c_cs_annual"] / total_yearly_km
 
     costs["c_maint_cs_annual"] = costs["c_cs"] * c_params["cs"]["c_maint_cs_per_year"]
 
@@ -181,6 +197,7 @@ def calculate_costs(c_params, scenario, schedule, args):
     costs["c_garage_annual"] = (
         costs["c_garage_cs"] / c_params["cs"]["lifetime_cs"]
         + costs["c_garage_workstations"] / c_params["garage"]["lifetime_workstations"])
+    costs["c_garage_annual_per_km"] = costs["c_garage_annual"] / total_yearly_km
 
     # TOTAL COSTS
     costs["c_invest"] = (costs["c_vehicles"] + costs["c_cs"] + costs["c_gcs"] + costs["c_garage"] +
@@ -188,6 +205,9 @@ def calculate_costs(c_params, scenario, schedule, args):
     costs["c_invest_annual"] = (costs["c_vehicles_annual"] + costs["c_cs_annual"] +
                                 costs["c_gcs_annual"] + costs["c_garage_annual"] +
                                 costs["c_stat_storage_annual"] + costs["c_feed_in_annual"])
+    costs["c_invest_annual_per_km"] = (costs["c_vehicles_annual_per_km"] + costs["c_cs_annual_per_km"] +
+                                       costs["c_gcs_annual_per_km"] + costs["c_garage_annual_per_km"] +
+                                       costs["c_stat_storage_annual_per_km"] + costs["c_feed_in_annual_per_km"])
 
     # MAINTENANCE COSTS #
 
@@ -254,6 +274,7 @@ def calculate_costs(c_params, scenario, schedule, args):
         "\nTotal costs:\n"
         f"Investment cost: {costs['c_invest']} €. \n"
         f"Annual investment costs: {costs['c_invest_annual']} €/a. \n"
+        f"Annual investment costs per km: {costs['c_invest_annual_per_km']} €/a. \n"
         f"Annual maintenance costs: {costs['c_maint_annual']} €/a. \n"
         f"Annual costs for electricity: {costs['c_el_annual']} €/a.\n")
 
