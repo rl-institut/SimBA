@@ -409,7 +409,7 @@ def evaluate(events: typing.Iterable[LowSocEvent],
 
             desired_soc = optimizer.args.desired_soc_opps
             soc = max(soc, 0)
-            d_soc = get_delta_soc(soc_over_time, soc, standing_time_min) * e.capacity
+            d_soc = get_delta_soc(soc_over_time, soc, standing_time_min)
             pot_kwh = min(d_soc, desired_soc) * e.capacity
 
             # potential is at max the minimum between the useful delta soc * capacity or the
