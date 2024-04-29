@@ -128,11 +128,11 @@ The example (data/simba.cfg) contains parameter descriptions which are explained
    * - default_buffer_time_opps
      - 0
      - Numeric or dict e.g. {"10-22": 5, "else": 2} (else clause is a must if using the dict definition)
-     - The buffer time in minutes is deducted off of the planned standing time at each opportunity station. It can be used to model things like delays and/or docking procedures. This value is used if no specific buffer is defined per station in :ref:`electrified_stations`. It can either be given as constant or depending on the time of the day using a dict.
+     - The buffer time in minutes is subtracted from of the planned standing time at each opportunity station. It can be used to model things like delays and/or docking procedures. This value is used if no specific buffer is defined per station in :ref:`electrified_stations`. It can either be given as constant or depending on the time of the day using a dict.
    * - default_buffer_time_deps
      - 0
      - Numeric
-     - The buffer time in minutes is deducted off of the planned standing time at each depot station. It can be used to model things like delays and/or docking procedures. This value is used for every depot station
+     - The buffer time in minutes is subtracted from of the planned standing time at each depot station. It can be used to model things like delays and/or docking procedures. This value is used for every depot station
    * - assign_strategy
      - adaptive
      - adaptive, min_recharge
