@@ -171,7 +171,11 @@ class Mode:
     """
 
     def sim(schedule, scenario, args, _i):# Noqa
-        scenario = schedule.run(args)
+        scenario = schedule.run(args, mode="distributed")
+        return schedule, scenario
+
+    def sim_greedy(schedule, scenario, args, _i):# Noqa
+        scenario = schedule.run(args, mode="greedy")
         return schedule, scenario
 
     def service_optimization(schedule, scenario, args, _i):

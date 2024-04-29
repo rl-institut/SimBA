@@ -267,7 +267,7 @@ class Schedule:
                 inconsistent_rotations[rot_id] = str(e)
         return inconsistent_rotations
 
-    def run(self, args):
+    def run(self, args, mode="distributed"):
         """Runs a schedule without assigning vehicles.
 
         For external usage the core run functionality is accessible through this function. It
@@ -280,12 +280,13 @@ class Schedule:
         """
         # Make sure all rotations have an assigned vehicle
         assert all([rot.vehicle_id is not None for rot in self.rotations.values()])
+        assert mode in ["distributed","greedy"]
         scenario = self.generate_scenario(args)
 
         logging.info("Running SpiceEV...")
         with warnings.catch_warnings():
             warnings.simplefilter('ignore', UserWarning)
-            scenario.run('distributed', vars(args).copy())
+            scenario.run(mode, vars(args).copy())
         assert scenario.step_i == scenario.n_intervals, \
             'SpiceEV simulation aborted, see above for details'
         return scenario
@@ -761,7 +762,6 @@ class Schedule:
                         departure_station_type = self.stations[gc_name]["type"]
                     except KeyError:
                         departure_station_type = "deps"
-
                     vehicles[vehicle_id] = {
                         "connected_charging_station": None,
                         "estimated_time_of_departure": trip.departure_time.isoformat(),
