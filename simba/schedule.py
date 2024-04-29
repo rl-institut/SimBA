@@ -224,9 +224,9 @@ class Schedule:
         :type args: Namespace
         :raises NotImplementedError: if args.assign_strategy has a no allowed value
         """
-        assign_strategy = vars(args).get("assign_strategy")
+        assign_strategy = vars(args).get("assign_strategy", "adaptive")
 
-        if assign_strategy is None or assign_strategy == "adaptive":
+        if assign_strategy == "adaptive":
             self.assign_vehicles_w_adaptive_soc(args)
         elif assign_strategy == "fixed_recharge":
             self.assign_vehicles_w_min_recharge_soc()
