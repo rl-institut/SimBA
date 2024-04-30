@@ -1,4 +1,5 @@
 from argparse import Namespace
+from copy import deepcopy
 
 from simba import optimization
 from tests.helpers import generate_basic_schedule
@@ -7,6 +8,8 @@ from tests.helpers import generate_basic_schedule
 class TestOptimization:
     def test_prepare_trips(self):
         schedule = generate_basic_schedule()
+        for r in schedule.rotations.values():
+            r.set_charging_type("depb")
         trips, depot_trips = optimization.prepare_trips(schedule)
 
         # trips must not start/end in depot
@@ -32,7 +35,19 @@ class TestOptimization:
                 else:
                     assert arrival_station["type"] == "deps" or departure_station["type"] == "deps"
 
-    def test_generate_depot_trip(self):
+        # only depb rotations, no filter: trips must contain all trips except initial/final
+        for rot_id, rot in schedule.rotations.items():
+            assert len(trips[rot_id]) == len(rot.trips) - 2
+
+        # Station-0 only depot
+        for station_name in schedule.stations.keys():
+            try:
+                assert "Station-0" in depot_trips[station_name]
+            except KeyError:
+                # no trip from this station to depot
+                pass
+
+    def test_generate_depot_trip_data_dict(self):
         schedule = generate_basic_schedule()
         trip1 = schedule.rotations["1"].trips[0]
         trip2 = schedule.rotations["1"].trips[-1]
@@ -46,27 +61,58 @@ class TestOptimization:
                 "Station-3": trip2,
             }
         }
+        DEFAULT_DISTANCE = 5  # km
+        DEFAULT_SPEED = 30  # km/h
         # station known, only one trip
-        trip_dict = optimization.generate_depot_trip("opps-1", depot_trips, 5, 30)
+        trip_dict = optimization.generate_depot_trip_data_dict(
+            "opps-1", depot_trips, DEFAULT_DISTANCE, DEFAULT_SPEED)
         assert trip_dict["name"] == "Station-0" and trip_dict["distance"] == trip1.distance
 
         # station known, two depot trips: use trip with lower distance
-        trip_dict = optimization.generate_depot_trip("opps-2", depot_trips, 5, 30)
+        trip_dict = optimization.generate_depot_trip_data_dict(
+            "opps-2", depot_trips, DEFAULT_DISTANCE, DEFAULT_SPEED)
         assert trip_dict["name"] == "Station-3" and trip_dict["distance"] == trip2.distance
 
         # station unknown: use defaults for any depot
-        trip_dict = optimization.generate_depot_trip("station-unknown", depot_trips, 5, 30)
+        trip_dict = optimization.generate_depot_trip_data_dict(
+            "station-unknown", depot_trips, DEFAULT_DISTANCE, DEFAULT_SPEED)
         depot_station = schedule.stations[trip_dict["name"]]
         assert depot_station["type"] == "deps"
-        assert trip_dict["distance"] == 5000
+        assert trip_dict["distance"] == DEFAULT_DISTANCE * 1000
 
     def test_recombination(self):
         schedule = generate_basic_schedule()
-        args = Namespace(**({"desired_soc_deps": 1}))
+        for r in schedule.rotations.values():
+            r.set_charging_type("depb")
+        args = Namespace(**({
+            "desired_soc_deps": 1,
+            "default_depot_distance": 5,
+            "default_mean_speed": 30
+        }))
         trips, depot_trips = optimization.prepare_trips(schedule)
+        original_trips = deepcopy(trips)
+        original_schedule = deepcopy(schedule)
         recombined_schedule = optimization.recombination(schedule, args, trips, depot_trips)
         # recombined rotations must be possible
         for rotation in recombined_schedule.rotations.values():
             vehicle_type = schedule.vehicle_types[rotation.vehicle_type][rotation.charging_type]
             if rotation.charging_type == "deps":
                 assert rotation.consumption <= vehicle_type["capacity"]
+        # all trips must be accounted for
+        for rot_id, trip_list in original_trips.items():
+            new_rot_name = f"{rot_id}_r"
+            counter = 0
+            trip_counter = 0
+            while new_rot_name in recombined_schedule.rotations:
+                trip_counter += len(recombined_schedule.rotations[new_rot_name].trips) - 2
+                counter += 1
+                new_rot_name = f"{rot_id}_r_{counter}"
+            assert len(trip_list) == trip_counter
+
+        # make one trip impossible
+        schedule = original_schedule
+        trips = deepcopy(original_trips)
+        trips["1"][0].delta_soc = -2
+        recombined_schedule = optimization.recombination(schedule, args, trips, depot_trips)
+        # add Ein/Aussetzfahrt, subtract one impossible trip
+        assert len(original_trips["1"]) + 2 - 1 == len(recombined_schedule.rotations["1_r"].trips)

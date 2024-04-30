@@ -92,7 +92,7 @@ After making sure the first trip is possible, the next trip of the same original
 In this fashion, all the trips of a rotation are checked if they can be made even without opportunity charging. Rotations will not become longer (different rotations are not mixed), but a smart vehicle disposition may assign the same vehicle to multiple rotations.
 Naming convention of new rotations: the new identifier will start with the original rotation name, followed by the letter "r" and may end with a counter of new rotations if there are multiple new recombinations from the same original, all parts separated by underscores. If the original rotations was named "Monday", the following recombination identifiers are possible (but not limited to this):
 - Monday_r (first recombination)
-- Monday_r_3 (third recombination of first leg)
+- Monday_r_3 (third recombination)
 
 Station Optimization
 --------------------

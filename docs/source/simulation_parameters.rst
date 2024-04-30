@@ -134,13 +134,13 @@ The example (data/simba.cfg) contains parameter descriptions which are explained
      - HV, HV/MV, MV, MV/LV, LV
      - The default voltage level is used, if no specific voltage level is defined per station in :ref:`electrified_stations`. It is used to calculate the costs. Choices describe high voltage (HV), transformer between high and medium voltage (HV/MV), medium voltage MV, transformer between medium and low voltage (MV/LV) and low voltage (LV)
    * - default_mean_speed
-     - 30 km/h
+     - 30
      - numeric
-     - Default assumed mean speed for busses. Used in split_negative_depb for generating depot trips.
+     - Default assumed mean speed for busses in km/h. Used in split_negative_depb for generating depot trips.
    * - default_depot_distance
-     - 5 km
+     - 5
      - numeric
-     - Default assumed average distance from any station to a depot. Used in split_negative_depb for generating depot trips.
+     - Default assumed average distance from any station to a depot in km. Used in split_negative_depb for generating depot trips.
    * - days
      - Optional: no default given
      - Numeric
