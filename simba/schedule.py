@@ -83,7 +83,7 @@ class Schedule:
                     reader = csv.DictReader(f, delimiter=delim)
                     for row in reader:
                         station_data.update({str(row['Endhaltestelle']):
-                                                 {"elevation": float(row['elevation'])}})
+                                            {"elevation": float(row['elevation'])}})
             except FileNotFoundError or KeyError:
                 warnings.warn("Warning: external csv file '{}' not found or not named properly "
                               "(Needed column names are 'Endhaltestelle' and 'elevation')".
