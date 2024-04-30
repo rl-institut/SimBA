@@ -42,6 +42,9 @@ def calculate_costs(c_params, scenario, schedule, args):
     # Get electricity costs from SpiceEV
     cost_object.set_electricity_costs()
 
+    # Calculate the annual costs per kilometer
+    cost_object.set_annual_invest_per_km()
+
     # Cumulate the costs of all gcs
     cost_object.cumulate()
 
@@ -98,7 +101,6 @@ class Costs:
         self.args = args
         self.params = c_params
         self.rounding_precision = 2
-        self.total_annual_km = self.get_total_annual_km()
 
     def info(self):
         """ Provide information about the total costs.
@@ -237,11 +239,6 @@ class Costs:
 
             # calculate annual cost of charging stations, depending on their lifetime
             self.costs_per_gc[gcID]["c_cs_annual"] = c_cs / self.params["cs"]["lifetime_cs"]
-            if self.total_annual_km:
-                self.costs_per_gc[gcID]["c_cs_annual_per_km"] = (
-                        self.costs_per_gc[gcID]["c_cs_annual"] /
-                        self.total_annual_km)
-
             self.costs_per_gc[gcID]["c_maint_cs_annual"] = c_cs * self.params["cs"][
                 "c_maint_cs_per_year"]
 
@@ -259,10 +256,6 @@ class Costs:
                     + self.costs_per_gc[gcID]["c_gcs_annual"]
                     + self.costs_per_gc[gcID]["c_stat_storage_annual"]
                     + self.costs_per_gc[gcID]["c_feed_in_annual"])
-            if self.total_annual_km:
-                self.costs_per_gc[gcID]["c_invest_annual_per_km"] = (
-                    self.costs_per_gc[gcID]["c_invest_annual"] /
-                    self.total_annual_km)
 
             # MAINTENANCE COSTS #
             self.costs_per_gc[gcID]["c_maint_infrastructure_annual"] = (
@@ -362,10 +355,6 @@ class Costs:
                 c_garage_cs / self.params["cs"]["lifetime_cs"]
                 + c_garage_workstations / self.params["garage"][
                     "lifetime_workstations"])
-        if self.total_annual_km:
-            self.costs_per_gc[self.GARAGE]["c_invest_annual_per_km"] = (
-                    self.costs_per_gc[self.GARAGE]["c_invest_annual"] /
-                    self.total_annual_km)
 
         return self
 
@@ -413,10 +402,6 @@ class Costs:
             # Store the individual costs of the GC as well
             self.costs_per_gc[gcID]["c_gcs"] = c_gc + c_transformer
             self.costs_per_gc[gcID]["c_gcs_annual"] = c_gc_annual
-            if self.total_annual_km:
-                self.costs_per_gc[gcID]["c_gcs_annual_per_km"] = (
-                        self.costs_per_gc[gcID]["c_gcs_annual"] /
-                        self.total_annual_km)
             self.costs_per_gc[gcID]["c_maint_gc_annual"] = c_maint_gc_annual
 
             # STATIONARY STORAGE
@@ -431,10 +416,6 @@ class Costs:
 
                 self.costs_per_gc[gcID]["c_stat_storage_annual"] = c_stat_storage / self.params[
                     "stationary_storage"]["lifetime_stat_storage"]
-                if self.total_annual_km:
-                    self.costs_per_gc[gcID]["c_stat_storage_annual_per_km"] = (
-                            self.costs_per_gc[gcID]["c_stat_storage_annual"] /
-                            self.total_annual_km)
                 self.costs_per_gc[gcID]["c_maint_stat_storage_annual"] = (
                         c_stat_storage * self.params["stationary_storage"][
                             "c_maint_stat_storage_per_year"])
@@ -452,10 +433,6 @@ class Costs:
                 self.costs_per_gc[gcID]["c_feed_in"] = c_feed_in
                 self.costs_per_gc[gcID]["c_feed_in_annual"] = (
                         c_feed_in / self.params["feed_in"]["lifetime_feed_in"])
-                if self.total_annual_km:
-                    self.costs_per_gc[gcID]["c_feed_in_annual_per_km"] = (
-                            self.costs_per_gc[gcID]["c_feed_in_annual"] /
-                            self.total_annual_km)
                 self.costs_per_gc[gcID]["c_maint_feed_in_annual"] = (
                         c_feed_in * self.params["feed_in"]["c_maint_feed_in_per_year"])
             except KeyError:
@@ -520,12 +497,23 @@ class Costs:
 
                 self.costs_per_gc[gc]["c_vehicles"] += c_vehicles_vt
                 self.costs_per_gc[gc]["c_vehicles_annual"] += c_vehicles_annual
-            if self.total_annual_km:
-                self.costs_per_gc[gc]["c_vehicles_annual_per_km"] = (
-                        self.costs_per_gc[gc]["c_vehicles_annual"] /
-                        self.total_annual_km)
 
         return self
+
+    def set_annual_invest_per_km(self):
+        total_annual_km = self.get_total_annual_km()
+        if total_annual_km:
+            attributes = [
+                "c_vehicles_annual", "c_gcs_annual", "c_cs_annual",
+                "c_stat_storage_annual", "c_feed_in_annual", "c_invest_annual"
+            ]
+            for gcID in self.gcs:
+                for key in attributes:
+                    self.costs_per_gc[gcID][f"{key}_per_km"] = (
+                            self.costs_per_gc[gcID][key] / total_annual_km)
+            self.costs_per_gc[self.GARAGE]["c_invest_annual_per_km"] = (
+                    self.costs_per_gc[self.GARAGE]["c_invest_annual"] /
+                    total_annual_km)
 
     def cumulate(self):
         """ Cumulate the costs of vehicles and infrastructure.
@@ -566,10 +554,11 @@ class Costs:
                 + self.costs_per_gc[self.GARAGE]["c_invest_annual"]
         )
 
-        if self.total_annual_km:
+        total_annual_km = self.get_total_annual_km()
+        if total_annual_km:
             self.costs_per_gc[self.CUMULATED]["c_invest_annual_per_km"] = (
                     self.costs_per_gc[self.CUMULATED]["c_invest_annual"] /
-                    self.total_annual_km
+                    total_annual_km
             )
 
         return self
