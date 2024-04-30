@@ -313,7 +313,6 @@ def get_delta_soc(soc_over_time_curve, soc, duration_min: float):
         return 0
     negative_soc = 0
 
-
     # find time until vehicle soc is no longer negative, since the charging curve only defines
     # socs between 0 and 1.
     # when charging a negative soc, the charging power in the negative region is considered to
