@@ -501,6 +501,11 @@ class Costs:
         return self
 
     def set_annual_invest_per_km(self):
+        """ Calculate the annual investment costs per total driven distance.
+
+        :return: self
+        :rtype: Costs
+        """
         total_annual_km = self.get_total_annual_km()
         if total_annual_km:
             attributes = [
@@ -514,6 +519,7 @@ class Costs:
             self.costs_per_gc[self.GARAGE]["c_invest_annual_per_km"] = (
                     self.costs_per_gc[self.GARAGE]["c_invest_annual"] /
                     total_annual_km)
+        return self
 
     def cumulate(self):
         """ Cumulate the costs of vehicles and infrastructure.
@@ -564,6 +570,11 @@ class Costs:
         return self
 
     def get_total_annual_km(self):
+        """ Calculate total annual kilometers driven, linearly extrapolated from schedule distance.
+
+        :return: Total annual kilometers driven
+        :rtype: float
+        """
         # calculate yearly driven kilometers
         total_km = self.schedule.get_total_distance() / 1000
         # use full days to caclulate yearly km, since schedules can overlap with ones from next day

@@ -410,6 +410,11 @@ class Schedule:
         return list(negative_rotations)
 
     def get_total_distance(self):
+        """ Calculate the total distance of all trips in the schedule.
+
+        :return: total distance of schedule
+        :rtype: float
+        """
         total_distance = 0
         for rotation in self.rotations.values():
             total_distance += rotation.distance
