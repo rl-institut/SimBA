@@ -258,14 +258,9 @@ def recombination(schedule, args, trips, depot_trips):
     :return: recombined schedule
     :rtype: simba.Schedule
     """
-    new_rotations = dict()
-    for rot_id, rot in schedule.rotations.items():
-        try:
-            trip_list = trips.pop(rot_id)
-        except KeyError:
-            # no info, no change
-            new_rotations[rot_id] = rot
-            continue
+    for rot_id, trip_list in trips.items():
+        # remove original rotation to recombine
+        del schedule.rotations[rot_id]
 
         # examine single rotation: which trips can be made safely with a single battery charge?
         # generate initial trip from depot to first station,
@@ -367,7 +362,7 @@ def recombination(schedule, args, trips, depot_trips):
                         f'Rotation {rot_id}: New Aussetzfahrt '
                         f'{last_depot_trip["departure_time"]} '
                         f'{last_depot_trip["departure_name"]} - {last_depot_trip["arrival_name"]}')
-                    new_rotations[rotation.id] = rotation
+                    schedule.rotations[rotation.id] = rotation
                     last_depot_trip = None
                     rot_counter += 1
                     rot_name = f"{rot_id}_r_{rot_counter}"
@@ -379,8 +374,7 @@ def recombination(schedule, args, trips, depot_trips):
         # rotation finished (trip list empty): add final depot trip, if needed
         if last_depot_trip is not None:
             rotation.add_trip(last_depot_trip)
-            new_rotations[rotation.id] = rotation
+            schedule.rotations[rotation.id] = rotation
 
-    schedule.rotations = new_rotations
     schedule.calculate_consumption()
     return schedule
