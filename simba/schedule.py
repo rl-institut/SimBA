@@ -83,7 +83,7 @@ class Schedule:
                     reader = csv.DictReader(f, delimiter=delim)
                     for row in reader:
                         station_data.update({str(row['Endhaltestelle']):
-                                            {"elevation": float(row['elevation'])}})
+                                                 {"elevation": float(row['elevation'])}})
             except FileNotFoundError or KeyError:
                 warnings.warn("Warning: external csv file '{}' not found or not named properly "
                               "(Needed column names are 'Endhaltestelle' and 'elevation')".
@@ -400,6 +400,9 @@ class Schedule:
 
             rotations_in_progress.append(rot)
             try:
+                # check if a next rotation exists to get the optional value of departure_time.
+                # this is needed to calculate expected socs after greedy charging up to the
+                # departure time
                 next_rot = rotations[k + 1]
                 departure_time = next_rot.departure_time
             except IndexError:
