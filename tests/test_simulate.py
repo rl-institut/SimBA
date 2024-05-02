@@ -35,6 +35,7 @@ class TestSimulate:
         "rotation_filter_variable": None,
         "seed": 1,
         "default_buffer_time_opps": 0,
+        "default_buffer_time_deps": 0,
         "desired_soc_opps": 1,
         "desired_soc_deps": 1,
         "min_charging_time": 0,
@@ -145,3 +146,8 @@ class TestSimulate:
         with warnings.catch_warnings():
             warnings.simplefilter("ignore")
             simulate(Namespace(**values))
+
+    def test_mode_recombination(self):
+        values = self.DEFAULT_VALUES.copy()
+        values["mode"] = "recombination"
+        simulate(Namespace(**values))
