@@ -42,8 +42,8 @@ def calculate_costs(c_params, scenario, schedule, args):
     # Get electricity costs from SpiceEV
     cost_object.set_electricity_costs()
 
-    # Calculate the annual costs per kilometer
-    cost_object.set_annual_invest_per_km()
+    # Calculate the costs per kilometer
+    cost_object.set_invest_per_km()
 
     # Cumulate the costs of all gcs
     cost_object.cumulate()
@@ -112,7 +112,7 @@ class Costs:
         return ("\nTotal costs:\n"
                 f"Investment cost: {cumulated['c_invest']} €. \n"
                 f"Annual investment costs: {cumulated['c_invest_annual']} €/a. \n"
-                f"Annual investment costs per km: {cumulated['c_invest_annual_per_km']} €/a. \n"
+                f"Annual investment costs per km: {cumulated['c_invest_per_km']} €/a. \n"
                 f"Annual maintenance costs: {cumulated['c_maint_annual']} €/a. \n"
                 f"Annual costs for electricity: {cumulated['c_el_annual']} €/a.\n")
 
@@ -170,8 +170,8 @@ class Costs:
             "c_vehicles_annual", "c_gcs_annual", "c_cs_annual",
             "c_stat_storage_annual", "c_feed_in_annual", "c_invest_annual",
             # annual investment costs per km
-            "c_vehicles_annual_per_km", "c_gcs_annual_per_km", "c_cs_annual_per_km",
-            "c_stat_storage_annual_per_km", "c_feed_in_annual_per_km", "c_invest_annual_per_km",
+            "c_vehicles_per_km", "c_gcs_per_km", "c_cs_per_km",
+            "c_stat_storage_per_km", "c_feed_in_per_km", "c_invest_per_km",
             # annual maintenance costs
             "c_maint_vehicles_annual", "c_maint_gc_annual", "c_maint_cs_annual",
             "c_maint_stat_storage_annual", "c_maint_feed_in_annual",
@@ -500,7 +500,7 @@ class Costs:
 
         return self
 
-    def set_annual_invest_per_km(self):
+    def set_invest_per_km(self):
         """ Calculate the annual investment costs per total driven distance.
 
         :return: self
@@ -509,14 +509,14 @@ class Costs:
         total_annual_km = self.get_total_annual_km()
         if total_annual_km:
             attributes = [
-                "c_vehicles_annual", "c_gcs_annual", "c_cs_annual",
-                "c_stat_storage_annual", "c_feed_in_annual", "c_invest_annual"
+                "c_vehicles", "c_gcs", "c_cs",
+                "c_stat_storage", "c_feed_in", "c_invest"
             ]
             for gcID in self.gcs:
                 for key in attributes:
                     self.costs_per_gc[gcID][f"{key}_per_km"] = (
-                            self.costs_per_gc[gcID][key] / total_annual_km)
-            self.costs_per_gc[self.GARAGE]["c_invest_annual_per_km"] = (
+                            self.costs_per_gc[gcID][f"{key}_annual"] / total_annual_km)
+            self.costs_per_gc[self.GARAGE]["c_invest_per_km"] = (
                     self.costs_per_gc[self.GARAGE]["c_invest_annual"] /
                     total_annual_km)
         return self
@@ -562,7 +562,7 @@ class Costs:
 
         total_annual_km = self.get_total_annual_km()
         if total_annual_km:
-            self.costs_per_gc[self.CUMULATED]["c_invest_annual_per_km"] = (
+            self.costs_per_gc[self.CUMULATED]["c_invest_per_km"] = (
                     self.costs_per_gc[self.CUMULATED]["c_invest_annual"] /
                     total_annual_km
             )
