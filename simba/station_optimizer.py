@@ -492,9 +492,13 @@ class StationOptimizer:
                         trip, rot.trips[i + 1], self.args)
                 except IndexError:
                     standing_time_min = 0
-
+                search_soc = max(0, soc[idx])
+                # get the soc lift
                 d_soc = opt_util.get_delta_soc(
-                    soc_over_time_curve, soc[idx], standing_time_min, self)
+                    soc_over_time_curve, search_soc, standing_time_min)
+                # clip the soc lift to the desired_soc_deps, which is the maximum that can be
+                # reached when the rotation stays positive
+                d_soc = min(d_soc, self.args.desired_soc_opps)
                 buffer_idx = int(
                     (opt_util.get_buffer_time(trip, self.args.default_buffer_time_opps))
                     / timedelta(minutes=1))
@@ -844,7 +848,7 @@ class StationOptimizer:
             for ch_type, data in v_type.items():
                 eff = self.scenario.components.vehicle_types[f"{name}_{ch_type}"].battery_efficiency
                 soc_charge_curve_dict[name][ch_type] = opt_util.charging_curve_to_soc_over_time(
-                    data["charging_curve"], data["capacity"], self.args,
+                    data["charging_curve"], data["capacity"], self.args.desired_soc_opps,
                     self.schedule.cs_power_opps, efficiency=eff,
                     time_step=0.1, eps=self.config.eps)
         self.soc_charge_curve_dict = soc_charge_curve_dict
