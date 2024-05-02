@@ -145,3 +145,8 @@ class TestSimulate:
         with warnings.catch_warnings():
             warnings.simplefilter("ignore")
             simulate(Namespace(**values))
+
+    def test_mode_recombination(self):
+        values = self.DEFAULT_VALUES.copy()
+        values["mode"] = "recombination"
+        simulate(Namespace(**values))

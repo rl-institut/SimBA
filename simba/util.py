@@ -271,7 +271,7 @@ def get_args():
     # #### Modes #####
     mode_choices = [
         'sim', 'neg_depb_to_oppb', 'neg_oppb_to_depb', 'service_optimization',
-        'station_optimization', 'remove_negative', 'report']
+        'station_optimization', 'remove_negative', 'split_negative_depb', 'report']
     parser.add_argument('--mode', default=['sim', 'report'], nargs='*', choices=mode_choices,
                         help=f"Specify what you want to do. Choose one or more from \
                         {', '.join(mode_choices)}. \
@@ -281,6 +281,7 @@ def get_args():
                         service optimization finds the largest set of electrified rotations. \
                         station_optimization finds the smallest set of electrified stations.\
                         remove_negative removes all negative rotations.\
+                        split_negative_depb splits and merges negative depb rotations. \
                         report generates simulation output files.")
 
     # #### Flags #####
@@ -341,6 +342,10 @@ def get_args():
                         help='reduced power of opp stations during peak load windows')
     parser.add_argument('--peak-load-window-power-deps', type=float, default=1000,
                         help='reduced power of depot stations during peak load windows')
+    parser.add_argument('--default-mean-speed', type=float, default=30,
+                        help='Default assumed mean speed for busses in km/h')
+    parser.add_argument('--default-depot-distance', type=float, default=5,
+                        help='Default assumed average distance from any station to a depot in km')
 
     # #### Simulation Parameters #####
     parser.add_argument('--days', metavar='N', type=int, default=None,
