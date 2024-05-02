@@ -998,41 +998,46 @@ def generate_random_price_list(gc_name, start_simulation, stop_simulation):
     :param gc_name: grid connector ID
     :type gc_name: string
     :param start_simulation: start of simulation
-    :type start_simulation: datetime
+    :type start_simulation: datetime.datetime
     :param stop_simulation: end of simulation
-    :type stop_simulation: datetime
+    :type stop_simulation: datetime.datetime
     :return: newly generated grid operator signals
     :rtype: list
     """
     day = datetime.timedelta(days=1)
     events = []
-    now = start_simulation - day
-    while now < stop_simulation + 2 * day:
-        now += day
-        # generate prices for the day
-        if now < stop_simulation:
-            morning = now + datetime.timedelta(hours=6)
-            evening_by_month = now + datetime.timedelta(
-                hours=22 - abs(6 - now.month))
-            events += [{
-                # day (6 to evening): 15ct
-                "signal_time": max(start_simulation, now - day).isoformat(),
-                "grid_connector_id": gc_name,
-                "start_time": morning.isoformat(),
-                "cost": {
-                    "type": "fixed",
-                    "value": 0.15 + random.gauss(0, 0.05)
-                }
-            }, {
-                # night (evening to 6 ): 5ct
-                "signal_time": max(start_simulation, now - day).isoformat(),
-                "grid_connector_id": gc_name,
-                "start_time": evening_by_month.isoformat(),
-                "cost": {
-                    "type": "fixed",
-                    "value": 0.05 + random.gauss(0, 0.03)
-                }
-            }]
+    MORNING_HOUR = 6
+    # First price events on the day before the simulation.
+    # This is needed if the simulation start time is between 00:00 and 06:00
+    first_day = start_simulation - datetime.timedelta(hours=MORNING_HOUR)
+    # Reset beginning to midnight,
+    # so price events always start at 6:00 and get signaled at midnight each day
+    first_day = first_day.replace(hour=0, minute=0, second=0)
+    # Iterate over the simulation duration
+    for current_time in util.daterange(first_day, stop_simulation, day):
+        # create price events covering 24h from 6am onwards
+        morning = current_time + datetime.timedelta(hours=MORNING_HOUR)
+        evening_by_month = current_time + datetime.timedelta(
+            hours=22 - abs(6 - current_time.month))
+        events += [{
+            # day (6 to evening): 15ct
+            "signal_time": max(start_simulation, current_time - day).isoformat(),
+            "grid_connector_id": gc_name,
+            "start_time": morning.isoformat(),
+            "cost": {
+                "type": "fixed",
+                "value": 0.15 + random.gauss(0, 0.05)
+            }
+        }, {
+            # night (evening to 6 ): 5ct
+            "signal_time": max(start_simulation, current_time - day).isoformat(),
+            "grid_connector_id": gc_name,
+            "start_time": evening_by_month.isoformat(),
+            "cost": {
+                "type": "fixed",
+                "value": 0.05 + random.gauss(0, 0.03)
+            }
+        }]
     return events
 
 
