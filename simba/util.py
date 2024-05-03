@@ -390,7 +390,8 @@ def get_args():
     parser.add_argument('--time-windows', metavar='FILE',
                         help='use peak load windows to force lower power '
                         'during times of high grid load')
-
+    parser.add_argument('--skip-flex-report', action='store_false',
+                        help='Skip flex band creation when generating reports.')
     parser.add_argument('--config', help='Use config file to set arguments')
 
     args = parser.parse_args()
