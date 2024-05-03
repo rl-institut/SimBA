@@ -117,7 +117,8 @@ class Costs:
                 f"Annual investment costs: {cumulated['c_invest_annual']} €/a. \n"
                 f"Annual maintenance costs: {cumulated['c_maint_annual']} €/a. \n"
                 f"Annual costs for electricity: {cumulated['c_el_annual']} €/a.\n"
-                f"Investment costs per km: {cumulated['c_invest_per_km']} €/a. \n")
+                f"Costs per km: {cumulated['c_total_per_km']} €/km. \n"
+                f"Total kilometers per year: {self.get_total_annual_km()} km. \n")
 
     def get_unit(self, key):
         """ Get the unit for annual or non-annual costs.
@@ -185,7 +186,7 @@ class Costs:
             "c_el_taxes_annual", "c_el_feed_in_remuneration_annual", "c_el_annual",
             # total annual costs
             "c_total_annual",
-            # investment costs per km
+            # costs per kilometer
             "c_vehicles_per_km", "c_invest_per_km", "c_maint_vehicles_per_km",
             "c_maint_infrastructure_per_km",
             "c_maint_per_km", "c_el_per_km", "c_total_per_km"]
