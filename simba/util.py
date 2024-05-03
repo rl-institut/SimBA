@@ -278,7 +278,7 @@ def get_args():
     # #### Modes #####
     mode_choices = [
         'sim', 'neg_depb_to_oppb', 'neg_oppb_to_depb', 'service_optimization',
-        'station_optimization', 'remove_negative', 'report']
+        'station_optimization', 'remove_negative', 'split_negative_depb', 'report']
     parser.add_argument('--mode', default=['sim', 'report'], nargs='*', choices=mode_choices,
                         help=f"Specify what you want to do. Choose one or more from \
                         {', '.join(mode_choices)}. \
@@ -288,6 +288,7 @@ def get_args():
                         service optimization finds the largest set of electrified rotations. \
                         station_optimization finds the smallest set of electrified stations.\
                         remove_negative removes all negative rotations.\
+                        split_negative_depb splits and merges negative depb rotations. \
                         report generates simulation output files.")
 
     # #### Flags #####
@@ -333,14 +334,21 @@ def get_args():
                         help='set minimum desired SOC (0 - 1) for depot charging')
     parser.add_argument('--desired-soc-opps', metavar='SOC', type=float, default=1.0,
                         help='set minimum desired SOC (0 - 1) for opportunity charging')
+    # Disposition in depots
     parser.add_argument('--min-recharge-deps-oppb', default=1,
                         help='Minimum fraction of capacity for recharge when leaving the depot.')
     parser.add_argument('--min-recharge-deps-depb', default=1,
                         help='Minimum fraction of capacity for recharge when leaving the depot.')
     parser.add_argument('--min-charging-time', help='define minimum time of charging',
                         default=0)
-    parser.add_argument('--default-buffer-time-opps', help='time to subtract off of standing time '
+    parser.add_argument('--assign-strategy', default='adaptive',
+                        choices=['adaptive', 'fixed_recharge'],
+                        help='Strategy for vehicle disposition.')
+    parser.add_argument('--default-buffer-time-opps', help='time to subtract from of standing time '
                         'at opp station to simulate docking procedure.', default=0)
+    parser.add_argument('--default-buffer-time-deps', default=0,
+                        help='time to subtract from of standing time '
+                        'at depot station to simulate docking procedure.')
     parser.add_argument('--default-voltage-level', help='Default voltage level for '
                         'charging stations if not set in electrified_stations file',
                         default='MV', choices=['HV', 'HV/MV', 'MV', 'MV/LV', 'LV'])
@@ -348,6 +356,10 @@ def get_args():
                         help='reduced power of opp stations during peak load windows')
     parser.add_argument('--peak-load-window-power-deps', type=float, default=1000,
                         help='reduced power of depot stations during peak load windows')
+    parser.add_argument('--default-mean-speed', type=float, default=30,
+                        help='Default assumed mean speed for busses in km/h')
+    parser.add_argument('--default-depot-distance', type=float, default=5,
+                        help='Default assumed average distance from any station to a depot in km')
 
     # #### Simulation Parameters #####
     parser.add_argument('--days', metavar='N', type=int, default=None,
@@ -409,3 +421,21 @@ def get_args():
         raise Exception("The following arguments are required: {}".format(", ".join(missing)))
 
     return args
+
+
+def daterange(start_date, end_date, time_delta):
+    """ Iterate over a datetime range using a time_delta step.
+
+    Like range(), the end_value is excluded.
+    :param start_date: first value of iteration
+    :type start_date: datetime.datetime
+    :param end_date: excluded end value of iteration
+    :type end_date: datetime.datetime
+    :param time_delta: step size of iteration
+    :type time_delta: datetime.timedelta
+    :yields: iterated value
+    :rtype: Iterator[datetime.datetime]
+    """
+    while start_date < end_date:
+        yield start_date
+        start_date += time_delta

@@ -1,4 +1,5 @@
 import datetime
+import logging
 
 from simba.trip import Trip
 
@@ -120,20 +121,31 @@ class Rotation:
 
     @property
     def min_standing_time(self):
-        """Minimum duration of standing time in minutes."""
+        """Minimum duration of standing time in minutes.
+
+        No consideration of depot buffer time or charging curve.
+        :return: Minimum duration of standing time in minutes.
+        """
         # noqa: DAR201
-        assert self.charging_type in ["depb", "oppb"]
-        if self.charging_type == "depb":
-            capacity_depb = self.schedule.vehicle_types[self.vehicle_type]["depb"]["capacity"]
-            # minimum time needed to recharge consumed power from depot charger
-            min_standing_time = (self.consumption / self.schedule.cs_power_deps_depb)
-            # time to charge battery from 0 to desired SOC
-            desired_max_standing_time = ((capacity_depb / self.schedule.cs_power_deps_depb)
-                                         * self.schedule.min_recharge_deps_depb)
-            if min_standing_time > desired_max_standing_time:
-                min_standing_time = desired_max_standing_time
-        elif self.charging_type == "oppb":
-            capacity_oppb = self.schedule.vehicle_types[self.vehicle_type]["oppb"]["capacity"]
-            min_standing_time = ((capacity_oppb / self.schedule.cs_power_deps_oppb)
-                                 * self.schedule.min_recharge_deps_oppb)
+        ct = self.charging_type
+        assert ct in ["depb", "oppb"]
+
+        min_recharge_soc = vars(self.schedule)[f"min_recharge_deps_{ct}"]
+        stations = self.schedule.stations
+        try:
+            charge_power = stations[self.arrival_name].get(
+                f"cs_power_deps_{ct}", vars(self.schedule)[f"cs_power_deps_{ct}"])
+        except KeyError:
+            logging.warning(f"Rotation {self.id} ends at a non-electrified station.")
+            # min_standing_time set to zero, so if another rotation starts here,
+            # the vehicle can always be used.
+            return 0
+
+        capacity = self.schedule.vehicle_types[self.vehicle_type][ct]["capacity"]
+
+        # minimum time needed to recharge consumed power
+        min_standing_time = (self.consumption / charge_power)
+        # time to charge battery from 0 to desired SOC
+        desired_max_standing_time = ((capacity / charge_power) * min_recharge_soc)
+        min_standing_time = min(min_standing_time, desired_max_standing_time)
         return min_standing_time

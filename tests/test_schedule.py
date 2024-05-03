@@ -13,13 +13,13 @@ from simba import consumption, rotation, schedule, trip, util
 
 
 mandatory_args = {
-    "min_recharge_deps_oppb": 0,
-    "min_recharge_deps_depb": 0,
+    "min_recharge_deps_oppb": 1,
+    "min_recharge_deps_depb": 1,
     "gc_power_opps": 1000,
     "gc_power_deps": 1000,
     "cs_power_opps": 100,
     "cs_power_deps_depb": 50,
-    "cs_power_deps_oppb": 150
+    "cs_power_deps_oppb": 150,
 }
 
 
@@ -101,25 +101,103 @@ class TestSchedule(BasicSchedule):
         sched, scen, args = self.basic_run()
         assert type(scen) is scenario.Scenario
 
-    def test_assign_vehicles(self):
-        """ Test if assigning vehicles works as intended.
-
-        Use a trips csv with two rotations ("1","2") a day apart.
-        SimBA should assign the same vehicle to both of them.
-        Rotation "3" starts shortly after "2" and should be a new vehicle.
+    def test_assign_vehicles_fixed_recharge(self):
+        """ Test if assigning vehicles works as intended using the fixed_recharge strategy
         """
 
         trip.Trip.consumption = consumption.Consumption(self.vehicle_types,
                                                         outside_temperatures=self.temperature_path,
                                                         level_of_loading_over_day=self.lol_path)
 
-        path_to_trips = file_root / "trips_assign_vehicles.csv"
+        path_to_trips = file_root / "trips_assign_vehicles_extended.csv"
         generated_schedule = schedule.Schedule.from_csv(
             path_to_trips, self.vehicle_types, self.electrified_stations, **mandatory_args)
-        generated_schedule.assign_vehicles()
+        all_rotations = [r for r in generated_schedule.rotations]
+        args = Namespace(**{})
+        args.assign_strategy = "fixed_recharge"
+        generated_schedule.assign_vehicles(args)
         gen_rotations = generated_schedule.rotations
-        assert gen_rotations["1"].vehicle_id == gen_rotations["2"].vehicle_id
-        assert gen_rotations["1"].vehicle_id != gen_rotations["3"].vehicle_id
+        vehicle_ids = {rot.vehicle_id for key, rot in gen_rotations.items()}
+        assert len(vehicle_ids) == 6
+
+        # only check the first day
+        for r in all_rotations:
+            if "_2" in r or "_3" in r:
+                del generated_schedule.rotations[r]
+
+        args = Namespace(**{})
+        args.assign_strategy = "fixed_recharge"
+        generated_schedule.assign_vehicles(args)
+        gen_rotations = generated_schedule.rotations
+        vehicle_ids = {rot.vehicle_id for key, rot in gen_rotations.items()}
+        assert len(vehicle_ids) == 4
+
+        # Assertions based on the following output  / graphic
+        # day 1
+        # two opp rotations which would match but min recharge does not allow same vehicle
+        # assignment
+        assert gen_rotations["1_1"].vehicle_id != gen_rotations["2_1"].vehicle_id
+        # longer rotation which cant be serviced by the previous
+        assert gen_rotations["3_1a"].vehicle_id != gen_rotations["1_1"].vehicle_id
+        assert gen_rotations["3_1a"].vehicle_id != gen_rotations["2_1"].vehicle_id
+
+        assert gen_rotations["3_1b"].vehicle_id == gen_rotations["2_1"].vehicle_id
+        assert gen_rotations["3_1c"].vehicle_id == gen_rotations["1_1"].vehicle_id
+        assert gen_rotations["3_1d"].vehicle_id == gen_rotations["3_1a"].vehicle_id
+        # depot Rotation
+        assert gen_rotations["4_1"].vehicle_id == gen_rotations["5_1"].vehicle_id
+
+    def test_assign_vehicles_adaptive(self):
+        """ Test if assigning vehicles works as intended using the adaptive strategy
+        """
+
+        trip.Trip.consumption = consumption.Consumption(self.vehicle_types,
+                                                        outside_temperatures=self.temperature_path,
+                                                        level_of_loading_over_day=self.lol_path)
+
+        path_to_trips = file_root / "trips_assign_vehicles_extended.csv"
+        generated_schedule = schedule.Schedule.from_csv(
+            path_to_trips, self.vehicle_types, self.electrified_stations, **mandatory_args)
+        args = Namespace(**{"desired_soc_deps": 1})
+        args.assign_strategy = None
+        generated_schedule.assign_vehicles(args)
+        gen_rotations = generated_schedule.rotations
+        vehicle_ids = {rot.vehicle_id for key, rot in gen_rotations.items()}
+        assert len(vehicle_ids) == 4
+
+        # Assertions based on the following output  / graphic
+        # https://github.com/rl-institut/SimBA/pull/177#issuecomment-2066447393
+        # day 1
+        # two opp rotations which match
+        assert gen_rotations["1_1"].vehicle_id == gen_rotations["2_1"].vehicle_id
+        # longer rotation which cant be serviced by the previous
+        assert gen_rotations["3_1a"].vehicle_id != gen_rotations["1_1"].vehicle_id
+        assert gen_rotations["3_1b"].vehicle_id == gen_rotations["1_1"].vehicle_id
+        assert gen_rotations["3_1c"].vehicle_id == gen_rotations["1_1"].vehicle_id
+        # first vehicle charged enough
+        assert gen_rotations["3_1d"].vehicle_id == gen_rotations["3_1a"].vehicle_id
+        # depot Rotation
+        assert gen_rotations["4_1"].vehicle_id == gen_rotations["5_1"].vehicle_id
+        # day 2
+        # Identical rotation to 1_1 and 1_2 --> same assignments
+        assert gen_rotations["1_2"].vehicle_id == gen_rotations["1_1"].vehicle_id
+        assert gen_rotations["2_2"].vehicle_id == gen_rotations["1_1"].vehicle_id
+        # 3_2a starts a little after 2_2 ended. But soc does not allow for the same vehicle
+        assert gen_rotations["3_2a"].vehicle_id != gen_rotations["1_1"].vehicle_id
+        # depot rotations which barely allow for the same vehicle with the final soc at almost 0%
+        assert gen_rotations["4_2"].vehicle_id == gen_rotations["5_2"].vehicle_id
+        # day 3
+        # vehicle of 6_3 ends with enough soc and can also charge soc enough for 7_3a
+        assert gen_rotations["6_3a"].vehicle_id == gen_rotations["7_3a"].vehicle_id
+        # opportunity 6_3b ends in negative soc. The extra charge is bigger than the consumption of
+        # 7_3b therefore it is used again. In this case this leads to a negative rotation 7_3b.
+        # This is allowed since fixing 6_3b will also fix 7_3b.
+        assert gen_rotations["6_3b"].vehicle_id == gen_rotations["7_3b"].vehicle_id
+
+        # depot rotations are not assigned when their charged energy is above the next rotations
+        # energy consumption, but only when they reach a soc which is enough or full
+        assert gen_rotations["6_3c"].vehicle_id != gen_rotations["7_3c"].vehicle_id
+        assert gen_rotations["6_3c"].vehicle_id == gen_rotations["8_3c"].vehicle_id
 
     def test_calculate_consumption(self):
         """ Test if calling the consumption calculation works
