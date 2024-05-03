@@ -192,9 +192,14 @@ class Schedule:
         scenario = self.generate_scenario(args)
 
         logging.info("Running SpiceEV...")
-        with warnings.catch_warnings():
-            if logging.root.level > logging.DEBUG:
+        if logging.root.level > logging.DEBUG:
+            # don't log SpiceEV warnings for log levels above debug
+            # logging.root.level is lowest of console and file (if present)
+            with warnings.catch_warnings():
                 warnings.simplefilter('ignore', UserWarning)
+                scenario.run('distributed', vars(args).copy())
+        else:
+            # debug: log SpiceEV warnings as well
             scenario.run('distributed', vars(args).copy())
         assert scenario.step_i == scenario.n_intervals, \
             'SpiceEV simulation aborted, see above for details'

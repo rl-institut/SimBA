@@ -226,7 +226,10 @@ def setup_logging(args, time_str):
     :type time_str: str
     """
     # always to console
-    log_handlers = [logging.StreamHandler()]
+    log_level = vars(logging)[args.loglevel.upper()]
+    console = logging.StreamHandler()
+    console.setLevel(log_level)
+    log_handlers = [console]
     if args.logfile is not None and args.output_directory is not None:
         # optionally to file in output dir
         if args.logfile:
@@ -235,9 +238,13 @@ def setup_logging(args, time_str):
             log_name = f"{time_str}.log"
         log_path = args.output_directory / log_name
         print(f"Writing log to {log_path}")
-        log_handlers.append(logging.FileHandler(log_path, encoding='utf-8'))
+        file_logger = logging.FileHandler(log_path, encoding='utf-8')
+        log_level_file = vars(logging).get((args.loglevel_file or args.loglevel).upper())
+        file_logger.setLevel(log_level_file)
+        log_handlers.append(file_logger)
+        log_level = min(log_level, log_level_file)
     logging.basicConfig(
-        level=vars(logging)[args.loglevel],
+        level=log_level,
         format="%(asctime)s [%(levelname)s] %(message)s",
         handlers=log_handlers
     )
@@ -267,6 +274,8 @@ def get_args():
                         level of loading in case they are not in trips.csv")
     parser.add_argument('--cost-parameters-file', default=None,
                         help='include cost parameters json, needed if cost_calculation==True')
+    parser.add_argument('--rotation-filter', default=None,
+                        help='Use json data with rotation ids')
 
     # #### Modes #####
     mode_choices = [
@@ -296,6 +305,9 @@ def get_args():
     parser.add_argument('--propagate-mode-errors', default=False,
                         help='Re-raise errors instead of continuing during simulation modes')
     parser.add_argument('--create-scenario-file', help='Write scenario.json to file')
+    parser.add_argument('--rotation-filter-variable', default=None,
+                        choices=[None, 'include', 'exclude'],
+                        help='set mode for filtering schedule rotations')
 
     # #### Charging strategy #####
     parser.add_argument('--preferred-charging-type', '-pct', default='depb',
@@ -353,7 +365,6 @@ def get_args():
                         help='Default assumed mean speed for busses in km/h')
     parser.add_argument('--default-depot-distance', type=float, default=5,
                         help='Default assumed average distance from any station to a depot in km')
-
     # #### Simulation Parameters #####
     parser.add_argument('--days', metavar='N', type=int, default=None,
                         help='set duration of scenario as number of days')
@@ -365,16 +376,16 @@ def get_args():
     parser.add_argument('--eta', action='store_true',
                         help='Show estimated time to finish simulation after each step, '
                              'instead of progress bar. Not recommended for fast computations.')
-    parser.add_argument('--rotation-filter', default=None,
-                        help='Use json data with rotation ids')
-    parser.add_argument('--rotation-filter-variable', default=None,
-                        choices=[None, 'include', 'exclude'],
-                        help='set mode for filtering schedule rotations')
+    parser.add_argument('--skip-flex-report', action='store_true',
+                        help='Skip flex band creation when generating reports.')
 
     # #### LOGGING PARAMETERS #### #
-    parser.add_argument('--loglevel', default='INFO',
+    parser.add_argument('--loglevel', default='INFO', type=str.upper,
                         choices=logging._nameToLevel.keys(), help='Log level.')
     parser.add_argument('--logfile', default='', help='Log file suffix. null: no log file.')
+    parser.add_argument('--loglevel_file', default='', type=str.upper,
+                        choices=list(logging._nameToLevel.keys()) + [''],
+                        help='Log level for file logger.')
 
     # #### SpiceEV PARAMETERS ONLY DEFAULT VALUES NOT IN SimBA CONFIG #####
     parser.add_argument('--seed', default=1, type=int, help='set random seed')
