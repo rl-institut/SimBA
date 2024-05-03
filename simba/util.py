@@ -360,6 +360,8 @@ def get_args():
                         help='Default assumed mean speed for busses in km/h')
     parser.add_argument('--default-depot-distance', type=float, default=5,
                         help='Default assumed average distance from any station to a depot in km')
+    parser.add_argument('--skip-flex-report', action='store_true',
+                        help='Skip flex band creation when generating reports.')
 
     # #### Simulation Parameters #####
     parser.add_argument('--days', metavar='N', type=int, default=None,
