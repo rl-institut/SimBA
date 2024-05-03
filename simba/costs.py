@@ -523,6 +523,7 @@ class Costs:
                 self.costs_per_gc[gcID]["c_total_annual"] += self.costs_per_gc[gcID][key]
         for key in attributes:
             self.costs_per_gc[self.GARAGE]["c_total_annual"] += self.costs_per_gc[self.GARAGE][key]
+        return self
 
     def set_invest_per_km(self):
         """ Calculate the annual investment costs per total driven distance.
