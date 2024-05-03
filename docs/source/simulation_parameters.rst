@@ -141,6 +141,18 @@ The example (data/simba.cfg) contains parameter descriptions which are explained
      - MV
      - HV, HV/MV, MV, MV/LV, LV
      - The default voltage level is used, if no specific voltage level is defined per station in :ref:`electrified_stations`. It is used to calculate the costs. Choices describe high voltage (HV), transformer between high and medium voltage (HV/MV), medium voltage MV, transformer between medium and low voltage (MV/LV) and low voltage (LV)
+   * - loglevel
+     - INFO
+     - DEBUG, INFO, WARN or ERROR
+     - Log level. All logging messages are both displayed in the console and written to a log file
+   * - logfile
+     - <datetime>.log
+     - String
+     - Log file name. Set to null to disable logging to file
+   * - loglevel_file
+     - (same as loglevel)
+     - String
+     - Log level for file logger
    * - default_mean_speed
      - 30
      - numeric
