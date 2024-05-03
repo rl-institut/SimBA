@@ -177,6 +177,10 @@ The example (data/simba.cfg) contains parameter descriptions which are explained
      - false
      - Boolean
      - Show estimated time to finish simulation after each step. Not recommended for fast computations
+   * - skip_flex_report
+     - false
+     - Boolean
+     - Skip generation of flex_report in SpiceEV. Activating can save time as this feature is rarely used
 
 
 Schedule
