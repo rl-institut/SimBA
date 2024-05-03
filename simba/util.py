@@ -379,7 +379,6 @@ def get_args():
     parser.add_argument('--skip-flex-report', action='store_true',
                         help='Skip flex band creation when generating reports.')
 
-
     # #### LOGGING PARAMETERS #### #
     parser.add_argument('--loglevel', default='INFO', type=str.upper,
                         choices=logging._nameToLevel.keys(), help='Log level.')
