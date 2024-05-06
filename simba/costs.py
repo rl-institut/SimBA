@@ -42,6 +42,12 @@ def calculate_costs(c_params, scenario, schedule, args):
     # Get electricity costs from SpiceEV
     cost_object.set_electricity_costs()
 
+    # Calculate total annual costs
+    cost_object.set_total_annual_costs()
+
+    # Calculate the costs per kilometer
+    cost_object.set_invest_per_km()
+
     # Cumulate the costs of all gcs
     cost_object.cumulate()
 
@@ -64,6 +70,8 @@ class Costs:
     CUMULATED = "cumulated"
     GARAGE = "garage"
     NOT_ELECTRIFIED = "Non_electrified_station"
+
+    DAYS_PER_YEAR = 365.2422
 
     def __init__(self, schedule: simba.schedule.Schedule, scenario: spice_ev.scenario.Scenario,
                  args, c_params: dict):
@@ -108,9 +116,11 @@ class Costs:
                 f"Investment cost: {cumulated['c_invest']} €. \n"
                 f"Annual investment costs: {cumulated['c_invest_annual']} €/a. \n"
                 f"Annual maintenance costs: {cumulated['c_maint_annual']} €/a. \n"
-                f"Annual costs for electricity: {cumulated['c_el_annual']} €/a.\n")
+                f"Annual costs for electricity: {cumulated['c_el_annual']} €/a.\n"
+                f"Costs per km: {cumulated['c_total_per_km']} €/km. \n"
+                f"Total kilometers per year: {self.get_total_annual_km()} km. \n")
 
-    def get_annual_or_not(self, key):
+    def get_unit(self, key):
         """ Get the unit for annual or non-annual costs.
 
         :param key: Key to get the unit for
@@ -120,6 +130,8 @@ class Costs:
         """
         if "annual" in key:
             return "€/year"
+        elif "per_km" in key:
+            return "€/km"
         else:
             return "€"
 
@@ -171,7 +183,13 @@ class Costs:
             # annual electricity costs
             "c_el_procurement_annual", "c_el_power_price_annual",
             "c_el_energy_price_annual",
-            "c_el_taxes_annual", "c_el_feed_in_remuneration_annual", "c_el_annual"]
+            "c_el_taxes_annual", "c_el_feed_in_remuneration_annual", "c_el_annual",
+            # total annual costs
+            "c_total_annual",
+            # costs per kilometer
+            "c_vehicles_per_km", "c_invest_per_km", "c_maint_vehicles_per_km",
+            "c_maint_infrastructure_per_km",
+            "c_maint_per_km", "c_el_per_km", "c_total_per_km"]
 
     def get_vehicle_types(self):
         """ Get the types of vehicles used.
@@ -230,7 +248,6 @@ class Costs:
 
             # calculate annual cost of charging stations, depending on their lifetime
             self.costs_per_gc[gcID]["c_cs_annual"] = c_cs / self.params["cs"]["lifetime_cs"]
-
             self.costs_per_gc[gcID]["c_maint_cs_annual"] = c_cs * self.params["cs"][
                 "c_maint_cs_per_year"]
 
@@ -492,6 +509,46 @@ class Costs:
 
         return self
 
+    def set_total_annual_costs(self):
+        """ Calculate the total annual investment.
+
+        :return: self
+        :rtype: Costs
+        """
+        attributes = [
+            "c_invest_annual", "c_maint_annual", "c_el_annual"
+        ]
+        for gcID in self.gcs:
+            for key in attributes:
+                self.costs_per_gc[gcID]["c_total_annual"] += self.costs_per_gc[gcID][key]
+        for key in attributes:
+            self.costs_per_gc[self.GARAGE]["c_total_annual"] += self.costs_per_gc[self.GARAGE][key]
+        return self
+
+    def set_invest_per_km(self):
+        """ Calculate the annual investment costs per total driven distance.
+
+        :return: self
+        :rtype: Costs
+        """
+        total_annual_km = self.get_total_annual_km()
+        if total_annual_km:
+            attributes = [
+                "c_vehicles", "c_invest", "c_maint_vehicles", "c_maint_infrastructure",
+                "c_maint", "c_el", "c_total"
+            ]
+            for gcID in self.gcs:
+                for key in attributes:
+                    self.costs_per_gc[gcID][f"{key}_per_km"] = (
+                            self.costs_per_gc[gcID][f"{key}_annual"] / total_annual_km)
+            self.costs_per_gc[self.GARAGE]["c_invest_per_km"] = (
+                    self.costs_per_gc[self.GARAGE]["c_invest_annual"] /
+                    total_annual_km)
+            self.costs_per_gc[self.GARAGE]["c_total_per_km"] = (
+                    self.costs_per_gc[self.GARAGE]["c_total_annual"] /
+                    total_annual_km)
+        return self
+
     def cumulate(self):
         """ Cumulate the costs of vehicles and infrastructure.
 
@@ -531,7 +588,28 @@ class Costs:
                 + self.costs_per_gc[self.GARAGE]["c_invest_annual"]
         )
 
+        total_annual_km = self.get_total_annual_km()
+        if total_annual_km:
+            self.costs_per_gc[self.CUMULATED]["c_invest_per_km"] = (
+                    self.costs_per_gc[self.CUMULATED]["c_invest_annual"] /
+                    total_annual_km
+            )
+
         return self
+
+    def get_total_annual_km(self):
+        """ Calculate total annual kilometers driven, linearly extrapolated from schedule distance.
+
+        :return: Total annual kilometers driven
+        :rtype: float
+        """
+        # calculate yearly driven kilometers
+        total_km = self.schedule.get_total_distance() / 1000
+        # use full days to caclulate yearly km, since schedules can overlap with ones from next day
+        simulated_days = max(
+            round(self.scenario.n_intervals / self.scenario.stepsPerHour / 24, 0),
+            1)
+        return self.DAYS_PER_YEAR / simulated_days * total_km
 
     def to_csv_lists(self):
         """ Convert costs to a list of lists easily convertible to a CSV.
@@ -553,7 +631,7 @@ class Costs:
         cost_parameters = self.get_gc_cost_variables()
         for key in cost_parameters:
             # The first two columns contain the parameter and unit
-            row = [key, self.get_annual_or_not(key)]
+            row = [key, self.get_unit(key)]
             for col in self.get_columns():
                 # Get the cost at this gc. Stations which have no gc get 0
                 num = self.costs_per_gc.get(col, {}).get(key, 0)
