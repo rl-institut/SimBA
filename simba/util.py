@@ -274,6 +274,8 @@ def get_args():
                         level of loading in case they are not in trips.csv")
     parser.add_argument('--cost-parameters-file', default=None,
                         help='include cost parameters json, needed if cost_calculation==True')
+    parser.add_argument('--rotation-filter', default=None,
+                        help='Use json data with rotation ids')
 
     # #### Modes #####
     mode_choices = [
@@ -303,6 +305,9 @@ def get_args():
     parser.add_argument('--propagate-mode-errors', default=False,
                         help='Re-raise errors instead of continuing during simulation modes')
     parser.add_argument('--create-scenario-file', help='Write scenario.json to file')
+    parser.add_argument('--rotation-filter-variable', default=None,
+                        choices=[None, 'include', 'exclude'],
+                        help='set mode for filtering schedule rotations')
 
     # #### Charging strategy #####
     parser.add_argument('--preferred-charging-type', '-pct', default='depb',
@@ -360,7 +365,6 @@ def get_args():
                         help='Default assumed mean speed for busses in km/h')
     parser.add_argument('--default-depot-distance', type=float, default=5,
                         help='Default assumed average distance from any station to a depot in km')
-
     # #### Simulation Parameters #####
     parser.add_argument('--days', metavar='N', type=int, default=None,
                         help='set duration of scenario as number of days')
@@ -372,11 +376,8 @@ def get_args():
     parser.add_argument('--eta', action='store_true',
                         help='Show estimated time to finish simulation after each step, '
                              'instead of progress bar. Not recommended for fast computations.')
-    parser.add_argument('--rotation-filter', default=None,
-                        help='Use json data with rotation ids')
-    parser.add_argument('--rotation-filter-variable', default=None,
-                        choices=[None, 'include', 'exclude'],
-                        help='set mode for filtering schedule rotations')
+    parser.add_argument('--skip-flex-report', action='store_true',
+                        help='Skip flex band creation when generating reports.')
 
     # #### LOGGING PARAMETERS #### #
     parser.add_argument('--loglevel', default='INFO', type=str.upper,
