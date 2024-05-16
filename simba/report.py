@@ -6,8 +6,6 @@ import logging
 import traceback
 
 import matplotlib.pyplot as plt
-import matplotlib
-import warnings
 from spice_ev.report import aggregate_global_results, plot, generate_reports
 
 
@@ -146,6 +144,7 @@ def generate(schedule, scenario, args):
     :type scenario: spice_ev.Scenario
     :param args: Configuration arguments specified in config files contained in configs directory.
     :type args: argparse.Namespace
+    :raises Exception: if cost calculation failed and propagate_errors is True
     """
 
     # generate simulation_timeseries.csv, simulation.json and vehicle_socs.csv in SpiceEV

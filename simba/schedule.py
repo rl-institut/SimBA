@@ -275,12 +275,14 @@ class Schedule:
         :param args: used arguments are rotation_filter, path to rotation ids,
             and rotation_filter_variable that sets mode (options: include, exclude)
         :type args: argparse.Namespace
+        :param mode: mode for SpiceEV.scenario.run call
+        :type mode: str
         :return: scenario
         :rtype spice_ev.Scenario
         """
         # Make sure all rotations have an assigned vehicle
         assert all([rot.vehicle_id is not None for rot in self.rotations.values()])
-        assert mode in ["distributed","greedy"]
+        assert mode in ["distributed", "greedy"]
         scenario = self.generate_scenario(args)
 
         logging.info("Running SpiceEV...")
