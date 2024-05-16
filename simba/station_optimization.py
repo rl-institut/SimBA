@@ -26,9 +26,7 @@ def setup_logger(conf):
     this_logger = logging.getLogger(logger_name)
     this_logger.setLevel(logging.DEBUG)
 
-
     # logging to one file which keeps track of optimization over many runs
-
     # use the temporary folder in case of testing. In the use case the general log file with logging
     # for all optimizations is located 2 folders above the opt folder, e.g. data/sim_outputs for the
     # directory data/sim_outputs/XXX_SimBA_results/sim__station_optimization/
@@ -55,6 +53,8 @@ def setup_logger(conf):
     stream_handler = logging.StreamHandler()
     stream_handler.setFormatter(formatter)
     stream_handler.setLevel(conf.console_level)
+
+    # Log to an optimization-specific file, a general file and to console
     this_logger.addHandler(file_handler_this_opt)
     this_logger.addHandler(file_handler_all_opts)
     this_logger.addHandler(stream_handler)
