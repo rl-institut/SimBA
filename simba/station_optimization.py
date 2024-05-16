@@ -21,8 +21,11 @@ def setup_logger(conf):
     :return: logger
     :rtype: Logger
     """
-    this_logger = logging.getLogger(__name__)
+
+    logger_name = conf.logger_name or __name__
+    this_logger = logging.getLogger(logger_name)
     this_logger.setLevel(logging.DEBUG)
+
 
     # logging to one file which keeps track of optimization over many runs
 

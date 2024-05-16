@@ -158,6 +158,7 @@ def read_config(config_path):
     assert len(config_parser.sections()) == 0, "Sections are not allowed for the optimizer config."
 
     default = config_parser["DEFAULT"]
+    conf.node_choice = default.get("logger_name", "")
     conf.debug_level = default.getint("debug_level", 0)
     conf.console_level = default.getint("console_level", 99)
 
