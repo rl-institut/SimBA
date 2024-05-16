@@ -102,6 +102,49 @@ class OptimizerConfig:
         self.save_all_results = None
         self.eps = None
 
+    def set_defaults(self):
+        self.logger_name = ""
+        self.debug_level = 0
+        self.console_level = 99
+
+        self.exclusion_rots = []
+        self.exclusion_stations = set()
+        self.inclusion_stations = set()
+        self.standard_opp_station = dict()
+
+        self.schedule = ""
+        self.scenario = ""
+        self.args = ""
+
+        self.battery_capacity = None
+        self.charging_curve = None
+        self.charging_power = None
+        self.min_soc = 0
+
+        self.solver = "spiceev"
+        self.rebase_scenario = False
+        self.pickle_rebased = False
+        # used for gradual scenario analysis in django-simba
+        self.early_return = False
+        self.pickle_rebased_name = "rebased_" + datetime.now().isoformat(sep='-',
+                                                                         timespec='seconds')
+        self.opt_type = "greedy"
+        self.eps = 0.0001
+        self.remove_impossible_rotations = False
+        self.node_choice = "step-by-step"
+        self.max_brute_loop = 20
+        self.run_only_neg = True
+        self.run_only_oppb = True
+        self.estimation_threshold = 0.8
+        self.check_for_must_stations = False
+        self.pruning_threshold = 3
+
+        self.decision_tree_path = None
+        self.save_decision_tree = False
+        self.reduce_rotations = False
+        self.rotations = []
+        return self
+
 
 def time_it(function, timers={}):
     """Decorator function to time the duration and number of function calls.
@@ -158,7 +201,7 @@ def read_config(config_path):
     assert len(config_parser.sections()) == 0, "Sections are not allowed for the optimizer config."
 
     default = config_parser["DEFAULT"]
-    conf.node_choice = default.get("logger_name", "")
+    conf.logger_name = default.get("logger_name", "")
     conf.debug_level = default.getint("debug_level", 0)
     conf.console_level = default.getint("console_level", 99)
 
@@ -186,7 +229,7 @@ def read_config(config_path):
     conf.rebase_scenario = default.getboolean("rebase_scenario", True)
     conf.pickle_rebased = default.getboolean("pickle_rebased", False)
     # used for gradual scenario analysis in django-simba
-    conf.pickle_rebased = default.getboolean("early_return", False)
+    conf.early_return = default.getboolean("early_return", False)
     conf.pickle_rebased_name = default.get(
         "pickle_rebased_name", "rebased_" + datetime.now().isoformat(sep='-', timespec='seconds'))
     conf.opt_type = default.get("opt_type", "greedy")

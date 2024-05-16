@@ -2,7 +2,7 @@ import logging
 import traceback
 from copy import deepcopy
 
-from simba import report, optimization, util
+from simba import report, optimization, util, optimizer_util
 from simba.data_container import DataContainer
 from simba.costs import calculate_costs
 from simba.optimizer_util import read_config as read_optimizer_config
@@ -222,9 +222,10 @@ class Mode:
     def station_optimization(schedule, scenario, args, i):
         if not args.optimizer_config:
             logging.warning("Station optimization needs an optimization config file. "
-                            "Since no path was given, station optimization is skipped")
-            return schedule, scenario
-        conf = read_optimizer_config(args.optimizer_config)
+                            "Default Config is used.")
+            conf = optimizer_util.OptimizerConfig().set_defaults()
+        else:
+            conf = read_optimizer_config(args.optimizer_config)
         # Work on copies of the original schedule and scenario. In case of an exception the outer
         # schedule and scenario stay intact.
         original_schedule = deepcopy(schedule)
@@ -241,9 +242,11 @@ class Mode:
         """ Electrify only the station with the highest potential"""  # noqa
         if not args.optimizer_config:
             logging.warning("Station optimization needs an optimization config file. "
-                            "Since no path was given, station optimization is skipped")
-            return schedule, scenario
-        conf = read_optimizer_config(args.optimizer_config)
+                            "Default Config is used.")
+            conf = optimizer_util.OptimizerConfig().set_defaults()
+        else:
+            conf = read_optimizer_config(args.optimizer_config)
+
         conf.early_return = True
         # Work on copies of the original schedule and scenario. In case of an exception the outer
         # schedule and scenario stay intact.
