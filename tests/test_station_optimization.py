@@ -9,7 +9,6 @@ import sys
 import shutil
 
 from simba import station_optimizer
-from simba.consumption import Consumption
 import simba.optimizer_util as opt_util
 from simba.schedule import Schedule
 from simba.station_optimization import run_optimization
