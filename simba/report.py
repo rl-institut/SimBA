@@ -256,20 +256,18 @@ def generate(schedule, scenario, args):
 
     # summary of used vehicle types and all costs
     if args.cost_calculation:
-      logging.info(f"Plots and output files saved in {args.output_directory}")
+        file_path = args.results_directory / "summary_vehicles_costs.csv"
+        csv_report = None
+        try:
+            csv_report = scenario.costs.to_csv_lists()
+        except Exception as e:
+            logging.warning(f"Generating the cost calculation to {file_path} calculation failed "
+                            f"due to {str(e)}")
+            if args.propagate_mode_errors:
+                raise
+        write_csv(csv_report, file_path, propagate_errors=args.propagate_mode_errors)
 
-      file_path = args.results_directory / "summary_vehicles_costs.csv"
-          csv_report = None
-          try:
-              csv_report = scenario.costs.to_csv_lists()
-          except Exception as e:
-              logging.warning(f"Generating the cost calculation to {file_path} calculation failed "
-                              f"due to {str(e)}")
-              if args.propagate_mode_errors:
-                  raise
-          write_csv(csv_report, file_path, propagate_errors=args.propagate_mode_errors)
-
-      logging.info(f"Plots and output files saved in {args.results_directory}")
+    logging.info(f"Plots and output files saved in {args.results_directory}")
 
 
 def generate_gc_power_overview_timeseries(scenario, args):
