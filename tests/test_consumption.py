@@ -1,5 +1,5 @@
 import pytest
-from tests.test_schedule import TestSchedule
+from tests.test_schedule import BasicSchedule
 from tests.conftest import example_root
 from datetime import datetime
 import pandas as pd
@@ -14,7 +14,7 @@ class TestConsumption:
 
         :param tmp_path: pytest fixture to create a temporary path
         """
-        schedule, scenario, _ = TestSchedule().basic_run()
+        schedule, scenario, _ = BasicSchedule().basic_run()
         trip = next(iter(schedule.rotations.values())).trips.pop(0)
         consumption = trip.__class__.consumption
         consumption.temperatures_by_hour = {hour: hour * 2 - 15 for hour in range(0, 24)}

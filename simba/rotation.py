@@ -1,4 +1,5 @@
 import datetime
+import logging
 
 from simba.trip import Trip
 
@@ -24,7 +25,7 @@ class Rotation:
         self.arrival_name = None
 
     def add_trip(self, trip):
-        """Create a trip object and append to rotations trip set
+        """ Create a trip object and append to rotations trip set.
 
         :param trip: Information on trip to be added to rotation
         :type trip: dict
@@ -89,10 +90,11 @@ class Rotation:
         return rotation_consumption
 
     def set_charging_type(self, ct):
-        """ Change charging type of either all or specified rotations. Adjust minimum standing time
-            at depot after completion of rotation.
+        """ Change charging type of either all or specified rotations.
 
-        :param ct: Choose this charging type wheneever possible. Either 'depb' or 'oppb'.
+        This may also change the minimum standing time at depot after completion of rotation.
+
+        :param ct: Choose this charging type if possible. Either 'depb' or 'oppb'.
         :type ct: str
         """
         assert ct in ["oppb", "depb"], f"Invalid charging type: {ct}"
@@ -108,24 +110,42 @@ class Rotation:
         # consumption may have changed with new charging type
         self.consumption = self.calculate_consumption()
 
-        # calculate earliest possible departure for this bus after completion
-        # of this rotation
-        if ct == "depb":
-            capacity_depb = self.schedule.vehicle_types[self.vehicle_type]["depb"]["capacity"]
-            # minimum time needed to recharge consumed power from depot charger
-            min_standing_time = (self.consumption / self.schedule.cs_power_deps_depb)
-            # time to charge battery from 0 to desired SOC
-            desired_max_standing_time = ((capacity_depb / self.schedule.cs_power_deps_depb)
-                                         * self.schedule.min_recharge_deps_depb)
-            if min_standing_time > desired_max_standing_time:
-                min_standing_time = desired_max_standing_time
-        elif ct == "oppb":
-            capacity_oppb = self.schedule.vehicle_types[self.vehicle_type]["oppb"]["capacity"]
-            min_standing_time = ((capacity_oppb / self.schedule.cs_power_deps_oppb)
-                                 * self.schedule.min_recharge_deps_oppb)
-
-        self.earliest_departure_next_rot = \
-            self.arrival_time + datetime.timedelta(hours=min_standing_time)
-
-        # recalculate consumption
+        # recalculate schedule consumption: update for new rotation consumption
         self.schedule.consumption += self.consumption - old_consumption
+
+    @property
+    def earliest_departure_next_rot(self):
+        """Earliest possible departure of next rotation as datetime."""
+        # noqa: DAR201
+        return self.arrival_time + datetime.timedelta(hours=self.min_standing_time)
+
+    @property
+    def min_standing_time(self):
+        """Minimum duration of standing time in minutes.
+
+        No consideration of depot buffer time or charging curve.
+        :return: Minimum duration of standing time in minutes.
+        """
+        # noqa: DAR201
+        ct = self.charging_type
+        assert ct in ["depb", "oppb"]
+
+        min_recharge_soc = vars(self.schedule)[f"min_recharge_deps_{ct}"]
+        stations = self.schedule.stations
+        try:
+            charge_power = stations[self.arrival_name].get(
+                f"cs_power_deps_{ct}", vars(self.schedule)[f"cs_power_deps_{ct}"])
+        except KeyError:
+            logging.warning(f"Rotation {self.id} ends at a non-electrified station.")
+            # min_standing_time set to zero, so if another rotation starts here,
+            # the vehicle can always be used.
+            return 0
+
+        capacity = self.schedule.vehicle_types[self.vehicle_type][ct]["capacity"]
+
+        # minimum time needed to recharge consumed power
+        min_standing_time = (self.consumption / charge_power)
+        # time to charge battery from 0 to desired SOC
+        desired_max_standing_time = ((capacity / charge_power) * min_recharge_soc)
+        min_standing_time = min(min_standing_time, desired_max_standing_time)
+        return min_standing_time

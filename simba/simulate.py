@@ -11,8 +11,7 @@ from simba.trip import Trip
 
 
 def simulate(args):
-    """
-    High-level function to create and run a scenario.
+    """ High-level function to create and run a scenario.
 
     Use the parsed scenario arguments to prepare the schedule,
     run the basic simulation and different modes of SimBA.
@@ -29,8 +28,7 @@ def simulate(args):
 
 
 def pre_simulation(args):
-    """
-    Prepare simulation.
+    """ Prepare simulation.
 
     Read in files, generate consumption info, create and filter schedule.
 
@@ -84,8 +82,7 @@ def pre_simulation(args):
 
 
 def modes_simulation(schedule, scenario, args):
-    """
-    Run the mode(s) specified in config.
+    """ Run the mode(s) specified in config.
 
     Ignores unknown and "sim" modes.
     On error, create a report and continue with next mode.
@@ -136,9 +133,10 @@ def modes_simulation(schedule, scenario, args):
             if scenario is not None and scenario.step_i > 0:
                 # generate plot of failed scenario
                 args.mode = args.mode[:i] + ["ABORTED"]
-                create_results_directory(args, i+1)
-                report.generate_plots(scenario, args)
-                logging.info(f"Created plot of failed scenario in {args.results_directory}")
+                if args.output_directory is None:
+                    create_results_directory(args, i+1)
+                    report.generate_plots(scenario, args)
+                    logging.info(f"Created plot of failed scenario in {args.results_directory}")
             # continue with other modes after error
 
     # all modes done
@@ -146,8 +144,7 @@ def modes_simulation(schedule, scenario, args):
 
 
 class Mode:
-    """
-    Container for simulation modes.
+    """ Container for simulation modes.
 
     Each function takes a schedule, the corresponding scenario and arguments Namespace.
     Optionally, an index of the current mode in the modelist can be given.
@@ -221,11 +218,27 @@ class Mode:
             logging.info('No negative rotations to remove')
         return schedule, scenario
 
+    def split_negative_depb(schedule, scenario, args, _i):
+        negative_rotations = schedule.get_negative_rotations(scenario)
+        trips, depot_trips = optimization.prepare_trips(schedule, negative_rotations)
+        recombined_schedule = optimization.recombination(schedule, args, trips, depot_trips)
+        # re-run schedule
+        scenario = recombined_schedule.run(args)
+        return recombined_schedule, scenario
+
     def report(schedule, scenario, args, i):
+        if args.output_directory is None:
+            return schedule, scenario
+
         # create report based on all previous modes
         if args.cost_calculation:
             # cost calculation part of report
-            calculate_costs(args.cost_parameters, scenario, schedule, args)
+            try:
+                calculate_costs(args.cost_parameters, scenario, schedule, args)
+            except Exception:
+                logging.warning(f"Cost calculation failed due to {traceback.print_exc()}")
+                if args.propagate_mode_errors:
+                    raise
         # name: always start with sim, append all prior optimization modes
         create_results_directory(args, i)
         report.generate(schedule, scenario, args)
@@ -240,6 +253,9 @@ def create_results_directory(args, i):
     :param i: iteration number of loop
     :type i: int
     """
+
+    if args.output_directory is None:
+        return
 
     prior_reports = sum([m.count('report') for m in args.mode[:i]])
     report_name = f"report_{prior_reports+1}"

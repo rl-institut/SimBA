@@ -1,6 +1,6 @@
 from argparse import Namespace
 from copy import deepcopy
-from datetime import timedelta
+from datetime import timedelta, datetime # noqa
 import pytest
 import sys
 import spice_ev.scenario as scenario
@@ -13,17 +13,17 @@ from simba import consumption, rotation, schedule, trip, util
 
 
 mandatory_args = {
-    "min_recharge_deps_oppb": 0,
-    "min_recharge_deps_depb": 0,
+    "min_recharge_deps_oppb": 1,
+    "min_recharge_deps_depb": 1,
     "gc_power_opps": 1000,
     "gc_power_deps": 1000,
     "cs_power_opps": 100,
     "cs_power_deps_depb": 50,
-    "cs_power_deps_oppb": 150
+    "cs_power_deps_oppb": 150,
 }
 
 
-class TestSchedule:
+class BasicSchedule:
     temperature_path = example_root / 'default_temp_winter.csv'
     lol_path = example_root / 'default_level_of_loading_over_day.csv'
 
@@ -52,6 +52,8 @@ class TestSchedule:
         scen = sched.run(args)
         return sched, scen, args
 
+
+class TestSchedule(BasicSchedule):
     def test_mandatory_options_exit(self):
         """
         Check if the schedule creation properly throws an error in case of missing mandatory options
@@ -99,25 +101,103 @@ class TestSchedule:
         sched, scen, args = self.basic_run()
         assert type(scen) is scenario.Scenario
 
-    def test_assign_vehicles(self):
-        """ Test if assigning vehicles works as intended.
-
-        Use a trips csv with two rotations ("1","2") a day apart.
-        SimBA should assign the same vehicle to both of them.
-        Rotation "3" starts shortly after "2" and should be a new vehicle.
+    def test_assign_vehicles_fixed_recharge(self):
+        """ Test if assigning vehicles works as intended using the fixed_recharge strategy
         """
 
         trip.Trip.consumption = consumption.Consumption(self.vehicle_types,
                                                         outside_temperatures=self.temperature_path,
                                                         level_of_loading_over_day=self.lol_path)
 
-        path_to_trips = file_root / "trips_assign_vehicles.csv"
+        path_to_trips = file_root / "trips_assign_vehicles_extended.csv"
         generated_schedule = schedule.Schedule.from_csv(
             path_to_trips, self.vehicle_types, self.electrified_stations, **mandatory_args)
-        generated_schedule.assign_vehicles()
+        all_rotations = [r for r in generated_schedule.rotations]
+        args = Namespace(**{})
+        args.assign_strategy = "fixed_recharge"
+        generated_schedule.assign_vehicles(args)
         gen_rotations = generated_schedule.rotations
-        assert gen_rotations["1"].vehicle_id == gen_rotations["2"].vehicle_id
-        assert gen_rotations["1"].vehicle_id != gen_rotations["3"].vehicle_id
+        vehicle_ids = {rot.vehicle_id for key, rot in gen_rotations.items()}
+        assert len(vehicle_ids) == 6
+
+        # only check the first day
+        for r in all_rotations:
+            if "_2" in r or "_3" in r:
+                del generated_schedule.rotations[r]
+
+        args = Namespace(**{})
+        args.assign_strategy = "fixed_recharge"
+        generated_schedule.assign_vehicles(args)
+        gen_rotations = generated_schedule.rotations
+        vehicle_ids = {rot.vehicle_id for key, rot in gen_rotations.items()}
+        assert len(vehicle_ids) == 4
+
+        # Assertions based on the following output  / graphic
+        # day 1
+        # two opp rotations which would match but min recharge does not allow same vehicle
+        # assignment
+        assert gen_rotations["1_1"].vehicle_id != gen_rotations["2_1"].vehicle_id
+        # longer rotation which cant be serviced by the previous
+        assert gen_rotations["3_1a"].vehicle_id != gen_rotations["1_1"].vehicle_id
+        assert gen_rotations["3_1a"].vehicle_id != gen_rotations["2_1"].vehicle_id
+
+        assert gen_rotations["3_1b"].vehicle_id == gen_rotations["2_1"].vehicle_id
+        assert gen_rotations["3_1c"].vehicle_id == gen_rotations["1_1"].vehicle_id
+        assert gen_rotations["3_1d"].vehicle_id == gen_rotations["3_1a"].vehicle_id
+        # depot Rotation
+        assert gen_rotations["4_1"].vehicle_id == gen_rotations["5_1"].vehicle_id
+
+    def test_assign_vehicles_adaptive(self):
+        """ Test if assigning vehicles works as intended using the adaptive strategy
+        """
+
+        trip.Trip.consumption = consumption.Consumption(self.vehicle_types,
+                                                        outside_temperatures=self.temperature_path,
+                                                        level_of_loading_over_day=self.lol_path)
+
+        path_to_trips = file_root / "trips_assign_vehicles_extended.csv"
+        generated_schedule = schedule.Schedule.from_csv(
+            path_to_trips, self.vehicle_types, self.electrified_stations, **mandatory_args)
+        args = Namespace(**{"desired_soc_deps": 1})
+        args.assign_strategy = None
+        generated_schedule.assign_vehicles(args)
+        gen_rotations = generated_schedule.rotations
+        vehicle_ids = {rot.vehicle_id for key, rot in gen_rotations.items()}
+        assert len(vehicle_ids) == 4
+
+        # Assertions based on the following output  / graphic
+        # https://github.com/rl-institut/SimBA/pull/177#issuecomment-2066447393
+        # day 1
+        # two opp rotations which match
+        assert gen_rotations["1_1"].vehicle_id == gen_rotations["2_1"].vehicle_id
+        # longer rotation which cant be serviced by the previous
+        assert gen_rotations["3_1a"].vehicle_id != gen_rotations["1_1"].vehicle_id
+        assert gen_rotations["3_1b"].vehicle_id == gen_rotations["1_1"].vehicle_id
+        assert gen_rotations["3_1c"].vehicle_id == gen_rotations["1_1"].vehicle_id
+        # first vehicle charged enough
+        assert gen_rotations["3_1d"].vehicle_id == gen_rotations["3_1a"].vehicle_id
+        # depot Rotation
+        assert gen_rotations["4_1"].vehicle_id == gen_rotations["5_1"].vehicle_id
+        # day 2
+        # Identical rotation to 1_1 and 1_2 --> same assignments
+        assert gen_rotations["1_2"].vehicle_id == gen_rotations["1_1"].vehicle_id
+        assert gen_rotations["2_2"].vehicle_id == gen_rotations["1_1"].vehicle_id
+        # 3_2a starts a little after 2_2 ended. But soc does not allow for the same vehicle
+        assert gen_rotations["3_2a"].vehicle_id != gen_rotations["1_1"].vehicle_id
+        # depot rotations which barely allow for the same vehicle with the final soc at almost 0%
+        assert gen_rotations["4_2"].vehicle_id == gen_rotations["5_2"].vehicle_id
+        # day 3
+        # vehicle of 6_3 ends with enough soc and can also charge soc enough for 7_3a
+        assert gen_rotations["6_3a"].vehicle_id == gen_rotations["7_3a"].vehicle_id
+        # opportunity 6_3b ends in negative soc. The extra charge is bigger than the consumption of
+        # 7_3b therefore it is used again. In this case this leads to a negative rotation 7_3b.
+        # This is allowed since fixing 6_3b will also fix 7_3b.
+        assert gen_rotations["6_3b"].vehicle_id == gen_rotations["7_3b"].vehicle_id
+
+        # depot rotations are not assigned when their charged energy is above the next rotations
+        # energy consumption, but only when they reach a soc which is enough or full
+        assert gen_rotations["6_3c"].vehicle_id != gen_rotations["7_3c"].vehicle_id
+        assert gen_rotations["6_3c"].vehicle_id == gen_rotations["8_3c"].vehicle_id
 
     def test_calculate_consumption(self):
         """ Test if calling the consumption calculation works
@@ -165,17 +245,17 @@ class TestSchedule:
         assert '2' in (common_stations["3"])
 
     def test_get_negative_rotations(self):
-        """Check if the single rotation '1' with a negative soc is found """
+        """Check if rotation '11' with negative SOCs is found """
         # make use of the test_run() which has to return schedule and scenario object
         sched, scen, args = self.basic_run()
         for rot in sched.rotations.values():
             for t in rot.trips:
                 t.distance = 0.01
-        sched.rotations["1"].trips[0].distance = 9999999
+        sched.rotations["11"].trips[-1].distance = 99_999
         sched.calculate_consumption()
         scen = sched.run(args)
         neg_rots = sched.get_negative_rotations(scen)
-        assert ['1'] == neg_rots
+        assert ['11'] == neg_rots
 
     def test_rotation_filter(self, tmp_path):
         s = schedule.Schedule(self.vehicle_types, self.electrified_stations, **mandatory_args)
@@ -294,13 +374,13 @@ class TestSchedule:
             except FileNotFoundError:
                 user_warning_count = sum([1 for warning in record.list
                                           if warning.category == UserWarning])
-                assert user_warning_count == 2
+                assert user_warning_count == 3
             else:
                 assert 0, "No error despite wrong file paths"
 
     def test_schedule_from_csv(self):
         generated_schedule = generate_basic_schedule()
-        assert len(generated_schedule.rotations) == 4
+        assert len(generated_schedule.rotations) == 8
         assert type(generated_schedule) is schedule.Schedule
 
     def test_consistency(self):
@@ -368,3 +448,207 @@ class TestSchedule:
         departure_trip = faulty_rot.trips[0]
         faulty_rot.departure_time = departure_trip.departure_time - timedelta(minutes=1)
         assert schedule.Schedule.check_consistency(sched)["1"] == error
+
+    def test_peak_load_window(self):
+        # generate events to lower GC max power during peak load windows
+        # setup basic schedule (reuse during test)
+        generated_schedule = generate_basic_schedule()
+        sys.argv = ["foo", "--config", str(example_root / "simba.cfg")]
+        args = util.get_args()
+        for station in generated_schedule.stations.values():
+            station["gc_power"] = 1000
+            station.pop("peak_load_window_power", None)
+
+        def count_max_power_events(scenario):
+            # count how many grid operator events (re)set GC max_power
+            return sum([e.max_power is not None for e in scenario.events.grid_operator_signals])
+
+        # no time windows
+        args.time_windows = None
+        scenario = generated_schedule.generate_scenario(args)
+        assert count_max_power_events(scenario) == 0
+
+        # wrong time windows file
+        args.time_windows = "does-not-exist"
+        with pytest.warns(UserWarning):
+            generated_schedule.generate_scenario(args)  # warning, no events
+
+        # example time windows, but no corresponding grid operators
+        args.time_windows = example_root / "time_windows.json"
+        for station in generated_schedule.stations.values():
+            station["grid_operator"] = "wrong-operator"
+        with pytest.warns(UserWarning):
+            scenario = generated_schedule.generate_scenario(args)
+        # reset grid operator
+        for station in generated_schedule.stations.values():
+            station["grid_operator"] = "default_grid_operator"
+        assert count_max_power_events(scenario) == 0
+
+        # reduced power too high
+        args.peak_load_window_power_deps = 10000
+        args.peak_load_window_power_opps = 10000
+        with pytest.warns(UserWarning):
+            scenario = generated_schedule.generate_scenario(args)
+        assert count_max_power_events(scenario) == 0
+
+        # test reduced power events
+        args.peak_load_window_power_deps = 10
+        args.peak_load_window_power_opps = 10
+        scenario = generated_schedule.generate_scenario(args)
+        assert count_max_power_events(scenario) == 8
+
+        # test that max_power is actually reduced during simulation
+        args.time_windows = None
+        basic_run = generated_schedule.run(args)
+        args.time_windows = example_root / "time_windows.json"
+        args.peak_load_window_power_deps = 75
+        args.peak_load_window_power_opps = 75
+        reduced_run = generated_schedule.run(args)
+
+        window_start = datetime(year=2022, month=3, day=8, hour=3, minute=0)
+        window_end = datetime(year=2022, month=3, day=8, hour=4, minute=55)
+        start_index = (window_start - scenario.start_time) // scenario.interval
+        end_index = (window_end - scenario.start_time) // scenario.interval
+        idx_slice = slice(start_index, end_index, 1)
+        timeseries_no_reduction = getattr(basic_run, "Station-0_timeseries")
+        sum_grid_power_no_red = -sum(timeseries_no_reduction["grid supply [kW]"][idx_slice])
+        timeseries_with_reduction = getattr(reduced_run, "Station-0_timeseries")
+        sum_grid_power_with_red = -sum(timeseries_with_reduction["grid supply [kW]"][idx_slice])
+        assert sum_grid_power_no_red > sum_grid_power_with_red
+
+    def test_generate_price_lists(self):
+        # setup basic schedule
+        generated_schedule = generate_basic_schedule()
+        sys.argv = ["", "--config", str(example_root / "simba.cfg")]
+        args = util.get_args()
+        # only test individual price CSV and random price generation
+        args.include_price_csv = None
+        # Station-0: all options
+        generated_schedule.stations["Station-0"]["price_csv"] = {
+            "csv_file": example_root / "price_timeseries.csv",
+            "start_time": "2022-03-07 00:00:00",
+            "step_duration_s": 86400,
+            "column": "price",
+            "factor": 2
+        }
+        # Station-3: minimal options (only CSV path)
+        generated_schedule.stations["Station-3"]["price_csv"] = {
+            "csv_file": example_root / "price_timeseries.csv"
+        }
+        # Station-10: wrong option (wrong CSV file)
+        generated_schedule.stations["Station-10"]["price_csv"] = {
+            "csv_file": example_root / "does-not-exist.csv"
+        }
+        # Station-21: start after end of schedule
+        generated_schedule.stations["Station-21"]["price_csv"] = {
+            "csv_file": example_root / "price_timeseries.csv",
+            "start_time": "3333-03-03 00:00:00",
+            "step_duration_s": 3600
+        }
+        scenario = generated_schedule.generate_scenario(args)
+        events = [e for e in scenario.events.grid_operator_signals if e.cost is not None]
+        events_by_gc = {
+            gc: [e for e in events if e.grid_connector_id == gc]
+            for gc in generated_schedule.stations.keys()}
+        assert len(events_by_gc["Station-0"]) > 0
+        # first entry is 0.07995, factor is 2
+        assert events_by_gc["Station-0"][0].cost["value"] == 0.1599
+        assert len(events_by_gc["Station-3"]) > 0
+        # default factor of 1, price at 20:00 (example scenario start)
+        assert events_by_gc["Station-3"][0].cost["value"] == 0.2107
+        # wrong file: no events
+        assert len(events_by_gc["Station-10"]) == 0
+        # after scenario: no events
+        assert len(events_by_gc["Station-21"]) == 0
+
+        # run schedule and check prices
+        # example scenario covers 2022-03-07 20:16 - 2022-03-09 04:59
+        scenario = generated_schedule.run(args)
+        # Station-0: price change every 24h, starting midnight => two price changes at midnight
+        assert set(scenario.prices["Station-0"]) == {0.1599, 0.18404, 0.23492}
+        assert scenario.prices["Station-0"][223:225] == [0.1599, 0.18404]
+        # Station-3: price change every hour, starting 04:00 (from csv timestamp)
+        # => 32 price changes
+        assert len(set(scenario.prices["Station-3"])) == 33
+        # same price for last 59 minutes
+        assert set(scenario.prices["Station-3"][-59:]) == {0.15501}
+
+    def test_get_price_list_from_csv(self, tmp_path):
+        # wrong file given
+        assert len(schedule.get_price_list_from_csv({'csv_file': 'does-not-exist'})) == 0
+
+        # generate tmp csv file
+        with open(tmp_path / 'price.csv', 'w') as f:
+            f.write('\n'.join([
+                'date,price',
+                '2022-03-07 00:00:00, 1',
+                '2022-03-07 01:00:00, 2',
+                '2022-03-07 02:00:00, 3']))
+
+        # just file given
+        prices = schedule.get_price_list_from_csv({'csv_file': tmp_path / 'price.csv'})
+        assert len(prices) == 3
+        assert prices[0] == ('2022-03-07 00:00:00', 1)
+
+        # change column
+        with pytest.raises(KeyError):
+            schedule.get_price_list_from_csv({
+                'csv_file': tmp_path / 'price.csv',
+                'column': 'does-not-exist'
+            })
+        assert len(schedule.get_price_list_from_csv({
+            'csv_file': tmp_path / 'price.csv',
+            'column': 'price'
+        })) == 3
+
+        # change factor
+        prices = schedule.get_price_list_from_csv({
+            'csv_file': tmp_path / 'price.csv',
+            'factor': 1.5
+        })
+        assert prices[0][1] == 1.5
+
+    def test_generate_event_list_from_prices(self):
+        prices = [
+            ('2022-03-07 00:00:00', 1),
+            ('2022-03-07 01:00:00', 2),
+            ('2022-03-07 02:00:00', 3)]
+        start = datetime.fromisoformat('2022-03-07')
+        stop = datetime.fromisoformat('2022-03-08')
+
+        # no prices: no events
+        assert len(schedule.generate_event_list_from_prices([], 'GC', start, stop)) == 0
+
+        # basic functionality: all events
+        events = schedule.generate_event_list_from_prices(prices, 'GC', start, stop)
+        assert len(events) == 3
+
+        # change list start time
+        # in-between: all events, different time
+        events = schedule.generate_event_list_from_prices(
+            prices, 'GC', start, stop,
+            start_events='2022-03-07 01:30:00',
+            price_interval_s=60
+        )
+        assert len(events) == 3
+        assert events[-1]["start_time"] == '2022-03-07T01:32:00'
+
+        # before: only last event
+        events = schedule.generate_event_list_from_prices(
+            prices, 'GC', start, stop,
+            start_events='1970-01-01',
+            price_interval_s=3600
+        )
+        assert len(events) == 1 and events[0]["cost"]["value"] == 3
+        # change start date after price list: only last event
+        start = datetime.fromisoformat('2022-03-07 12:00:00')
+        events = schedule.generate_event_list_from_prices(prices, 'GC', start, stop)
+        assert len(events) == 1 and events[0]["cost"]["value"] == 3
+
+        # after: no events
+        events = schedule.generate_event_list_from_prices(
+            prices, 'GC', start, stop,
+            start_events='3000-01-01',
+            price_interval_s=3600
+        )
+        assert len(events) == 0
