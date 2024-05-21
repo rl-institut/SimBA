@@ -2,6 +2,7 @@ from copy import copy, deepcopy
 import json
 from pathlib import Path
 import pytest
+import random
 import re
 import sys
 import shutil
@@ -16,6 +17,44 @@ from spice_ev.report import generate_soc_timeseries
 from tests.conftest import example_root
 
 file_root = Path(__file__).parent / "test_input_files/optimization"
+
+
+def slow_join_all_subsets(subsets):
+    def join_subsets(subsets):
+        subsets = [s.copy() for s in subsets]
+        for i in range(len(subsets)):
+            for ii in range(i + 1, len(subsets)):
+                intersec = subsets[i].intersection(subsets[ii])
+                if len(intersec) > 0:
+                    subsets[i] = subsets[i].union(subsets[ii])
+                    subsets.remove(subsets[ii])
+                    return True, subsets
+        return False, subsets
+
+    joined_subset = True
+    while joined_subset:
+        joined_subset, subsets = join_subsets(subsets)
+    return subsets
+class TestStationOptimizerUtil:
+        def test_join_all_subsets(self):
+            subsets = [{1,2,3}, {3,4,6,7}, {7,8}, {20,21}, {21,22}, {6}]
+            assert len(slow_join_all_subsets(deepcopy(subsets))) ==2
+            assert len(opt_util.join_all_subsets(deepcopy(subsets)))==2
+            random.seed(42)
+            subsets = []
+            for _ in range(15):
+                subset = set()
+                for rnd in range(random.randint(0, 10)):
+                    subset.add(random.randint(0,30))
+                subsets.append(subset)
+
+            joined_subsets1= slow_join_all_subsets(deepcopy(subsets))
+            joined_subsets2= opt_util.join_all_subsets(deepcopy(subsets))
+            assert len(joined_subsets1) ==len(joined_subsets2)
+            for subset in joined_subsets1:
+                assert subset in joined_subsets2
+
+
 
 
 class TestStationOptimization:

@@ -496,34 +496,32 @@ def join_all_subsets(subsets):
     :return: joined subsets if they connect with other subsets in some way
     :rtype: list(set)
     """
-    joined_subset = True
-    while joined_subset:
-        joined_subset, subsets = join_subsets(subsets)
+    all_stations = {station for subset in subsets for station in subset}
+    all_stations_array = list(all_stations)
+    all_stations_index =dict()
+    for i, station in enumerate(all_stations_array):
+        all_stations_index[station] = i
+    station_array = np.zeros((len(all_stations), len(subsets))).astype(bool)
+    for i, subset in enumerate(subsets):
+        for station in subset:
+            station_array[all_stations_index[station], i] = True
+
+    rows =  station_array.shape[0]
+    for row in range(rows):
+        indicies = np.where(station_array[row,:])[0]
+        if len(indicies)>1:
+            station_array[:,indicies[0]] = np.sum(station_array[:,indicies], axis=1).astype(bool)
+            station_array = np.delete(station_array, indicies[1:], axis=1)
+
+    columns = station_array.shape[1]
+    subsets = []
+    for column in range(columns):
+        subset = set()
+        indicies = np.where(station_array[:,column])[0]
+        for ind in indicies:
+            subset.add(all_stations_array[ind])
+        subsets.append(subset)
     return subsets
-
-
-def join_subsets(subsets: typing.Iterable[set]):
-    """ Run through subsets and return their union, if they have an intersection.
-
-    Run through every subset and check with every other subset if there is an intersection
-    If an intersection is found, the subsets are joined and returned with a boolean of True.
-    If no intersection is found over all subsets False is returned which will cancel the outer
-    call in join_all_subsets
-
-    :param subsets: sets to be joined
-    :type subsets: iterable
-    :return: status if joining subsets is finished and the current list of connected subsets
-    :rtype: (bool,list(set))
-    """
-    subsets = [s.copy() for s in subsets]
-    for i in range(len(subsets)):
-        for ii in range(i+1, len(subsets)):
-            intersec = subsets[i].intersection(subsets[ii])
-            if len(intersec) > 0:
-                subsets[i] = subsets[i].union(subsets[ii])
-                subsets.remove(subsets[ii])
-                return True, subsets
-    return False, subsets
 
 
 def toolbox_from_pickle(sched_name, scen_name, args_name):
