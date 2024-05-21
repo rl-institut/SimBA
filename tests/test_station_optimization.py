@@ -39,8 +39,6 @@ def slow_join_all_subsets(subsets):
     return subsets
 
 
-
-
 class TestStationOptimization:
     tmp_path = None
 
@@ -158,7 +156,7 @@ class TestStationOptimization:
         """ Test if the base optimization finishes without raising errors"""
         trips_file_name = "trips_for_optimizer.csv"
         sched, scen, args = self.basic_run(trips_file_name)
-        t =sched.rotations["2"].trips[0]
+        t = sched.rotations["2"].trips[0]
         t.distance = 10000
         sched.calculate_consumption()
         sched.stations["Station-1"] = {"type": "opps", "n_charging_stations": None}
@@ -175,12 +173,13 @@ class TestStationOptimization:
         sopt.replace_socs_from_none_to_value()
         vehicle_socs_fast = sopt.timeseries_calc(ele_station_set=["Station-1"])
         for vehicle, socs in scen.vehicle_socs.items():
-            assert vehicle_socs_fast[vehicle][-1] == pytest.approx(socs[-1],  0.01, abs = 0.01)
+            assert vehicle_socs_fast[vehicle][-1] == pytest.approx(socs[-1], 0.01, abs=0.01)
         events = sopt.get_low_soc_events(soc_data=vehicle_socs_fast, rel_soc=True)
         assert len(events) == 1
         e = events[0]
         e1 = copy(e)
-        vehicle_socs_reduced = {vehicle: [soc-1 for soc in socs] for vehicle, socs in scen.vehicle_socs.items()}
+        vehicle_socs_reduced = {vehicle: [soc - 1 for soc in socs] for vehicle, socs in
+                                scen.vehicle_socs.items()}
         events = sopt.get_low_soc_events(soc_data=vehicle_socs_reduced, rel_soc=True)
         assert len(events) == 1
         e2 = events[0]
@@ -188,16 +187,20 @@ class TestStationOptimization:
         assert e1.end_idx == e2.end_idx
         assert e1.min_soc == e2.min_soc
 
-        vehicle_socs_increased = {vehicle: [min(soc+abs(e1.min_soc)-0.1,1) for soc in socs] for vehicle, socs in scen.vehicle_socs.items()}
+        vehicle_socs_increased = {vehicle: [min(soc + abs(e1.min_soc) - 0.1, 1) for soc in socs] for
+                                  vehicle, socs in scen.vehicle_socs.items()}
         events = sopt.get_low_soc_events(soc_data=vehicle_socs_increased, rel_soc=True)
         e3 = events[0]
         assert e1.start_idx != e3.start_idx
         assert e1.end_idx == e3.end_idx
         assert e1.min_soc != e3.min_soc
 
-        vehicle_socs_more_increased = {vehicle: [min(soc+abs(e1.min_soc)+0.1,1) for soc in socs] for vehicle, socs in scen.vehicle_socs.items()}
+        vehicle_socs_more_increased = {
+            vehicle: [min(soc + abs(e1.min_soc) + 0.1, 1) for soc in socs] for vehicle, socs in
+            scen.vehicle_socs.items()}
         events = sopt.get_low_soc_events(soc_data=vehicle_socs_more_increased, rel_soc=True)
         assert len(events) == 0
+
     def test_basic_optimization(self):
         """ Test if the base optimization finishes without raising errors"""
         trips_file_name = "trips_for_optimizer.csv"

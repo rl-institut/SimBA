@@ -103,6 +103,49 @@ class OptimizerConfig:
         self.save_all_results = None
         self.eps = None
 
+    def set_defaults(self):
+        self.logger_name = ""
+        self.debug_level = 0
+        self.console_level = 99
+
+        self.exclusion_rots = []
+        self.exclusion_stations = set()
+        self.inclusion_stations = set()
+        self.standard_opp_station = dict()
+
+        self.schedule = ""
+        self.scenario = ""
+        self.args = ""
+
+        self.battery_capacity = None
+        self.charging_curve = None
+        self.charging_power = None
+        self.min_soc = 0
+
+        self.solver = "spiceev"
+        self.rebase_scenario = False
+        self.pickle_rebased = False
+        # used for gradual scenario analysis in django-simba
+        self.early_return = False
+        self.pickle_rebased_name = "rebased_" + datetime.now().isoformat(sep='-',
+                                                                         timespec='seconds')
+        self.opt_type = "greedy"
+        self.eps = 0.0001
+        self.remove_impossible_rotations = False
+        self.node_choice = "step-by-step"
+        self.max_brute_loop = 20
+        self.run_only_neg = True
+        self.run_only_oppb = True
+        self.estimation_threshold = 0.8
+        self.check_for_must_stations = False
+        self.pruning_threshold = 3
+
+        self.decision_tree_path = None
+        self.save_decision_tree = False
+        self.reduce_rotations = False
+        self.rotations = []
+        return self
+
 
 def time_it(function, timers={}):
     """ Decorator function to time the duration and number of function calls.
@@ -498,7 +541,7 @@ def join_all_subsets(subsets):
     """
     all_stations = {station for subset in subsets for station in subset}
     all_stations_array = list(all_stations)
-    all_stations_index =dict()
+    all_stations_index = dict()
     for i, station in enumerate(all_stations_array):
         all_stations_index[station] = i
     station_array = np.zeros((len(all_stations), len(subsets))).astype(bool)
@@ -506,18 +549,18 @@ def join_all_subsets(subsets):
         for station in subset:
             station_array[all_stations_index[station], i] = True
 
-    rows =  station_array.shape[0]
+    rows = station_array.shape[0]
     for row in range(rows):
-        indicies = np.where(station_array[row,:])[0]
-        if len(indicies)>1:
-            station_array[:,indicies[0]] = np.sum(station_array[:,indicies], axis=1).astype(bool)
+        indicies = np.where(station_array[row, :])[0]
+        if len(indicies) > 1:
+            station_array[:, indicies[0]] = np.sum(station_array[:, indicies], axis=1).astype(bool)
             station_array = np.delete(station_array, indicies[1:], axis=1)
 
     columns = station_array.shape[1]
     subsets = []
     for column in range(columns):
         subset = set()
-        indicies = np.where(station_array[:,column])[0]
+        indicies = np.where(station_array[:, column])[0]
         for ind in indicies:
             subset.add(all_stations_array[ind])
         subsets.append(subset)

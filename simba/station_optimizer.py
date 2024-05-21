@@ -491,12 +491,12 @@ class StationOptimizer:
                 # Handle consumption during trip
                 idx_start = opt_util.get_index_by_time(self.scenario, trip.departure_time)
                 idx_end = opt_util.get_index_by_time(self.scenario, trip.arrival_time)
-                delta_idx = idx_end+1 - idx_start
+                delta_idx = idx_end + 1 - idx_start
                 d_soc = trip.consumption / capacity
 
-                soc[idx_start:idx_end+1] = np.linspace(last_soc, last_soc-d_soc,
-                            delta_idx)
-                last_soc = last_soc-d_soc
+                soc[idx_start:idx_end + 1] = np.linspace(last_soc, last_soc - d_soc,
+                                                         delta_idx)
+                last_soc = last_soc - d_soc
 
                 # Fill the values while the vehicle is standing waiting for the next trip
                 idx = opt_util.get_index_by_time(self.scenario, trip.arrival_time)
@@ -1119,12 +1119,12 @@ class StationOptimizer:
                 events.append(event)
                 events_per_rotation += 1
 
-                if events_per_rotation>len(rot.trips):
+                if events_per_rotation > len(rot.trips):
                     self.logger.error("More low-soc-events than trips found for rotation "
                                       f"{rot.id} with vehicle {rot.vehicle_id}")
 
                 # the mask is expanded to the just checked low_soc_event
-                mask[start-rot_start_idx:end-rot_start_idx+1] = False
+                mask[start - rot_start_idx:end - rot_start_idx + 1] = False
 
                 # if the mask does not leave any value, the loop is finished
                 if not np.any(mask):

@@ -148,10 +148,10 @@ def run_optimization(conf, sched=None, scen=None, args=None):
             r not in optimizer.config.exclusion_rots}
 
         logger.warning(
-            "%s negative rotations %s were removed from schedule because they cannot be electrified"
-            , len(neg_rots), neg_rots)
-        assert len(optimizer.schedule.rotations) > 0, ("Schedule can not be optimized, since "
-                                                       "rotations can not be electrified.")
+            f"{len(neg_rots)} negative rotations {neg_rots} were removed from schedule because "
+            f"they cannot be electrified")
+        assert len(optimizer.schedule.rotations) > 0, ("Schedule cannot be optimized, since "
+                                                       "rotations cannot be electrified.")
 
     # if the whole network can not be fully electrified if even just a single station is not
     # electrified, this station must be included in a fully electrified network
@@ -199,7 +199,7 @@ def run_optimization(conf, sched=None, scen=None, args=None):
     _, __ = optimizer.preprocessing_scenario(
         electrified_stations=ele_stations, run_only_neg=False)
     neg_rotations = optimizer.schedule.get_negative_rotations(optimizer.scenario)
-    logger.warning("Still %s negative rotations: %s",len(neg_rotations), neg_rotations)
+    logger.warning("Still %s negative rotations: %s", len(neg_rotations), neg_rotations)
     logger.log(msg="Station optimization finished after " + opt_util.get_time(), level=100)
 
     return optimizer.schedule, optimizer.scenario

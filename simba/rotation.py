@@ -120,10 +120,11 @@ class Rotation:
         return self.arrival_time + datetime.timedelta(hours=self.min_standing_time)
 
     @property
-    def min_standing_time(self):
+    def min_standing_time(self, _warning_cache=set()):
         """Minimum duration of standing time in minutes.
 
-        No consideration of depot buffer time or charging curve.
+        No consideration of depot buffer time or charging curve
+        :param _warning_cache: private storage of warnings to keep log slim
         :return: Minimum duration of standing time in minutes.
         """
         # noqa: DAR201
@@ -136,9 +137,11 @@ class Rotation:
             charge_power = stations[self.arrival_name].get(
                 f"cs_power_deps_{ct}", vars(self.schedule)[f"cs_power_deps_{ct}"])
         except KeyError:
-            logging.warning(f"Rotation {self.id} ends at a non-electrified station.")
-            # min_standing_time set to zero, so if another rotation starts here,
-            # the vehicle can always be used.
+            if self.id not in _warning_cache:
+                _warning_cache.add(self.id)
+                logging.warning(f"Rotation {self.id} ends at a non-electrified station.")
+                # min_standing_time set to zero, so if another rotation starts here,
+                # the vehicle can always be used.
             return 0
 
         capacity = self.schedule.vehicle_types[self.vehicle_type][ct]["capacity"]
