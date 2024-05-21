@@ -1,3 +1,4 @@
+import logging
 from copy import copy, deepcopy
 import json
 from pathlib import Path
@@ -7,6 +8,7 @@ import re
 import sys
 import shutil
 
+from simba import station_optimizer
 from simba.consumption import Consumption
 import simba.optimizer_util as opt_util
 from simba.schedule import Schedule
@@ -35,24 +37,6 @@ def slow_join_all_subsets(subsets):
     while joined_subset:
         joined_subset, subsets = join_subsets(subsets)
     return subsets
-class TestStationOptimizerUtil:
-        def test_join_all_subsets(self):
-            subsets = [{1,2,3}, {3,4,6,7}, {7,8}, {20,21}, {21,22}, {6}]
-            assert len(slow_join_all_subsets(deepcopy(subsets))) ==2
-            assert len(opt_util.join_all_subsets(deepcopy(subsets)))==2
-            random.seed(42)
-            subsets = []
-            for _ in range(15):
-                subset = set()
-                for rnd in range(random.randint(0, 10)):
-                    subset.add(random.randint(0,30))
-                subsets.append(subset)
-
-            joined_subsets1= slow_join_all_subsets(deepcopy(subsets))
-            joined_subsets2= opt_util.join_all_subsets(deepcopy(subsets))
-            assert len(joined_subsets1) ==len(joined_subsets2)
-            for subset in joined_subsets1:
-                assert subset in joined_subsets2
 
 
 
@@ -152,6 +136,68 @@ class TestStationOptimization:
         assert self.tmp_path
         return generated_schedule, scen, args
 
+    def test_join_all_subsets(self):
+        subsets = [{1, 2, 3}, {3, 4, 6, 7}, {7, 8}, {20, 21}, {21, 22}, {6}]
+        assert len(slow_join_all_subsets(deepcopy(subsets))) == 2
+        assert len(opt_util.join_all_subsets(deepcopy(subsets))) == 2
+        random.seed(42)
+        subsets = []
+        for _ in range(15):
+            subset = set()
+            for rnd in range(random.randint(0, 10)):
+                subset.add(random.randint(0, 30))
+            subsets.append(subset)
+
+        joined_subsets1 = slow_join_all_subsets(deepcopy(subsets))
+        joined_subsets2 = opt_util.join_all_subsets(deepcopy(subsets))
+        assert len(joined_subsets1) == len(joined_subsets2)
+        for subset in joined_subsets1:
+            assert subset in joined_subsets2
+
+    def test_fast_calculations_and_events(self):
+        """ Test if the base optimization finishes without raising errors"""
+        trips_file_name = "trips_for_optimizer.csv"
+        sched, scen, args = self.basic_run(trips_file_name)
+        t =sched.rotations["2"].trips[0]
+        t.distance = 10000
+        sched.calculate_consumption()
+        sched.stations["Station-1"] = {"type": "opps", "n_charging_stations": None}
+        scen = sched.run(args)
+        generate_soc_timeseries(scen)
+
+        config = opt_util.OptimizerConfig().set_defaults()
+        sopt = station_optimizer.StationOptimizer(sched, scen, args, config=config,
+                                                  logger=logging.getLogger())
+
+        # create charging dicts which contain soc over time, which is numerically calculated
+        sopt.create_charging_curves()
+        # remove none values from socs in the vehicle_socs
+        sopt.replace_socs_from_none_to_value()
+        vehicle_socs_fast = sopt.timeseries_calc(ele_station_set=["Station-1"])
+        for vehicle, socs in scen.vehicle_socs.items():
+            assert vehicle_socs_fast[vehicle][-1] == pytest.approx(socs[-1],  0.01, abs = 0.01)
+        events = sopt.get_low_soc_events(soc_data=vehicle_socs_fast, rel_soc=True)
+        assert len(events) == 1
+        e = events[0]
+        e1 = copy(e)
+        vehicle_socs_reduced = {vehicle: [soc-1 for soc in socs] for vehicle, socs in scen.vehicle_socs.items()}
+        events = sopt.get_low_soc_events(soc_data=vehicle_socs_reduced, rel_soc=True)
+        assert len(events) == 1
+        e2 = events[0]
+        assert e1.start_idx == e2.start_idx
+        assert e1.end_idx == e2.end_idx
+        assert e1.min_soc == e2.min_soc
+
+        vehicle_socs_increased = {vehicle: [min(soc+abs(e1.min_soc)-0.1,1) for soc in socs] for vehicle, socs in scen.vehicle_socs.items()}
+        events = sopt.get_low_soc_events(soc_data=vehicle_socs_increased, rel_soc=True)
+        e3 = events[0]
+        assert e1.start_idx != e3.start_idx
+        assert e1.end_idx == e3.end_idx
+        assert e1.min_soc != e3.min_soc
+
+        vehicle_socs_more_increased = {vehicle: [min(soc+abs(e1.min_soc)+0.1,1) for soc in socs] for vehicle, socs in scen.vehicle_socs.items()}
+        events = sopt.get_low_soc_events(soc_data=vehicle_socs_more_increased, rel_soc=True)
+        assert len(events) == 0
     def test_basic_optimization(self):
         """ Test if the base optimization finishes without raising errors"""
         trips_file_name = "trips_for_optimizer.csv"
