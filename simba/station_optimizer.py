@@ -76,6 +76,10 @@ class StationOptimizer:
             base_events, self.not_possible_stations,
             could_not_be_electrified=self.could_not_be_electrified, optimizer=self)
 
+        if len(groups) == 0:
+            self.logger.info("Scenario has no low socs and cannot be optimized")
+            return self.electrified_stations, self.electrified_station_set
+
         # sort groups by highest potential of a single electrification. Used if partial
         # electrification is relevant
         groups = sorted(groups, key=lambda group: opt_util.evaluate(
@@ -90,7 +94,6 @@ class StationOptimizer:
 
         # baseline greedy optimization
         # base line is created simply by not having a decision tree and not a pre optimized_set yet
-        self.logger.debug(opt_util.get_time())
         for group_nr, group in enumerate(groups[:]):
             # unpack the group
             events, stations = group
@@ -534,9 +537,6 @@ class StationOptimizer:
                     (opt_util.get_buffer_time(trip, self.args.default_buffer_time_opps))
                     / timedelta(minutes=1))
                 delta_idx = int(standing_time_min) + 1
-                old_soc = soc[idx + buffer_idx:idx + buffer_idx + delta_idx].copy()
-                soc[idx + buffer_idx:] += d_soc
-                soc[idx + buffer_idx:idx + buffer_idx + delta_idx] = old_soc
                 soc[idx + buffer_idx:idx + buffer_idx + delta_idx] += np.linspace(0, d_soc,
                                                                                   delta_idx)
                 last_soc = soc[idx + buffer_idx + delta_idx-1]
@@ -791,7 +791,7 @@ class StationOptimizer:
         :return: must_include_set and electrified_stations
         :rtype: (set,dict)
         """
-        must_include_set = set()
+        must_include_set = set(self.schedule.stations.keys())
         # electrify inclusion stations
         for stat in self.config.inclusion_stations:
             self.electrify_station(stat, must_include_set)
@@ -814,7 +814,7 @@ class StationOptimizer:
         """
         if electrified_stations is None:
             electrified_stations = self.electrified_stations
-        must_include_set = set()
+        must_include_set = set(self.electrified_stations.keys())
         # electrify inclusion stations
         for stat in self.config.inclusion_stations:
             self.electrify_station(stat, must_include_set)
@@ -937,7 +937,7 @@ class StationOptimizer:
         :param soc_data: optional soc_data if not the scenario data should be used
         :return: tuple with soc array, start index and end index
         """
-        return opt_util.get_rotation_soc_util(
+        return opt_util.get_rotation_soc(
             rot_id, self.schedule, self.scenario, soc_data=soc_data)
 
     def get_index_by_time(self, search_time: datetime):
