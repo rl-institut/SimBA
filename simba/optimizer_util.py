@@ -110,7 +110,7 @@ class OptimizerConfig:
         self.exclusion_rots = set()
         self.exclusion_stations = set()
         self.inclusion_stations = set()
-        self.standard_opp_station = dict()
+        self.standard_opp_station = {"type": "opps", "n_charging_stations": None}
 
         self.schedule = ""
         self.scenario = ""
@@ -317,7 +317,7 @@ def get_index_by_time(scenario, search_time):
     return (search_time - scenario.start_time) // scenario.interval
 
 
-def get_rotation_soc_util(rot_id, schedule, scenario, soc_data: dict = None):
+def get_rotation_soc(rot_id, schedule, scenario, soc_data: dict = None):
     """ Return the SoC time series with start and end index for a given rotation ID.
 
     :param rot_id: rotation_id
@@ -522,15 +522,19 @@ def get_groups_from_events(events, impossible_stations=None, could_not_be_electr
                     break
         else:
             if optimizer:
-                optimizer.logger.warning(
-                    'Did not find rotation %s in any subset of possible electrifiable stations',
-                    event.rotation.id)
+                optimizer.logger.warning(f'Rotation {event.rotation.id} has no possible '
+                                         f'electrifiable stations and will be removed.')
                 # this event will not show up in an event_group.
                 # therefore it needs to be put into this set
             could_not_be_electrified.update([event.rotation.id])
 
     groups = list(zip(event_groups, station_subsets))
-    return sorted(groups, key=lambda x: len(x[1]))
+    filtered_groups = list(filter(lambda x: len(x[0]) != 0 and len(x[1]) != 0, groups))
+    if len(filtered_groups) != len(groups):
+        if optimizer:
+            optimizer.logger.warning("An event group has no possible electrifiable stations and "
+                                     "will not be optimized.")
+    return sorted(filtered_groups, key=lambda x: len(x[1]))
 
 
 def join_all_subsets(subsets):
@@ -878,7 +882,7 @@ def plot_rot(rot_id, sched, scen, axis=None, rot_only=True):
     :return: axis of the plot
     :rtype: matplotlib.axes
     """
-    soc, start, end = get_rotation_soc_util(rot_id, sched, scen)
+    soc, start, end = get_rotation_soc(rot_id, sched, scen)
     if not rot_only:
         start = 0
         end = -1
