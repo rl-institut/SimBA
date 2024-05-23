@@ -233,7 +233,7 @@ class Mode:
         try:
             create_results_directory(args, i+1)
             return run_optimization(conf, sched=schedule, scen=scenario, args=args)
-        except:
+        except:  # noqa
             logging.warning(traceback.format_exc())
             logging.warning('During Station optimization, an error occurred. '
                             'Optimization was skipped')
