@@ -148,6 +148,7 @@ def generate(schedule, scenario, args):
         bus_type_distribution_consumption_rotation(args, schedule)
         charge_type_proportion(args, schedule)
         gc_power_time_overview(args, scenario)
+        active_rotations(args, scenario, schedule)
 
     # generate simulation_timeseries.csv, simulation.json and vehicle_socs.csv in SpiceEV
     # re-route output paths
@@ -246,6 +247,19 @@ def generate(schedule, scenario, args):
             t = sim_start_time + i * scenario.interval
             socs = [str(rotation_socs[k][i]) for k in rotations]
             data.append([str(t)] + socs)
+
+        # add active rotations to rotation_socs.csv
+        number_of_active_vehicles = [len(scenario.components.vehicles)] * scenario.n_intervals
+        depot_stations = [station for station in scenario.components.grid_connectors
+                          if schedule.stations[station]["type"] == "deps"]
+        for station_name in depot_stations:
+            station_ts = scenario.connChargeByTS[station_name]
+            for index, step in enumerate(station_ts):
+                number_of_active_vehicles[index] -= len(step)
+        data[0].append("# active_rotations")
+        for i in range(len(data)):
+            data[i+1].append(number_of_active_vehicles[i])
+
         write_csv(data, args.results_directory / "rotation_socs.csv",
                   propagate_errors=args.propagate_mode_errors)
 
@@ -509,6 +523,36 @@ def gc_power_time_overview(args, scenario):
         gc = gc.replace("/", "").replace(".", "")
         plt.savefig(args.output_directory / f"{gc}_power_time_overview")
         plt.close()
+
+
+def active_rotations(args, scenario, schedule):
+    """Generate a plot where the number of active rotations is shown."""
+
+    number_of_vehicles = len(scenario.components.vehicles)
+    # ts = [[start_time + datetime.timedelta(minutes=step), 0] for step in range(scenario.n_intervals)]
+    ts = [
+        scenario.start_time if i == 0 else
+        scenario.start_time + scenario.interval * i for i in range(scenario.n_intervals)
+    ]
+    number_of_active_vehicles = [number_of_vehicles] * scenario.n_intervals
+
+    depot_stations = [station for station in scenario.components.grid_connectors
+                      if schedule.stations[station]["type"] == "deps"]
+
+    for station_name in depot_stations:
+        station_ts = scenario.connChargeByTS[station_name]
+        for index, step in enumerate(station_ts):
+            number_of_active_vehicles[index] -= len(step)
+
+    plt.plot(ts, number_of_active_vehicles, label="total")
+    plt.legend()
+    plt.xlabel("Time")
+    plt.ylabel("Number of active Vehicles")
+    plt.title("Active Rotations")
+    plt.xticks(rotation=30)
+
+    plt.savefig(args.output_directory / f"Active Rotations")
+    plt.close()
 
 
 def write_csv(data: Iterable, file_path, propagate_errors=False):
