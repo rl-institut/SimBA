@@ -226,16 +226,17 @@ class Mode:
             conf = optimizer_util.OptimizerConfig().set_defaults()
         else:
             conf = read_optimizer_config(args.optimizer_config)
-        # Work on copies of the original schedule and scenario. In case of an exception the outer
+        # Work on copies of the original schedule and scenario. In case of an exception, the outer
         # schedule and scenario stay intact.
         original_schedule = deepcopy(schedule)
         original_scenario = deepcopy(scenario)
         try:
             create_results_directory(args, i+1)
             return run_optimization(conf, sched=schedule, scen=scenario, args=args)
-        except Exception as err:
-            logging.warning('During Station optimization an error occurred {0}. '
-                            'Optimization was skipped'.format(err))
+        except:
+            logging.warning(traceback.format_exc())
+            logging.warning('During Station optimization, an error occurred. '
+                            'Optimization was skipped')
             return original_schedule, original_scenario
 
     def station_optimization_single_step(schedule, scenario, args, i):
