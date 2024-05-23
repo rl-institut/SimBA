@@ -171,8 +171,15 @@ def run_optimization(conf, sched=None, scen=None, args=None):
         must_stations = optimizer.get_critical_stations_and_rebase(relative_soc=False)
         logger.warning("%s must stations %s", len(must_stations), must_stations)
 
+    rotations_for_opt = {key: rot for key, rot in optimizer.schedule.rotations.items()}
+
     logger.log(msg="Starting greedy station optimization", level=100)
+    opt_util.get_time()
     ele_stations, ele_station_set = optimizer.loop()
+
+    optimizer.schedule.rotations = rotations_for_opt
+    optimizer.scenario = optimizer.base_scenario
+
     ele_station_set = ele_station_set.union(must_include_set)
     logger.debug("%s electrified stations : %s", len(ele_station_set), ele_station_set)
     logger.debug("%s total stations", len(ele_stations))
@@ -198,17 +205,27 @@ def run_optimization(conf, sched=None, scen=None, args=None):
         json.dump(output_dict, file, ensure_ascii=False, indent=2)
 
     # Calculation with SpiceEV is more accurate and will show if the optimization is viable or not
-    logger.debug("Detailed calculation of optimized case as a complete scenario")
+    logger.debug("Detailed calculation of an optimized case as a complete scenario")
 
     # Restore original rotations
     restore_original_rotations(optimizer, original_schedule)
 
     # remove exclusion since internally these would not be simulated
     optimizer.config.exclusion_rots = set()
+
     _, __ = optimizer.preprocessing_scenario(
         electrified_stations=ele_stations, run_only_neg=False)
     neg_rotations = optimizer.schedule.get_negative_rotations(optimizer.scenario)
-    logger.warning("Still %s negative rotations: %s", len(neg_rotations), neg_rotations)
+    if len(neg_rotations) > 0:
+        logger.warning("Still %s negative rotations: %s", len(neg_rotations), neg_rotations)
+        logger.warning("This could be due to mismatched vehicle_assignments")
+        for neg_rotation in neg_rotations:
+            soc, start, end = (
+                opt_util.get_rotation_soc(neg_rotation, optimizer.schedule, optimizer.scenario))
+            logger.debug(f"{neg_rotation} starts with soc of {soc[start]} and has minimal soc of "
+                         f"{min(soc[start:end+1])}")
+    else:
+        logger.warning("Simulation shows no remaining negative rotations")
     logger.log(msg="Station optimization finished after " + opt_util.get_time(), level=100)
 
     return optimizer.schedule, optimizer.scenario
