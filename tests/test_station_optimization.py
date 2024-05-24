@@ -163,7 +163,7 @@ class TestStationOptimization:
         scen = sched.run(args)
         generate_soc_timeseries(scen)
 
-        config = opt_util.OptimizerConfig().set_defaults()
+        config = opt_util.OptimizerConfig()
         sopt = station_optimizer.StationOptimizer(sched, scen, args, config=config,
                                                   logger=logging.getLogger())
 
