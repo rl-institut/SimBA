@@ -147,11 +147,10 @@ def run_optimization(conf, sched=None, scen=None, args=None):
             r: optimizer.schedule.rotations[r] for r in optimizer.schedule.rotations if
             r not in optimizer.config.exclusion_rots}
 
-        logger.warning(
-            f"{len(neg_rots)} negative rotations {neg_rots} were removed from schedule because "
-            f"they cannot be electrified")
-        assert len(optimizer.schedule.rotations) > 0, ("Schedule cannot be optimized, since "
-                                                       "rotations cannot be electrified.")
+        logger.warning(f"{len(neg_rots)} negative rotations {neg_rots} were removed from schedule "
+                       "because they cannot be electrified")
+        assert len(optimizer.schedule.rotations) > 0, (
+            "Schedule cannot be optimized, since rotations cannot be electrified.")
 
     # if the whole network can not be fully electrified if even just a single station is not
     # electrified, this station must be included in a fully electrified network
@@ -188,7 +187,7 @@ def run_optimization(conf, sched=None, scen=None, args=None):
         json.dump(output_dict, file, ensure_ascii=False, indent=2)
 
     # Calculation with SpiceEV is more accurate and will show if the optimization is viable or not
-    logger.debug("Detailed calculation of optimized case as a complete scenario")
+    logger.debug("Detailed calculation of an optimized case as a complete scenario")
 
     # Restore original rotations
     for rotation_id in original_schedule.rotations:
@@ -199,7 +198,7 @@ def run_optimization(conf, sched=None, scen=None, args=None):
     _, __ = optimizer.preprocessing_scenario(
         electrified_stations=ele_stations, run_only_neg=False)
     neg_rotations = optimizer.schedule.get_negative_rotations(optimizer.scenario)
-    logger.warning("Still %s negative rotations: %s", len(neg_rotations), neg_rotations)
+    logger.warning(f"Still {len(neg_rotations)} negative rotations: {neg_rotations}")
     logger.log(msg="Station optimization finished after " + opt_util.get_time(), level=100)
 
     return optimizer.schedule, optimizer.scenario
