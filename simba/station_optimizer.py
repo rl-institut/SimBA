@@ -57,8 +57,8 @@ class StationOptimizer:
 
         node_choice = kwargs.get("node_choice", self.config.node_choice)
         opt_type = kwargs.get("opt_type", self.config.opt_type)
-
-        self.scenario.vehicle_socs = self.timeseries_calc(electrify_stations=self.must_include_set)
+        electrified_station = self.must_include_set.union(self.electrified_station_set)
+        self.scenario.vehicle_socs = self.timeseries_calc(electrified_station)
         self.base_scenario = deepcopy(self.scenario)
         self.base_schedule = copy(self.schedule)
 
@@ -234,7 +234,7 @@ class StationOptimizer:
         stats = {stat for event in events for stat in event.stations_list
                  if stat not in self.not_possible_stations}
         electrified_station_set = set(stats)
-        vehicle_socs = self.timeseries_calc(ele_station_set=electrified_station_set)
+        vehicle_socs = self.timeseries_calc(electrified_station_set)
         new_events = self.get_low_soc_events(soc_data=vehicle_socs)
         return {event.rotation.id for event in new_events}
 
@@ -340,8 +340,8 @@ class StationOptimizer:
             # current electrification would show to much charge, since charging curves decrease over
             # soc.
             self.deepcopy_socs()
-            self.scenario.vehicle_socs = self.timeseries_calc(
-                event_rotations, electrify_stations=best_station_ids)
+            electrified_stations = self.electrified_station_set.union(best_station_ids)
+            self.scenario.vehicle_socs = self.timeseries_calc(electrified_stations, event_rotations)
         else:
             self.schedule.rotations = rotation_dict
             self.schedule, self.scenario = opt_util.run_schedule(
@@ -356,7 +356,7 @@ class StationOptimizer:
                                              rel_soc=True, **kwargs)
 
         delta_energy = opt_util.get_missing_energy(new_events, self.config.min_soc)
-        events_remaining[0] = events_remaining[0] - (len(event_group) - len(new_events))
+        events_remaining[0] -= (len(event_group) - len(new_events))
 
         new_rotation = {event.rotation for event in new_events}
         r_electrified = len(event_rotations_ids) - len(new_rotation)
@@ -403,8 +403,8 @@ class StationOptimizer:
             if len(pre_optimized_set) - len(self.electrified_station_set) < thresh:
                 self.copy_scen_sched()
                 self.deepcopy_socs()
-                self.scenario.vehicle_socs = self.timeseries_calc(
-                    event_rotations, electrify_stations=best_station_ids)
+                electrified_stations = self.electrified_station_set.union(best_station_ids)
+                self.scenario.vehicle_socs = self.timeseries_calc(electrified_stations, event_rotations)
                 prune_events = self.get_low_soc_events(
                     rotations=event_rotations_ids, rel_soc=True, **kwargs)
                 station_eval = opt_util.evaluate(prune_events, self)
@@ -441,52 +441,35 @@ class StationOptimizer:
         return sorted(charge_events_single_station, key=lambda x: x.arrival_time)
 
     @opt_util.time_it
-    def timeseries_calc(
-            self, rotations=None, soc_dict=None, ele_station_set=None, soc_upper_threshold=None,
-            electrify_stations=None) -> object:
-        """ A quick estimation of socs for after electrifying stations.
+    def timeseries_calc(self, electrified_stations: set, rotations=None) -> object:
+        """ A quick estimation of socs.
 
-        The function assumes unlimited charging points per electrified station.
+        Iterates through rotations and calculates the soc. The start value is assumed to be
+        desired_soc_deps. The function subtracts the consumption of each trip, and numerically
+        estimates the charge at the electrified station. Charging powers depend on the default of
+        schedule.cs_power_opps and the vehicle_charging_curve
 
-        :param rotations: Optional if not optimizer.schedule.rotations should be used
-        :type rotations: iterable
-        :param soc_dict: Optional if not optimizer.scenario.vehicle_socs should be used
-        :type soc_dict: dict
-        :param ele_station_set: Stations which are electrified . Default None leads to using the
+        :param electrified_stations: stations which are calculated as electrified with cs_power_opps
+        :type electrified_stations: set(str)
+        :param rotations: Rotations to be calculated. Defaults to optimizer.schedule.rotations
+        :type rotations: iterable[Rotation]
+        :param electrified_stations: Stations which are electrified. Default None leads to using the
             so far optimized optimizer.electrified_station_set
-        :type ele_station_set: set
-        :param soc_upper_threshold: Optional upper threshold for the soc. Default value is
-            config.desired_soc_deps. This value clips charging so no socs above this value are
-            reached
-        :type soc_upper_threshold: float
-        :param electrify_stations: stations to be electrified
-        :type electrify_stations: set(str)
         :return: Returns soc dict with lifted socs
         :rtype dict()
         """
         if rotations is None:
             rotations = self.schedule.rotations.values()
 
-        if soc_dict is None:
-            soc_dict = self.scenario.vehicle_socs
-        if ele_station_set is None:
-            ele_station_set = self.electrified_station_set
-        if not soc_upper_threshold:
-            soc_upper_threshold = self.args.desired_soc_opps
-        if electrify_stations is None:
-            electrify_stations = set()
-
-        ele_stations = {*ele_station_set, *electrify_stations}
-        soc_dict = deepcopy(soc_dict)
+        vehicle_socs = deepcopy(self.scenario.vehicle_socs)
         for rot in rotations:
             ch_type = (rot.vehicle_id.find("oppb") > 0) * "oppb" + (
                     rot.vehicle_id.find("depb") > 0) * "depb"
             v_type = rot.vehicle_id.split("_" + ch_type)[0]
             capacity = self.schedule.vehicle_types[v_type][ch_type]["capacity"]
             soc_over_time_curve = self.soc_charge_curve_dict[v_type][ch_type]
-            soc = soc_dict[rot.vehicle_id]
-            idx = opt_util.get_index_by_time(self.scenario, rot.trips[0].departure_time)
-            last_soc = soc[idx]
+            soc = vehicle_socs[rot.vehicle_id]
+            last_soc = self.args.desired_soc_deps
             for i, trip in enumerate(rot.trips):
                 # Handle consumption during trip
                 idx_start = opt_util.get_index_by_time(self.scenario, trip.departure_time)
@@ -508,33 +491,42 @@ class StationOptimizer:
                     continue
                 soc[idx:idx_end+1] = last_soc
 
-                if trip.arrival_name not in ele_stations:
+                if trip.arrival_name not in electrified_stations:
                     continue
+                # Arrival station is not the last station of the rotation and electrified.
+                # Calculate the charge at this station
+
+                # Get the standing time in minutes. Buffer time is already subtracted
                 standing_time_min = opt_util.get_charging_time(
                     trip, rot.trips[i + 1], self.args)
 
+                # Assume that the start soc for charging is at least 0, since this results in the
+                # largest possible charge for a monotonous decreasing charge curve. Charging
+                # at negative soc is not possible
                 search_soc = max(0, soc[idx])
+
                 # get the soc lift
-                d_soc = opt_util.get_delta_soc(
-                    soc_over_time_curve, search_soc, standing_time_min)
+                d_soc = opt_util.get_delta_soc(soc_over_time_curve, search_soc, standing_time_min)
+
                 # clip the soc lift to the desired_soc_deps, which is the maximum that can be
                 # reached when the rotation stays positive
-                d_soc = min(d_soc, soc_upper_threshold)
+                d_soc = min(d_soc, self.args.desired_soc_opps)
+
+                # Add the charge as linear during the charge time, but only start after the buffer
+                # time
                 buffer_idx = int(
                     (opt_util.get_buffer_time(trip, self.args.default_buffer_time_opps))
                     / timedelta(minutes=1))
                 delta_idx = int(standing_time_min) + 1
-                old_soc = soc[idx + buffer_idx:idx + buffer_idx + delta_idx].copy()
-                soc[idx + buffer_idx:] += d_soc
-                soc[idx + buffer_idx:idx + buffer_idx + delta_idx] = old_soc
                 soc[idx + buffer_idx:idx + buffer_idx + delta_idx] += np.linspace(0, d_soc,
                                                                                   delta_idx)
+                # Keep track of the last soc as starting point for the next trip
                 last_soc = soc[idx + buffer_idx + delta_idx-1]
 
             start_idx = opt_util.get_index_by_time(self.scenario, rot.trips[0].departure_time)
             end_idx = opt_util.get_index_by_time(self.scenario, rot.trips[-1].arrival_time)
-            soc_dict[rot.vehicle_id][start_idx:end_idx+1] = soc[start_idx:end_idx+1]
-        return soc_dict
+            vehicle_socs[rot.vehicle_id][start_idx:end_idx+1] = soc[start_idx:end_idx+1]
+        return vehicle_socs
 
     @opt_util.time_it
     def expand_tree(self, station_eval):
@@ -882,8 +874,8 @@ class StationOptimizer:
                         level=100)
         for station in sorted(electrified_station_set_all):
             electrified_station_set = electrified_station_set_all.difference([station])
-
-            vehicle_socs = self.timeseries_calc(electrify_stations=electrified_station_set)
+            electrified_stations = self.electrified_station_set.union(electrified_station_set)
+            vehicle_socs = self.timeseries_calc(electrified_stations)
             soc_min = 1
             for rot in self.schedule.rotations:
                 soc, start, end = self.get_rotation_soc(rot, vehicle_socs)

@@ -170,10 +170,9 @@ def run_optimization(conf, sched=None, scen=None, args=None):
     # remove none values from socs in the vehicle_socs so timeseries_calc can work
     optimizer.replace_socs_from_none_to_value()
 
-    vehicle_socs = optimizer.timeseries_calc()
+    vehicle_socs = optimizer.timeseries_calc(optimizer.electrified_station_set)
 
     new_events = optimizer.get_low_soc_events(soc_data=vehicle_socs)
-
     if len(new_events) > 0:
         logger.debug("Estimation of network still shows negative rotations")
         for event in new_events:
@@ -198,7 +197,8 @@ def run_optimization(conf, sched=None, scen=None, args=None):
     _, __ = optimizer.preprocessing_scenario(
         electrified_stations=ele_stations, run_only_neg=False)
     neg_rotations = optimizer.schedule.get_negative_rotations(optimizer.scenario)
-    logger.warning(f"Still {len(neg_rotations)} negative rotations: {neg_rotations}")
+    if len(neg_rotations) > 0:
+        logger.log(msg=f"Still {len(neg_rotations)} negative rotations: {neg_rotations}", level=100)
     logger.log(msg="Station optimization finished after " + opt_util.get_time(), level=100)
 
     return optimizer.schedule, optimizer.scenario
