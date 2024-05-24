@@ -67,43 +67,6 @@ class OptimizerConfig:
     """ Class for the configuration file """
 
     def __init__(self):
-        self.debug_level = None
-        self.console_level = None
-        self.exclusion_rots = None
-        self.exclusion_stations = None
-        self.inclusion_stations = None
-        self.standard_opp_station = None
-        self.schedule = None
-        self.scenario = None
-        self.args = None
-        self.charge_eff = None
-        self.battery_capacity = None
-        self.charging_curve = None
-        self.charging_power = None
-        self.min_soc = None
-        self.solver = None
-        self.rebase_scenario = None
-        self.pickle_rebased = None
-        self.pickle_rebased_name = None
-        self.opt_type = None
-        self.remove_impossible_rotations = None
-        self.node_choice = None
-        self.max_brute_loop = None
-        self.run_only_neg = None
-        self.run_only_oppb = None
-        self.estimation_threshold = None
-        self.check_for_must_stations = None
-        self.decision_tree_path = None
-        self.save_decision_tree = None
-        self.optimizer_output_dir = None
-        self.reduce_rotations = None
-        self.rotations = None
-        self.path = None
-        self.pruning_threshold = None
-        self.save_all_results = None
-        self.eps = None
-
-    def set_defaults(self):
         self.logger_name = ""
         self.debug_level = 0
         self.console_level = 99
@@ -111,12 +74,12 @@ class OptimizerConfig:
         self.exclusion_rots = []
         self.exclusion_stations = set()
         self.inclusion_stations = set()
-        self.standard_opp_station = dict()
+        self.standard_opp_station = {"type": "opps", "n_charging_stations": None}
 
-        self.schedule = ""
-        self.scenario = ""
-        self.args = ""
-
+        self.schedule = None
+        self.scenario = None
+        self.args = None
+        self.charge_eff = None
         self.battery_capacity = None
         self.charging_curve = None
         self.charging_power = None
@@ -127,10 +90,11 @@ class OptimizerConfig:
         self.pickle_rebased = False
         # used for gradual scenario analysis in django-simba
         self.early_return = False
-        self.pickle_rebased_name = "rebased_" + datetime.now().isoformat(sep='-',
-                                                                         timespec='seconds')
+
+        self.pickle_rebased_name = None
         self.opt_type = "greedy"
         self.eps = 0.0001
+
         self.remove_impossible_rotations = False
         self.node_choice = "step-by-step"
         self.max_brute_loop = 20
@@ -142,10 +106,11 @@ class OptimizerConfig:
 
         self.decision_tree_path = None
         self.save_decision_tree = False
+        self.optimizer_output_dir = None
         self.reduce_rotations = False
-        self.rotations = []
-        return self
-
+        self.rotations = None
+        self.path = None
+        self.save_all_results = None
 
 def time_it(function, timers={}):
     """ Decorator function to time the duration and number of function calls.
@@ -539,16 +504,27 @@ def join_all_subsets(subsets):
     :return: joined subsets if they connect with other subsets in some way
     :rtype: list(set)
     """
+
+    # create set of all stations in given subsets
     all_stations = {station for subset in subsets for station in subset}
-    all_stations_array = list(all_stations)
+    # make list from station set to have fixed order
+    all_stations_list = list(all_stations)
+
+    # create look-up-table from station name to index in all_stations_list
     all_stations_index = dict()
-    for i, station in enumerate(all_stations_array):
+    for i, station in enumerate(all_stations_list):
         all_stations_index[station] = i
+
+    # station_array: boolean matrix of dimension n*m with n being the number of unique stations and
+    # m the amount of subsets. If a station is part of the subset it will be set to True
     station_array = np.zeros((len(all_stations), len(subsets))).astype(bool)
     for i, subset in enumerate(subsets):
         for station in subset:
             station_array[all_stations_index[station], i] = True
 
+    # Traverse the matrix row wise. Columns with True values in this row are merged to a single one.
+    # All rows of these columns are merged. This translates to subsets sharing the same station.
+    # The result cannot contain any overlapping columns / sets
     rows = station_array.shape[0]
     for row in range(rows):
         indicies = np.where(station_array[row, :])[0]
@@ -556,13 +532,14 @@ def join_all_subsets(subsets):
             station_array[:, indicies[0]] = np.sum(station_array[:, indicies], axis=1).astype(bool)
             station_array = np.delete(station_array, indicies[1:], axis=1)
 
+    # Translate the matrix back to subsets
     columns = station_array.shape[1]
     subsets = []
     for column in range(columns):
         subset = set()
         indicies = np.where(station_array[:, column])[0]
         for ind in indicies:
-            subset.add(all_stations_array[ind])
+            subset.add(all_stations_list[ind])
         subsets.append(subset)
     return subsets
 
