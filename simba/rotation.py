@@ -140,7 +140,7 @@ class Rotation:
                 f"cs_power_deps_{ct}", vars(self.schedule)[f"cs_power_deps_{ct}"])
         except KeyError:
             # log a warning once for this. Since min_standing_time is called many times during
-            # vehicle assignment, this would clutter the console / log
+            # vehicle assignment, this would clutter the console / log.
             if not self.logged_warning:
                 self.logged_warning = True
                 logging.warning(f"Rotation {self.id} ends at a non-electrified station.")
