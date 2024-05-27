@@ -24,6 +24,8 @@ class Rotation:
         self.arrival_time = None
         self.arrival_name = None
 
+        # Tracks if a warning has been logged if the rotation ends at a non-electrified station.
+        # Further warnings will be turned off.
         self.logged_warning = False
 
     def add_trip(self, trip):
