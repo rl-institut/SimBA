@@ -165,7 +165,9 @@ def run_optimization(conf, sched=None, scen=None, args=None):
         must_stations = optimizer.get_critical_stations_and_rebase(relative_soc=False)
         logger.warning("%s must stations %s", len(must_stations), must_stations)
 
-    rotations_for_opt = {key: rot for key, rot in optimizer.schedule.rotations.items()}
+    # Store the rotations to be optimized. optimizer.loop() will mutate the dictionary but not the
+    # rotations itself.
+    rotations_for_opt = optimizer.schedule.rotations.copy()
 
     logger.log(msg="Starting greedy station optimization", level=100)
 
@@ -175,10 +177,6 @@ def run_optimization(conf, sched=None, scen=None, args=None):
     # Go into the optimization loop, where stations are subsequently electrified
     ele_stations, ele_station_set = optimizer.loop()
 
-    # Restore the rotations and the scenario which where the goal of optimization
-    optimizer.schedule.rotations = rotations_for_opt
-    optimizer.scenario = optimizer.base_scenario
-
     ele_station_set = ele_station_set.union(must_include_set)
     logger.debug("%s electrified stations : %s", len(ele_station_set), ele_station_set)
     logger.debug("%s total stations", len(ele_stations))
@@ -187,6 +185,11 @@ def run_optimization(conf, sched=None, scen=None, args=None):
     # remove none values from socs in the vehicle_socs so timeseries_calc can work
     optimizer.replace_socs_from_none_to_value()
 
+    # Restore the rotations and the scenario which where the goal of optimization.
+    optimizer.schedule.rotations = rotations_for_opt
+    optimizer.scenario = optimizer.base_scenario
+
+    # Check if the rotations which were part of the optimization are not negative anymore
     vehicle_socs = optimizer.timeseries_calc(optimizer.electrified_station_set)
 
     new_events = optimizer.get_low_soc_events(soc_data=vehicle_socs)
