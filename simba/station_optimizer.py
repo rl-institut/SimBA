@@ -448,7 +448,7 @@ class StationOptimizer:
         return sorted(charge_events_single_station, key=lambda x: x.arrival_time)
 
     @opt_util.time_it
-    def timeseries_calc(self, electrified_stations: set[str], rotations=None) -> object:
+    def timeseries_calc(self, electrified_stations: set, rotations=None) -> object:
         """ A quick estimation of socs.
 
         Iterates through rotations and calculates the soc. The start value is assumed to be
