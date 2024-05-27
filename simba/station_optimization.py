@@ -1,6 +1,4 @@
-""" Optimization that tries minimizing the amount of electrified stations to achieve full
-electrification.
-"""
+""" Try to minimize the amount of electrified stations to achieve full electrification."""
 from copy import deepcopy
 import json
 import sys

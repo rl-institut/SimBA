@@ -10,8 +10,12 @@ class Trip:
                  arrival_time, arrival_name, distance, temperature, level_of_loading, height_diff,
                  **kwargs):
         self.departure_name = departure_name
-        self.departure_time = datetime.fromisoformat(departure_time)
-        self.arrival_time = datetime.fromisoformat(arrival_time)
+        if type(departure_time) is str:
+            departure_time = datetime.fromisoformat(departure_time)
+        self.departure_time = departure_time
+        if type(arrival_time) is str:
+            arrival_time = datetime.fromisoformat(arrival_time)
+        self.arrival_time = arrival_time
         self.arrival_name = arrival_name
         self.distance = float(distance)
         self.line = kwargs.get('line', None)
@@ -44,18 +48,18 @@ class Trip:
         """
 
         try:
-            self.consumption, self.delta_soc = \
-                Trip.consumption.calculate_consumption(self.arrival_time,
-                                                       self.distance,
-                                                       self.rotation.vehicle_type,
-                                                       self.rotation.charging_type,
-                                                       temp=self.temperature,
-                                                       height_diff=self.height_diff,
-                                                       level_of_loading=self.level_of_loading,
-                                                       mean_speed=self.mean_speed)
+            self.consumption, self.delta_soc = Trip.consumption.calculate_consumption(
+                self.arrival_time,
+                self.distance,
+                self.rotation.vehicle_type,
+                self.rotation.charging_type,
+                temp=self.temperature,
+                height_diff=self.height_diff,
+                level_of_loading=self.level_of_loading,
+                mean_speed=self.mean_speed)
         except AttributeError as e:
             raise Exception(
-                'To calculate consumption, a consumption object needs to be constructed \
-                and linked to Trip class.').with_traceback(e.__traceback__)
+                'To calculate consumption, a consumption object needs to be constructed'
+                ' and linked to Trip class.').with_traceback(e.__traceback__)
 
         return self.consumption

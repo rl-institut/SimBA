@@ -21,7 +21,25 @@ The level_of_loading describes the share between an empty vehicle (0) and a full
 Vehicle Dispatch
 ----------------
 
-To allocate the rotations to vehicles, vehicles of the needed type to fulfil the rotation are used. If no suitable vehicle is available, a new vehicle is created. A vehicle is defined as "available" if it is currently not serving another rotation, has the same depot and if it had enough time after return to the depot to be charged. This "minimum standing time" at the depot is calculated using the variable min_recharge_deps_oppb or min_recharge_deps_depb from the :ref`config` together with the respective battery capacity of the vehicle and assuming the maximum available power of the depot charging stations.
+To allocate the rotations to vehicles, vehicles of the needed type to fulfil the rotation are used. If no suitable vehicle is available, a new vehicle is created. The suitability depends on the chosen value of assign_strategy. Possible options are "adaptive" and "fixed_recharge". If no value is provided "adaptive" is used.
+
+
+adaptive
+###############
+A vehicle is defined as "available" if it is currently not serving another rotation, is of the same vehicle type, is at the same depot and if it had approximately enough time after return to the depot to be charged to service the next rotation. If multiple vehicles can service the same rotation, the vehicle with a lower expected SoC after charging and before leaving is used. The dispatch differs between opportunity and depot rotations. A vehicle is only assigned to a depot rotation if its expected SoC at time of departure is equal or greater than a) the SoC needed for this rotation or b) the desired_soc from :refconfig. A vehicle can be assigned to an opportunity rotation if its SoC is less than the needed SoC, if the charge during the last standing time is enough to service the rotation or if the expected SoC is equal or greater than the desired_soc from :refconfig. This can happen when the previous rotation ended with a negative SoC. This design decision is made to simplify the expected mode chain of.
+
+["sim", "neg_depb_to_oppb", "station_optimization", "report"]
+
+This way depot rotations can not be negative because of their previous rotation and therefore not wrongly switched to opportunity rotations. Opportunity rotations can be negative because of their previous rotation, but this is handled during station_optimization. In these cases the rotation will not be negative when the previous rotation can be made positive by adding electrified stations.
+
+The strategy considers the maximum available power of the current depot charging station, the default_buffer_time_deps and the charging curve of the vehicle. Since SoCs are calculated numerically which is different from SpiceEV the vehicle dispatch can lead to slightly negative rotations. The error is not expected to exceed -1%.
+
+
+fixed recharge
+###############
+A vehicle is defined as "available" if it is currently not serving another rotation, has the same depot and if it had approximately enough time after return to the depot to be charged to a fixed value defined by min_recharge_deps_oppb or min_recharge_deps_depb from the :ref`config` together with the respective battery capacity of the vehicle and assuming the maximum available power of the current depot charging station. The default_buffer_time_deps and charging curve of the vehicle is not considered. This can lead to the dispatch of vehicles with less than the min_recharge values.
+
+
 
 Charging simulation
 -------------------
@@ -46,10 +64,10 @@ Default outputs
 | **Grid Connector Time Series (gc_power_overview_timeseries.csv)**
 | Time series of power flow in kW for every grid connector
 
-| **Rotation SoC Data (rotation_socs.csv)**
+| **Rotation SoC Data (rotation_SoCs.csv)**
 | Time series of SoC for each rotation.
 
-| **Vehicle SoC Data (vehicle_socs.csv)**
+| **Vehicle SoC Data (vehicle_SoCs.csv)**
 | Time series of SoC for each vehicle.
 
 | **Rotation Summary (rotation_summary.csv)**
@@ -76,7 +94,7 @@ Cost calculation
 ################
 | **Cost calculation (summary_vehicles_costs.csv)**
 | This is an optional output which calculates investment and maintenance costs of the infrastructure as well as energy costs in the scenario. The costs are calculated based on the price sheet, given as input in the :ref:`cost_params`.
-| The energy costs and the grid connector costs are spefific for each grid operator, as given by the :ref:`cost_params`.
+| The energy costs and the grid connector costs are specific for each grid operator, as given by the :ref:`cost_params`.
 | The following costs are calculated as both total and annual, depending on the lifetime of each component. See `SpiceEV documentation <https://spice-ev.readthedocs.io/en/latest/charging_strategies_incentives.html#incentive-scheme>`_ for the calculation of electricity costs.
 
 * Investment
@@ -94,7 +112,11 @@ Cost calculation
     * **Taxes**: Taxes like electricity taxes, depending on given taxes by price sheet.
     * **Feed-in remuneration**: Remuneration for electricity fed into the grid.
 
-As result the following table is saved as CSV:
+As result the following table is saved as CSV. The first two columns of the csv file are "parameter" and "unit" as descibed below. The third column "cumulated" returns the results for the whole scenario. In the consecutive columns, the results for each electrified station are displayed separately. Be aware that:
+
+* Busses, that start or stop at more then one depot are displayed in each column of the respective electrified station, but only once in the column "cumulated", so the sum of all depots in not necessarily equal to the sum of all electrified stations. This is valid for both number of vehicles and investment costs.
+* Costs are only calculated for :ref:`electrified_stations`. Vehicles for rotations starting at non electrified stations get added to the column "Non_elctrified_station".
+
 
 +---------------------------------+----------+-----------------------------------------------------------------------+
 |**parameter**                    | **unit** | **description**                                                       |
@@ -195,4 +217,4 @@ Before all rotations specified in the :ref:`schedule` are simulated, there is th
 Logging
 -------
 
-SimBA uses the "logging" package for logging. All logging messages are both displayed in the Terminal and written to a .log file. The filepath and the loglevel can be defined in the :ref:`config`. Four log levels are available in the following order: DEBUG, INFO, WARN and ERROR. INFO includes INFO, WARN and ERROR but excludes DEBUG.
+SimBA uses the "logging" package for logging. All logging messages are both displayed in the console and written to a log file. The filepath and the loglevel can be defined in the :ref:`config`. Four log levels are available in the following order: DEBUG, INFO, WARN and ERROR. INFO includes INFO, WARN and ERROR but excludes DEBUG. Console and file can have a different log level.

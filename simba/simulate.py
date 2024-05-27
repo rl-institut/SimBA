@@ -12,8 +12,7 @@ from simba.trip import Trip
 
 
 def simulate(args):
-    """
-    High-level function to create and run a scenario.
+    """ High-level function to create and run a scenario.
 
     Use the parsed scenario arguments to prepare the schedule,
     run the basic simulation and different modes of SimBA.
@@ -99,8 +98,7 @@ def pre_simulation(args, data_container: DataContainer):
 
 
 def modes_simulation(schedule, scenario, args):
-    """
-    Run the mode(s) specified in config.
+    """ Run the mode(s) specified in config.
 
     Ignores unknown and "sim" modes.
     On error, create a report and continue with next mode.
@@ -162,8 +160,7 @@ def modes_simulation(schedule, scenario, args):
 
 
 class Mode:
-    """
-    Container for simulation modes.
+    """ Container for simulation modes.
 
     Each function takes a schedule, the corresponding scenario and arguments Namespace.
     Optionally, an index of the current mode in the modelist can be given.
@@ -245,6 +242,14 @@ class Mode:
             logging.info('No negative rotations to remove')
         return schedule, scenario
 
+    def split_negative_depb(schedule, scenario, args, _i):
+        negative_rotations = schedule.get_negative_rotations(scenario)
+        trips, depot_trips = optimization.prepare_trips(schedule, negative_rotations)
+        recombined_schedule = optimization.recombination(schedule, args, trips, depot_trips)
+        # re-run schedule
+        scenario = recombined_schedule.run(args)
+        return recombined_schedule, scenario
+
     def report(schedule, scenario, args, i):
         if args.output_directory is None:
             return schedule, scenario
@@ -254,8 +259,8 @@ class Mode:
             # cost calculation part of report
             try:
                 calculate_costs(args.cost_parameters, scenario, schedule, args)
-            except Exception as e:
-                logging.warning(f"Cost calculation failed due to {str(e)}")
+            except Exception:
+                logging.warning(f"Cost calculation failed due to {traceback.print_exc()}")
                 if args.propagate_mode_errors:
                     raise
         # name: always start with sim, append all prior optimization modes
