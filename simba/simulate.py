@@ -36,8 +36,16 @@ def create_and_fill_data_container(args):
     data_container = DataContainer()
     # Add the vehicle_types from a json file
     data_container.add_vehicle_types_from_json(args.vehicle_types_path)
+
     # Add consumption data, which is found in the vehicle_type data
     data_container.add_consumption_data_from_vehicle_type_linked_files()
+
+    # Add station data
+    data_container.add_stations_from_json(args.stations_path)
+
+    # Add cost_parameters_data
+    data_container.add_cost_parameters_from_json(args.cost_parameters_file)
+
     return data_container
 
 
@@ -57,30 +65,11 @@ def pre_simulation(args, data_container: DataContainer):
     """
     # Deepcopy args so original args do not get mutated, i.e. deleted
     args = deepcopy(args)
-
-    # load stations file
-    try:
-        with open(args.electrified_stations, encoding='utf-8') as f:
-            stations = util.uncomment_json_file(f)
-    except FileNotFoundError:
-        raise Exception(f"Path to electrified stations ({args.electrified_stations}) "
-                        "does not exist. Exiting...")
-
-    # load cost parameters
-    if args.cost_parameters_file is not None:
-        try:
-            with open(args.cost_parameters_file, encoding='utf-8') as f:
-                args.cost_parameters = util.uncomment_json_file(f)
-        except FileNotFoundError:
-            raise Exception(f"Path to cost parameters ({args.cost_parameters_file}) "
-                            "does not exist. Exiting...")
-
     # Add consumption calculator to trip class
     Trip.consumption = data_container.to_consumption()
 
     # generate schedule from csv
-    schedule = Schedule.from_csv(args.input_schedule, data_container.vehicle_types_data, stations,
-                                 **vars(args))
+    schedule = Schedule.from_datacontainer(data_container, args)
 
     # filter rotations
     schedule.rotation_filter(args)

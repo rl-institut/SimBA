@@ -1,5 +1,7 @@
 """Module to handle data access, by the varying SimBA modules."""
 import csv
+import logging
+import datetime
 from pathlib import Path
 from typing import Dict
 
@@ -16,20 +18,147 @@ class DataContainer:
         self.consumption_data: Dict[str, pd.DataFrame] = {}
         self.temperature_data: Dict[int, float] = {}
         self.level_of_loading_data: Dict[int, float] = {}
+        self.stations_data: Dict[str, dict] = {}
+        self.cost_parameters_data: Dict[str, dict] = {}
+        self.station_geo_data: Dict[str, dict] = {}
 
-    # def add_temperature_data_from_csv(self, ):
-    #     to be implemented
+        self.trip_data: [dict] = []
+
+    def add_trip_data_from_csv(self, file_path: Path) -> 'DataContainer':
+        """ Add trip data from csv file to DataContainer"""
+
+        trips = []
+        with open(file_path, 'r', encoding='utf-8') as trips_file:
+            trip_reader = csv.DictReader(trips_file)
+            for trip in trip_reader:
+                trip_d = dict(trip)
+                trip_d["arrival_time"] = datetime.datetime.fromisoformat(trip["arrival_time"])
+                trip_d["departure_time"] = datetime.datetime.fromisoformat(trip["departure_time"])
+                trips.append(trip_d)
+
+
+
+    def add_station_geo_data(self, data: dict) -> None:
+        """Add station_geo data to the data container.
+
+        Used when adding station_geo to a data container from any source
+        :param data: data containing station_geo
+        :type data: dict
+        """
+        self.station_geo_data = data
+
+    def add_station_geo_data_from_csv(self, file_path: Path) -> 'DataContainer':
+        # find the temperature and elevation of the stations by reading the .csv file.
+        # this data is stored in the schedule and passed to the trips, which use the information
+        # for consumption calculation. Missing station data is handled with default values.
+        try:
+            with open(file_path, "r", encoding='utf-8') as f:
+                delim = util.get_csv_delim(file_path)
+                reader = csv.DictReader(f, delimiter=delim)
+                for row in reader:
+                    file_path.update({str(row['Endhaltestelle']): {
+                        "elevation": float(row['elevation']), "lat": float(row.get('lat', 0)),
+                        "long": float(row.get('long', 0))}
+                    })
+        except FileNotFoundError or KeyError:
+            logging.warning("Warning: external csv file '{}' not found or not named properly "
+                          "(Needed column names are 'Endhaltestelle' and 'elevation')".
+                          format(file_path),
+                          stacklevel=100)
+        except ValueError:
+            logging.warning("Warning: external csv file '{}' does not contain numeric "
+                          "values in the column 'elevation'. Station data is discarded.".
+                          format(file_path),
+                          stacklevel=100)
+
+        return self
+
+    def add_level_of_loading_data(self, data: dict) -> None:
+        """Add level_of_loading data to the data container.
+
+        Used when adding level_of_loading to a data container from any source
+        :param data: data containing level_of_loading
+        :type data: dict
+        """
+        self.level_of_loading_data = data
+
+    def add_level_of_loading_data_from_csv(self, file_path: Path) -> 'DataContainer':
+        index = "hour"
+        column = "level_of_loading"
+        level_of_loading_data_dict = get_dict_from_csv(column, file_path, index)
+        self.add_level_of_loading_data(level_of_loading_data_dict)
+        return self
+
+    def add_temperature_data(self, data: dict) -> None:
+        """Add temperature data to the data container.
+
+        Used when adding temperature to a data container from any source
+        :param data: data containing temperature
+        :type data: dict
+        """
+        self.cost_parameters_data = data
+
+    def add_temperature_data_from_csv(self, file_path: Path) -> 'DataContainer':
+        index = "hour"
+        column = "temperature"
+        temperature_data_dict = get_dict_from_csv(column, file_path, index)
+        self.add_temperature_data(temperature_data_dict)
+        return self
+
+    def add_cost_parameters(self, data: dict) -> None:
+        """Add cost_parameters data to the data container. cost_parameters will be stored in the
+        args instance
+
+        Used when adding cost_parameters to a data container from any source
+        :param data: data containing cost_parameters
+        :type data: dict
+        """
+        self.cost_parameters = data
+
+    def add_cost_parameters_from_json(self, file_path: Path) -> 'DataContainer':
+        """ Get json data from a file_path"""
+        try:
+            with open(file_path, encoding='utf-8') as f:
+                cost_parameters = util.uncomment_json_file(f)
+        except FileNotFoundError:
+            raise Exception(f"Path to cost parameters ({file_path}) "
+                            "does not exist. Exiting...")
+        self.add_cost_parameters(cost_parameters)
+        return self
+
+    def add_stations(self, data: dict) -> None:
+        """Add station data to the data container. Stations will be stored in the
+        Schedule instance
+
+        Used when adding stations to a data container from any source
+        :param data: data containing stations
+        :type data: dict
+        """
+        self.stations_data = data
+
+    def add_stations_from_json(self, file_path: Path) -> 'DataContainer':
+        """ Get json data from a file_path"""
+        try:
+            with open(file_path, encoding='utf-8') as f:
+                stations = util.uncomment_json_file(f)
+        except FileNotFoundError:
+            raise Exception(f"Path to electrified stations ({file_path}) "
+                            "does not exist. Exiting...")
+        self.add_stations(stations)
+        return self
 
     def add_vehicle_types(self, data: dict) -> None:
         """Add vehicle_type data to the data container. Vehicle_types will be stored in the
         Schedule instance
 
+        Used when adding new vehicle types to a data container from any source
         :param data: data containing vehicle_types
         :type data: dict
         """
         self.vehicle_types_data = data
 
     def add_vehicle_types_from_json(self, file_path: Path):
+        """ Get json data from a file_path"""
         try:
             with open(file_path, encoding='utf-8') as f:
                 vehicle_types = util.uncomment_json_file(f)

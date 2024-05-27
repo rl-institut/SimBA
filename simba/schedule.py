@@ -83,33 +83,80 @@ class Schedule:
             for opt in mandatory_options:
                 setattr(self, opt, kwargs.get(opt))
 
-    # @classmethod
-    # def from_container(self, data_container: DataContainer):
-    #     to be implemented
+    @classmethod
+    def from_datacontainer(cls, data_container: DataContainer, args):
 
-    def get_height_difference(self, departure_name, arrival_name):
-        """ Get the height difference of two stations.
+        schedule = cls(data_container.vehicle_types_data, data_container.stations_data, **args)
+        schedule.station_data = data_container.station_geo_data
 
-        Defaults to 0 if height data is not found
-        :param departure_name: Departure station
-        :type departure_name: str
-        :param arrival_name: Arrival station
-        :type arrival_name: str
-        :return: Height difference
-        :rtype: float
-        """
-        if isinstance(self.station_data, dict):
-            station = departure_name
+        for trip in data_container.trip_data:
+            rotation_id = trip['rotation_id']
+            # trip gets reference to station data and calculates height diff during trip
+            # initialization. Could also get the height difference from here on
+            # get average hour of trip if level of loading or temperature has to be read from
+            # auxiliary tabular data
+
+            # get average hour of trip and parse to string, since tabular data has strings
+            # as keys
+            hour = (trip["departure_time"] +
+                    (trip["arrival_time"] - trip["departure_time"]) / 2).hour
+            # Get height difference from station_data
+
+            trip["height_difference"] = schedule.get_height_difference(
+                trip["departure_name", trip["arrival_name"]])
+
+            # Get level of loading from trips.csv or from file
             try:
-                start_height = self.station_data[station]["elevation"]
-                station = arrival_name
-                end_height = self.station_data[arrival_name]["elevation"]
-                return end_height - start_height
-            except KeyError:
-                logging.error(f"No elevation data found for {station}. Height Difference set to 0")
-        else:
-            logging.error("No Station Data found for schedule. Height Difference set to 0")
-        return 0
+                # Clip level of loading to [0,1]
+                lol = max(0, min(float(trip["level_of_loading"]), 1))
+            # In case of empty temperature column or no column at all
+            except (KeyError, ValueError):
+                lol = data_container.level_of_loading_data[hour]
+
+            trip["level_of_loading"] = lol
+
+            # Get temperature from trips.csv or from file
+            try:
+                # Cast temperature to float
+                temperature = float(trip["temperature"])
+            # In case of empty temperature column or no column at all
+            except (KeyError, ValueError):
+                temperature = data_container.temperature_data[hour]
+            trip["temperature"] = temperature
+            if rotation_id not in schedule.rotations.keys():
+                schedule.rotations.update({
+                    rotation_id: Rotation(id=rotation_id,
+                                          vehicle_type=trip['vehicle_type'],
+                                          schedule=schedule)})
+            schedule.rotations[rotation_id].add_trip(trip)
+
+        # set charging type for all rotations without explicitly specified charging type.
+        # charging type may have been set above if a trip of a rotation has a specified
+        # charging type
+        for rot in schedule.rotations.values():
+            if rot.charging_type is None:
+                rot.set_charging_type(ct=args.get('preferred_charging_type', 'oppb'))
+
+        if args.get("check_rotation_consistency"):
+            # check rotation expectations
+            inconsistent_rotations = cls.check_consistency(schedule)
+            if inconsistent_rotations:
+                # write errors to file
+                filepath = args["output_directory"] / "inconsistent_rotations.csv"
+                with open(filepath, "w", encoding='utf-8') as f:
+                    for rot_id, e in inconsistent_rotations.items():
+                        f.write(f"Rotation {rot_id}: {e}\n")
+                        logging.error(f"Rotation {rot_id}: {e}")
+                        if args.get("skip_inconsistent_rotations"):
+                            # remove this rotation from schedule
+                            del schedule.rotations[rot_id]
+        elif args.get("skip_inconsistent_rotations"):
+            logging.warning("Option skip_inconsistent_rotations ignored, "
+                          "as check_rotation_consistency is not set to 'true'")
+
+        return schedule
+
+
 
     @classmethod
     def from_csv(cls, path_to_csv, vehicle_types, stations, **kwargs):
@@ -263,7 +310,7 @@ class Schedule:
         - trips have positive times between departure and arrival
 
         :param schedule: the schedule to check
-        :type schedule: dict
+        :type schedule: Schedule
         :return: inconsistent rotations. Dict of rotation ID -> error message
         :rtype: dict
         """
@@ -739,6 +786,30 @@ class Schedule:
                             if r in rot_set[rot_key]:
                                 break
         return rot_set
+
+    def get_height_difference(self, departure_name, arrival_name):
+        """ Get the height difference of two stations.
+
+        Defaults to 0 if height data is not found
+        :param departure_name: Departure station
+        :type departure_name: str
+        :param arrival_name: Arrival station
+        :type arrival_name: str
+        :return: Height difference
+        :rtype: float
+        """
+        if isinstance(self.station_data, dict):
+            station = departure_name
+            try:
+                start_height = self.station_data[station]["elevation"]
+                station = arrival_name
+                end_height = self.station_data[arrival_name]["elevation"]
+                return end_height - start_height
+            except KeyError:
+                logging.error(f"No elevation data found for {station}. Height Difference set to 0")
+        else:
+            logging.error("No Station Data found for schedule. Height Difference set to 0")
+        return 0
 
     def get_negative_rotations(self, scenario):
         """ Get rotations with negative SoC from SpiceEV outputs.
