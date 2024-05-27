@@ -114,9 +114,6 @@ class TestSchedule(BasicSchedule):
 
         initialize_consumption(self.vehicle_types)
 
-        default_schedule_arguments["path_to_csv"] = file_root / "trips_assign_vehicles.csv"
-        generated_schedule = schedule.Schedule.from_csv(**default_schedule_arguments)
-        generated_schedule.assign_vehicles()
         path_to_trips = file_root / "trips_assign_vehicles_extended.csv"
         generated_schedule = schedule.Schedule.from_csv(
             path_to_trips, self.vehicle_types, self.electrified_stations, **mandatory_args)
@@ -360,7 +357,7 @@ class TestSchedule(BasicSchedule):
         assert scen.components.batteries["Station-0 storage"].capacity == 300
         assert scen.components.batteries["Station-0 storage"].efficiency == 0.95
         assert scen.components.batteries["Station-0 storage"].min_charging_power == 0
-        generated_schedule.assign_vehicles()
+        generated_schedule.assign_vehicles(args)
         scen = generated_schedule.run(args)
         assert type(scen) is scenario.Scenario
 

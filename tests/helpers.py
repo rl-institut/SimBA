@@ -1,5 +1,7 @@
 """ Reusable functions that support tests
 """
+from argparse import Namespace
+
 from simba import schedule, trip, consumption, util
 from simba.data_container import DataContainer
 
@@ -21,12 +23,13 @@ def generate_basic_schedule():
         "gc_power_deps": 1000,
         "cs_power_opps": 100,
         "cs_power_deps_depb": 50,
-        "cs_power_deps_oppb": 150
+        "cs_power_deps_oppb": 150,
+        "desired_soc_deps": 1,
     }
-    generated_schedule = schedule.Schedule.from_csv(schedule_path, vehicle_types, station_path, **mandatory_args,
-                               outside_temperature_over_day_path=temperature_path,
-                               level_of_loading_over_day_path=lol_path)
-    generated_schedule.assign_vehicles()
+    generated_schedule = schedule.Schedule.from_csv(
+        schedule_path, vehicle_types, station_path, **mandatory_args,
+        outside_temperature_over_day_path=temperature_path, level_of_loading_over_day_path=lol_path)
+    generated_schedule.assign_vehicles(Namespace(**mandatory_args))
     return generated_schedule
 
 

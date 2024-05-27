@@ -7,7 +7,7 @@ class Trip:
     consumption: simba.consumption.Consumption = None
 
     def __init__(self, rotation, departure_time, departure_name,
-                 arrival_time, arrival_name, distance, temperature, level_of_loading, height_diff,
+                 arrival_time, arrival_name, distance, temperature, level_of_loading, height_difference,
                  **kwargs):
         self.departure_name = departure_name
         if type(departure_time) is str:
@@ -20,7 +20,7 @@ class Trip:
         self.distance = float(distance)
         self.line = kwargs.get('line', None)
         self.temperature = float(temperature)
-        self.height_diff = height_diff
+        self.height_difference = height_difference
         self.level_of_loading = level_of_loading
         # mean speed in km/h from distance and travel time or from initialization
         # travel time is at least 1 min
@@ -54,7 +54,7 @@ class Trip:
                 self.rotation.vehicle_type,
                 self.rotation.charging_type,
                 temp=self.temperature,
-                height_diff=self.height_diff,
+                height_difference=self.height_difference,
                 level_of_loading=self.level_of_loading,
                 mean_speed=self.mean_speed)
         except AttributeError as e:

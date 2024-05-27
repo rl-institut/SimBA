@@ -70,7 +70,7 @@ class TestSocDispatcher:
         # Create soc dispatcher
         sched.init_soc_dispatcher(args)
 
-        sched.assign_vehicles()
+        sched.assign_vehicles(args)
         scen = sched.run(args)
 
         for rot in sched.rotations.values():

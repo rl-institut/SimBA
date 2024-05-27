@@ -103,7 +103,7 @@ class TestStationOptimization:
                                                **vars(args2))
         # Create soc dispatcher
         generated_schedule.init_soc_dispatcher(args)
-        generated_schedule.assign_vehicles()
+        generated_schedule.assign_vehicles(args)
         scen = generated_schedule.run(args)
         # optimization depends on vehicle_socs, therefore they need to be generated
         generate_soc_timeseries(scen)

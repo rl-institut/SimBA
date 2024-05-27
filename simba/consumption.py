@@ -34,7 +34,7 @@ class Consumption:
         self.vehicle_types = vehicle_types
 
     def calculate_consumption(self, time, distance, vehicle_type, charging_type, temp=None,
-                              height_diff=0, level_of_loading=None, mean_speed=18):
+                              height_difference=0, level_of_loading=None, mean_speed=18):
         """ Calculates consumed amount of energy for a given distance.
 
         :param time: The date and time at which the trip ends
@@ -48,8 +48,8 @@ class Consumption:
         :type charging_type: str
         :param temp: Temperature outside of the bus in °Celsius
         :type temp: float
-        :param height_diff: difference in height between stations in meters-
-        :type height_diff: float
+        :param height_difference: difference in height between stations in meters-
+        :type height_difference: float
         :param level_of_loading: Level of loading of the bus between empty (=0) and
                                  completely full (=1.0). If None
                                  is provided, Level of loading will be interpolated from time series
@@ -94,7 +94,7 @@ class Consumption:
             interpol_function = self.consumption_files[consumption_path]
 
         mileage = interpol_function(
-            this_incline=height_diff / distance, this_temp=temp,
+            this_incline=height_difference / distance, this_temp=temp,
             this_lol=level_of_loading, this_speed=mean_speed)
 
         consumed_energy = mileage * distance / 1000  # kWh

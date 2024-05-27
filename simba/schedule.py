@@ -90,6 +90,30 @@ class Schedule:
     # def from_container(self, data_container: DataContainer):
     #     to be implemented
 
+    def get_height_difference(self, departure_name, arrival_name):
+        """ Get the height difference of two stations.
+
+        Defaults to 0 if height data is not found
+        :param departure_name: Departure station
+        :type departure_name: str
+        :param arrival_name: Arrival station
+        :type arrival_name: str
+        :return: Height difference
+        :rtype: float
+        """
+        if isinstance(self.station_data, dict):
+            station = departure_name
+            try:
+                start_height = self.station_data[station]["elevation"]
+                station = arrival_name
+                end_height = self.station_data[arrival_name]["elevation"]
+                return end_height - start_height
+            except KeyError:
+                logging.error(f"No elevation data found for {station}. Height Difference set to 0")
+        else:
+            logging.error(f"No Station Data found for schedule. Height Difference set to 0")
+        return 0
+
     @classmethod
     def from_csv(cls, path_to_csv, vehicle_types, stations, **kwargs):
         """ Constructs Schedule object from CSV file containing all trips of schedule.
@@ -178,7 +202,7 @@ class Schedule:
                                   - station_data[trip["departure_name"]]["elevation"]
                 except (KeyError, TypeError):
                     height_diff = 0
-                trip["height_diff"] = height_diff
+                trip["height_difference"] = height_diff
 
                 # Get level of loading from trips.csv or from file
                 try:

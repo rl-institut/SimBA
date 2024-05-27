@@ -293,6 +293,7 @@ def recombination(schedule, args, trips, depot_trips):
                 depot_trip = generate_depot_trip_data_dict(
                     trip.departure_name, depot_trips,
                     args.default_depot_distance, args.default_mean_speed)
+                height_difference = schedule.get_height_difference(depot_trip["name"],trip.departure_name)
                 rotation.add_trip({
                     "departure_time": trip.departure_time - depot_trip["travel_time"],
                     "departure_name": depot_trip["name"],
@@ -302,7 +303,7 @@ def recombination(schedule, args, trips, depot_trips):
                     "line": trip.line,
                     "charging_type": charging_type,
                     "temperature": trip.temperature,
-                    # "height_difference": None,  # compute from station data
+                    "height_difference": height_difference,
                     "level_of_loading": 0,  # no passengers from depot
                     "mean_speed": depot_trip["mean_speed"],
                     "station_data": schedule.station_data,
@@ -324,6 +325,8 @@ def recombination(schedule, args, trips, depot_trips):
             depot_trip = generate_depot_trip_data_dict(
                 trip.arrival_name, depot_trips,
                 args.default_depot_distance, args.default_mean_speed)
+            height_difference = schedule.get_height_difference(trip.arrival_name,
+                                                               depot_trip["name"])
             depot_trip = {
                 "departure_time": trip.arrival_time,
                 "departure_name": trip.arrival_name,
@@ -333,6 +336,7 @@ def recombination(schedule, args, trips, depot_trips):
                 "line": trip.line,
                 "charging_type": charging_type,
                 "temperature": trip.temperature,
+                "height_difference": height_difference,
                 "level_of_loading": 0,
                 "mean_speed": depot_trip["mean_speed"],
                 "station_data": schedule.station_data,
