@@ -484,8 +484,8 @@ def get_groups_from_events(events, impossible_stations=None, could_not_be_electr
                     break
         else:
             if optimizer:
-                optimizer.logger.warning(f'Rotation {event.rotation.id} has no possible '
-                                         f'electrifiable stations and will be removed.')
+                optimizer.logger.warning(f"Rotation {event.rotation.id} has no possible "
+                                         "electrifiable stations and will be removed.")
                 # this event will not show up in an event_group.
                 # therefore it needs to be put into this set
             could_not_be_electrified.update([event.rotation.id])
