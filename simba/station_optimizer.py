@@ -5,6 +5,8 @@ import pickle
 from copy import deepcopy, copy
 from datetime import datetime, timedelta
 from pathlib import Path
+from typing import Iterable
+
 import numpy as np
 
 import simba.optimizer_util as opt_util
@@ -76,7 +78,7 @@ class StationOptimizer:
             could_not_be_electrified=self.could_not_be_electrified, optimizer=self)
 
         if len(groups) == 0:
-            self.logger.info("The scenario has no low socs and cannot be optimized")
+            self.logger.info("The scenario is already optimized, as it has no low SoC.")
             return self.electrified_stations, self.electrified_station_set
 
         # sort groups by highest potential of a single electrification. Used if partial
@@ -362,7 +364,7 @@ class StationOptimizer:
                                              rel_soc=True, **kwargs)
 
         delta_energy = opt_util.get_missing_energy(new_events, self.config.min_soc)
-        events_remaining[0] -= (len(event_group) - len(new_events))
+        events_remaining[0] -= len(event_group) - len(new_events)
 
         new_rotation = {event.rotation for event in new_events}
         r_electrified = len(event_rotations_ids) - len(new_rotation)
@@ -448,7 +450,7 @@ class StationOptimizer:
         return sorted(charge_events_single_station, key=lambda x: x.arrival_time)
 
     @opt_util.time_it
-    def timeseries_calc(self, electrified_stations: set, rotations=None) -> object:
+    def timeseries_calc(self, electrified_stations: set, rotations=None) -> dict:
         """ A quick estimation of socs.
 
         Iterates through rotations and calculates the soc. The start value is assumed to be
@@ -982,13 +984,13 @@ class StationOptimizer:
         return searched_time
 
     @opt_util.time_it
-    def get_low_soc_events(self, rotations=None, filter_standing_time=True,
+    def get_low_soc_events(self, rotations: Iterable = None, filter_standing_time=True,
                            rel_soc=False, soc_data=None, **kwargs):
         """ Return low soc events below the config threshold.
 
-        :param rotations: rotations to be searched for low soc events. Default None means whole
+        :param rotations: rotation_ids to be searched for low soc events. Default None means whole
             schedule is searched
-        :type rotations: iterable
+        :type rotations: Iterable
         :param filter_standing_time: Should the stations be filtered by standing time. True leads to
             an output with only stations with charging potential
         :type filter_standing_time: bool
