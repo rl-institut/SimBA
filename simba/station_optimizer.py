@@ -457,7 +457,7 @@ class StationOptimizer:
         schedule.cs_power_opps and the vehicle_charging_curve
 
         :param electrified_stations: stations which are calculated as electrified with cs_power_opps
-        :type electrified_stations: set(str)
+        :type electrified_stations: set
         :param rotations: Rotations to be calculated. Defaults to optimizer.schedule.rotations
         :type rotations: iterable[Rotation]
         :param electrified_stations: Stations which are electrified. Default None leads to using the
