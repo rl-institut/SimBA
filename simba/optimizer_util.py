@@ -18,8 +18,6 @@ from matplotlib import pyplot as plt
 if typing.TYPE_CHECKING:
     from simba.station_optimizer import StationOptimizer
 
-from simba.consumption import Consumption
-from simba.trip import Trip
 from simba.util import get_buffer_time as get_buffer_time_util
 from spice_ev.report import generate_soc_timeseries
 
@@ -111,6 +109,7 @@ class OptimizerConfig:
         self.rotations = None
         self.path = None
         self.save_all_results = None
+
 
 def time_it(function, timers={}):
     """ Decorator function to time the duration and number of function calls.
@@ -280,7 +279,7 @@ def get_index_by_time(scenario, search_time):
     return (search_time - scenario.start_time) // scenario.interval
 
 
-def get_rotation_soc_util(rot_id, schedule, scenario, soc_data: dict = None):
+def get_rotation_soc(rot_id, schedule, scenario, soc_data: dict = None):
     """ Return the SoC time series with start and end index for a given rotation ID.
 
     :param rot_id: rotation_id
@@ -485,15 +484,20 @@ def get_groups_from_events(events, impossible_stations=None, could_not_be_electr
                     break
         else:
             if optimizer:
-                optimizer.logger.warning(
-                    'Did not find rotation %s in any subset of possible electrifiable stations',
-                    event.rotation.id)
+                optimizer.logger.warning(f'Rotation {event.rotation.id} has no possible '
+                                         f'electrifiable stations and will be removed.')
                 # this event will not show up in an event_group.
                 # therefore it needs to be put into this set
             could_not_be_electrified.update([event.rotation.id])
 
     groups = list(zip(event_groups, station_subsets))
-    return sorted(groups, key=lambda x: len(x[1]))
+    # each event group should have events and stations. If not something went wrong.
+    filtered_groups = list(filter(lambda x: len(x[0]) != 0 and len(x[1]) != 0, groups))
+    if len(filtered_groups) != len(groups):
+        if optimizer:
+            optimizer.logger.error("An event group has no possible electrifiable stations and "
+                                   "will not be optimized.")
+    return sorted(filtered_groups, key=lambda x: len(x[1]))
 
 
 def join_all_subsets(subsets):
@@ -517,6 +521,19 @@ def join_all_subsets(subsets):
 
     # station_array: boolean matrix of dimension n*m with n being the number of unique stations and
     # m the amount of subsets. If a station is part of the subset it will be set to True
+    # this will turn the subsets
+    # Sub_s_0={Station4}
+    # Sub_s_1={Station1}
+    # Sub_s_2={Station2}
+    # Sub_s_3={Station0,Station2}
+    # Sub_s_4={Station3}
+    # into
+    #          Sub_s_0  Sub_s_1  Sub_s_2  Sub_s_3  Sub_s_4
+    # Station0 False    True     False    True     False
+    # Station1 False    False    True     False    False
+    # Station2 False    False    False    True     False
+    # Station3 False    False    False    False    True
+    # Station4 True     False    False    False    False
     station_array = np.zeros((len(all_stations), len(subsets))).astype(bool)
     for i, subset in enumerate(subsets):
         for station in subset:
@@ -525,6 +542,18 @@ def join_all_subsets(subsets):
     # Traverse the matrix row wise. Columns with True values in this row are merged to a single one.
     # All rows of these columns are merged. This translates to subsets sharing the same station.
     # The result cannot contain any overlapping columns / sets
+    #          Sub_s_0  Sub_s_1  Sub_s_2  Sub_s_3  Sub_s_4
+    # Station0 False    True     False    True     False
+
+    # returns the indicies 1 and 3. the columns are merged.
+    #          Sub_s_0  Sub_s_1/Sub_s_3  Sub_s_2  Sub_s_4
+    # Station0 False    True             False    False
+    # Station1 False    False            True     False
+    # Station2 False    True             False     False
+    # Station3 False    False            False     True
+    # Station4 True     False            False    False
+
+    # The other rows are compared as well but share no True values and are not changed
     rows = station_array.shape[0]
     for row in range(rows):
         indicies = np.where(station_array[row, :])[0]
@@ -778,8 +807,7 @@ def run_schedule(sched, args, electrified_stations=None):
     """
     sched_copy = copy(sched)
     sched_copy.stations = electrified_stations
-    sched_copy, new_scen = preprocess_schedule(sched_copy, args,
-                                               electrified_stations=electrified_stations)
+    new_scen = sched_copy.generate_scenario(args)
 
     with warnings.catch_warnings():
         warnings.simplefilter('ignore', UserWarning)
@@ -792,29 +820,6 @@ def run_schedule(sched, args, electrified_stations=None):
             sys.stdout = sys.__stdout__
     generate_soc_timeseries(new_scen)
     return sched_copy, new_scen
-
-
-def preprocess_schedule(sched, args, electrified_stations=None):
-    """ Calculate consumption, set electrified stations and assign vehicles.
-
-    :param sched: schedule containing the rotations
-    :type sched: simba.schedule.Schedule
-    :param args: arguments for simulation
-    :type args: Namespace
-    :param electrified_stations: stations to be electrified
-    :type electrified_stations: dict
-    :return: schedule and scenario to be simulated
-    :rtype: (simba.schedule.Schedule, spice_ev.Scenario)
-    """
-    Trip.consumption = Consumption(
-        sched.vehicle_types, outside_temperatures=args.outside_temperature_over_day_path,
-        level_of_loading_over_day=args.level_of_loading_over_day_path)
-
-    sched.stations = electrified_stations
-    sched.calculate_consumption()
-    sched.assign_vehicles(args)
-
-    return sched, sched.generate_scenario(args)
 
 
 def get_time(start=[]):
@@ -877,7 +882,7 @@ def plot_rot(rot_id, sched, scen, axis=None, rot_only=True):
     :return: axis of the plot
     :rtype: matplotlib.axes
     """
-    soc, start, end = get_rotation_soc_util(rot_id, sched, scen)
+    soc, start, end = get_rotation_soc(rot_id, sched, scen)
     if not rot_only:
         start = 0
         end = -1

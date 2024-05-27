@@ -50,6 +50,8 @@ def setup_logger(conf):
     stream_handler = logging.StreamHandler()
     stream_handler.setFormatter(formatter)
     stream_handler.setLevel(conf.console_level)
+
+    # Log to an optimization-specific file, a general file and to console
     this_logger.addHandler(file_handler_this_opt)
     this_logger.addHandler(file_handler_all_opts)
     this_logger.addHandler(stream_handler)
@@ -109,7 +111,6 @@ def run_optimization(conf, sched=None, scen=None, args=None):
 
     if args.desired_soc_deps != 1 and conf.solver == "quick":
         logger.error("Fast calculation is not yet optimized for desired socs different to 1")
-
     optimizer = simba.station_optimizer.StationOptimizer(sched, scen, args, conf, logger)
 
     # set battery and charging curves through config file
@@ -139,6 +140,10 @@ def run_optimization(conf, sched=None, scen=None, args=None):
     # remove none values from socs in the vehicle_socs
     optimizer.replace_socs_from_none_to_value()
 
+    # Remove already electrified stations from possible stations
+    optimizer.not_possible_stations = set(optimizer.electrified_stations.keys()).union(
+        optimizer.not_possible_stations)
+
     # all stations electrified: are there still negative rotations?
     if conf.remove_impossible_rotations:
         neg_rots = optimizer.get_negative_rotations_all_electrified()
@@ -160,8 +165,20 @@ def run_optimization(conf, sched=None, scen=None, args=None):
         must_stations = optimizer.get_critical_stations_and_rebase(relative_soc=False)
         logger.warning("%s must stations %s", len(must_stations), must_stations)
 
+    rotations_for_opt = {key: rot for key, rot in optimizer.schedule.rotations.items()}
+
     logger.log(msg="Starting greedy station optimization", level=100)
+
+    # start a timer to later check how long the optimization took
+    opt_util.get_time()
+
+    # Go into the optimization loop, where stations are subsequently electrified
     ele_stations, ele_station_set = optimizer.loop()
+
+    # Restore the rotations and the scenario which where the goal of optimization
+    optimizer.schedule.rotations = rotations_for_opt
+    optimizer.scenario = optimizer.base_scenario
+
     ele_station_set = ele_station_set.union(must_include_set)
     logger.debug("%s electrified stations : %s", len(ele_station_set), ele_station_set)
     logger.debug("%s total stations", len(ele_stations))
