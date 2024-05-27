@@ -6,8 +6,10 @@ from typing import Iterable
 
 import matplotlib.pyplot as plt
 import matplotlib
-matplotlib.use('Agg')
 from spice_ev.report import aggregate_global_results, plot, generate_reports
+
+matplotlib.use('Agg')
+
 
 def open_for_csv(filepath):
     """ Create a file handle to write to.

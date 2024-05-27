@@ -7,8 +7,8 @@ class Trip:
     consumption: simba.consumption.Consumption = None
 
     def __init__(self, rotation, departure_time, departure_name,
-                 arrival_time, arrival_name, distance, temperature, level_of_loading, height_difference,
-                 **kwargs):
+                 arrival_time, arrival_name, distance, temperature, level_of_loading,
+                 height_difference, **kwargs):
         self.departure_name = departure_name
         if type(departure_time) is str:
             departure_time = datetime.fromisoformat(departure_time)

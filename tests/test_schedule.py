@@ -533,7 +533,6 @@ class TestSchedule(BasicSchedule):
 
         generated_schedule.init_soc_dispatcher(args)
 
-
         # only test individual price CSV and random price generation
         args.include_price_csv = None
         # Station-0: all options

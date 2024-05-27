@@ -39,7 +39,6 @@ class DataContainer:
         self.add_vehicle_types(vehicle_types)
         return self
 
-
     def add_consumption_data_from_vehicle_type_linked_files(self):
         assert self.vehicle_types_data, "No vehicle_type data in the data_container"
         mileages = list(get_values_from_nested_key("mileage", self.vehicle_types_data))
@@ -52,7 +51,7 @@ class DataContainer:
             self.add_consumption_data(mileage_path, df)
         return self
 
-    def add_consumption_data(self, data_name, df: pd.DataFrame) -> None:
+    def add_consumption_data(self, data_name, df: pd.DataFrame) -> 'DataContainer':
         """Add consumption data to the data container. Consumption data will be used by the
         Consumption instance
 
@@ -61,7 +60,10 @@ class DataContainer:
         :param data_name: name of the data, linked with vehicle_type
         :type data_name: str
         :param df: dataframe with consumption data and various expected columns
-        :type df: pd.DataFrame"""
+        :type df: pd.DataFrame
+        :return: DatacContainer instance with added consumption data
+        """
+
         for expected_col in [INCLINE, T_AMB, LEVEL_OF_LOADING, SPEED, CONSUMPTION]:
             assert expected_col in df.columns, f"Consumption data is missing {expected_col}"
         assert data_name not in self.consumption_data, f"{data_name} already exists in data"
@@ -95,6 +97,7 @@ def get_values_from_nested_key(key, data: dict) -> list:
     for value in data.values():
         if isinstance(value, dict):
             yield from get_values_from_nested_key(key, value)
+
 
 def get_dict_from_csv(column, file_path, index):
     output = dict()

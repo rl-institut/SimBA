@@ -7,14 +7,14 @@ import random
 import warnings
 from typing import Dict, Type, Iterable
 
-from spice_ev.scenario import Scenario
-import spice_ev.util as spice_ev_util
-
 import simba.rotation
-from simba import util
 from simba.data_container import DataContainer
 from simba import util, optimizer_util
 from simba.rotation import Rotation
+
+from spice_ev.components import VehicleType
+from spice_ev.scenario import Scenario
+import spice_ev.util as spice_ev_util
 
 
 class SocDispatcher:
@@ -41,9 +41,6 @@ class SocDispatcher:
             return v_socs[trip]
         except KeyError:
             return vars(self).get("default_soc_" + station_type)
-from spice_ev.components import VehicleType
-from spice_ev.scenario import Scenario
-import spice_ev.util as spice_ev_util
 
 
 class Schedule:
@@ -111,7 +108,7 @@ class Schedule:
             except KeyError:
                 logging.error(f"No elevation data found for {station}. Height Difference set to 0")
         else:
-            logging.error(f"No Station Data found for schedule. Height Difference set to 0")
+            logging.error("No Station Data found for schedule. Height Difference set to 0")
         return 0
 
     @classmethod
@@ -126,6 +123,7 @@ class Schedule:
         :type stations: string
         :param kwargs: Command line arguments
         :type kwargs: dict
+        :raises NotImplementedError: if stations is neither a str,Path nor dictionary.
         :return: Returns a new instance of Schedule with all trips from csv loaded.
         :rtype: Schedule
         """
@@ -139,7 +137,7 @@ class Schedule:
         else:
             raise NotImplementedError
 
-        schedule = cls(vehicle_types, stations_dict , **kwargs)
+        schedule = cls(vehicle_types, stations_dict, **kwargs)
 
         station_data = dict()
         station_path = kwargs.get("station_data_path")

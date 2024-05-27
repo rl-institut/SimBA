@@ -62,23 +62,23 @@ class TestConsumption:
         # Check various inputs, which need interpolation. Inputs have to be inside of the data, i.e.
         # not out of bounds
         assert true_cons(lol, incline, speed, t_amb) == consumption.calculate_consumption(
-            time, distance, vehicle_type, charging_type, temp=t_amb, height_difference=incline * distance,
-            level_of_loading=lol, mean_speed=speed)[0]
+            time, distance, vehicle_type, charging_type, temp=t_amb,
+            height_difference=incline * distance, level_of_loading=lol, mean_speed=speed)[0]
 
         incline = 0.02
         assert true_cons(lol, incline, speed, t_amb) == consumption.calculate_consumption(
-            time, distance, vehicle_type, charging_type, temp=t_amb, height_difference=incline * distance,
-            level_of_loading=lol, mean_speed=speed)[0]
+            time, distance, vehicle_type, charging_type, temp=t_amb,
+            height_difference=incline * distance, level_of_loading=lol, mean_speed=speed)[0]
 
         t_amb = 15
         assert true_cons(lol, incline, speed, t_amb) == consumption.calculate_consumption(
-            time, distance, vehicle_type, charging_type, temp=t_amb, height_difference=incline * distance,
-            level_of_loading=lol, mean_speed=speed)[0]
+            time, distance, vehicle_type, charging_type, temp=t_amb,
+            height_difference=incline * distance, level_of_loading=lol, mean_speed=speed)[0]
 
         lol = 0.1
         assert true_cons(lol, incline, speed, t_amb) == consumption.calculate_consumption(
-            time, distance, vehicle_type, charging_type, temp=t_amb, height_difference=incline * distance,
-            level_of_loading=lol, mean_speed=speed)[0]
+            time, distance, vehicle_type, charging_type, temp=t_amb,
+            height_difference=incline * distance, level_of_loading=lol, mean_speed=speed)[0]
 
         # check for out of bounds consumption. Max consumption in the table is 6.6.
         t_amb = 99999
@@ -86,13 +86,13 @@ class TestConsumption:
         lol = 99999
         speed = 99999
         assert consumption.calculate_consumption(
-            time, distance, vehicle_type, charging_type, temp=t_amb, height_difference=incline * distance,
-            level_of_loading=lol, mean_speed=speed)[0] < 6.7
+            time, distance, vehicle_type, charging_type, temp=t_amb,
+            height_difference=incline * distance, level_of_loading=lol, mean_speed=speed)[0] < 6.7
 
         # check temperature default runs without errors when temp is None
         consumption.calculate_consumption(
-            time, dist, vehicle_type, charging_type, temp=None, height_difference=0, level_of_loading=0,
-            mean_speed=18)[0]
+            time, dist, vehicle_type, charging_type, temp=None, height_difference=0,
+            level_of_loading=0, mean_speed=18)[0]
 
         # check temperature default from temperature time series error throwing
         last_hour = 12

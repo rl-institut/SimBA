@@ -250,6 +250,7 @@ def setup_logging(args, time_str):
     )
     logging.captureWarnings(True)
 
+
 def get_args():
     parser = get_parser()
 
@@ -277,7 +278,6 @@ def mutate_args_for_spiceev(args):
     args.margin = 1
     args.ALLOW_NEGATIVE_SOC = True
     args.PRICE_THRESHOLD = -100  # ignore price for charging decisions
-
 
 
 def get_parser():
@@ -433,6 +433,7 @@ def get_parser():
 
     parser.add_argument('--config', help='Use config file to set arguments')
     return parser
+
 
 def daterange(start_date, end_date, time_delta):
     """ Iterate over a datetime range using a time_delta step.
