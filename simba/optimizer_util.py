@@ -523,8 +523,8 @@ def join_all_subsets(subsets):
     # m the amount of subsets. If a station is part of the subset it will be set to True
     # this will turn the subsets
     # Sub_s_0={Station4}
-    # Sub_s_1={Station1}
-    # Sub_s_2={Station2}
+    # Sub_s_1={Station0}
+    # Sub_s_2={Station1}
     # Sub_s_3={Station0,Station2}
     # Sub_s_4={Station3}
     # into
@@ -539,8 +539,11 @@ def join_all_subsets(subsets):
         for station in subset:
             station_array[all_stations_index[station], i] = True
 
-    # Traverse the matrix row wise. Columns with True values in this row are merged to a single one.
-    # All rows of these columns are merged. This translates to subsets sharing the same station.
+    # Traverse the matrix row wise station by station.
+    # Columns which share a True value in this row are merged to a single one.
+    # All rows (!) of these columns  are merged into a new subset.
+    # This translates to subsets sharing the same station.
+
     # The result cannot contain any overlapping columns / sets
     #          Sub_s_0  Sub_s_1  Sub_s_2  Sub_s_3  Sub_s_4
     # Station0 False    True     False    True     False
@@ -553,7 +556,9 @@ def join_all_subsets(subsets):
     # Station3 False    False            False     True
     # Station4 True     False            False    False
 
-    # The other rows are compared as well but share no True values and are not changed
+    # The other rows are compared as well but share no True values and are not changed.
+    # Afterwards, all rows contain only a single True value. These are the final merged subsets.
+    # In the example, Sub_s_0 contains Station4, Sub_s_1/3 contains Station0 and Station2 and so on.
     rows = station_array.shape[0]
     for row in range(rows):
         indicies = np.where(station_array[row, :])[0]
