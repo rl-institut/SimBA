@@ -128,8 +128,8 @@ def generate_plots(scenario, args):
         plt.show()
     # revert logging override
     logging.disable(logging.NOTSET)
-    
-    
+
+
 def generate(schedule, scenario, args):
     """ Generates all output files/ plots and saves them in the output directory.
 
@@ -248,17 +248,17 @@ def generate(schedule, scenario, args):
             socs = [str(rotation_socs[k][i]) for k in rotations]
             data.append([str(t)] + socs)
 
-        # add active rotations to rotation_socs.csv
-        number_of_active_vehicles = [len(scenario.components.vehicles)] * scenario.n_intervals
+        # add active rotations column to rotation_socs.csv
+        active_vehicles = [len(scenario.components.vehicles)] * scenario.n_intervals
         depot_stations = [station for station in scenario.components.grid_connectors
                           if schedule.stations[station]["type"] == "deps"]
         for station_name in depot_stations:
             station_ts = scenario.connChargeByTS[station_name]
             for index, step in enumerate(station_ts):
-                number_of_active_vehicles[index] -= len(step)
+                active_vehicles[index] -= len(step)
         data[0].append("# active_rotations")
         for i in range(len(data)):
-            data[i+1].append(number_of_active_vehicles[i])
+            data[i].append(active_vehicles[i-1])
 
         write_csv(data, args.results_directory / "rotation_socs.csv",
                   propagate_errors=args.propagate_mode_errors)
@@ -282,117 +282,6 @@ def generate(schedule, scenario, args):
         write_csv(csv_report, file_path, propagate_errors=args.propagate_mode_errors)
 
     logging.info(f"Plots and output files saved in {args.results_directory}")
-
-
-def generate_gc_power_overview_timeseries(scenario, args):
-    """Generate a csv timeseries with each grid connector's summed up charging station power
-
-    :param scenario: Scenario for with to generate timeseries.
-    :type scenario: spice_ev.Scenario
-    :param args: Configuration arguments specified in config files contained in configs directory.
-    :type args: argparse.Namespace
-    """
-
-    gc_list = list(scenario.components.grid_connectors.keys())
-
-    if not gc_list:
-        return
-
-    with open(args.output_directory / "gc_power_overview_timeseries.csv", "w", newline='') as f:
-        csv_writer = csv.writer(f)
-        csv_writer.writerow(["time"] + gc_list)
-        stations = []
-        time_col = getattr(scenario, f"{gc_list[0]}_timeseries")["time"]
-        for i in range(len(time_col)):
-            time_col[i] = time_col[i].isoformat()
-        stations.append(time_col)
-        for gc in gc_list:
-            stations.append([-x for x in getattr(scenario, f"{gc}_timeseries")["grid supply [kW]"]])
-        gc_power_overview = list(map(list, zip(*stations)))
-        csv_writer.writerows(gc_power_overview)
-
-
-def generate_gc_overview(schedule, scenario, args):
-    """Generate a csv file with information regarding electrified stations.
-
-    For each electrified station, the name, type, max. power, max. number of occupied
-    charging stations, sum of charged energy and use factors of least used stations is saved.
-
-    :param schedule: Driving schedule for the simulation.
-    :type schedule: simba.Schedule
-    :param scenario: Scenario for with to generate timeseries.
-    :type scenario: spice_ev.Scenario
-    :param args: Configuration arguments specified in config files contained in configs directory.
-    :type args: argparse.Namespace
-    """
-
-    all_gc_list = list(schedule.stations.keys())
-    used_gc_list = list(scenario.components.grid_connectors.keys())
-    stations = getattr(schedule, "stations")
-
-    with open(args.output_directory / "gc_overview.csv", "w", newline='') as f:
-        csv_writer = csv.writer(f)
-        csv_writer.writerow(["station_name",
-                             "station_type",
-                             "maximum_power",
-                             "maximum Nr charging stations",
-                             "sum of CS energy",
-                             "use factor least CS",
-                             "use factor 2nd least CS",
-                             "use factor 3rd least CS"])
-        for gc in all_gc_list:
-            if gc in used_gc_list:
-                ts = getattr(scenario, f"{gc}_timeseries")
-                max_gc_power = -min(ts["grid supply [kW]"])
-                max_nr_cs = max(ts["# CS in use [-]"])
-                sum_of_cs_energy = sum(ts["sum CS power [kW]"]) * args.interval/60
-
-                # use factors: to which percentage of time are the three least used CS in use
-                num_ts = scenario.n_intervals  # number of timesteps
-                # three least used CS. Less if number of CS is lower.
-                least_used_num = min(3, max_nr_cs)
-                # count number of timesteps with this exact number of occupied CS
-                count_nr_cs = [ts["# CS in use [-]"].count(max_nr_cs - i) for i in range(
-                    least_used_num)]
-                use_factors = [sum(count_nr_cs[:i + 1]) / num_ts for i in range(
-                    least_used_num)]  # relative occupancy with at least this number of occupied CS
-                use_factors = use_factors + [None] * (3 - least_used_num)  # fill up line with None
-
-            else:
-                max_gc_power = 0
-                max_nr_cs = 0
-                sum_of_cs_energy = 0
-                use_factors = [None, None, None]
-            station_type = stations[gc]["type"]
-            csv_writer.writerow([gc,
-                                 station_type,
-                                 max_gc_power,
-                                 max_nr_cs,
-                                 sum_of_cs_energy,
-                                 *use_factors])
-
-
-def generate_plots(scenario, args):
-    """Save plots as png and pdf.
-
-    :param scenario: Scenario to plot.
-    :type scenario: spice_ev.Scenario
-    :param args: Configuration. Uses output_directory and show_plots.
-    :type args: argparse.Namespace
-    """
-    aggregate_global_results(scenario)
-    # disable DEBUG logging from matplotlib
-    logging.disable(logging.INFO)
-    with plt.ion():  # make plotting temporarily interactive, so plt.show does not block
-        plt.clf()
-        plot(scenario)
-        plt.gcf().set_size_inches(10, 10)
-        plt.savefig(args.output_directory / "run_overview.png")
-        plt.savefig(args.output_directory / "run_overview.pdf")
-    if args.show_plots:
-        plt.show()
-    # revert logging override
-    logging.disable(logging.NOTSET)
 
 
 def bus_type_distribution_consumption_rotation(args, schedule):
@@ -513,7 +402,10 @@ def gc_power_time_overview(args, scenario):
         ]
         plt.plot(ts, scenario.totalLoad[gc], label="total")
         plt.plot(ts, scenario.localGenerationPower[gc], label="feed_in")
-        ext_loads = [total - pv for total, pv in zip(scenario.totalLoad[gc], scenario.localGenerationPower[gc])]
+        ext_loads = [
+            total - pv
+            for total, pv in zip(scenario.totalLoad[gc], scenario.localGenerationPower[gc])
+        ]
         plt.plot(ts, ext_loads, label="ext_load")
         plt.legend()
         plt.xticks(rotation=30)
@@ -527,31 +419,26 @@ def gc_power_time_overview(args, scenario):
 
 def active_rotations(args, scenario, schedule):
     """Generate a plot where the number of active rotations is shown."""
-
-    number_of_vehicles = len(scenario.components.vehicles)
-    # ts = [[start_time + datetime.timedelta(minutes=step), 0] for step in range(scenario.n_intervals)]
     ts = [
-        scenario.start_time if i == 0 else
-        scenario.start_time + scenario.interval * i for i in range(scenario.n_intervals)
+        scenario.start_time if i == 0 else scenario.start_time + scenario.interval * i
+        for i in range(scenario.n_intervals)
     ]
-    number_of_active_vehicles = [number_of_vehicles] * scenario.n_intervals
-
-    depot_stations = [station for station in scenario.components.grid_connectors
-                      if schedule.stations[station]["type"] == "deps"]
-
+    active_vehicles = [len(scenario.components.vehicles)] * scenario.n_intervals
+    depot_stations = [
+        station for station in scenario.components.grid_connectors
+        if schedule.stations[station]["type"] == "deps"
+    ]
     for station_name in depot_stations:
         station_ts = scenario.connChargeByTS[station_name]
         for index, step in enumerate(station_ts):
-            number_of_active_vehicles[index] -= len(step)
+            active_vehicles[index] -= len(step)
 
-    plt.plot(ts, number_of_active_vehicles, label="total")
+    plt.plot(ts, active_vehicles, label="total")
     plt.legend()
-    plt.xlabel("Time")
     plt.ylabel("Number of active Vehicles")
     plt.title("Active Rotations")
     plt.xticks(rotation=30)
-
-    plt.savefig(args.output_directory / f"Active Rotations")
+    plt.savefig(args.output_directory / "active_rotations")
     plt.close()
 
 
