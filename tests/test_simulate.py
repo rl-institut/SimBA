@@ -127,6 +127,7 @@ class TestSimulate:
         values["show_plots"] = False
         # tuned so that some rotations don't complete
         values["days"] = .33
+        values["extended_output_plots"] = True
         with warnings.catch_warnings():
             warnings.simplefilter("ignore")
             simulate(Namespace(**values))
@@ -142,6 +143,7 @@ class TestSimulate:
             "output_directory": tmp_path,
             "strategy": "distributed",
             "show_plots": False,
+            "extended_output_plots": False,
         })
         with warnings.catch_warnings():
             warnings.simplefilter("ignore")
