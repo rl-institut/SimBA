@@ -362,7 +362,7 @@ def charge_type_proportion(args, schedule):
     plt.close()
 
 
-def gc_power_time_overview_example(args, schedule, scenario):
+def gc_power_time_overview_example(args, scenario):
 
     gc_list = list(scenario.constants.grid_connectors.keys())
     for gc in gc_list:
@@ -418,7 +418,15 @@ def gc_power_time_overview(args, scenario):
 
 
 def active_rotations(args, scenario, schedule):
-    """Generate a plot where the number of active rotations is shown."""
+    """Generate a plot where the number of active rotations is shown.
+
+    :param args: Configuration arguments from cfg file. args.output_directory is used
+    :type args: argparse.Namespace
+    :param schedule: Driving schedule for the simulation. schedule.rotations are used
+    :type schedule: eBus-Toolbox.Schedule
+    :param scenario: Provides the data for the grid connectors over time.
+    :type scenario: spice_ev.Scenario
+    """
     ts = [
         scenario.start_time if i == 0 else scenario.start_time + scenario.interval * i
         for i in range(scenario.n_intervals)
