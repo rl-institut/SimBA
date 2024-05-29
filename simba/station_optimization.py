@@ -50,6 +50,8 @@ def setup_logger(conf):
     stream_handler = logging.StreamHandler()
     stream_handler.setFormatter(formatter)
     stream_handler.setLevel(conf.console_level)
+
+    # Log to an optimization-specific file, a general file and to console
     this_logger.addHandler(file_handler_this_opt)
     this_logger.addHandler(file_handler_all_opts)
     this_logger.addHandler(stream_handler)
@@ -140,6 +142,10 @@ def run_optimization(conf, sched=None, scen=None, args=None):
     # remove none values from socs in the vehicle_socs
     optimizer.replace_socs_from_none_to_value()
 
+    # Remove already electrified stations from possible stations
+    optimizer.not_possible_stations = set(optimizer.electrified_stations.keys()).union(
+        optimizer.not_possible_stations)
+
     # all stations electrified: are there still negative rotations?
     if conf.remove_impossible_rotations:
         neg_rots = optimizer.get_negative_rotations_all_electrified()
@@ -148,10 +154,10 @@ def run_optimization(conf, sched=None, scen=None, args=None):
             r: optimizer.schedule.rotations[r] for r in optimizer.schedule.rotations if
             r not in optimizer.config.exclusion_rots}
 
-        logger.warning(
-            "%s negative rotations %s were removed from schedule", len(neg_rots), neg_rots)
-        assert len(optimizer.schedule.rotations) > 0, ("Schedule can not be optimized, since "
-                                                       "rotations can not be electrified.")
+        logger.warning(f"{len(neg_rots)} negative rotations {neg_rots} were removed from schedule "
+                       "because they cannot be electrified")
+        assert len(optimizer.schedule.rotations) > 0, (
+            "Schedule cannot be optimized, since rotations cannot be electrified.")
 
     # if the whole network can not be fully electrified if even just a single station is not
     # electrified, this station must be included in a fully electrified network
@@ -161,8 +167,18 @@ def run_optimization(conf, sched=None, scen=None, args=None):
         must_stations = optimizer.get_critical_stations_and_rebase(relative_soc=False)
         logger.warning("%s must stations %s", len(must_stations), must_stations)
 
+    # Store the rotations to be optimized. optimizer.loop() will mutate the dictionary but not the
+    # rotations itself.
+    rotations_for_opt = optimizer.schedule.rotations.copy()
+
     logger.log(msg="Starting greedy station optimization", level=100)
+
+    # start a timer to later check how long the optimization took
+    opt_util.get_time()
+
+    # Go into the optimization loop, where stations are subsequently electrified
     ele_stations, ele_station_set = optimizer.loop()
+
     ele_station_set = ele_station_set.union(must_include_set)
     logger.debug("%s electrified stations : %s", len(ele_station_set), ele_station_set)
     logger.debug("%s total stations", len(ele_stations))
@@ -171,10 +187,14 @@ def run_optimization(conf, sched=None, scen=None, args=None):
     # remove none values from socs in the vehicle_socs so timeseries_calc can work
     optimizer.replace_socs_from_none_to_value()
 
-    vehicle_socs = optimizer.timeseries_calc()
+    # Restore the rotations and the scenario which where the goal of optimization.
+    optimizer.schedule.rotations = rotations_for_opt
+    optimizer.scenario = optimizer.base_scenario
+
+    # Check if the rotations which were part of the optimization are not negative anymore
+    vehicle_socs = optimizer.timeseries_calc(optimizer.electrified_station_set)
 
     new_events = optimizer.get_low_soc_events(soc_data=vehicle_socs)
-
     if len(new_events) > 0:
         logger.debug("Estimation of network still shows negative rotations")
         for event in new_events:
@@ -188,7 +208,7 @@ def run_optimization(conf, sched=None, scen=None, args=None):
         json.dump(output_dict, file, ensure_ascii=False, indent=2)
 
     # Calculation with SpiceEV is more accurate and will show if the optimization is viable or not
-    logger.debug("Detailed calculation of optimized case as a complete scenario")
+    logger.debug("Detailed calculation of an optimized case as a complete scenario")
 
     # Restore original rotations
     for rotation_id in original_schedule.rotations:
@@ -198,9 +218,9 @@ def run_optimization(conf, sched=None, scen=None, args=None):
     optimizer.config.exclusion_rots = set()
     _, __ = optimizer.preprocessing_scenario(
         electrified_stations=ele_stations, run_only_neg=False)
-
-    logger.warning("Still negative rotations: %s",
-                   optimizer.schedule.get_negative_rotations(optimizer.scenario))
+    neg_rotations = optimizer.schedule.get_negative_rotations(optimizer.scenario)
+    if len(neg_rotations) > 0:
+        logger.log(msg=f"Still {len(neg_rotations)} negative rotations: {neg_rotations}", level=100)
     logger.log(msg="Station optimization finished after " + opt_util.get_time(), level=100)
 
     return optimizer.schedule, optimizer.scenario

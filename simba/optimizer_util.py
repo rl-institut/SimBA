@@ -65,12 +65,15 @@ class OptimizerConfig:
     """ Class for the configuration file """
 
     def __init__(self):
-        self.debug_level = None
-        self.console_level = None
-        self.exclusion_rots = None
-        self.exclusion_stations = None
-        self.inclusion_stations = None
-        self.standard_opp_station = None
+        self.logger_name = ""
+        self.debug_level = 0
+        self.console_level = 99
+
+        self.exclusion_rots = []
+        self.exclusion_stations = set()
+        self.inclusion_stations = set()
+        self.standard_opp_station = {"type": "opps", "n_charging_stations": None}
+
         self.schedule = None
         self.scenario = None
         self.args = None
@@ -78,28 +81,34 @@ class OptimizerConfig:
         self.battery_capacity = None
         self.charging_curve = None
         self.charging_power = None
-        self.min_soc = None
-        self.solver = None
-        self.rebase_scenario = None
-        self.pickle_rebased = None
+        self.min_soc = 0
+
+        self.solver = "spiceev"
+        self.rebase_scenario = False
+        self.pickle_rebased = False
+        # used for gradual scenario analysis in django-simba
+        self.early_return = False
+
         self.pickle_rebased_name = None
-        self.opt_type = None
-        self.remove_impossible_rotations = None
-        self.node_choice = None
-        self.max_brute_loop = None
-        self.run_only_neg = None
-        self.run_only_oppb = None
-        self.estimation_threshold = None
-        self.check_for_must_stations = None
+        self.opt_type = "greedy"
+        self.eps = 0.0001
+
+        self.remove_impossible_rotations = False
+        self.node_choice = "step-by-step"
+        self.max_brute_loop = 20
+        self.run_only_neg = True
+        self.run_only_oppb = True
+        self.estimation_threshold = 0.8
+        self.check_for_must_stations = False
+        self.pruning_threshold = 3
+
         self.decision_tree_path = None
-        self.save_decision_tree = None
+        self.save_decision_tree = False
         self.optimizer_output_dir = None
-        self.reduce_rotations = None
+        self.reduce_rotations = False
         self.rotations = None
         self.path = None
-        self.pruning_threshold = None
         self.save_all_results = None
-        self.eps = None
 
 
 def time_it(function, timers={}):
@@ -270,7 +279,7 @@ def get_index_by_time(scenario, search_time):
     return (search_time - scenario.start_time) // scenario.interval
 
 
-def get_rotation_soc_util(rot_id, schedule, scenario, soc_data: dict = None):
+def get_rotation_soc(rot_id, schedule, scenario, soc_data: dict = None):
     """ Return the SoC time series with start and end index for a given rotation ID.
 
     :param rot_id: rotation_id
@@ -475,15 +484,20 @@ def get_groups_from_events(events, impossible_stations=None, could_not_be_electr
                     break
         else:
             if optimizer:
-                optimizer.logger.warning(
-                    'Did not find rotation %s in any subset of possible electrifiable stations',
-                    event.rotation.id)
+                optimizer.logger.warning(f"Rotation {event.rotation.id} has no possible "
+                                         "electrifiable stations and will be removed.")
                 # this event will not show up in an event_group.
                 # therefore it needs to be put into this set
             could_not_be_electrified.update([event.rotation.id])
 
     groups = list(zip(event_groups, station_subsets))
-    return sorted(groups, key=lambda x: len(x[1]))
+    # each event group should have events and stations. If not something went wrong.
+    filtered_groups = list(filter(lambda x: len(x[0]) != 0 and len(x[1]) != 0, groups))
+    if len(filtered_groups) != len(groups):
+        if optimizer:
+            optimizer.logger.error("An event group has no possible electrifiable stations and "
+                                   "will not be optimized.")
+    return sorted(filtered_groups, key=lambda x: len(x[1]))
 
 
 def join_all_subsets(subsets):
@@ -494,34 +508,74 @@ def join_all_subsets(subsets):
     :return: joined subsets if they connect with other subsets in some way
     :rtype: list(set)
     """
-    joined_subset = True
-    while joined_subset:
-        joined_subset, subsets = join_subsets(subsets)
+
+    # create set of all stations in given subsets
+    all_stations = {station for subset in subsets for station in subset}
+    # make list from station set to have fixed order
+    all_stations_list = list(all_stations)
+
+    # create look-up-table from station name to index in all_stations_list
+    all_stations_index = dict()
+    for i, station in enumerate(all_stations_list):
+        all_stations_index[station] = i
+
+    # station_array: boolean matrix of dimension n*m with n being the number of unique stations and
+    # m the amount of subsets. If a station is part of the subset it will be set to True
+    # this will turn the subsets
+    # Sub_s_0={Station4}
+    # Sub_s_1={Station0}
+    # Sub_s_2={Station1}
+    # Sub_s_3={Station0,Station2}
+    # Sub_s_4={Station3}
+    # into
+    #          Sub_s_0  Sub_s_1  Sub_s_2  Sub_s_3  Sub_s_4
+    # Station0 False    True     False    True     False
+    # Station1 False    False    True     False    False
+    # Station2 False    False    False    True     False
+    # Station3 False    False    False    False    True
+    # Station4 True     False    False    False    False
+    station_array = np.zeros((len(all_stations), len(subsets))).astype(bool)
+    for i, subset in enumerate(subsets):
+        for station in subset:
+            station_array[all_stations_index[station], i] = True
+
+    # Traverse the matrix row wise station by station.
+    # Columns which share a True value in this row are merged to a single one.
+    # All rows (!) of these columns  are merged into a new subset.
+    # This translates to subsets sharing the same station.
+
+    # The result cannot contain any overlapping columns / sets
+    #          Sub_s_0  Sub_s_1  Sub_s_2  Sub_s_3  Sub_s_4
+    # Station0 False    True     False    True     False
+
+    # returns the indicies 1 and 3. the columns are merged.
+    #          Sub_s_0  Sub_s_1/Sub_s_3  Sub_s_2  Sub_s_4
+    # Station0 False    True             False    False
+    # Station1 False    False            True     False
+    # Station2 False    True             False     False
+    # Station3 False    False            False     True
+    # Station4 True     False            False    False
+
+    # The other rows are compared as well but share no True values and are not changed.
+    # Afterwards, all rows contain only a single True value. These are the final merged subsets.
+    # In the example, Sub_s_0 contains Station4, Sub_s_1/3 contains Station0 and Station2 and so on.
+    rows = station_array.shape[0]
+    for row in range(rows):
+        indicies = np.where(station_array[row, :])[0]
+        if len(indicies) > 1:
+            station_array[:, indicies[0]] = np.sum(station_array[:, indicies], axis=1).astype(bool)
+            station_array = np.delete(station_array, indicies[1:], axis=1)
+
+    # Translate the matrix back to subsets
+    columns = station_array.shape[1]
+    subsets = []
+    for column in range(columns):
+        subset = set()
+        indicies = np.where(station_array[:, column])[0]
+        for ind in indicies:
+            subset.add(all_stations_list[ind])
+        subsets.append(subset)
     return subsets
-
-
-def join_subsets(subsets: typing.Iterable[set]):
-    """ Run through subsets and return their union, if they have an intersection.
-
-    Run through every subset and check with every other subset if there is an intersection
-    If an intersection is found, the subsets are joined and returned with a boolean of True.
-    If no intersection is found over all subsets False is returned which will cancel the outer
-    call in join_all_subsets
-
-    :param subsets: sets to be joined
-    :type subsets: iterable
-    :return: status if joining subsets is finished and the current list of connected subsets
-    :rtype: (bool,list(set))
-    """
-    subsets = [s.copy() for s in subsets]
-    for i in range(len(subsets)):
-        for ii in range(i+1, len(subsets)):
-            intersec = subsets[i].intersection(subsets[ii])
-            if len(intersec) > 0:
-                subsets[i] = subsets[i].union(subsets[ii])
-                subsets.remove(subsets[ii])
-                return True, subsets
-    return False, subsets
 
 
 def toolbox_from_pickle(sched_name, scen_name, args_name):
@@ -833,7 +887,7 @@ def plot_rot(rot_id, sched, scen, axis=None, rot_only=True):
     :return: axis of the plot
     :rtype: matplotlib.axes
     """
-    soc, start, end = get_rotation_soc_util(rot_id, sched, scen)
+    soc, start, end = get_rotation_soc(rot_id, sched, scen)
     if not rot_only:
         start = 0
         end = -1
