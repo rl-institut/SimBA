@@ -1,4 +1,5 @@
 """Module to handle data access, by the varying SimBA modules."""
+import argparse
 import csv
 import logging
 import datetime
@@ -8,7 +9,6 @@ from typing import Dict
 import pandas as pd
 
 from simba import util
-from simba.consumption import Consumption
 from simba.ids import INCLINE, LEVEL_OF_LOADING, SPEED, T_AMB, CONSUMPTION
 
 
@@ -24,17 +24,65 @@ class DataContainer:
 
         self.trip_data: [dict] = []
 
+    def fill_with_args(self, args: argparse.Namespace):
+        return self.fill_with_paths(args.vehicle_types_path,
+                                    args.electrified_stations_path,
+                                    args.cost_parameters_path,
+                                    args.input_schedule,
+                                    args.outside_temperature_over_day_path,
+                                    args.level_of_loading_over_day_path,
+                                    args.station_data_path,
+                                    )
+
+    def fill_with_paths(self,
+                        vehicle_types_path,
+                        electrified_stations_path,
+                        cost_parameters_file,
+                        trips_file_path,
+                        outside_temperature_over_day_path,
+                        level_of_loading_over_day_path,
+                        station_data_path=None,
+                        ):
+        # Add the vehicle_types from a json file
+        self.add_vehicle_types_from_json(vehicle_types_path)
+
+        # Add consumption data, which is found in the vehicle_type data
+        self.add_consumption_data_from_vehicle_type_linked_files()
+
+        if outside_temperature_over_day_path is not None:
+            self.add_temperature_data_from_csv(outside_temperature_over_day_path)
+
+        if level_of_loading_over_day_path is not None:
+            self.add_level_of_loading_data_from_csv(level_of_loading_over_day_path)
+
+        # Add electrified_stations data
+        self.add_stations_from_json(electrified_stations_path)
+
+        # Add station geo data
+        if station_data_path is not None:
+            self.add_station_geo_data_from_csv(station_data_path)
+
+        # Add cost_parameters_data
+        self.add_cost_parameters_from_json(cost_parameters_file)
+
+        self.add_trip_data_from_csv(trips_file_path)
+        return self
+
     def add_trip_data_from_csv(self, file_path: Path) -> 'DataContainer':
         """ Add trip data from csv file to DataContainer"""
 
-        trips = []
+        self.trip_data = []
         with open(file_path, 'r', encoding='utf-8') as trips_file:
             trip_reader = csv.DictReader(trips_file)
             for trip in trip_reader:
                 trip_d = dict(trip)
                 trip_d["arrival_time"] = datetime.datetime.fromisoformat(trip["arrival_time"])
                 trip_d["departure_time"] = datetime.datetime.fromisoformat(trip["departure_time"])
-                trips.append(trip_d)
+                trip_d["level_of_loading"] = cast_float_or_none(trip.get("level_of_loading"))
+                trip_d["temperature"] = cast_float_or_none(trip.get("temperature"))
+                trip_d["distance"] = float(trip["distance"])
+                self.trip_data.append(trip_d)
+
 
 
 
@@ -51,15 +99,17 @@ class DataContainer:
         # find the temperature and elevation of the stations by reading the .csv file.
         # this data is stored in the schedule and passed to the trips, which use the information
         # for consumption calculation. Missing station data is handled with default values.
+        self.station_geo_data = dict()
         try:
             with open(file_path, "r", encoding='utf-8') as f:
                 delim = util.get_csv_delim(file_path)
                 reader = csv.DictReader(f, delimiter=delim)
                 for row in reader:
-                    file_path.update({str(row['Endhaltestelle']): {
-                        "elevation": float(row['elevation']), "lat": float(row.get('lat', 0)),
-                        "long": float(row.get('long', 0))}
-                    })
+                    self.station_geo_data[str(row['Endhaltestelle'])]= {
+                        "elevation": float(row['elevation']),
+                        "lat": float(row.get('lat', 0)),
+                        "long": float(row.get('long', 0)),
+                    }
         except FileNotFoundError or KeyError:
             logging.warning("Warning: external csv file '{}' not found or not named properly "
                           "(Needed column names are 'Endhaltestelle' and 'elevation')".
@@ -96,7 +146,7 @@ class DataContainer:
         :param data: data containing temperature
         :type data: dict
         """
-        self.cost_parameters_data = data
+        self.temperature_data = data
 
     def add_temperature_data_from_csv(self, file_path: Path) -> 'DataContainer':
         index = "hour"
@@ -113,7 +163,7 @@ class DataContainer:
         :param data: data containing cost_parameters
         :type data: dict
         """
-        self.cost_parameters = data
+        self.cost_parameters_data = data
 
     def add_cost_parameters_from_json(self, file_path: Path) -> 'DataContainer':
         """ Get json data from a file_path"""
@@ -200,17 +250,6 @@ class DataContainer:
 
         return self
 
-    def to_consumption(self) -> Consumption:
-        """Build a consumption instance from the stored data
-        :returns: Consumption instance
-        """
-        # setup consumption calculator that can be accessed by all trips
-        consumption = Consumption(self.vehicle_types_data)
-        for name, df in self.consumption_data.items():
-            consumption.set_consumption_interpolation(name, df)
-        return consumption
-
-
 def get_values_from_nested_key(key, data: dict) -> list:
     """Get all the values of the specified key in a nested dict
 
@@ -236,3 +275,9 @@ def get_dict_from_csv(column, file_path, index):
         for row in reader:
             output[float(row[index])] = float(row[column])
     return output
+
+def cast_float_or_none(val: any) -> any:
+    try:
+        return float(val)
+    except (ValueError, TypeError):
+        return None

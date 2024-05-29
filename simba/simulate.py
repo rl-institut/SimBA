@@ -2,7 +2,8 @@ import logging
 import traceback
 from copy import deepcopy
 
-from simba import report, optimization, util
+from simba import report, optimization, util, consumption
+from simba.consumption import Consumption
 from simba.data_container import DataContainer
 from simba.costs import calculate_costs
 from simba.optimizer_util import read_config as read_optimizer_config
@@ -24,29 +25,13 @@ def simulate(args):
     :rtype: tuple
     """
     # The data_container stores various input data.
-    data_container = create_and_fill_data_container(args)
+    data_container = DataContainer().fill_with_args(args)
 
     schedule, args = pre_simulation(args, data_container)
     scenario = schedule.run(args)
     schedule, scenario = modes_simulation(schedule, scenario, args)
     return schedule, scenario
 
-
-def create_and_fill_data_container(args):
-    data_container = DataContainer()
-    # Add the vehicle_types from a json file
-    data_container.add_vehicle_types_from_json(args.vehicle_types_path)
-
-    # Add consumption data, which is found in the vehicle_type data
-    data_container.add_consumption_data_from_vehicle_type_linked_files()
-
-    # Add station data
-    data_container.add_stations_from_json(args.stations_path)
-
-    # Add cost_parameters_data
-    data_container.add_cost_parameters_from_json(args.cost_parameters_file)
-
-    return data_container
 
 
 def pre_simulation(args, data_container: DataContainer):
@@ -66,7 +51,7 @@ def pre_simulation(args, data_container: DataContainer):
     # Deepcopy args so original args do not get mutated, i.e. deleted
     args = deepcopy(args)
     # Add consumption calculator to trip class
-    Trip.consumption = data_container.to_consumption()
+    Trip.consumption = Consumption.create_from_data_container(data_container)
 
     # generate schedule from csv
     schedule = Schedule.from_datacontainer(data_container, args)

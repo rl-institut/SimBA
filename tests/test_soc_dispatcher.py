@@ -4,10 +4,11 @@ import sys
 import pandas as pd
 import pytest
 
-from simba.simulate import pre_simulation, create_and_fill_data_container
+from simba.simulate import pre_simulation
 from simba.trip import Trip
 from tests.conftest import example_root
 from simba import util
+from simba.data_container import DataContainer
 
 
 class TestSocDispatcher:
@@ -21,7 +22,7 @@ class TestSocDispatcher:
         args = util.get_args()
         args.seed = 5
         args.attach_vehicle_soc = True
-        data_container = create_and_fill_data_container(args)
+        data_container = DataContainer().fill_with_args(args)
         sched, args = pre_simulation(args, data_container=data_container)
 
         # Copy an opportunity rotation twice, so dispatching can be tested

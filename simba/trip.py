@@ -10,20 +10,17 @@ class Trip:
                  arrival_time, arrival_name, distance, temperature, level_of_loading,
                  height_difference, **kwargs):
         self.departure_name = departure_name
-        if type(departure_time) is str:
-            departure_time = datetime.fromisoformat(departure_time)
         self.departure_time = departure_time
-        if type(arrival_time) is str:
-            arrival_time = datetime.fromisoformat(arrival_time)
         self.arrival_time = arrival_time
         self.arrival_name = arrival_name
-        self.distance = float(distance)
+        self.distance = distance
         self.line = kwargs.get('line', None)
-        self.temperature = float(temperature)
+        self.temperature = temperature
         self.height_difference = height_difference
         self.level_of_loading = level_of_loading
         # mean speed in km/h from distance and travel time or from initialization
         # travel time is at least 1 min
+
         mean_speed = kwargs.get("mean_speed", (self.distance / 1000) /
                                 max(1 / 60, ((self.arrival_time - self.departure_time) / timedelta(
                                     hours=1))))

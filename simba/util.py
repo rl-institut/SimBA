@@ -265,7 +265,7 @@ def get_args():
     # rename special options
     args.timing = args.eta
 
-    missing = [a for a in ["input_schedule", "electrified_stations"] if vars(args).get(a) is None]
+    missing = [a for a in ["input_schedule", "electrified_stations_path"] if vars(args).get(a) is None]
     if missing:
         raise Exception("The following arguments are required: {}".format(", ".join(missing)))
 
@@ -289,7 +289,7 @@ def get_parser():
                         help='Path to CSV file containing all trips of schedule to be analyzed.')
     parser.add_argument('--output-directory', default="data/sim_outputs",
                         help='Location where all simulation outputs are stored')
-    parser.add_argument('--electrified-stations', help='include electrified_stations json')
+    parser.add_argument('--electrified-stations-path', help='include electrified_stations json')
     parser.add_argument('--vehicle-types-path', default="data/examples/vehicle_types.json",
                         help='location of vehicle type definitions')
     parser.add_argument('--station_data_path', default=None,
@@ -301,7 +301,7 @@ def get_parser():
     parser.add_argument('--level_of_loading_over_day_path', default=None,
                         help="Use csv. data with 'hour' and level_of_loading' columns to set \
                         level of loading in case they are not in trips.csv")
-    parser.add_argument('--cost-parameters-file', default=None,
+    parser.add_argument('--cost-parameters-path', default=None,
                         help='include cost parameters json, needed if cost_calculation==True')
     parser.add_argument('--rotation-filter', default=None,
                         help='Use json data with rotation ids')

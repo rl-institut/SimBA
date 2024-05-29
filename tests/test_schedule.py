@@ -6,10 +6,11 @@ import sys
 import spice_ev.scenario as scenario
 from spice_ev.util import set_options_from_config
 
-from simba.simulate import pre_simulation, create_and_fill_data_container
+from simba.simulate import pre_simulation
 from tests.conftest import example_root, file_root
 from tests.helpers import generate_basic_schedule, initialize_consumption
 from simba import rotation, schedule, util
+from simba.data_container import DataContainer
 
 mandatory_args = {
     "min_recharge_deps_oppb": 1,
@@ -61,7 +62,7 @@ class BasicSchedule:
         args.ALLOW_NEGATIVE_SOC = True
         args.attach_vehicle_soc = True
 
-        data_container = create_and_fill_data_container(args)
+        data_container = DataContainer().fill_with_args(args)
         sched, args = pre_simulation(args, data_container)
         scen = sched.run(args)
         return sched, scen, args

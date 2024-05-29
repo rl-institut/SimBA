@@ -3,6 +3,7 @@ import warnings
 
 import pandas as pd
 from simba import util
+from simba.data_container import DataContainer
 from simba.ids import INCLINE, LEVEL_OF_LOADING, SPEED, T_AMB, CONSUMPTION, VEHICLE_TYPE
 
 
@@ -101,6 +102,18 @@ class Consumption:
         delta_soc = -1 * (consumed_energy / vehicle_info["capacity"])
 
         return consumed_energy, delta_soc
+
+    @staticmethod
+    def create_from_data_container(data_container: DataContainer):
+        """Build a consumption instance from the stored data in the data container.
+        :returns: Consumption instance
+        """
+        # setup consumption calculator that can be accessed by all trips
+        consumption = Consumption(data_container.vehicle_types_data)
+        for name, df in data_container.consumption_data.items():
+            consumption.set_consumption_interpolation(name, df)
+        return consumption
+
 
     def set_consumption_interpolation(self, consumption_lookup_name: str, df: pd.DataFrame):
         """

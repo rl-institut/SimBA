@@ -86,7 +86,7 @@ class Schedule:
     @classmethod
     def from_datacontainer(cls, data_container: DataContainer, args):
 
-        schedule = cls(data_container.vehicle_types_data, data_container.stations_data, **args)
+        schedule = cls(data_container.vehicle_types_data, data_container.stations_data, **vars(args))
         schedule.station_data = data_container.station_geo_data
 
         for trip in data_container.trip_data:
@@ -103,26 +103,18 @@ class Schedule:
             # Get height difference from station_data
 
             trip["height_difference"] = schedule.get_height_difference(
-                trip["departure_name", trip["arrival_name"]])
+                trip["departure_name"], trip["arrival_name"])
 
-            # Get level of loading from trips.csv or from file
-            try:
-                # Clip level of loading to [0,1]
-                lol = max(0, min(float(trip["level_of_loading"]), 1))
-            # In case of empty temperature column or no column at all
-            except (KeyError, ValueError):
-                lol = data_container.level_of_loading_data[hour]
+            if trip["level_of_loading"] is None:
+                trip["level_of_loading"] = data_container.level_of_loading_data.get(hour)
+            else:
+                if not 0 <= trip["level_of_loading"] <= 1:
+                    logging.warning("Level of loading is out of range [0,1] and will be clipped.")
+                    trip["level_of_loading"] = min(1, max(0, trip["level_of_loading"]))
 
-            trip["level_of_loading"] = lol
+            if trip["temperature"] is None:
+                trip["temperature"] = data_container.temperature_data.get(hour)
 
-            # Get temperature from trips.csv or from file
-            try:
-                # Cast temperature to float
-                temperature = float(trip["temperature"])
-            # In case of empty temperature column or no column at all
-            except (KeyError, ValueError):
-                temperature = data_container.temperature_data[hour]
-            trip["temperature"] = temperature
             if rotation_id not in schedule.rotations.keys():
                 schedule.rotations.update({
                     rotation_id: Rotation(id=rotation_id,
@@ -135,22 +127,22 @@ class Schedule:
         # charging type
         for rot in schedule.rotations.values():
             if rot.charging_type is None:
-                rot.set_charging_type(ct=args.get('preferred_charging_type', 'oppb'))
+                rot.set_charging_type(ct=vars(args).get('preferred_charging_type', 'oppb'))
 
-        if args.get("check_rotation_consistency"):
+        if vars(args).get("check_rotation_consistency"):
             # check rotation expectations
             inconsistent_rotations = cls.check_consistency(schedule)
             if inconsistent_rotations:
                 # write errors to file
-                filepath = args["output_directory"] / "inconsistent_rotations.csv"
+                filepath = args.output_directory / "inconsistent_rotations.csv"
                 with open(filepath, "w", encoding='utf-8') as f:
                     for rot_id, e in inconsistent_rotations.items():
                         f.write(f"Rotation {rot_id}: {e}\n")
                         logging.error(f"Rotation {rot_id}: {e}")
-                        if args.get("skip_inconsistent_rotations"):
+                        if vars(args).get("skip_inconsistent_rotations"):
                             # remove this rotation from schedule
                             del schedule.rotations[rot_id]
-        elif args.get("skip_inconsistent_rotations"):
+        elif vars(args).get("skip_inconsistent_rotations"):
             logging.warning("Option skip_inconsistent_rotations ignored, "
                           "as check_rotation_consistency is not set to 'true'")
 
@@ -257,6 +249,10 @@ class Schedule:
                 except (KeyError, ValueError):
                     lol = level_of_loading_dict[hour]
                 trip["level_of_loading"] = lol
+
+                trip["distance"] = float(trip["distance"])
+                trip["arrival_time"] = datetime.datetime.fromisoformat(trip["arrival_time"])
+                trip["departure_time"] = datetime.datetime.fromisoformat(trip["departure_time"])
 
                 # Get temperature from trips.csv or from file
                 try:

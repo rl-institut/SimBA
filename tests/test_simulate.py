@@ -4,6 +4,7 @@ from pathlib import Path
 import pytest
 import warnings
 
+from simba import util
 from simba.simulate import simulate
 
 
@@ -13,10 +14,22 @@ example_path = root_path / "data/examples"
 
 class TestSimulate:
     # Add propagate_mode_errors as developer setting to raise Exceptions.
+    NON_DEFAULT_VALUES = {
+        "vehicle_types_path": example_path / "vehicle_types.json",
+        "electrified_stations_path": example_path / "electrified_stations.json",
+        "cost_parameters_path": example_path / "cost_params.json",
+        "outside_temperature_over_day_path": example_path / "default_temp_summer.csv",
+        "level_of_loading_over_day_path": example_path / "default_level_of_loading_over_day.csv",
+        "input_schedule": example_path / "trips_example.csv",
+        "mode": [],
+        "interval": 15,
+        "propagate_mode_errors": True,
+    }
+
     DEFAULT_VALUES = {
         "vehicle_types_path": example_path / "vehicle_types.json",
-        "electrified_stations": example_path / "electrified_stations.json",
-        "cost_parameters_file": example_path / "cost_params.json",
+        "electrified_stations_path": example_path / "electrified_stations.json",
+        "cost_parameters_path": example_path / "cost_params.json",
         "outside_temperature_over_day_path": example_path / "default_temp_summer.csv",
         "level_of_loading_over_day_path": example_path / "default_level_of_loading_over_day.csv",
         "input_schedule": example_path / "trips_example.csv",
@@ -44,7 +57,12 @@ class TestSimulate:
     }
 
     def test_basic(self):
-        args = Namespace(**(self.DEFAULT_VALUES))
+        # Get the parser from util
+        parser = util.get_parser()
+        # Set the parser defaults to the specified non default values
+        parser.set_defaults(**self.NON_DEFAULT_VALUES)
+        # get all args with default values
+        args, _ = parser.parse_known_args()
         simulate(args)
 
     def test_missing(self):
@@ -62,7 +80,7 @@ class TestSimulate:
         self.DEFAULT_VALUES["propagate_mode_errors"] = values["propagate_mode_errors"]
 
         # required file missing
-        for file_type in ["vehicle_types_path", "electrified_stations", "cost_parameters_file"]:
+        for file_type in ["vehicle_types_path", "electrified_stations_path", "cost_parameters_file"]:
             values[file_type] = ""
             with pytest.raises(Exception):
                 simulate(Namespace(**values))
@@ -71,7 +89,7 @@ class TestSimulate:
 
     def test_unknown_mode(self, caplog):
         # try to run a mode that does not exist
-        args = Namespace(**(self.DEFAULT_VALUES))
+        args, _ = util.get_parser().parse_known_args(self.NON_DEFAULT_VALUES)
         args.mode = "foo"
         with caplog.at_level(logging.ERROR):
             simulate(args)
@@ -79,7 +97,7 @@ class TestSimulate:
 
     def test_late_sim(self, caplog):
         # sim mode has no function, just produces a log info later
-        args = Namespace(**(self.DEFAULT_VALUES))
+        args, _ = util.get_parser().parse_known_args(self.NON_DEFAULT_VALUES)
         args.mode = ["sim", "sim"]
         with caplog.at_level(logging.INFO):
             simulate(args)
