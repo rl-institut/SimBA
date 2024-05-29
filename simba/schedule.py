@@ -127,7 +127,7 @@ class Schedule:
         # charging type
         for rot in schedule.rotations.values():
             if rot.charging_type is None:
-                rot.set_charging_type(ct=vars(args).get('preferred_charging_type', 'oppb'))
+                rot.set_charging_type(ct=vars(args).get('preferred_charging_type', 'depb'))
 
         if vars(args).get("check_rotation_consistency"):
             # check rotation expectations
@@ -274,7 +274,7 @@ class Schedule:
         # charging type
         for rot in schedule.rotations.values():
             if rot.charging_type is None:
-                rot.set_charging_type(ct=kwargs.get('preferred_charging_type', 'oppb'))
+                rot.set_charging_type(ct=kwargs.get('preferred_charging_type', 'depb'))
 
         if kwargs.get("check_rotation_consistency"):
             # check rotation expectations
