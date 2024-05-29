@@ -533,7 +533,7 @@ class StationOptimizer:
                 # Add the charge as linear interpolation during the charge time, but only start
                 # after the buffer time
                 buffer_idx = (int(opt_util.get_buffer_time(
-                    trip, self.args.default_buffer_time_opps).total_seconds/60))
+                    trip, self.args.default_buffer_time_opps).total_seconds()/60))
                 delta_idx = int(standing_time_min) + 1
                 soc[idx + buffer_idx:idx + buffer_idx + delta_idx] += np.linspace(0, d_soc,
                                                                                   delta_idx)
