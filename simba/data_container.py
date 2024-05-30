@@ -25,15 +25,11 @@ class DataContainer:
         self.trip_data: [dict] = []
 
     def fill_with_args(self, args: argparse.Namespace):
-        cost_parameters_path = args.cost_parameters_path
-        if not args.cost_calculation:
-            cost_parameters_path = None
-
         return self.fill_with_paths(
             trips_file_path=args.input_schedule,
             vehicle_types_path=args.vehicle_types_path,
             electrified_stations_path=args.electrified_stations_path,
-            cost_parameters_path=cost_parameters_path,
+            cost_parameters_path=args.cost_parameters_path,
             outside_temperature_over_day_path=args.outside_temperature_over_day_path,
             level_of_loading_over_day_path=args.level_of_loading_over_day_path,
             station_data_path=args.station_data_path,
