@@ -25,22 +25,54 @@ class DataContainer:
         self.trip_data: [dict] = []
 
     def fill_with_args(self, args: argparse.Namespace):
-        return self.fill_with_paths(args.vehicle_types_path,
-                                    args.electrified_stations_path,
-                                    args.cost_parameters_path,
-                                    args.input_schedule,
-                                    args.outside_temperature_over_day_path,
-                                    args.level_of_loading_over_day_path,
-                                    args.station_data_path,
-                                    )
+        cost_parameters_path = args.cost_parameters_path
+        if not args.cost_calculation:
+            cost_parameters_path = None
+
+        return self.fill_with_paths(
+            trips_file_path=args.input_schedule,
+            vehicle_types_path=args.vehicle_types_path,
+            electrified_stations_path=args.electrified_stations_path,
+            cost_parameters_path=cost_parameters_path,
+            outside_temperature_over_day_path=args.outside_temperature_over_day_path,
+            level_of_loading_over_day_path=args.level_of_loading_over_day_path,
+            station_data_path=args.station_data_path,
+        )
+
+    def add_trip_data_from_csv(self, file_path: Path) -> 'DataContainer':
+        """ Add trip data from csv file to DataContainer"""
+
+        self.trip_data = []
+        with open(file_path, 'r', encoding='utf-8') as trips_file:
+            trip_reader = csv.DictReader(trips_file)
+            for trip in trip_reader:
+                trip_d = dict(trip)
+                trip_d["arrival_time"] = datetime.datetime.fromisoformat(trip["arrival_time"])
+                trip_d["departure_time"] = datetime.datetime.fromisoformat(trip["departure_time"])
+                trip_d["level_of_loading"] = cast_float_or_none(trip.get("level_of_loading"))
+                trip_d["temperature"] = cast_float_or_none(trip.get("temperature"))
+                trip_d["distance"] = float(trip["distance"])
+                self.trip_data.append(trip_d)
+
+    def add_station_geo_data(self, data: dict) -> None:
+        """Add station_geo data to the data container.
+
+        Used when adding station_geo to a data container from any source
+        :param data: data containing station_geo
+        :type data: dict
+        """
+        self.station_geo_data = data
+
+
+
 
     def fill_with_paths(self,
+                        trips_file_path,
                         vehicle_types_path,
                         electrified_stations_path,
-                        cost_parameters_file,
-                        trips_file_path,
-                        outside_temperature_over_day_path,
-                        level_of_loading_over_day_path,
+                        outside_temperature_over_day_path=None,
+                        level_of_loading_over_day_path=None,
+                        cost_parameters_path=None,
                         station_data_path=None,
                         ):
         # Add the vehicle_types from a json file
@@ -58,42 +90,18 @@ class DataContainer:
         # Add electrified_stations data
         self.add_stations_from_json(electrified_stations_path)
 
+        # Add cost_parameters_data
+        if cost_parameters_path:
+            self.add_cost_parameters_from_json(cost_parameters_path)
+
         # Add station geo data
         if station_data_path is not None:
             self.add_station_geo_data_from_csv(station_data_path)
 
-        # Add cost_parameters_data
-        self.add_cost_parameters_from_json(cost_parameters_file)
+
 
         self.add_trip_data_from_csv(trips_file_path)
         return self
-
-    def add_trip_data_from_csv(self, file_path: Path) -> 'DataContainer':
-        """ Add trip data from csv file to DataContainer"""
-
-        self.trip_data = []
-        with open(file_path, 'r', encoding='utf-8') as trips_file:
-            trip_reader = csv.DictReader(trips_file)
-            for trip in trip_reader:
-                trip_d = dict(trip)
-                trip_d["arrival_time"] = datetime.datetime.fromisoformat(trip["arrival_time"])
-                trip_d["departure_time"] = datetime.datetime.fromisoformat(trip["departure_time"])
-                trip_d["level_of_loading"] = cast_float_or_none(trip.get("level_of_loading"))
-                trip_d["temperature"] = cast_float_or_none(trip.get("temperature"))
-                trip_d["distance"] = float(trip["distance"])
-                self.trip_data.append(trip_d)
-
-
-
-
-    def add_station_geo_data(self, data: dict) -> None:
-        """Add station_geo data to the data container.
-
-        Used when adding station_geo to a data container from any source
-        :param data: data containing station_geo
-        :type data: dict
-        """
-        self.station_geo_data = data
 
     def add_station_geo_data_from_csv(self, file_path: Path) -> 'DataContainer':
         # find the temperature and elevation of the stations by reading the .csv file.
