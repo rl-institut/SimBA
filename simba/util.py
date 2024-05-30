@@ -292,7 +292,7 @@ def get_parser():
     parser.add_argument('--electrified-stations-path', help='include electrified_stations json')
     parser.add_argument('--vehicle-types-path', default="data/examples/vehicle_types.json",
                         help='location of vehicle type definitions')
-    parser.add_argument('--station_data_path', default=None,
+    parser.add_argument('--station-data-path', default=None,
                         help='Use station data to back calculation of consumption with height\
                          information of stations')
     parser.add_argument('--outside_temperature_over_day_path', default=None,
