@@ -141,10 +141,12 @@ class Mode:
     A function must return the updated schedule and scenario objects.
     """
 
+    @staticmethod
     def sim(schedule, scenario, args, _i):# Noqa
         scenario = schedule.run(args)
         return schedule, scenario
 
+    @staticmethod
     def service_optimization(schedule, scenario, args, _i):
         # find largest set of rotations that produce no negative SoC
         result = optimization.service_optimization(schedule, scenario, args)
@@ -154,12 +156,15 @@ class Mode:
             schedule, scenario = result['original']
         return schedule, scenario
 
+    @staticmethod
     def neg_depb_to_oppb(schedule, scenario, args, _i):
         return Mode.switch_type(schedule, scenario, args, "depb", "oppb")
 
+    @staticmethod
     def neg_oppb_to_depb(schedule, scenario, args, _i):
         return Mode.switch_type(schedule, scenario, args, "oppb", "depb")
 
+    @staticmethod
     def switch_type(schedule, scenario, args, from_type, to_type):
         # simple optimization: change charging type, simulate again
         # get negative rotations
@@ -186,6 +191,7 @@ class Mode:
                 logging.info(f'Rotations {", ".join(neg_rot)} remain negative.')
         return schedule, scenario
 
+    @staticmethod
     def station_optimization(schedule, scenario, args, i):
         if not args.optimizer_config:
             logging.warning("Station optimization needs an optimization config file. "
@@ -204,6 +210,7 @@ class Mode:
                             'Optimization was skipped'.format(err))
             return original_schedule, original_scenario
 
+    @staticmethod
     def remove_negative(schedule, scenario, args, _i):
         neg_rot = schedule.get_negative_rotations(scenario)
         if neg_rot:
@@ -216,6 +223,7 @@ class Mode:
             logging.info('No negative rotations to remove')
         return schedule, scenario
 
+    @staticmethod
     def split_negative_depb(schedule, scenario, args, _i):
         negative_rotations = schedule.get_negative_rotations(scenario)
         trips, depot_trips = optimization.prepare_trips(schedule, negative_rotations)
@@ -224,6 +232,7 @@ class Mode:
         scenario = recombined_schedule.run(args)
         return recombined_schedule, scenario
 
+    @staticmethod
     def report(schedule, scenario, args, i):
         if args.output_directory is None:
             return schedule, scenario
@@ -232,9 +241,10 @@ class Mode:
         if args.cost_calculation:
             # cost calculation part of report
             try:
-                calculate_costs(args.cost_parameters, scenario, schedule, args)
+                cost_parameters = schedule.data_container.cost_parameters_data
+                calculate_costs(cost_parameters, scenario, schedule, args)
             except Exception:
-                logging.warning(f"Cost calculation failed due to {traceback.print_exc()}")
+                logging.warning(f"Cost calculation failed due to {traceback.format_exc()}")
                 if args.propagate_mode_errors:
                     raise
         # name: always start with sim, append all prior optimization modes

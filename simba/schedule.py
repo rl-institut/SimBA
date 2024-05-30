@@ -66,6 +66,7 @@ class Schedule:
         self.original_rotations = None
         self.station_data = None
         self.soc_dispatcher: SocDispatcher = None
+        self.data_container: DataContainer = None
         # mandatory config parameters
         mandatory_options = [
             "min_recharge_deps_oppb",
@@ -87,6 +88,7 @@ class Schedule:
     def from_datacontainer(cls, data_container: DataContainer, args):
 
         schedule = cls(data_container.vehicle_types_data, data_container.stations_data, **vars(args))
+        schedule.data_container = data_container
         schedule.station_data = data_container.station_geo_data
 
         for trip in data_container.trip_data:
