@@ -344,7 +344,6 @@ class TestSchedule(BasicSchedule):
         data_container = DataContainer().fill_with_args(args)
         generated_schedule, args = pre_simulation(args, data_container)
 
-        set_options_from_config(args, verbose=False)
         args.ALLOW_NEGATIVE_SOC = True
         args.attach_vehicle_soc = True
         scen = generated_schedule.generate_scenario(args)
@@ -365,8 +364,6 @@ class TestSchedule(BasicSchedule):
 
         generated_schedule, args = pre_simulation(args, data_container)
 
-        set_options_from_config(args, verbose=False)
-
         # check that 2 user warnings are put out for missing files and an error is thrown
         with pytest.warns(Warning) as record:
             try:
@@ -374,7 +371,7 @@ class TestSchedule(BasicSchedule):
             except FileNotFoundError:
                 user_warning_count = sum([1 for warning in record.list
                                           if warning.category == UserWarning])
-                assert user_warning_count == 3
+                assert user_warning_count == 2
             else:
                 assert 0, "No error despite wrong file paths"
 
