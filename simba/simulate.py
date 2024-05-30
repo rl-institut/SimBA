@@ -2,7 +2,7 @@ import logging
 import traceback
 from copy import deepcopy
 
-from simba import report, optimization, util, consumption
+from simba import report, optimization, util, consumption, optimizer_util
 from simba.consumption import Consumption
 from simba.data_container import DataContainer
 from simba.costs import calculate_costs
@@ -125,8 +125,9 @@ def modes_simulation(schedule, scenario, args):
                 args.mode = args.mode[:i] + ["ABORTED"]
                 if args.output_directory is None:
                     create_results_directory(args, i+1)
-                    report.generate_plots(scenario, args)
-                    logging.info(f"Created plot of failed scenario in {args.results_directory}")
+                    if not args.skip_plots:
+                        report.generate_plots(scenario, args)
+                        logging.info(f"Created plot of failed scenario in {args.results_directory}")
             # continue with other modes after error
 
     # all modes done
@@ -140,10 +141,14 @@ class Mode:
     Optionally, an index of the current mode in the modelist can be given.
     A function must return the updated schedule and scenario objects.
     """
+    @staticmethod
+    def sim_greedy(schedule, scenario, args, _i):# Noqa
+        scenario = schedule.run(args, mode="greedy")
+        return schedule, scenario
 
     @staticmethod
     def sim(schedule, scenario, args, _i):# Noqa
-        scenario = schedule.run(args)
+        scenario = schedule.run(args, mode="distributed")
         return schedule, scenario
 
     @staticmethod
@@ -193,12 +198,37 @@ class Mode:
 
     @staticmethod
     def station_optimization(schedule, scenario, args, i):
+        conf = optimizer_util.OptimizerConfig()
+        if args.optimizer_config:
+            conf = read_optimizer_config(args.optimizer_config)
+        else:
+            logging.warning("Station optimization needs an optimization config file. "
+                            "Default Config is used.")
+
+        # Get copies of the original schedule and scenario. In case of an exception the outer
+        # schedule and scenario stay intact.
+        original_schedule = deepcopy(schedule)
+        original_scenario = deepcopy(scenario)
+        try:
+            create_results_directory(args, i+1)
+            return run_optimization(conf, sched=schedule, scen=scenario, args=args)
+        except Exception as err:
+            logging.warning('During Station optimization an error occurred {0}. '
+                            'Optimization was skipped'.format(err))
+            return original_schedule, original_scenario
+
+    @staticmethod
+    def station_optimization_single_step(schedule, scenario, args, i):
+        """ Electrify only the station with the highest potential"""  # noqa
         if not args.optimizer_config:
             logging.warning("Station optimization needs an optimization config file. "
-                            "Since no path was given, station optimization is skipped")
-            return schedule, scenario
-        conf = read_optimizer_config(args.optimizer_config)
-        # Get copies of the original schedule and scenario. In case of an exception the outer
+                            "Default Config is used.")
+            conf = optimizer_util.OptimizerConfig().set_defaults()
+        else:
+            conf = read_optimizer_config(args.optimizer_config)
+
+        conf.early_return = True
+        # Work on copies of the original schedule and scenario. In case of an exception the outer
         # schedule and scenario stay intact.
         original_schedule = deepcopy(schedule)
         original_scenario = deepcopy(scenario)

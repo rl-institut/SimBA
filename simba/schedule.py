@@ -346,7 +346,7 @@ class Schedule:
                 inconsistent_rotations[rot_id] = str(e)
         return inconsistent_rotations
 
-    def run(self, args):
+    def run(self, args, mode="distributed"):
         """Runs a schedule without assigning vehicles.
 
         For external usage the core run functionality is accessible through this function. It
@@ -354,11 +354,14 @@ class Schedule:
         :param args: used arguments are rotation_filter, path to rotation ids,
             and rotation_filter_variable that sets mode (options: include, exclude)
         :type args: argparse.Namespace
+        :param mode: option of "distributed" or "greedy"
+        :type mode: str
         :return: scenario
         :rtype spice_ev.Scenario
         """
         # Make sure all rotations have an assigned vehicle
         assert all([rot.vehicle_id is not None for rot in self.rotations.values()])
+        assert mode in ["distributed", "greedy"]
         scenario = self.generate_scenario(args)
 
         logging.info("Running SpiceEV...")
@@ -367,10 +370,10 @@ class Schedule:
             # logging.root.level is lowest of console and file (if present)
             with warnings.catch_warnings():
                 warnings.simplefilter('ignore', UserWarning)
-                scenario.run('distributed', vars(args).copy())
+                scenario.run(mode, vars(args).copy())
         else:
             # debug: log SpiceEV warnings as well
-            scenario.run('distributed', vars(args).copy())
+            scenario.run(mode, vars(args).copy())
         assert scenario.step_i == scenario.n_intervals, \
             'SpiceEV simulation aborted, see above for details'
         return scenario
@@ -704,8 +707,6 @@ class Schedule:
 
     def calculate_consumption(self):
         """ Computes consumption for all trips of all rotations.
-
-        Depends on vehicle type only, not on charging type.
 
         :return: Total consumption for entire schedule [kWh]
         :rtype: float
