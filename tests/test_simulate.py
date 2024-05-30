@@ -133,8 +133,8 @@ class TestSimulate:
     def test_mode_remove_negative(self):
         args = self.get_args()
         args.mode = "remove_negative"
-        args.desired_soc_deps= 0
-        args.ALLOW_NEGATIVE_SOC= True
+        args.desired_soc_deps = 0
+        args.ALLOW_NEGATIVE_SOC = True
         simulate(args)
 
     def test_mode_report(self, tmp_path):

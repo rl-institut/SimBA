@@ -2,7 +2,7 @@ import logging
 import traceback
 from copy import deepcopy
 
-from simba import report, optimization, util, consumption, optimizer_util
+from simba import report, optimization, optimizer_util
 from simba.consumption import Consumption
 from simba.data_container import DataContainer
 from simba.costs import calculate_costs
@@ -24,14 +24,13 @@ def simulate(args):
     :return: final schedule and scenario
     :rtype: tuple
     """
-    # The data_container stores various input data.
+    # The data stores various input data.
     data_container = DataContainer().fill_with_args(args)
 
     schedule, args = pre_simulation(args, data_container)
     scenario = schedule.run(args)
     schedule, scenario = modes_simulation(schedule, scenario, args)
     return schedule, scenario
-
 
 
 def pre_simulation(args, data_container: DataContainer):
@@ -44,7 +43,6 @@ def pre_simulation(args, data_container: DataContainer):
     :type args: Namespace
     :param data_container: data needed for simulation
     :type data_container: DataContainer
-    :raises Exception: If an input file does not exist, exit the program.
     :return: schedule, args
     :rtype: simba.schedule.Schedule, Namespace
     """
@@ -219,7 +217,18 @@ class Mode:
 
     @staticmethod
     def station_optimization_single_step(schedule, scenario, args, i):
-        """ Electrify only the station with the highest potential"""  # noqa
+        """ Electrify only the station with the highest potential
+        
+        :param schedule: Schedule
+        :type schedule: simba.schedule.Schedule
+        :param scenario: Scenario
+        :type scenario: spice_ev.scenario.Scenario
+        :param args: Arguments
+        :type args: argparse.Namespace
+        :param i: counter of modes for directory creation
+        :return: schedule, scenario
+        
+        """  # noqa
         if not args.optimizer_config:
             logging.warning("Station optimization needs an optimization config file. "
                             "Default Config is used.")

@@ -85,13 +85,13 @@ class Schedule:
                 setattr(self, opt, kwargs.get(opt))
 
     @classmethod
-    def from_datacontainer(cls, data_container: DataContainer, args):
+    def from_datacontainer(cls, data: DataContainer, args):
 
-        schedule = cls(data_container.vehicle_types_data, data_container.stations_data, **vars(args))
-        schedule.data_container = data_container
-        schedule.station_data = data_container.station_geo_data
+        schedule = cls(data.vehicle_types_data, data.stations_data, **vars(args))
+        schedule.data_container = data
+        schedule.station_data = data.station_geo_data
 
-        for trip in data_container.trip_data:
+        for trip in data.trip_data:
             rotation_id = trip['rotation_id']
             # trip gets reference to station data and calculates height diff during trip
             # initialization. Could also get the height difference from here on
@@ -108,14 +108,14 @@ class Schedule:
                 trip["departure_name"], trip["arrival_name"])
 
             if trip["level_of_loading"] is None:
-                trip["level_of_loading"] = data_container.level_of_loading_data.get(hour)
+                trip["level_of_loading"] = data.level_of_loading_data.get(hour)
             else:
                 if not 0 <= trip["level_of_loading"] <= 1:
                     logging.warning("Level of loading is out of range [0,1] and will be clipped.")
                     trip["level_of_loading"] = min(1, max(0, trip["level_of_loading"]))
 
             if trip["temperature"] is None:
-                trip["temperature"] = data_container.temperature_data.get(hour)
+                trip["temperature"] = data.temperature_data.get(hour)
 
             if rotation_id not in schedule.rotations.keys():
                 schedule.rotations.update({
@@ -146,11 +146,9 @@ class Schedule:
                             del schedule.rotations[rot_id]
         elif vars(args).get("skip_inconsistent_rotations"):
             logging.warning("Option skip_inconsistent_rotations ignored, "
-                          "as check_rotation_consistency is not set to 'true'")
+                            "as check_rotation_consistency is not set to 'true'")
 
         return schedule
-
-
 
     @classmethod
     def from_csv(cls, path_to_csv, vehicle_types, stations, **kwargs):
@@ -1197,6 +1195,7 @@ class Schedule:
             for row in reader:
                 output[float(row[index])] = float(row[column])
         return output
+
 
 def update_csv_file_info(file_info, gc_name):
     """

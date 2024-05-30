@@ -107,13 +107,14 @@ class Consumption:
     def create_from_data_container(data_container: DataContainer):
         """Build a consumption instance from the stored data in the data container.
         :returns: Consumption instance
+        :param data_container: container with consumption and vehicle type data
+        :type data_container: DataContainer
         """
         # setup consumption calculator that can be accessed by all trips
         consumption = Consumption(data_container.vehicle_types_data)
         for name, df in data_container.consumption_data.items():
             consumption.set_consumption_interpolation(name, df)
         return consumption
-
 
     def set_consumption_interpolation(self, consumption_lookup_name: str, df: pd.DataFrame):
         """

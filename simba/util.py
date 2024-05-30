@@ -265,7 +265,8 @@ def get_args():
     # rename special options
     args.timing = args.eta
 
-    missing = [a for a in ["input_schedule", "electrified_stations_path"] if vars(args).get(a) is None]
+    mandatory_arguments = ["input_schedule", "electrified_stations_path"]
+    missing = [a for a in mandatory_arguments if vars(args).get(a) is None]
     if missing:
         raise Exception("The following arguments are required: {}".format(", ".join(missing)))
 

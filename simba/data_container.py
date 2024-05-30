@@ -24,7 +24,15 @@ class DataContainer:
 
         self.trip_data: [dict] = []
 
-    def fill_with_args(self, args: argparse.Namespace):
+    def fill_with_args(self, args: argparse.Namespace) -> 'DataContainer':
+        """ Fill self with data from file_paths defined in args
+
+        :param args: Arguments containing paths for input_schedule, vehicle_types_path,
+            electrified_stations_path, cost_parameters_path, outside_temperature_over_day_path,
+            level_of_loading_over_day_path, station_data_path
+        :return: self
+        """
+
         return self.fill_with_paths(
             trips_file_path=args.input_schedule,
             vehicle_types_path=args.vehicle_types_path,
@@ -36,7 +44,11 @@ class DataContainer:
         )
 
     def add_trip_data_from_csv(self, file_path: Path) -> 'DataContainer':
-        """ Add trip data from csv file to DataContainer"""
+        """ Add trip data from csv file to DataContainer
+
+        :param file_path: csv file path
+        :return: self with trip data
+        """
 
         self.trip_data = []
         with open(file_path, 'r', encoding='utf-8') as trips_file:
@@ -49,6 +61,7 @@ class DataContainer:
                 trip_d["temperature"] = cast_float_or_none(trip.get("temperature"))
                 trip_d["distance"] = float(trip["distance"])
                 self.trip_data.append(trip_d)
+        return self
 
     def add_station_geo_data(self, data: dict) -> None:
         """Add station_geo data to the data container.
@@ -58,9 +71,6 @@ class DataContainer:
         :type data: dict
         """
         self.station_geo_data = data
-
-
-
 
     def fill_with_paths(self,
                         trips_file_path,
@@ -94,8 +104,6 @@ class DataContainer:
         if station_data_path is not None:
             self.add_station_geo_data_from_csv(station_data_path)
 
-
-
         self.add_trip_data_from_csv(trips_file_path)
         return self
 
@@ -109,32 +117,34 @@ class DataContainer:
                 delim = util.get_csv_delim(file_path)
                 reader = csv.DictReader(f, delimiter=delim)
                 for row in reader:
-                    self.station_geo_data[str(row['Endhaltestelle'])]= {
+                    self.station_geo_data[str(row['Endhaltestelle'])] = {
                         "elevation": float(row['elevation']),
                         "lat": float(row.get('lat', 0)),
                         "long": float(row.get('long', 0)),
                     }
         except FileNotFoundError or KeyError:
             logging.warning("Warning: external csv file '{}' not found or not named properly "
-                          "(Needed column names are 'Endhaltestelle' and 'elevation')".
-                          format(file_path),
-                          stacklevel=100)
+                            "(Needed column names are 'Endhaltestelle' and 'elevation')".
+                            format(file_path),
+                            stacklevel=100)
         except ValueError:
             logging.warning("Warning: external csv file '{}' does not contain numeric "
-                          "values in the column 'elevation'. Station data is discarded.".
-                          format(file_path),
-                          stacklevel=100)
+                            "values in the column 'elevation'. Station data is discarded.".
+                            format(file_path),
+                            stacklevel=100)
 
         return self
 
-    def add_level_of_loading_data(self, data: dict) -> None:
+    def add_level_of_loading_data(self, data: dict) -> 'DataContainer':
         """Add level_of_loading data to the data container.
 
         Used when adding level_of_loading to a data container from any source
-        :param data: data containing level_of_loading
+        :param data: data containing hour and level_of_loading
         :type data: dict
+        :return: DataContainer containing level of loading data
         """
         self.level_of_loading_data = data
+        return self
 
     def add_level_of_loading_data_from_csv(self, file_path: Path) -> 'DataContainer':
         index = "hour"
@@ -143,14 +153,16 @@ class DataContainer:
         self.add_level_of_loading_data(level_of_loading_data_dict)
         return self
 
-    def add_temperature_data(self, data: dict) -> None:
+    def add_temperature_data(self, data: dict) -> 'DataContainer':
         """Add temperature data to the data container.
 
         Used when adding temperature to a data container from any source
         :param data: data containing temperature
         :type data: dict
+        :return: DataContainer containing temperature data
         """
         self.temperature_data = data
+        return self
 
     def add_temperature_data_from_csv(self, file_path: Path) -> 'DataContainer':
         index = "hour"
@@ -159,45 +171,47 @@ class DataContainer:
         self.add_temperature_data(temperature_data_dict)
         return self
 
-    def add_cost_parameters(self, data: dict) -> None:
+    def add_cost_parameters(self, data: dict) -> 'DataContainer':
         """Add cost_parameters data to the data container. cost_parameters will be stored in the
         args instance
 
         Used when adding cost_parameters to a data container from any source
         :param data: data containing cost_parameters
         :type data: dict
+        :return: DataContainer containing station data / electrified stations
         """
         self.cost_parameters_data = data
+        return self
 
     def add_cost_parameters_from_json(self, file_path: Path) -> 'DataContainer':
-        """ Get json data from a file_path"""
-        try:
-            with open(file_path, encoding='utf-8') as f:
-                cost_parameters = util.uncomment_json_file(f)
-        except FileNotFoundError:
-            raise Exception(f"Path to cost parameters ({file_path}) "
-                            "does not exist. Exiting...")
+        """ Get cost parameters data from a path and raise verbose error if file is not found.
+
+        :param file_path: file path
+        :return: DataContainer containing cost parameters
+        """
+        cost_parameters = self.get_json_from_file(file_path, "cost parameters")
         self.add_cost_parameters(cost_parameters)
         return self
 
-    def add_stations(self, data: dict) -> None:
+    def add_stations(self, data: dict) -> 'DataContainer':
         """Add station data to the data container. Stations will be stored in the
         Schedule instance
 
         Used when adding stations to a data container from any source
         :param data: data containing stations
         :type data: dict
+        :return: DataContainer containing station data / electrified stations
         """
         self.stations_data = data
+        return self
 
     def add_stations_from_json(self, file_path: Path) -> 'DataContainer':
-        """ Get json data from a file_path"""
-        try:
-            with open(file_path, encoding='utf-8') as f:
-                stations = util.uncomment_json_file(f)
-        except FileNotFoundError:
-            raise Exception(f"Path to electrified stations ({file_path}) "
-                            "does not exist. Exiting...")
+        """ Get electrified_stations data from a file_path
+        :param file_path: file path
+        :return: DataContainer containing station data / electrified stations
+
+        """
+        stations = self.get_json_from_file(file_path, "electrified stations")
         self.add_stations(stations)
         return self
 
@@ -208,19 +222,34 @@ class DataContainer:
         Used when adding new vehicle types to a data container from any source
         :param data: data containing vehicle_types
         :type data: dict
+        :return: DataContainer containing vehicle types
         """
         self.vehicle_types_data = data
+        return self
 
     def add_vehicle_types_from_json(self, file_path: Path):
-        """ Get json data from a file_path"""
-        try:
-            with open(file_path, encoding='utf-8') as f:
-                vehicle_types = util.uncomment_json_file(f)
-        except FileNotFoundError:
-            raise Exception(f"Path to vehicle types ({file_path}) "
-                            "does not exist. Exiting...")
+        """ Get vehicle_types from a json file_path
+        :param file_path: file path
+        :return: DataContainer containing vehicle types
+        """
+        vehicle_types = self.get_json_from_file(file_path, "vehicle types")
         self.add_vehicle_types(vehicle_types)
         return self
+
+    @staticmethod
+    def get_json_from_file(file_path: Path, data_type: str) -> any:
+        """ Get json data from a file_path and raise verbose error if it fails.
+        :raises FileNotFoundError: if file does not exist
+        :param file_path: file path
+        :param data_type: data type used for error description
+        :return: json data
+        """
+        try:
+            with open(file_path, encoding='utf-8') as f:
+                return util.uncomment_json_file(f)
+        except FileNotFoundError:
+            raise FileNotFoundError(f"Path to {data_type} ({file_path}) "
+                                    "does not exist. Exiting...")
 
     def add_consumption_data_from_vehicle_type_linked_files(self):
         assert self.vehicle_types_data, "No vehicle_type data in the data_container"
@@ -254,6 +283,7 @@ class DataContainer:
 
         return self
 
+
 def get_values_from_nested_key(key, data: dict) -> list:
     """Get all the values of the specified key in a nested dict
 
@@ -279,6 +309,7 @@ def get_dict_from_csv(column, file_path, index):
         for row in reader:
             output[float(row[index])] = float(row[column])
     return output
+
 
 def cast_float_or_none(val: any) -> any:
     try:
