@@ -26,11 +26,11 @@ mandatory_args = {
 class BasicSchedule:
     temperature_path = example_root / 'default_temp_winter.csv'
     lol_path = example_root / 'default_level_of_loading_over_day.csv'
-
+    vehicle_types_path = example_root / "vehicle_types.json"
     with open(example_root / "electrified_stations.json", "r", encoding='utf-8') as file:
         electrified_stations = util.uncomment_json_file(file)
 
-    with open(example_root / "vehicle_types.json", "r", encoding='utf-8') as file:
+    with open(vehicle_types_path, "r", encoding='utf-8') as file:
         vehicle_types = util.uncomment_json_file(file)
 
     path_to_all_station_data = example_root / "all_stations.csv"
@@ -330,23 +330,19 @@ class TestSchedule(BasicSchedule):
         sys.argv = ["foo", "--config", str(example_root / "simba.cfg")]
         args = util.get_args()
         args.config = example_root / "simba.cfg"
-        electrified_stations_path = example_root / "electrified_stations.json"
-        args.electrified_stations = electrified_stations_path
-        with open(electrified_stations_path, "r", encoding='utf-8') as file:
-            electrified_stations = util.uncomment_json_file(file)
 
         args.days = None
         args.seed = 5
 
-        initialize_consumption(self.vehicle_types)
+        args.input_schedule = example_root / "trips_example.csv"
+        args.electrified_stations_path = example_root / "electrified_stations.json"
+        args.station_data_path = example_root / "all_stations.csv"
+        args.vehicle_type_path = self.vehicle_types_path
+        args.level_of_loading_over_day_path = self.lol_path
+        args.outside_temperature_over_day_path = self.temperature_path
 
-        default_schedule_arguments["path_to_csv"] = example_root / "trips_example.csv"
-        default_schedule_arguments["stations"] = electrified_stations
-        default_schedule_arguments["station_data_path"] = example_root / "all_stations.csv"
-        default_schedule_arguments["path_to_trips"] = example_root / "trips_example.csv"
-        generated_schedule = schedule.Schedule.from_csv(**default_schedule_arguments)
-        # Create soc dispatcher
-        generated_schedule.init_soc_dispatcher(args)
+        data_container = DataContainer().fill_with_args(args)
+        generated_schedule, args = pre_simulation(args, data_container)
 
         set_options_from_config(args, verbose=False)
         args.ALLOW_NEGATIVE_SOC = True
@@ -362,17 +358,12 @@ class TestSchedule(BasicSchedule):
         scen = generated_schedule.run(args)
         assert type(scen) is scenario.Scenario
 
-        with open(electrified_stations_path, "r", encoding='utf-8') as file:
-            electrified_stations = util.uncomment_json_file(file)
+        # Change a station
+        station = data_container.stations_data["Station-0"]
+        station["energy_feed_in"]["csv_file"] = file_root / "notafile"
+        station["external_load"]["csv_file"] = file_root / "notafile"
 
-        electrified_stations["Station-0"]["energy_feed_in"]["csv_file"] = file_root / "notafile"
-        electrified_stations["Station-0"]["external_load"]["csv_file"] = file_root / "notafile"
-
-        default_schedule_arguments["stations"] = electrified_stations
-        generated_schedule = schedule.Schedule.from_csv(**default_schedule_arguments)
-
-        # Create soc dispatcher
-        generated_schedule.init_soc_dispatcher(args)
+        generated_schedule, args = pre_simulation(args, data_container)
 
         set_options_from_config(args, verbose=False)
 
