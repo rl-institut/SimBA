@@ -37,6 +37,8 @@ def get_outer_point(table, dims_out_of_bound=1):
     point = ()
     for dim in range(idims):
         offset = random.random()
+        if offset == 0:
+            offset = 0.1
         if dim < dims_out_of_bound:
             # out of bounds
             # the point is randomly below the lower bounds or above the upper bound, depending
@@ -55,12 +57,17 @@ def get_outer_point(table, dims_out_of_bound=1):
     return point
 
 
+
 class TestNdInterpol:
     random.seed(5)
     linear_function = None
     tolerance = TOLERANCE
     points_to_check = POINTS_TO_CHECK
     dim_amount = DIM_AMOUNT
+
+    def test_specific(self):
+        nd_interp((1, 2), [(1, 2, 3), (0, 2, 4), (1, 2, 3), (0, 2, 4)])
+        nd_interp((5, 10), [(1, 2, 3), (0, 2, 4), (1, 2, 3), (0, 2, 4)])
 
     # some manual test for a simple data table, where interpolated values can be easily
     # calculated by hand

@@ -182,6 +182,9 @@ def nd_interp(input_values, lookup_table):
         else:
             points.append(row)
 
+    # Make points unique
+    points = [tuple(p) for p in points]
+    points = list(set(points))
     # interpolate between points that differ only in current dimension
     for i, x in enumerate(input_values):
         new_points = []
