@@ -60,13 +60,12 @@ class TestSocDispatcher:
         sched.rotations["21"].departure_time += dt
         sched.rotations["21"].arrival_time += dt
 
-        for v_type in Trip.consumption.vehicle_types.values():
+        for v_type in sched.vehicle_types.values():
             for charge_type in v_type.values():
                 charge_type["mileage"] = 1
 
         # calculate consumption of all trips
         sched.calculate_consumption()
-        sched.rotations["21"].consumption
 
         # Create soc dispatcher
         sched.init_soc_dispatcher(args)

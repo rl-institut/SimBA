@@ -1,11 +1,6 @@
 from datetime import timedelta
 
-import simba.consumption
-
-
 class Trip:
-    consumption: simba.consumption.Consumption = None
-
     def __init__(self, rotation, departure_time, departure_name,
                  arrival_time, arrival_name, distance, temperature, level_of_loading,
                  height_difference, **kwargs):
@@ -36,27 +31,3 @@ class Trip:
         self.consumption = None  # kWh
         self.delta_soc = None
 
-    def calculate_consumption(self):
-        """ Compute consumption for this trip.
-
-        :return: Consumption of trip [kWh]
-        :rtype: float
-        :raises with_traceback: if consumption cannot be constructed
-        """
-
-        try:
-            self.consumption, self.delta_soc = Trip.consumption.calculate_consumption(
-                self.arrival_time,
-                self.distance,
-                self.rotation.vehicle_type,
-                self.rotation.charging_type,
-                temp=self.temperature,
-                height_difference=self.height_difference,
-                level_of_loading=self.level_of_loading,
-                mean_speed=self.mean_speed)
-        except AttributeError as e:
-            raise Exception(
-                'To calculate consumption, a consumption object needs to be constructed'
-                ' and linked to Trip class.').with_traceback(e.__traceback__)
-
-        return self.consumption

@@ -10,7 +10,9 @@ import shutil
 
 from simba import station_optimizer
 import simba.optimizer_util as opt_util
+from simba.data_container import DataContainer
 from simba.schedule import Schedule
+from simba.simulate import pre_simulation
 from simba.station_optimization import run_optimization
 import simba.util as util
 from tests.helpers import initialize_consumption
@@ -113,15 +115,12 @@ class TestStationOptimization:
         :type trips_file_name: str
         :return: schedule, scenario"""
 
-        path_to_trips = file_root / trips_file_name
-        sys.argv = ["foo", "--config", str(self.tmp_path / "simba.cfg")]
+        sys.argv = ["foo", "--config", str(example_root / "simba.cfg")]
         args = util.get_args()
-        args.input_schedule = path_to_trips
-        initialize_consumption(self.vehicle_types)
-        args2 = copy(args)
-        generated_schedule = Schedule.from_csv(path_to_trips, self.vehicle_types,
-                                               self.electrified_stations,
-                                               **vars(args2))
+        args.input_schedule = file_root / trips_file_name
+        args.preferred_charging_type = "oppb"
+        data_container = DataContainer().fill_with_args(args)
+        generated_schedule, args = pre_simulation(args, data_container)
         # Create soc dispatcher
         generated_schedule.init_soc_dispatcher(args)
         generated_schedule.assign_vehicles(args)

@@ -7,7 +7,7 @@ from tests.helpers import generate_basic_schedule
 
 class TestOptimization:
     def test_prepare_trips(self):
-        schedule = generate_basic_schedule()
+        schedule, _ = generate_basic_schedule()
         for r in schedule.rotations.values():
             r.set_charging_type("depb")
         trips, depot_trips = optimization.prepare_trips(schedule)
@@ -48,7 +48,7 @@ class TestOptimization:
                 pass
 
     def test_generate_depot_trip_data_dict(self):
-        schedule = generate_basic_schedule()
+        schedule, _ = generate_basic_schedule()
         trip1 = schedule.rotations["1"].trips[0]
         trip2 = schedule.rotations["1"].trips[-1]
         trip2.distance = trip1.distance / 2
@@ -81,7 +81,7 @@ class TestOptimization:
         assert trip_dict["distance"] == DEFAULT_DISTANCE * 1000
 
     def test_recombination(self):
-        schedule = generate_basic_schedule()
+        schedule, _ = generate_basic_schedule()
         for r in schedule.rotations.values():
             r.set_charging_type("depb")
         args = Namespace(**({

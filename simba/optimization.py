@@ -312,7 +312,7 @@ def recombination(schedule, args, trips, depot_trips):
 
                 # calculate consumption for initial trip
                 soc = args.desired_soc_deps  # vehicle leaves depot with this soc
-                rotation.calculate_consumption()
+                schedule.calculate_rotation_consumption(rotation)
                 soc += rotation.trips[0].delta_soc  # new soc after initial trip
 
                 if rot_counter > 0:
@@ -345,7 +345,7 @@ def recombination(schedule, args, trips, depot_trips):
             # rotation.add_trip needs dict, but consumption calculation is better done on Trip obj:
             # create temporary depot trip object for consumption calculation
             tmp_trip = Trip(rotation, **depot_trip)
-            tmp_trip.calculate_consumption()
+            schedule.calculate_trip_consumption(tmp_trip)
             if soc >= -(trip.delta_soc + tmp_trip.delta_soc):
                 # next trip is possible: add trip, use info from original trip
                 trip_dict = vars(trip)

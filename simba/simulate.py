@@ -3,13 +3,11 @@ import traceback
 from copy import deepcopy
 
 from simba import report, optimization, optimizer_util
-from simba.consumption import Consumption
 from simba.data_container import DataContainer
 from simba.costs import calculate_costs
 from simba.optimizer_util import read_config as read_optimizer_config
 from simba.schedule import Schedule
 from simba.station_optimization import run_optimization
-from simba.trip import Trip
 
 
 def simulate(args):
@@ -24,7 +22,7 @@ def simulate(args):
     :return: final schedule and scenario
     :rtype: tuple
     """
-    # The data stores various input data.
+    # The DataContainer stores various input data.
     data_container = DataContainer().fill_with_args(args)
 
     schedule, args = pre_simulation(args, data_container)
@@ -48,8 +46,6 @@ def pre_simulation(args, data_container: DataContainer):
     """
     # Deepcopy args so original args do not get mutated, i.e. deleted
     args = deepcopy(args)
-    # Add consumption calculator to trip class
-    Trip.consumption = Consumption.create_from_data_container(data_container)
 
     # generate schedule from csv
     schedule = Schedule.from_datacontainer(data_container, args)

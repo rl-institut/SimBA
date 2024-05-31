@@ -4,7 +4,6 @@ from datetime import timedelta, datetime # noqa
 import pytest
 import sys
 import spice_ev.scenario as scenario
-from spice_ev.util import set_options_from_config
 
 from simba.simulate import pre_simulation
 from tests.conftest import example_root, file_root
@@ -27,40 +26,27 @@ class BasicSchedule:
     temperature_path = example_root / 'default_temp_winter.csv'
     lol_path = example_root / 'default_level_of_loading_over_day.csv'
     vehicle_types_path = example_root / "vehicle_types.json"
-    with open(example_root / "electrified_stations.json", "r", encoding='utf-8') as file:
-        electrified_stations = util.uncomment_json_file(file)
-
-    with open(vehicle_types_path, "r", encoding='utf-8') as file:
-        vehicle_types = util.uncomment_json_file(file)
-
+    electrified_stations_path = example_root / "electrified_stations.json"
     path_to_all_station_data = example_root / "all_stations.csv"
 
     @pytest.fixture
     def default_schedule_arguments(self):
-        arguments = {"path_to_csv": None,
-                     "vehicle_types": self.vehicle_types,
-                     "stations": self.electrified_stations,
+        arguments = {"vehicle_types_path": self.vehicle_types_path,
+                     "electrified_stations_path": self.electrified_stations_path,
                      "station_data_path": self.path_to_all_station_data,
                      "outside_temperature_over_day_path": self.temperature_path,
                      "level_of_loading_over_day_path": self.lol_path
                      }
-        arguments.update(**mandatory_args)
         return arguments
 
     def basic_run(self):
-        """Returns a schedule, scenario and args after running SimBA.
+        """Returns a schedule, scenario and args after running SimBA from config.
         :return: schedule, scenario, args
         """
         # set the system variables to imitate the console call with the config argument.
         # first element has to be set to something or error is thrown
         sys.argv = ["foo", "--config", str(example_root / "simba.cfg")]
         args = util.get_args()
-        args.config = example_root / "simba.cfg"
-        args.days = None
-        args.seed = 5
-        set_options_from_config(args, verbose=False)
-        args.ALLOW_NEGATIVE_SOC = True
-        args.attach_vehicle_soc = True
 
         data_container = DataContainer().fill_with_args(args)
         sched, args = pre_simulation(args, data_container)
@@ -73,35 +59,38 @@ class TestSchedule(BasicSchedule):
         """
         Check if the schedule creation properly throws an error in case of missing mandatory options
         """
-        args = mandatory_args.copy()
+        sys.argv = ["foo", "--config", str(example_root / "simba.cfg")]
+        args = util.get_args()
+        data_container = DataContainer().fill_with_args(args)
+
         for key in mandatory_args.keys():
-            value = args.pop(key)
+            args = util.get_args()
+            args.__delattr__(key)
             with pytest.raises(Exception):
                 # schedule creation without mandatory arg
-                schedule.Schedule(self.vehicle_types, self.electrified_stations, **args)
-            args[key] = value
+                schedule.Schedule.from_datacontainer(data_container, args)
 
-    def test_station_data_reading(self, default_schedule_arguments):
+    def test_station_data_reading(self, caplog):
         """ Test if the reading of the geo station data works and outputs warnings in
         case the data was problematic, e.g. not numeric or not existent
 
         :param default_schedule_arguments: basic arguments the schedule needs for creation
         """
-        initialize_consumption(self.vehicle_types)
+        sys.argv = ["foo", "--config", str(example_root / "simba.cfg")]
+        args = util.get_args()
+        data_container = DataContainer().fill_with_args(args)
 
-        default_schedule_arguments["path_to_csv"] = example_root / "trips_example.csv"
-        generated_schedule = schedule.Schedule.from_csv(**default_schedule_arguments)
+        generated_schedule, args = pre_simulation(args, data_container)
         assert generated_schedule.station_data is not None
 
         # check if reading a non valid station.csv throws warnings
-        with pytest.warns(Warning) as record:
-            default_schedule_arguments["station_data_path"] = file_root / "not_existent_file"
-            schedule.Schedule.from_csv(**default_schedule_arguments)
-            assert len(record) == 1
+        args.station_data_path = file_root / "not_existent_file"
+        data_container = DataContainer().fill_with_args(args)
+        assert len(caplog.records) == 1
 
-            default_schedule_arguments["station_data_path"] = file_root / "not_numeric_stations.csv"
-            schedule.Schedule.from_csv(**default_schedule_arguments)
-            assert len(record) == 2
+        args.station_data_path = file_root / "not_numeric_stations.csv"
+        data_container = DataContainer().fill_with_args(args)
+        assert len(caplog.records) == 2
 
     def test_basic_run(self):
         """ Check if running a basic example works and if a scenario object is returned
@@ -113,11 +102,13 @@ class TestSchedule(BasicSchedule):
         """ Test if assigning vehicles works as intended using the fixed_recharge strategy
         """
 
-        initialize_consumption(self.vehicle_types)
+        sys.argv = ["foo", "--config", str(example_root / "simba.cfg")]
+        args = util.get_args()
+        args.input_schedule = file_root / "trips_assign_vehicles_extended.csv"
+        data_container = DataContainer().fill_with_args(args)
 
-        path_to_trips = file_root / "trips_assign_vehicles_extended.csv"
-        generated_schedule = schedule.Schedule.from_csv(
-            path_to_trips, self.vehicle_types, self.electrified_stations, **mandatory_args)
+        generated_schedule, args = pre_simulation(args, data_container)
+
         all_rotations = [r for r in generated_schedule.rotations]
         args = Namespace(**{})
         args.assign_strategy = "fixed_recharge"
@@ -156,12 +147,13 @@ class TestSchedule(BasicSchedule):
     def test_assign_vehicles_adaptive(self):
         """ Test if assigning vehicles works as intended using the adaptive strategy
         """
+        sys.argv = ["foo", "--config", str(example_root / "simba.cfg")]
+        args = util.get_args()
+        args.input_schedule = file_root / "trips_assign_vehicles_extended.csv"
+        data_container = DataContainer().fill_with_args(args)
 
-        initialize_consumption(self.vehicle_types)
+        generated_schedule, args = pre_simulation(args, data_container)
 
-        path_to_trips = file_root / "trips_assign_vehicles_extended.csv"
-        generated_schedule = schedule.Schedule.from_csv(
-            path_to_trips, self.vehicle_types, self.electrified_stations, **mandatory_args)
         args = Namespace(**{"desired_soc_deps": 1})
         args.assign_strategy = None
         generated_schedule.assign_vehicles(args)
@@ -208,13 +200,12 @@ class TestSchedule(BasicSchedule):
 
         :param default_schedule_arguments: basic arguments the schedule needs for creation
         """
-        # Changing self.vehicle_types can propagate to other tests
-        vehicle_types = deepcopy(self.vehicle_types)
-        initialize_consumption(vehicle_types)
+        sys.argv = ["foo", "--config", str(example_root / "simba.cfg")]
+        args = util.get_args()
+        args.input_schedule = file_root / "trips_assign_vehicles.csv"
+        data_container = DataContainer().fill_with_args(args)
 
-        default_schedule_arguments["path_to_csv"] = file_root / "trips_assign_vehicles.csv"
-        default_schedule_arguments["vehicle_types"] = vehicle_types
-        generated_schedule = schedule.Schedule.from_csv(**default_schedule_arguments)
+        generated_schedule, args = pre_simulation(args, data_container)
 
         # set mileage to a constant
         mileage = 10
@@ -235,10 +226,11 @@ class TestSchedule(BasicSchedule):
 
         :param default_schedule_arguments: basic arguments the schedule needs for creation
         """
-        initialize_consumption(self.vehicle_types)
-
-        default_schedule_arguments["path_to_csv"] = file_root / "trips_assign_vehicles.csv"
-        generated_schedule = schedule.Schedule.from_csv(**default_schedule_arguments)
+        sys.argv = ["foo", "--config", str(example_root / "simba.cfg")]
+        args = util.get_args()
+        args.input_schedule = file_root / "trips_assign_vehicles.csv"
+        data_container = DataContainer().fill_with_args(args)
+        generated_schedule, args = pre_simulation(args, data_container)
 
         common_stations = generated_schedule.get_common_stations(only_opps=False)
         assert len(common_stations["1"]) == 0
@@ -260,8 +252,14 @@ class TestSchedule(BasicSchedule):
         neg_rots = sched.get_negative_rotations(scen)
         assert ['11'] == neg_rots
 
-    def test_rotation_filter(self, tmp_path, default_schedule_arguments):
-        s = schedule.Schedule(**default_schedule_arguments)
+    def test_rotation_filter(self, tmp_path):
+        sys.argv = ["foo", "--config", str(example_root / "simba.cfg")]
+        args = util.get_args()
+        args.input_schedule = file_root / "trips_assign_vehicles.csv"
+        data_container = DataContainer().fill_with_args(args)
+
+        s, args = pre_simulation(args, data_container)
+
         args = Namespace(**{
             "rotation_filter_variable": None,
             "rotation_filter": None,
@@ -329,23 +327,9 @@ class TestSchedule(BasicSchedule):
         """
         sys.argv = ["foo", "--config", str(example_root / "simba.cfg")]
         args = util.get_args()
-        args.config = example_root / "simba.cfg"
-
-        args.days = None
-        args.seed = 5
-
-        args.input_schedule = example_root / "trips_example.csv"
-        args.electrified_stations_path = example_root / "electrified_stations.json"
-        args.station_data_path = example_root / "all_stations.csv"
-        args.vehicle_type_path = self.vehicle_types_path
-        args.level_of_loading_over_day_path = self.lol_path
-        args.outside_temperature_over_day_path = self.temperature_path
-
         data_container = DataContainer().fill_with_args(args)
         generated_schedule, args = pre_simulation(args, data_container)
 
-        args.ALLOW_NEGATIVE_SOC = True
-        args.attach_vehicle_soc = True
         scen = generated_schedule.generate_scenario(args)
         assert "Station-0" in scen.components.photovoltaics
         assert "Station-3" in scen.components.photovoltaics
@@ -353,7 +337,7 @@ class TestSchedule(BasicSchedule):
         assert scen.components.batteries["Station-0 storage"].capacity == 300
         assert scen.components.batteries["Station-0 storage"].efficiency == 0.95
         assert scen.components.batteries["Station-0 storage"].min_charging_power == 0
-        generated_schedule.assign_vehicles(args)
+
         scen = generated_schedule.run(args)
         assert type(scen) is scenario.Scenario
 
@@ -375,18 +359,18 @@ class TestSchedule(BasicSchedule):
             else:
                 assert 0, "No error despite wrong file paths"
 
-    def test_schedule_from_csv(self):
-        generated_schedule = generate_basic_schedule()
+    def test_schedule_from_datacontainer(self):
+        generated_schedule, _ = generate_basic_schedule()
         assert len(generated_schedule.rotations) == 8
         assert type(generated_schedule) is schedule.Schedule
 
     def test_consistency(self):
-        sched = generate_basic_schedule()
+        sched, _ = generate_basic_schedule()
         # check if no error is thrown in the basic case
         assert len(schedule.Schedule.check_consistency(sched)) == 0
 
         error = "Trip time is negative"
-        sched = generate_basic_schedule()
+        sched, _ = generate_basic_schedule()
         faulty_rot = list(sched.rotations.values())[0]
         faulty_trip = faulty_rot.trips[0]
         # create error through moving trip arrival 1 day before departure
@@ -394,7 +378,7 @@ class TestSchedule(BasicSchedule):
         assert schedule.Schedule.check_consistency(sched)["1"] == error
 
         error = "Break time is negative"
-        sched = generate_basic_schedule()
+        sched, _ = generate_basic_schedule()
         faulty_rot = list(sched.rotations.values())[0]
         faulty_trip = faulty_rot.trips[1]
         # create error through moving trip departure before last arrival
@@ -402,14 +386,14 @@ class TestSchedule(BasicSchedule):
         assert schedule.Schedule.check_consistency(sched)["1"] == error
 
         error = "Trips are not sequential"
-        sched = generate_basic_schedule()
+        sched, _ = generate_basic_schedule()
         faulty_rot = list(sched.rotations.values())[0]
         faulty_rot.trips[1].arrival_name = "foo"
         faulty_rot.trips[0].departure_name = "bar"
         assert schedule.Schedule.check_consistency(sched)["1"] == error
 
         error = "Start and end of rotation differ"
-        sched = generate_basic_schedule()
+        sched, _ = generate_basic_schedule()
         faulty_rot = list(sched.rotations.values())[0]
         departure_trip = list(faulty_rot.trips)[0]
         departure_trip.departure_name = "foo"
@@ -419,28 +403,28 @@ class TestSchedule(BasicSchedule):
         error = "Rotation data differs from trips data"
 
         # check arrival data in rotation
-        sched = generate_basic_schedule()
+        sched, _ = generate_basic_schedule()
         faulty_rot = list(sched.rotations.values())[0]
         faulty_rot.trips[-1].arrival_name = "foo"
         faulty_rot.trips[0].departure_name = "foo"
         faulty_rot.arrival_name = "bar"
         assert schedule.Schedule.check_consistency(sched)["1"] == error
 
-        sched = generate_basic_schedule()
+        sched, _ = generate_basic_schedule()
         faulty_rot = list(sched.rotations.values())[0]
         arrival_trip = faulty_rot.trips[-1]
         faulty_rot.arrival_time = arrival_trip.arrival_time - timedelta(minutes=1)
         assert schedule.Schedule.check_consistency(sched)["1"] == error
 
         # check departure data in rotation
-        sched = generate_basic_schedule()
+        sched, _ = generate_basic_schedule()
         faulty_rot = list(sched.rotations.values())[0]
         faulty_rot.trips[-1].arrival_name = "foo"
         faulty_rot.trips[0].departure_name = "foo"
         faulty_rot.departure_name = "bar"
         assert schedule.Schedule.check_consistency(sched)["1"] == error
 
-        sched = generate_basic_schedule()
+        sched, _ = generate_basic_schedule()
         faulty_rot = list(sched.rotations.values())[0]
         departure_trip = faulty_rot.trips[0]
         faulty_rot.departure_time = departure_trip.departure_time - timedelta(minutes=1)
@@ -449,9 +433,7 @@ class TestSchedule(BasicSchedule):
     def test_peak_load_window(self):
         # generate events to lower GC max power during peak load windows
         # setup basic schedule (reuse during test)
-        generated_schedule = generate_basic_schedule()
-        sys.argv = ["foo", "--config", str(example_root / "simba.cfg")]
-        args = util.get_args()
+        generated_schedule, args = generate_basic_schedule()
         generated_schedule.init_soc_dispatcher(args)
         for station in generated_schedule.stations.values():
             station["gc_power"] = 1000
@@ -516,11 +498,7 @@ class TestSchedule(BasicSchedule):
 
     def test_generate_price_lists(self):
         # setup basic schedule
-        generated_schedule = generate_basic_schedule()
-        sys.argv = ["", "--config", str(example_root / "simba.cfg")]
-        args = util.get_args()
-
-        generated_schedule.init_soc_dispatcher(args)
+        generated_schedule, args = generate_basic_schedule()
 
         # only test individual price CSV and random price generation
         args.include_price_csv = None

@@ -9,7 +9,7 @@ from typing import Dict
 import pandas as pd
 
 from simba import util
-from simba.ids import INCLINE, LEVEL_OF_LOADING, SPEED, T_AMB, CONSUMPTION
+from simba.ids import INCLINE, LEVEL_OF_LOADING, SPEED, T_AMB, TEMPERATURE, CONSUMPTION
 
 
 class DataContainer:
@@ -57,8 +57,8 @@ class DataContainer:
                 trip_d = dict(trip)
                 trip_d["arrival_time"] = datetime.datetime.fromisoformat(trip["arrival_time"])
                 trip_d["departure_time"] = datetime.datetime.fromisoformat(trip["departure_time"])
-                trip_d["level_of_loading"] = cast_float_or_none(trip.get("level_of_loading"))
-                trip_d["temperature"] = cast_float_or_none(trip.get("temperature"))
+                trip_d[LEVEL_OF_LOADING] = cast_float_or_none(trip.get(LEVEL_OF_LOADING))
+                trip_d[TEMPERATURE] = cast_float_or_none(trip.get(TEMPERATURE))
                 trip_d["distance"] = float(trip["distance"])
                 self.trip_data.append(trip_d)
         return self
@@ -122,17 +122,15 @@ class DataContainer:
                         "lat": float(row.get('lat', 0)),
                         "long": float(row.get('long', 0)),
                     }
-        except FileNotFoundError or KeyError:
-            logging.warning("Warning: external csv file '{}' not found or not named properly "
-                            "(Needed column names are 'Endhaltestelle' and 'elevation')".
-                            format(file_path),
-                            stacklevel=100)
+        except (FileNotFoundError, KeyError):
+            logging.warning("External csv file '{}' not found or not named properly "
+                          "(Needed column names are 'Endhaltestelle' and 'elevation')".
+                          format(file_path),
+                          stacklevel=100)
         except ValueError:
-            logging.warning("Warning: external csv file '{}' does not contain numeric "
-                            "values in the column 'elevation'. Station data is discarded.".
-                            format(file_path),
-                            stacklevel=100)
-
+            logging.warning("External csv file '{}' should only contain numeric data".
+                          format(file_path),
+                          stacklevel=100)
         return self
 
     def add_level_of_loading_data(self, data: dict) -> 'DataContainer':

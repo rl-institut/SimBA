@@ -8,9 +8,11 @@ import warnings
 from typing import Dict, Type, Iterable
 
 import simba.rotation
+from simba.consumption import Consumption
 from simba.data_container import DataContainer
 from simba import util, optimizer_util
 from simba.rotation import Rotation
+from simba.trip import Trip
 
 from spice_ev.components import VehicleType
 from spice_ev.scenario import Scenario
@@ -65,6 +67,8 @@ class Schedule:
         self.vehicle_types = vehicle_types
         self.original_rotations = None
         self.station_data = None
+
+        self.consumption_calculator: Consumption = None
         self.soc_dispatcher: SocDispatcher = None
         self.data_container: DataContainer = None
         # mandatory config parameters
@@ -89,7 +93,12 @@ class Schedule:
 
         schedule = cls(data.vehicle_types_data, data.stations_data, **vars(args))
         schedule.data_container = data
+
+        # Add geo data to schedule
         schedule.station_data = data.station_geo_data
+
+        # Add consumption calculator to trip class
+        schedule.consumption_calculator = Consumption.create_from_data_container(data)
 
         for trip in data.trip_data:
             rotation_id = trip['rotation_id']
@@ -478,7 +487,7 @@ class Schedule:
             standing_vehicles_w_soc = [(*v, rot_idx) for v, rot_idx in zip(standing_vehicles, socs)]
 
             standing_vehicles_w_soc = sorted(standing_vehicles_w_soc, key=lambda x: x[-1])
-            consumption_soc = rot.calculate_consumption() / self.vehicle_types[vt][ct]["capacity"]
+            consumption_soc = self.calculate_rotation_consumption(rot) / self.vehicle_types[vt][ct]["capacity"]
             for vehicle_id, depot, soc in standing_vehicles_w_soc:
                 # end soc of vehicle if it services this rotation
                 end_soc = soc - consumption_soc
@@ -566,9 +575,38 @@ class Schedule:
         """
         self.consumption = 0
         for rot in self.rotations.values():
-            self.consumption += rot.calculate_consumption()
-
+            self.consumption += self.calculate_rotation_consumption(rot)
         return self.consumption
+
+    def calculate_rotation_consumption(self, rotation: Rotation):
+        rotation.consumption = 0
+        for trip in rotation.trips:
+            rotation.consumption += self.calculate_trip_consumption(trip)
+        return rotation.consumption
+
+    def calculate_trip_consumption(self, trip: Trip):
+        """ Compute consumption for this trip.
+
+        :return: Consumption of trip [kWh]
+        :rtype: float
+        :raises with_traceback: if consumption cannot be constructed
+        """
+        vehicle_type = trip.rotation.vehicle_type
+        vehicle_info = self.vehicle_types[vehicle_type][trip.rotation.charging_type]
+        try:
+            trip.consumption, trip.delta_soc = self.consumption_calculator(
+                distance=trip.distance,
+                vehicle_type=trip.rotation.vehicle_type,
+                vehicle_info=vehicle_info,
+                temp=trip.temperature,
+                height_difference=trip.height_difference,
+                level_of_loading=trip.level_of_loading,
+                mean_speed=trip.mean_speed)
+        except AttributeError as e:
+            raise Exception(
+                'To calculate consumption, a consumption object needs to be constructed'
+                ' and linked to the Schedule.').with_traceback(e.__traceback__)
+        return trip.consumption
 
     def get_departure_of_first_trip(self):
         """ Finds earliest departure time among all rotations.

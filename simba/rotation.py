@@ -74,24 +74,10 @@ class Rotation:
                 self.set_charging_type(charging_type)
             elif self.charging_type == charging_type:
                 # same CT as other trips: just add trip consumption
-                self.consumption += new_trip.calculate_consumption()
+                self.consumption += self.schedule.calculate_trip_consumption(new_trip)
             else:
                 # different CT than rotation: error
                 raise Exception(f"Two trips of rotation {self.id} have distinct charging types")
-
-    def calculate_consumption(self):
-        """ Calculate consumption of this rotation and all its trips.
-
-        :return: Consumption of rotation [kWh]
-        :rtype: float
-        """
-        rotation_consumption = 0
-        for trip in self.trips:
-            rotation_consumption += trip.calculate_consumption()
-
-        self.consumption = rotation_consumption
-
-        return rotation_consumption
 
     def set_charging_type(self, ct):
         """ Change charging type of either all or specified rotations.
@@ -112,7 +98,7 @@ class Rotation:
         old_consumption = self.consumption
         self.charging_type = ct
         # consumption may have changed with new charging type
-        self.consumption = self.calculate_consumption()
+        self.consumption = self.schedule.calculate_rotation_consumption(self)
 
         # recalculate schedule consumption: update for new rotation consumption
         self.schedule.consumption += self.consumption - old_consumption

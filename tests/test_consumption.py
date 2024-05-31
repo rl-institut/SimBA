@@ -15,19 +15,17 @@ class TestConsumption:
         :param tmp_path: pytest fixture to create a temporary path
         """
         schedule, scenario, _ = BasicSchedule().basic_run()
-        trip = next(iter(schedule.rotations.values())).trips.pop(0)
-        consumption = trip.__class__.consumption
-        consumption.temperatures_by_hour = {hour: hour * 2 - 15 for hour in range(0, 24)}
-        time = datetime(year=2023, month=1, day=1, hour=1)
+        consumption_calculator = schedule.consumption_calculator
         dist = 10
-        vehicle = next(iter(consumption.vehicle_types.items()))
+        vehicle = next(iter(schedule.vehicle_types.items()))
         vehicle_type = vehicle[0]
         charging_type = next(iter(vehicle[1].keys()))
+        vehicle_info = schedule.vehicle_types[vehicle_type][charging_type]
 
         # check distance scaling
         def calc_c(distance):
-            return consumption.calculate_consumption(
-                time, distance, vehicle_type, charging_type, temp=10, height_difference=0,
+            return consumption_calculator(
+                distance, vehicle_type, vehicle_info, temp=10, height_difference=0,
                 level_of_loading=0, mean_speed=18)[0]
 
         assert calc_c(dist) * 2 == calc_c(dist * 2)
@@ -38,7 +36,7 @@ class TestConsumption:
         def true_cons(lol, incline, speed, t_amb):
             return lol + incline + speed / 10 + (t_amb - 20) / 10
 
-        # apply the formula on the consumption file
+        # apply the formula on the consumption dataframe
         consumption_df = pd.read_csv(self.consumption_path)
         consumption_col = consumption_df["consumption_kwh_per_km"].view()
         lol_col = consumption_df["level_of_loading"]
@@ -50,7 +48,7 @@ class TestConsumption:
 
         # save the file in a temp folder and use from now on
         vehicle[1][charging_type]["mileage"] = "new_consumption"
-        consumption.set_consumption_interpolation(vehicle[1][charging_type]["mileage"],
+        consumption_calculator.set_consumption_interpolation(vehicle[1][charging_type]["mileage"],
                                                   consumption_df)
 
         lol = 0.5
@@ -59,25 +57,25 @@ class TestConsumption:
         t_amb = 20
         distance = 1000  # 1000m =1km, since true_cons give the consumption per 1000 m
 
-        # Check various inputs, which need interpolation. Inputs have to be inside of the data, i.e.
+        # Check various inputs, which need interpolation. Inputs have to be inside the data, i.e.
         # not out of bounds
-        assert true_cons(lol, incline, speed, t_amb) == consumption.calculate_consumption(
-            time, distance, vehicle_type, charging_type, temp=t_amb,
+        assert true_cons(lol, incline, speed, t_amb) == consumption_calculator(
+            distance, vehicle_type, vehicle_info, temp=t_amb,
             height_difference=incline * distance, level_of_loading=lol, mean_speed=speed)[0]
 
         incline = 0.02
-        assert true_cons(lol, incline, speed, t_amb) == consumption.calculate_consumption(
-            time, distance, vehicle_type, charging_type, temp=t_amb,
+        assert true_cons(lol, incline, speed, t_amb) == consumption_calculator(
+            distance, vehicle_type, vehicle_info, temp=t_amb,
             height_difference=incline * distance, level_of_loading=lol, mean_speed=speed)[0]
 
         t_amb = 15
-        assert true_cons(lol, incline, speed, t_amb) == consumption.calculate_consumption(
-            time, distance, vehicle_type, charging_type, temp=t_amb,
+        assert true_cons(lol, incline, speed, t_amb) == consumption_calculator(
+            distance, vehicle_type, vehicle_info, temp=t_amb,
             height_difference=incline * distance, level_of_loading=lol, mean_speed=speed)[0]
 
         lol = 0.1
-        assert true_cons(lol, incline, speed, t_amb) == consumption.calculate_consumption(
-            time, distance, vehicle_type, charging_type, temp=t_amb,
+        assert true_cons(lol, incline, speed, t_amb) == consumption_calculator(
+            distance, vehicle_type, vehicle_info, temp=t_amb,
             height_difference=incline * distance, level_of_loading=lol, mean_speed=speed)[0]
 
         # check for out of bounds consumption. Max consumption in the table is 6.6.
@@ -85,43 +83,6 @@ class TestConsumption:
         incline = 99999
         lol = 99999
         speed = 99999
-        assert consumption.calculate_consumption(
-            time, distance, vehicle_type, charging_type, temp=t_amb,
+        assert consumption_calculator(
+            distance, vehicle_type, vehicle_info, temp=t_amb,
             height_difference=incline * distance, level_of_loading=lol, mean_speed=speed)[0] < 6.7
-
-        # check temperature default runs without errors when temp is None
-        consumption.calculate_consumption(
-            time, dist, vehicle_type, charging_type, temp=None, height_difference=0,
-            level_of_loading=0, mean_speed=18)[0]
-
-        # check temperature default from temperature time series error throwing
-        last_hour = 12
-        consumption.temperatures_by_hour = {hour: hour * 2 - 15 for hour in range(0, last_hour)}
-        time = datetime(year=2023, month=1, day=1, hour=last_hour + 2)
-        with pytest.raises(KeyError):
-            consumption.calculate_consumption(
-                time, dist, vehicle_type, charging_type, temp=None, height_difference=0,
-                level_of_loading=0, mean_speed=18)[0]
-
-        del consumption.temperatures_by_hour
-        with pytest.raises(AttributeError):
-            consumption.calculate_consumption(
-                time, dist, vehicle_type, charging_type, temp=None, height_difference=0,
-                level_of_loading=0, mean_speed=18)[0]
-
-        # reset temperature_by_hour
-        consumption.temperatures_by_hour = {hour: hour * 2 - 15 for hour in range(0, 24)}
-
-        # check level_of_loading default from level_of_loading time series error throwing
-        last_hour = 12
-        consumption.lol_by_hour = {hour: hour * 2 - 15 for hour in range(0, last_hour)}
-        time = datetime(year=2023, month=1, day=1, hour=last_hour + 2)
-        with pytest.raises(KeyError):
-            consumption.calculate_consumption(
-                time, dist, vehicle_type, charging_type, temp=20, height_difference=0,
-                level_of_loading=None, mean_speed=18)[0]
-        del consumption.lol_by_hour
-        with pytest.raises(AttributeError):
-            consumption.calculate_consumption(
-                time, dist, vehicle_type, charging_type, temp=20, height_difference=0,
-                level_of_loading=None, mean_speed=18)[0]
