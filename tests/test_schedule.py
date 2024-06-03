@@ -104,13 +104,14 @@ class TestSchedule(BasicSchedule):
 
         sys.argv = ["foo", "--config", str(example_root / "simba.cfg")]
         args = util.get_args()
+        args.min_recharge_deps_oppb = 1
+        args.min_recharge_deps_depb = 1
         args.input_schedule = file_root / "trips_assign_vehicles_extended.csv"
         data_container = DataContainer().fill_with_args(args)
 
         generated_schedule, args = pre_simulation(args, data_container)
 
         all_rotations = [r for r in generated_schedule.rotations]
-        args = Namespace(**{})
         args.assign_strategy = "fixed_recharge"
         generated_schedule.assign_vehicles(args)
         gen_rotations = generated_schedule.rotations
@@ -122,11 +123,11 @@ class TestSchedule(BasicSchedule):
             if "_2" in r or "_3" in r:
                 del generated_schedule.rotations[r]
 
-        args = Namespace(**{})
         args.assign_strategy = "fixed_recharge"
         generated_schedule.assign_vehicles(args)
         gen_rotations = generated_schedule.rotations
         vehicle_ids = {rot.vehicle_id for key, rot in gen_rotations.items()}
+
         assert len(vehicle_ids) == 4
 
         # Assertions based on the following output  / graphic
