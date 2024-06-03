@@ -81,6 +81,17 @@ class DataContainer:
                         cost_parameters_path=None,
                         station_data_path=None,
                         ):
+        """ Fill self with data from file_paths
+        :param trips_file_path: csv path to trips
+        :param vehicle_types_path: json file path to vehicle_types
+        :param electrified_stations_path: json file path to electrified stations
+        :param outside_temperature_over_day_path: csv path to temperatures over the hour of day
+        :param level_of_loading_over_day_path: csv path to level of loading over the hour of day
+        :param cost_parameters_path: json file path to cost_parameters
+        :param station_data_path: csv file path to station geo_data
+        :return: self
+        """
+
         # Add the vehicle_types from a json file
         self.add_vehicle_types_from_json(vehicle_types_path)
 
@@ -161,6 +172,11 @@ class DataContainer:
         return self
 
     def add_temperature_data_from_csv(self, file_path: Path) -> 'DataContainer':
+        """ Get temperature data from a path and raise verbose error if file is not found.
+
+        :param file_path: csv path to temperature over hour of day
+        :return: DataContainer containing cost parameters
+        """
         index = "hour"
         column = "temperature"
         temperature_data_dict = get_dict_from_csv(column, file_path, index)
@@ -248,6 +264,10 @@ class DataContainer:
                                     "does not exist. Exiting...")
 
     def add_consumption_data_from_vehicle_type_linked_files(self):
+        """ Add mileage data from files linked in the vehicle_types to the container.
+
+        :return: DataContainer containing consumption data
+        """
         assert self.vehicle_types_data, "No vehicle_type data in the data_container"
         mileages = list(get_values_from_nested_key("mileage", self.vehicle_types_data))
         mileages = list(filter(lambda x: isinstance(x, str) or isinstance(x, Path), mileages, ))
@@ -298,6 +318,16 @@ def get_values_from_nested_key(key, data: dict) -> list:
 
 
 def get_dict_from_csv(column, file_path, index):
+    """ Get a dictonary with the key of a numeric index and the value of a numeric column
+
+    :param column: column name for dictionary values. Content needs to be castable to float
+    :type column: str
+    :param file_path: file path
+    :type file_path: str or Path
+    :param index: column name of the index / keys of the dictionary.
+        Content needs to be castable to float
+    :return: dictionary with numeric keys of index and numeric values of column
+    """
     output = dict()
     with open(file_path, "r") as f:
         delim = util.get_csv_delim(file_path)
@@ -308,6 +338,13 @@ def get_dict_from_csv(column, file_path, index):
 
 
 def cast_float_or_none(val: any) -> any:
+    """ Cast a value to float. If a ValueError or TypeError is raised, None is returned
+
+    :param val: value to cast
+    :type val: any
+    :return: casted value
+    """
+
     try:
         return float(val)
     except (ValueError, TypeError):
