@@ -109,10 +109,15 @@ class TestOptimization:
                 new_rot_name = f"{rot_id}_r_{counter}"
             assert len(trip_list) == trip_counter
 
-        # make one trip impossible
+        # make all trips except one easily possible
         schedule = original_schedule
         trips = deepcopy(original_trips)
+        for trips_ in trips.values():
+            for t in trips_:
+                t.delta_soc = 0.0000001
+        # make one trip impossible
         trips["1"][0].delta_soc = -2
+
         recombined_schedule = optimization.recombination(schedule, args, trips, depot_trips)
         # add Ein/Aussetzfahrt, subtract one impossible trip
         assert len(original_trips["1"]) + 2 - 1 == len(recombined_schedule.rotations["1_r"].trips)

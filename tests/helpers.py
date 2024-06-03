@@ -1,17 +1,13 @@
 """ Reusable functions that support tests
 """
 import sys
-from copy import deepcopy
-
-from simba import trip, consumption, util
+from simba import util
 from simba.data_container import DataContainer
 from simba.simulate import pre_simulation
 from tests.conftest import example_root
 
 
-def generate_basic_schedule(cache=[None]):
-    if cache[0] is not None:
-        return deepcopy(cache[0])
+def generate_basic_schedule():
     sys.argv = ["foo", "--config", str(example_root / "simba.cfg")]
     args = util.get_args()
     args.preferred_charging_type = "oppb"
@@ -28,15 +24,5 @@ def generate_basic_schedule(cache=[None]):
     vars(args).update(mandatory_args)
     data_container = DataContainer().fill_with_args(args)
     generated_schedule, args = pre_simulation(args, data_container)
-    cache[0] = deepcopy((generated_schedule, args))
     return generated_schedule, args
 
-
-def initialize_consumption(vehicle_types):
-    data_container = DataContainer()
-    data_container.add_vehicle_types(vehicle_types)
-    data_container.add_consumption_data_from_vehicle_type_linked_files()
-    trip.Trip.consumption = consumption.Consumption(vehicle_types)
-    for name, df in data_container.consumption_data.items():
-        trip.Trip.consumption.set_consumption_interpolation(name, df)
-    return trip.Trip.consumption

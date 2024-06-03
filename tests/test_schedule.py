@@ -7,7 +7,7 @@ import spice_ev.scenario as scenario
 
 from simba.simulate import pre_simulation
 from tests.conftest import example_root, file_root
-from tests.helpers import generate_basic_schedule, initialize_consumption
+from tests.helpers import generate_basic_schedule
 from simba import rotation, schedule, util
 from simba.data_container import DataContainer
 
