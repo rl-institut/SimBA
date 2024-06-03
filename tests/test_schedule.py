@@ -49,6 +49,9 @@ class BasicSchedule:
         args = util.get_args()
 
         data_container = DataContainer().fill_with_args(args)
+        first_trip = min([t["arrival_time"] for t in data_container.trip_data])
+        data_container.trip_data = [t for t in data_container.trip_data
+                                    if t["arrival_time"] - first_trip < timedelta(hours=10)]
         sched, args = pre_simulation(args, data_container)
         scen = sched.run(args)
         return sched, scen, args
@@ -247,11 +250,11 @@ class TestSchedule(BasicSchedule):
         for rot in sched.rotations.values():
             for t in rot.trips:
                 t.distance = 0.01
-        sched.rotations["11"].trips[-1].distance = 99_999
+        sched.rotations["1"].trips[-1].distance = 99_999
         sched.calculate_consumption()
         scen = sched.run(args)
         neg_rots = sched.get_negative_rotations(scen)
-        assert ['11'] == neg_rots
+        assert ['1'] == neg_rots
 
     def test_rotation_filter(self, tmp_path):
         sys.argv = ["foo", "--config", str(example_root / "simba.cfg")]
