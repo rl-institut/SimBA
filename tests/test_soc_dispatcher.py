@@ -96,7 +96,6 @@ class TestSocDispatcher:
     def test_basic_dispatching(self, eflips_output):
         """Returns a schedule, scenario and args after running SimBA.
         :param eflips_output: list of eflips data
-        :return: schedule, scenario, args
         """
         sched, scen, args = self.basic_run()
         pd.DataFrame(scen.vehicle_socs).plot()
