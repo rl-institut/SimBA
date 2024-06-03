@@ -106,8 +106,6 @@ class TestSocDispatcher:
 
         pd.DataFrame(scen.vehicle_socs).plot()
 
-        return sched, scen, args
-
     def test_basic_missing_rotation(self, eflips_output):
         """Test if missing a rotation throws an error
         :param eflips_output: list of eflips data
