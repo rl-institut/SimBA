@@ -1,7 +1,5 @@
-import pytest
 from tests.test_schedule import BasicSchedule
 from tests.conftest import example_root
-from datetime import datetime
 import pandas as pd
 
 
@@ -49,7 +47,7 @@ class TestConsumption:
         # save the file in a temp folder and use from now on
         vehicle[1][charging_type]["mileage"] = "new_consumption"
         consumption_calculator.set_consumption_interpolation(vehicle[1][charging_type]["mileage"],
-                                                  consumption_df)
+                                                             consumption_df)
 
         lol = 0.5
         incline = 0

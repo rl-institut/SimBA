@@ -1,5 +1,6 @@
 from datetime import timedelta
 
+
 class Trip:
     def __init__(self, rotation, departure_time, departure_name,
                  arrival_time, arrival_name, distance, temperature, level_of_loading,
@@ -30,4 +31,3 @@ class Trip:
 
         self.consumption = None  # kWh
         self.delta_soc = None
-

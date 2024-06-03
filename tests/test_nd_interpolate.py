@@ -57,7 +57,6 @@ def get_outer_point(table, dims_out_of_bound=1):
     return point
 
 
-
 class TestNdInterpol:
     random.seed(5)
     linear_function = None

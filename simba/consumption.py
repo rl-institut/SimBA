@@ -1,4 +1,3 @@
-import csv
 import warnings
 
 import pandas as pd
@@ -12,11 +11,9 @@ class Consumption:
         self.consumption_interpolation = {}
 
     def __call__(self, distance, vehicle_type, vehicle_info, temp,
-                              height_difference, level_of_loading, mean_speed):
+                 height_difference, level_of_loading, mean_speed):
         """ Calculates consumed amount of energy for a given distance.
 
-        :param time: The date and time at which the trip ends
-        :type time: datetime.datetime
         :param distance: Distance travelled [m]
         :type distance: float
         :param vehicle_type: The vehicle type for which to calculate consumption
@@ -132,10 +129,8 @@ class Consumption:
 
         return interpol_function
 
-
     def get_consumption_lookup_name(self, consumption_path, vehicle_type):
-        """
-        Get name for the consumption lookup.
+        """ Get name for the consumption lookup.
 
         :param consumption_path: Path to consumption data.
         :type consumption_path: str

@@ -25,4 +25,3 @@ def generate_basic_schedule():
     data_container = DataContainer().fill_with_args(args)
     generated_schedule, args = pre_simulation(args, data_container)
     return generated_schedule, args
-

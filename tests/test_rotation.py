@@ -1,5 +1,3 @@
-from copy import deepcopy
-
 import pytest
 
 from tests.helpers import generate_basic_schedule
@@ -16,7 +14,6 @@ def test_set_charging_type():
                 vehicle["mileage"] = 10
             else:
                 vehicle["mileage"] = 20
-
 
     # set charging type to oppb
     rot.set_charging_type('oppb')

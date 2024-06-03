@@ -74,7 +74,7 @@ class TestSchedule(BasicSchedule):
         """ Test if the reading of the geo station data works and outputs warnings in
         case the data was problematic, e.g. not numeric or not existent
 
-        :param default_schedule_arguments: basic arguments the schedule needs for creation
+        :param caplog: pytest fixture to capture logging
         """
         sys.argv = ["foo", "--config", str(example_root / "simba.cfg")]
         args = util.get_args()

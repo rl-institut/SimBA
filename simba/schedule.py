@@ -487,7 +487,8 @@ class Schedule:
             standing_vehicles_w_soc = [(*v, rot_idx) for v, rot_idx in zip(standing_vehicles, socs)]
 
             standing_vehicles_w_soc = sorted(standing_vehicles_w_soc, key=lambda x: x[-1])
-            consumption_soc = self.calculate_rotation_consumption(rot) / self.vehicle_types[vt][ct]["capacity"]
+            consumption_soc = (self.calculate_rotation_consumption(rot) /
+                               self.vehicle_types[vt][ct]["capacity"])
             for vehicle_id, depot, soc in standing_vehicles_w_soc:
                 # end soc of vehicle if it services this rotation
                 end_soc = soc - consumption_soc
@@ -586,7 +587,8 @@ class Schedule:
 
     def calculate_trip_consumption(self, trip: Trip):
         """ Compute consumption for this trip.
-
+        :param trip: trip to calculate consumption for
+        :type trip: Trip
         :return: Consumption of trip [kWh]
         :rtype: float
         :raises with_traceback: if consumption cannot be constructed

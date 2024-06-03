@@ -5,7 +5,6 @@ import pandas as pd
 import pytest
 
 from simba.simulate import pre_simulation
-from simba.trip import Trip
 from tests.conftest import example_root
 from simba import util
 from simba.data_container import DataContainer

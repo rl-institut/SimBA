@@ -19,9 +19,6 @@ from tests.conftest import example_root
 
 file_root = Path(__file__).parent / "test_input_files/optimization"
 
-from matplotlib import pyplot as plt
-import matplotlib
-matplotlib.use('TkAgg')
 
 def slow_join_all_subsets(subsets):
     def join_subsets(subsets):
@@ -177,9 +174,6 @@ class TestStationOptimization:
         sopt.replace_socs_from_none_to_value()
         vehicle_socs_fast = sopt.timeseries_calc(list(sched.stations.keys()))
         for vehicle, socs in scen.vehicle_socs.items():
-            plt.plot(socs)
-            plt.plot(vehicle_socs_fast[vehicle])
-
             assert vehicle_socs_fast[vehicle][-1] == pytest.approx(socs[-1], 0.01, abs=0.01)
 
         events = sopt.get_low_soc_events(soc_data=vehicle_socs_fast, rel_soc=True)
@@ -368,4 +362,3 @@ def adjust_vehicle_file(source, capacity=None, mileage=0):
     with open(source, "w", encoding='utf-8') as file:
         json.dump(vehicle_types, file)
     return vehicle_types
-

@@ -124,13 +124,13 @@ class DataContainer:
                     }
         except (FileNotFoundError, KeyError):
             logging.warning("External csv file '{}' not found or not named properly "
-                          "(Needed column names are 'Endhaltestelle' and 'elevation')".
-                          format(file_path),
-                          stacklevel=100)
+                            "(Needed column names are 'Endhaltestelle' and 'elevation')".
+                            format(file_path),
+                            stacklevel=100)
         except ValueError:
             logging.warning("External csv file '{}' should only contain numeric data".
-                          format(file_path),
-                          stacklevel=100)
+                            format(file_path),
+                            stacklevel=100)
         return self
 
     def add_level_of_loading_data(self, data: dict) -> 'DataContainer':
