@@ -5,7 +5,7 @@ import logging
 from typing import Iterable
 
 import matplotlib.pyplot as plt
-from spice_ev.report import aggregate_global_results, plot, generate_reports
+from spice_ev.report import aggregate_global_results, plot, generate_reports, aggregate_timeseries
 
 
 def open_for_csv(filepath):
@@ -131,7 +131,7 @@ def generate_plots(scenario, args):
 
 
 def generate(schedule, scenario, args):
-    """ Generates all output files/ plots and saves them in the output directory.
+    """ Generates all output files/ plots and saves them in the args.results_directory.
 
     :param schedule: Driving schedule for the simulation.
     :type schedule: simba.Schedule
@@ -146,15 +146,15 @@ def generate(schedule, scenario, args):
     # generate if needed extended output plots
     if args.extended_output_plots:
         bus_type_distribution_consumption_rotation(args, schedule)
-        charge_type_proportion(args, schedule)
+        charge_type_proportion(args, scenario, schedule)
         gc_power_time_overview(args, scenario)
         active_rotations(args, scenario, schedule)
 
     # generate simulation_timeseries.csv, simulation.json and vehicle_socs.csv in SpiceEV
     # re-route output paths
-    args.save_soc = args.output_directory / "vehicle_socs.csv"
-    args.save_results = args.output_directory / "info.json"
-    args.save_timeseries = args.output_directory / "ts.csv"
+    args.save_soc = args.results_directory / "vehicle_socs.csv"
+    args.save_results = args.results_directory / "info.json"
+    args.save_timeseries = args.results_directory / "ts.csv"
     generate_reports(scenario, vars(args).copy())
     args.save_timeseries = None
     args.save_results = None
@@ -287,7 +287,7 @@ def generate(schedule, scenario, args):
 def bus_type_distribution_consumption_rotation(args, schedule):
     """Plots the distribution of bus types in consumption brackets as a stacked bar chart.
 
-    :param args: Configuration arguments from cfg file. args.output_directory is used
+    :param args: Configuration arguments from cfg file. args.results_directory is used
     :type args: argparse.Namespace
     :param schedule: Driving schedule for the simulation. schedule.rotations are used
     :type schedule: eBus-Toolbox.Schedule
@@ -325,40 +325,57 @@ def bus_type_distribution_consumption_rotation(args, schedule):
     ax.legend()
     fig.autofmt_xdate()
     ax.yaxis.grid(True)
-    plt.savefig(args.output_directory / "distribution_bustypes_consumption_rotations")
+    plt.savefig(args.results_directory / "distribution_bustypes_consumption_rotations")
     plt.close()
 
 
-def charge_type_proportion(args, schedule):
+def charge_type_proportion(args, scenario, schedule):
     """Plots the absolute number of rotations distributed by charging types on a bar chart.
 
-    :param args: Configuration arguments from cfg file. args.output_directory is used
+    :param args: Configuration arguments from cfg file. args.results_directory is used
     :type args: argparse.Namespace
     :param schedule: Driving schedule for the simulation. schedule.rotations are used
     :type schedule: eBus-Toolbox.Schedule
     """
     # get plotting data
-    charging_types = {'oppb': 0, 'depb': 0, 'rest': 0}
+    charging_types = {'oppb': 0, 'oppb_neg': 0, 'depb': 0, 'depb_neg': 0}
+    negative_rotations = schedule.get_negative_rotations(scenario)
     for rot in schedule.rotations:
         if schedule.rotations[rot].charging_type == 'oppb':
-            charging_types['oppb'] += 1
+            if rot in negative_rotations:
+                charging_types['oppb_neg'] += 1
+            else:
+                charging_types['oppb'] += 1
         elif schedule.rotations[rot].charging_type == 'depb':
-            charging_types['depb'] += 1
+            if rot in negative_rotations:
+                charging_types['depb_neg'] += 1
+            else:
+                charging_types['depb'] += 1
+        # boxplot mit 2 Spalten, wo in jeder Spalte in negativ_soc und not_negative_soc eingordnet wird
         else:
-            charging_types['rest'] += 1
+            print("Unknown charging type: ", schedule.rotations[rot].charging_type)
     # plot
     fig, ax = plt.subplots()
-    ax.bar(
-        [k for k in charging_types.keys()],
-        [v for v in charging_types.values()],
-        color=['#6495ED', '#66CDAA', 'grey']
+    bars1 = ax.bar(
+        ["Gelegenheitslader", "Depotlader"],
+        [charging_types["oppb"], charging_types["depb"]],
+        color=["#6495ED", "#6495ED"],
     )
+    bars2 = ax.bar(
+        ["Gelegenheitslader", "Depotlader"],
+        [charging_types["oppb_neg"], charging_types["depb_neg"]],
+        color=["#66CDAA", "#66CDAA"],
+        bottom=[charging_types["oppb"], charging_types["depb"]],
+    )
+    ax.bar_label(bars1, labels=[f"{charging_types['oppb']} oppb", f"{charging_types['depb']} depb"])
+    ax.bar_label(bars2, labels=[f"{charging_types['oppb_neg']} oppb_neg", f"{charging_types['depb_neg']} depb_neg"])
+
     ax.set_xlabel("Ladetyp")
     ax.set_ylabel("Umläufe")
-    ax.set_title("Verteilung von Gelegenheitslader, Depotlader und nicht elektrifizierbaren")
-    ax.bar_label(ax.containers[0], [v for v in [v for v in charging_types.values()]])
+    ax.set_title("Verteilung von Gelegenheitslader, Depotlader")
+
     ax.yaxis.grid(True)
-    plt.savefig(args.output_directory / "charge_type_proportion")
+    plt.savefig(args.results_directory / "charge_type_proportion")
     plt.close()
 
 
@@ -382,45 +399,59 @@ def gc_power_time_overview_example(args, scenario):
         plt.legend()
         plt.xticks(rotation=45)
 
-        plt.savefig(args.output_directory / f"{gc}_power_time_overview")
+        plt.savefig(args.results_directory / f"{gc}_power_time_overview")
         plt.clf()
 
 
 def gc_power_time_overview(args, scenario):
     """Plots the different loads (total, feedin, external) of all grid connectors.
 
-    :param args: Configuration arguments from cfg file. args.output_directory is used
+    :param args: Configuration arguments from cfg file. args.results_directory is used
     :type args: argparse.Namespace
     :param scenario: Provides the data for the grid connectors over time.
     :type scenario: spice_ev.Scenario
     """
     gc_list = list(scenario.components.grid_connectors.keys())
-    for gc in gc_list:
-        ts = [
-            scenario.start_time if i == 0 else
-            scenario.start_time+scenario.interval*i for i in range(scenario.n_intervals)
-        ]
-        plt.plot(ts, scenario.totalLoad[gc], label="total")
-        plt.plot(ts, scenario.localGenerationPower[gc], label="feed_in")
-        ext_loads = [
-            total - pv
-            for total, pv in zip(scenario.totalLoad[gc], scenario.localGenerationPower[gc])
-        ]
-        plt.plot(ts, ext_loads, label="ext_load")
-        plt.legend()
-        plt.xticks(rotation=30)
-        plt.ylabel("Power in kW")
-        plt.title(f"Power: {gc}")
 
-        gc = gc.replace("/", "").replace(".", "")
-        plt.savefig(args.output_directory / f"{gc}_power_time_overview")
-        plt.close()
+    for gc in gc_list:
+        fig, ax = plt.subplots()
+
+        agg_ts = aggregate_timeseries(scenario, gc)
+        headers = ["grid supply [kW]", "fixed load [kW]", "local generation [kW]", "sum CS power [kW]",
+                   "battery power [kW]", "bat. stored energy [kWh]"]
+        time_index = agg_ts["header"].index("time")
+        time_values = [row[time_index] for row in agg_ts["timeseries"]]
+
+        for header in headers:
+            try:
+                header_index = agg_ts["header"].index(header)
+                header_values = [row[header_index] for row in agg_ts["timeseries"]]
+
+                if header == "bat. stored energy [kWh]":
+                    ax2 = ax.twinx()  # Instantiate a second Axes that shares the same x-axis
+                    ax2.set_ylabel("Power in kWh")  # We already handled the x-label with ax1
+                    ax2.plot(time_values, header_values, label=header)
+                    ax2.legend()
+                    ax2.tick_params(axis='x', rotation=30)
+                else:
+                    ax.plot(time_values, header_values, label=header)  # Use ax instead of plt
+            except ValueError:
+                continue
+
+        ax.legend()
+        ax.tick_params(axis='x', rotation=30)
+        ax.set_ylabel("Power in kW")
+        ax.set_title(f"Power: {gc}")
+
+        gc_cleaned = gc.replace("/", "").replace(".", "")
+        plt.savefig(args.results_directory / f"{gc_cleaned}_power_time_overview.png")
+        plt.close(fig)
 
 
 def active_rotations(args, scenario, schedule):
     """Generate a plot where the number of active rotations is shown.
 
-    :param args: Configuration arguments from cfg file. args.output_directory is used
+    :param args: Configuration arguments from cfg file. args.results_directory is used
     :type args: argparse.Namespace
     :param schedule: Driving schedule for the simulation. schedule.rotations are used
     :type schedule: eBus-Toolbox.Schedule
@@ -441,12 +472,12 @@ def active_rotations(args, scenario, schedule):
         for index, step in enumerate(station_ts):
             active_vehicles[index] -= len(step)
 
-    plt.plot(ts, active_vehicles, label="total")
-    plt.legend()
+    plt.plot(ts, active_vehicles)
     plt.ylabel("Number of active Vehicles")
     plt.title("Active Rotations")
     plt.xticks(rotation=30)
-    plt.savefig(args.output_directory / "active_rotations")
+    plt.grid(axis="y")
+    plt.savefig(args.results_directory / "active_rotations")
     plt.close()
 
 
