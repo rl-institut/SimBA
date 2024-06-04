@@ -351,7 +351,6 @@ def charge_type_proportion(args, scenario, schedule):
                 charging_types['depb_neg'] += 1
             else:
                 charging_types['depb'] += 1
-        # boxplot mit 2 Spalten, wo in jeder Spalte in negativ_soc und not_negative_soc eingordnet wird
         else:
             print("Unknown charging type: ", schedule.rotations[rot].charging_type)
     # plot
@@ -367,8 +366,14 @@ def charge_type_proportion(args, scenario, schedule):
         color=["#66CDAA", "#66CDAA"],
         bottom=[charging_types["oppb"], charging_types["depb"]],
     )
-    ax.bar_label(bars1, labels=[f"{charging_types['oppb']} oppb", f"{charging_types['depb']} depb"])
-    ax.bar_label(bars2, labels=[f"{charging_types['oppb_neg']} oppb_neg", f"{charging_types['depb_neg']} depb_neg"])
+    ax.bar_label(bars1, labels=[
+        f"{charging_types['oppb']} oppb",
+        f"{charging_types['depb']} depb",
+    ])
+    ax.bar_label(bars2, labels=[
+        f"{charging_types['oppb_neg']} oppb_neg",
+        f"{charging_types['depb_neg']} depb_neg",
+    ])
 
     ax.set_xlabel("Ladetyp")
     ax.set_ylabel("Umläufe")
@@ -417,8 +422,14 @@ def gc_power_time_overview(args, scenario):
         fig, ax = plt.subplots()
 
         agg_ts = aggregate_timeseries(scenario, gc)
-        headers = ["grid supply [kW]", "fixed load [kW]", "local generation [kW]", "sum CS power [kW]",
-                   "battery power [kW]", "bat. stored energy [kWh]"]
+        headers = [
+            "grid supply [kW]",
+            "fixed load [kW]",
+            "local generation [kW]",
+            "sum CS power [kW]",
+            "battery power [kW]",
+            "bat. stored energy [kWh]",
+        ]
         time_index = agg_ts["header"].index("time")
         time_values = [row[time_index] for row in agg_ts["timeseries"]]
 
