@@ -334,6 +334,8 @@ def charge_type_proportion(args, scenario, schedule):
 
     :param args: Configuration arguments from cfg file. args.results_directory is used
     :type args: argparse.Namespace
+    :param scenario: Scenario for with to generate timeseries.
+    :type scenario: spice_ev.Scenario
     :param schedule: Driving schedule for the simulation. schedule.rotations are used
     :type schedule: eBus-Toolbox.Schedule
     """
