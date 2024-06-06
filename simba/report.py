@@ -39,7 +39,7 @@ def generate_gc_power_overview_timeseries(scenario, args):
         stations = []
         time_col = getattr(scenario, f"{gc_list[0]}_timeseries")["time"]
         for i in range(len(time_col)):
-            time_col[i] = time_col[i].isoformat()
+            time_col[i] = str(time_col[i])
         stations.append(time_col)
         for gc in gc_list:
             stations.append([-x for x in getattr(scenario, f"{gc}_timeseries")["grid supply [kW]"]])
@@ -206,8 +206,8 @@ def generate(schedule, scenario, args):
 
         rotation_info = {
             "rotation_id": id,
-            "start_time": rotation.departure_time.isoformat(),
-            "end_time": rotation.arrival_time.isoformat(),
+            "start_time": str(rotation.departure_time),
+            "end_time": str(rotation.arrival_time),
             "vehicle_type": rotation.vehicle_type,
             "vehicle_id": rotation.vehicle_id,
             "depot_name": rotation.departure_name,
