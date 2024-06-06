@@ -3,14 +3,15 @@
 import logging
 import pickle
 from copy import deepcopy, copy
-from datetime import datetime, timedelta
+from datetime import datetime
 from pathlib import Path
+from typing import Iterable
+
 import numpy as np
 
 import simba.optimizer_util as opt_util
 from spice_ev import scenario
 from simba import rotation, schedule
-from simba.util import uncomment_json_file
 
 
 class StationOptimizer:
@@ -32,8 +33,7 @@ class StationOptimizer:
         self.logger = logger
         self.config = config
         self.electrified_station_set = set()
-        with open(self.args.electrified_stations, "r", encoding="utf-8", ) as file:
-            self.electrified_stations = uncomment_json_file(file)
+        self.electrified_stations = deepcopy(self.schedule.stations)
         self.base_stations = self.electrified_stations.copy()
         self.base_electrified_station_set = set()
 
@@ -57,8 +57,8 @@ class StationOptimizer:
 
         node_choice = kwargs.get("node_choice", self.config.node_choice)
         opt_type = kwargs.get("opt_type", self.config.opt_type)
-
-        self.scenario.vehicle_socs = self.timeseries_calc(electrify_stations=self.must_include_set)
+        electrified_station = self.must_include_set.union(self.electrified_station_set)
+        self.scenario.vehicle_socs = self.timeseries_calc(electrified_station)
         self.base_scenario = deepcopy(self.scenario)
         self.base_schedule = copy(self.schedule)
 
@@ -77,6 +77,15 @@ class StationOptimizer:
             base_events, self.not_possible_stations,
             could_not_be_electrified=self.could_not_be_electrified, optimizer=self)
 
+        if len(groups) == 0:
+            self.logger.info("The scenario is already optimized, as it has no low SoC.")
+            return self.electrified_stations, self.electrified_station_set
+
+        # sort groups by highest potential of a single electrification. Used if partial
+        # electrification is relevant
+        groups = sorted(groups, key=lambda group: opt_util.evaluate(
+            group[0], self, soc_data=self.scenario.vehicle_socs)[0][1])
+
         # storage for the sets of stations which will be generated
         list_greedy_sets = [set()] * len(groups)
 
@@ -86,7 +95,6 @@ class StationOptimizer:
 
         # baseline greedy optimization
         # base line is created simply by not having a decision tree and not a pre optimized_set yet
-        self.logger.debug(opt_util.get_time())
         for group_nr, group in enumerate(groups[:]):
             # unpack the group
             events, stations = group
@@ -94,9 +102,10 @@ class StationOptimizer:
             self.current_tree = self.decision_trees[group_nr]
             lines = {lne for e in events for lne in e.rotation.lines}
             self.logger.warning(
-                "Optimizing %s out of %s. This includes these Lines", group_nr + 1, len(groups))
-            self.logger.warning(lines)
-            self.logger.warning("%s events with %s stations", (len(events)), len(stations))
+                "Optimizing %s out of %s groups. This includes these Lines: %s",
+                group_nr + 1, len(groups), lines)
+            self.logger.warning("%s low soc events with %s potential stations",
+                                (len(events)), len(stations))
 
             # the electrified_station_set get mutated by the group optimization
             # the results are stored in the list of greedy sets, but before each group optimization
@@ -217,7 +226,7 @@ class StationOptimizer:
             for stat in single_set:
                 self.electrify_station(stat, self.electrified_station_set)
         # dump the measured running times of the functions
-        self.logger.debug(opt_util.time_it(None))
+        self.logger.debug("Durations of Optimization: ", opt_util.time_it(None))
         return self.electrified_stations, self.electrified_station_set
 
     def get_negative_rotations_all_electrified(self, rel_soc=False):
@@ -233,7 +242,7 @@ class StationOptimizer:
         stats = {stat for event in events for stat in event.stations_list
                  if stat not in self.not_possible_stations}
         electrified_station_set = set(stats)
-        vehicle_socs = self.timeseries_calc(ele_station_set=electrified_station_set)
+        vehicle_socs = self.timeseries_calc(electrified_station_set)
         new_events = self.get_low_soc_events(soc_data=vehicle_socs)
         return {event.rotation.id for event in new_events}
 
@@ -335,12 +344,12 @@ class StationOptimizer:
             # quick calculation has to electrify everything in one step, that is chronologically.
             # or the lifting of socs is not correct.
             # Since its only adding charge on top of soc time series, electrification that took
-            # place before in the the optimization but later in the time series in regards to the
+            # place before in the optimization but later in the time series in regards to the
             # current electrification would show to much charge, since charging curves decrease over
             # soc.
             self.deepcopy_socs()
-            self.scenario.vehicle_socs = self.timeseries_calc(
-                event_rotations, electrify_stations=best_station_ids)
+            electrified_stations = self.electrified_station_set.union(best_station_ids)
+            self.scenario.vehicle_socs = self.timeseries_calc(electrified_stations, event_rotations)
         else:
             self.schedule.rotations = rotation_dict
             self.schedule, self.scenario = opt_util.run_schedule(
@@ -356,9 +365,12 @@ class StationOptimizer:
 
         delta_energy = opt_util.get_missing_energy(new_events, self.config.min_soc)
         events_remaining[0] -= len(event_group) - len(new_events)
+
+        new_rotation = {event.rotation for event in new_events}
+        r_electrified = len(event_rotations_ids) - len(new_rotation)
         self.logger.debug(
-            "Last electrification electrified %s/%s. %s remaining events in the base group.",
-            len(event_group) - len(new_events), len(event_group), events_remaining[0])
+            f"Last electrification electrified {r_electrified}/{len(event_rotations_ids)} "
+            f"Rotations. {events_remaining[0]} remaining events in the base group.")
         delta_base_energy = delta_energy
 
         # put this node into the decision tree including the missing energy
@@ -399,8 +411,9 @@ class StationOptimizer:
             if len(pre_optimized_set) - len(self.electrified_station_set) < thresh:
                 self.copy_scen_sched()
                 self.deepcopy_socs()
+                electrified_stations = self.electrified_station_set.union(best_station_ids)
                 self.scenario.vehicle_socs = self.timeseries_calc(
-                    event_rotations, electrify_stations=best_station_ids)
+                    electrified_stations, event_rotations)
                 prune_events = self.get_low_soc_events(
                     rotations=event_rotations_ids, rel_soc=True, **kwargs)
                 station_eval = opt_util.evaluate(prune_events, self)
@@ -437,102 +450,100 @@ class StationOptimizer:
         return sorted(charge_events_single_station, key=lambda x: x.arrival_time)
 
     @opt_util.time_it
-    def timeseries_calc(
-            self, rotations=None, soc_dict=None, ele_station_set=None, soc_upper_threshold=None,
-            electrify_stations=None) -> object:
-        """ A quick estimation of socs for after electrifying stations.
+    def timeseries_calc(self, electrified_stations: set, rotations=None) -> dict:
+        """ A quick estimation of socs.
 
-        The function assumes unlimited charging points per electrified station.
+        Iterates through rotations and calculates the soc.
+        The start value is assumed to be desired_soc_deps.
+        The function subtracts the consumption of each trip,
+        and numerically estimates the charge at the electrified station.
+        Charging powers depend on the soc_charge_curve_dict, which were earlier created using the
+        vehicle charge curve and the schedule.cs_power_opps.
 
-        :param rotations: Optional if not optimizer.schedule.rotations should be used
-        :type rotations: iterable
-        :param soc_dict: Optional if not optimizer.scenario.vehicle_socs should be used
-        :type soc_dict: dict
-        :param ele_station_set: Stations which are electrified . Default None leads to using the
+        :param electrified_stations: stations which are calculated as electrified with cs_power_opps
+        :type electrified_stations: set
+        :param rotations: Rotations to be calculated. Defaults to optimizer.schedule.rotations
+        :type rotations: iterable[Rotation]
+        :param electrified_stations: Stations which are electrified. Default None leads to using the
             so far optimized optimizer.electrified_station_set
-        :type ele_station_set: set
-        :param soc_upper_threshold: Optional upper threshold for the soc. Default value is
-            config.desired_soc_deps. This value clips charging so no socs above this value are
-            reached
-        :type soc_upper_threshold: float
-        :param electrify_stations: stations to be electrified
-        :type electrify_stations: set(str)
         :return: Returns soc dict with lifted socs
         :rtype dict()
         """
         if rotations is None:
             rotations = self.schedule.rotations.values()
 
-        if soc_dict is None:
-            soc_dict = self.scenario.vehicle_socs
-        if ele_station_set is None:
-            ele_station_set = self.electrified_station_set
-        if not soc_upper_threshold:
-            soc_upper_threshold = self.args.desired_soc_deps
-        if electrify_stations is None:
-            electrify_stations = set()
-
-        if electrify_stations is None:
-            electrify_stations = set()
-        ele_stations = {*ele_station_set, *electrify_stations}
-        soc_dict = deepcopy(soc_dict)
-
+        vehicle_socs = deepcopy(self.scenario.vehicle_socs)
         for rot in rotations:
             ch_type = (rot.vehicle_id.find("oppb") > 0) * "oppb" + (
                     rot.vehicle_id.find("depb") > 0) * "depb"
             v_type = rot.vehicle_id.split("_" + ch_type)[0]
+            capacity = self.schedule.vehicle_types[v_type][ch_type]["capacity"]
             soc_over_time_curve = self.soc_charge_curve_dict[v_type][ch_type]
-            soc = np.array(soc_dict[rot.vehicle_id])
+            soc = vehicle_socs[rot.vehicle_id]
+            last_soc = self.args.desired_soc_deps
             for i, trip in enumerate(rot.trips):
-                if trip.arrival_name not in ele_stations:
-                    continue
+                # Handle consumption during trip
+                # Find start, end and delta_soc of the current trip
+                idx_start = opt_util.get_index_by_time(self.scenario, trip.departure_time)
+                idx_end = opt_util.get_index_by_time(self.scenario, trip.arrival_time)
+                delta_idx = idx_end + 1 - idx_start
+                d_soc = trip.consumption / capacity
+
+                # Linear interpolation of SoC during trip
+                soc[idx_start:idx_end + 1] = np.linspace(last_soc, last_soc - d_soc,
+                                                         delta_idx)
+
+                # Update last known SoC with current value
+                last_soc = last_soc - d_soc
+
+                # Fill the values while the vehicle is standing waiting for the next trip
                 idx = opt_util.get_index_by_time(self.scenario, trip.arrival_time)
                 try:
-                    standing_time_min = opt_util.get_charging_time(
-                        trip, rot.trips[i + 1], self.args)
+                    idx_end = opt_util.get_index_by_time(self.scenario,
+                                                         rot.trips[i + 1].departure_time)
                 except IndexError:
-                    standing_time_min = 0
+                    # No next trip. Rotation finished.
+                    break
+                # Set SoC at arrival time for whole standing time
+                soc[idx:idx_end+1] = last_soc
+
+                if trip.arrival_name not in electrified_stations:
+                    # Arrival station is not electrified: skip station
+                    continue
+
+                # Arrival station is not the last station of the rotation and electrified.
+                # Calculate the charge at this station
+
+                # Get the standing time in minutes. Buffer time is already subtracted
+                standing_time_min = opt_util.get_charging_time(
+                    trip, rot.trips[i + 1], self.args)
+
+                # Assume that the start soc for charging is at least 0, since this results in the
+                # largest possible charge for a monotonous decreasing charge curve in the SoC range
+                # of [0%,100%].
                 search_soc = max(0, soc[idx])
-                # get the soc lift
-                d_soc = opt_util.get_delta_soc(
-                    soc_over_time_curve, search_soc, standing_time_min)
-                # clip the soc lift to the desired_soc_deps, which is the maximum that can be
-                # reached when the rotation stays positive
+
+                # Get the soc lift
+                d_soc = opt_util.get_delta_soc(soc_over_time_curve, search_soc, standing_time_min)
+
+                # Clip the SoC lift to the desired_soc_deps,
+                # which is the maximum that can reached when the rotation stays positive
                 d_soc = min(d_soc, self.args.desired_soc_opps)
-                buffer_idx = int(
-                    (opt_util.get_buffer_time(trip, self.args.default_buffer_time_opps))
-                    / timedelta(minutes=1))
+
+                # Add the charge as linear interpolation during the charge time, but only start
+                # after the buffer time
+                buffer_idx = (int(opt_util.get_buffer_time(
+                    trip, self.args.default_buffer_time_opps).total_seconds()/60))
                 delta_idx = int(standing_time_min) + 1
-                old_soc = soc[idx + buffer_idx:idx + buffer_idx + delta_idx].copy()
-                soc[idx + buffer_idx:] += d_soc
-                soc[idx + buffer_idx:idx + buffer_idx + delta_idx] = old_soc
                 soc[idx + buffer_idx:idx + buffer_idx + delta_idx] += np.linspace(0, d_soc,
                                                                                   delta_idx)
+                # Keep track of the last SoC as starting point for the next trip
+                last_soc = soc[idx + buffer_idx + delta_idx-1]
 
-                soc_pre = soc[:idx]
-                soc = soc[idx:]
-                soc_max = np.max(soc)
-                while soc_max > soc_upper_threshold:
-                    # descending array
-                    desc = np.arange(len(soc), 0, -1)
-                    # gradient of soc i.e. positive if charging negative if discharging
-                    diff = np.hstack((np.diff(soc), -1))
-                    # masking of socs >1 and negative gradient for local maximum
-                    # i.e. after lifting the soc, it finds the first spot where the soc is bigger
-                    # than the upper threshold and descending.
-                    idc_loc_max = np.argmax(desc * (soc > 1) * (diff < 0))
-
-                    # find the soc value of this local maximum
-                    soc_max = soc[idc_loc_max]
-                    # reducing everything after local maximum
-                    soc[idc_loc_max:] = soc[idc_loc_max:] - (soc_max - 1)
-
-                    # capping everything before local maximum
-                    soc[:idc_loc_max][soc[:idc_loc_max] > 1] = soc_upper_threshold
-                    soc_max = np.max(soc)
-                soc = np.hstack((soc_pre, soc))
-            soc_dict[rot.vehicle_id] = soc
-        return soc_dict
+            start_idx = opt_util.get_index_by_time(self.scenario, rot.trips[0].departure_time)
+            end_idx = opt_util.get_index_by_time(self.scenario, rot.trips[-1].arrival_time)
+            vehicle_socs[rot.vehicle_id][start_idx:end_idx+1] = soc[start_idx:end_idx+1]
+        return vehicle_socs
 
     @opt_util.time_it
     def expand_tree(self, station_eval):
@@ -859,10 +870,10 @@ class StationOptimizer:
 
         Get the stations that must be electrified for full electrification of the system and put
         them into the electrified stations and an extra set of critical stations.
-        Electrify every station but one. If without this single station there are below zero soc
+        Electrify every station but one. If without this single station there are below zero SoC
         events it is a critical station.
 
-        :param relative_soc: should the evaluation use the relative or absolute soc
+        :param relative_soc: should the evaluation use the relative or absolute SoC
         :param relative_soc: bool
         :return: Group of stations which have to be part of a fully electrified system
         :rtype: set(str)
@@ -880,8 +891,8 @@ class StationOptimizer:
                         level=100)
         for station in sorted(electrified_station_set_all):
             electrified_station_set = electrified_station_set_all.difference([station])
-
-            vehicle_socs = self.timeseries_calc(electrify_stations=electrified_station_set)
+            electrified_stations = self.electrified_station_set.union(electrified_station_set)
+            vehicle_socs = self.timeseries_calc(electrified_stations)
             soc_min = 1
             for rot in self.schedule.rotations:
                 soc, start, end = self.get_rotation_soc(rot, vehicle_socs)
@@ -900,9 +911,9 @@ class StationOptimizer:
         return critical_stations
 
     def replace_socs_from_none_to_value(self):
-        """ Removes soc values of None by filling them with the last value which is not None.
+        """ Removes SoC values of None by filling them with the last value which is not None.
 
-        The function only changes None values which are at the end of soc time series. Data type
+        The function only changes None values which are at the end of SoC time series. Data type
         is switched to np.array for easier handling at later stages.
         """
         # make sure no None values exist in SOCs. Fill later values with last value
@@ -919,13 +930,13 @@ class StationOptimizer:
             self.scenario.vehicle_socs[v_id] = soc
 
     def get_rotation_soc(self, rot_id, soc_data: dict = None):
-        """ Gets the soc object with start and end index for a given rotation id.
+        """ Gets the SoC object with start and end index for a given rotation id.
 
         :param rot_id: rotation_id
         :param soc_data: optional soc_data if not the scenario data should be used
-        :return: tuple with soc array, start index and end index
+        :return: tuple with SoC array, start index and end index
         """
-        return opt_util.get_rotation_soc_util(
+        return opt_util.get_rotation_soc(
             rot_id, self.schedule, self.scenario, soc_data=soc_data)
 
     def get_index_by_time(self, search_time: datetime):
@@ -981,77 +992,76 @@ class StationOptimizer:
         return searched_time
 
     @opt_util.time_it
-    def get_low_soc_events(self, rotations=None, filter_standing_time=True,
+    def get_low_soc_events(self, rotations: Iterable = None, filter_standing_time=True,
                            rel_soc=False, soc_data=None, **kwargs):
-        """ Return low soc events below the config threshold.
+        """ Return low SoC events below the config threshold.
 
-        :param rotations: rotations to be searched for low soc events. Default None means whole
+        :param rotations: rotation_ids to be searched for low SoC events. Default None means whole
             schedule is searched
-        :type rotations: iterable
+        :type rotations: Iterable
         :param filter_standing_time: Should the stations be filtered by standing time. True leads to
             an output with only stations with charging potential
         :type filter_standing_time: bool
-        :param rel_soc: Defines if the start soc should be seen as full even when not.
-            i.e. a drop from a rotation start soc from 0.1 to -0.3 is not critical since the start
-            soc from the rotation will be raised
+        :param rel_soc: Defines if the start SoC should be seen as full even when not.
+            i.e. a drop from a rotation start SoC from 0.1 to -0.3 is not critical since the start
+            SoC from the rotation will be raised
             If the rel_soc
             is false, it means coupled rotations might be prone to errors due to impossible lifts.
-        :param soc_data: soc data to be used. Default None means the soc data from the optimizer
+        :param soc_data: SoC data to be used. Default None means the SoC data from the optimizer
             scenario is used
         :type soc_data: dict
         :param kwargs: optional soc_lower_thresh or soc_upper_thresh if from optimizer differing
             values should be used
         :raises InfiniteLoopException: If while loop does not change during iterations
-        :return: low soc events
+        :return: low SoC events
         :rtype: list(simba.optimizer_util.LowSocEvent)
         """
         if not rotations:
             rotations = self.schedule.rotations
 
         soc_lower_thresh = kwargs.get("soc_lower_thresh", self.config.min_soc)
-        soc_upper_thresh = kwargs.get("soc_upper_thresh", self.args.desired_soc_deps)
-        # create list of events which describe trips which end in a soc below zero
-        # the event is bound by the lowest soc and an upper soc threshold which is naturally 1
+        soc_upper_thresh = kwargs.get("soc_upper_thresh", self.args.desired_soc_opps)
+        # create list of events which describe trips which end in a SoC below zero
+        # the event is bound by the lowest SoC and an upper SoC threshold which is naturally 1
         # properties before and after these points have no effect on the event itself, similar to
         # an event horizon
         events = []
 
         for rot_id in rotations:
+            events_per_rotation = 0
             rot = self.schedule.rotations[rot_id]
             soc, rot_start_idx, rot_end_idx = self.get_rotation_soc(rot_id, soc_data)
             rot_end_idx += 1
             idx = range(0, len(soc))
 
-            # combined data of the soc data of the rotation and the original index
-            # The array will get masked later, so the index of the array might be different
+            # if rotation gets a start SoC below the args.desired_soc_deps, this should change
+            # below 0 SoC events, since fixing the rotation before leads to fixing this rotation.
+            # If using relative SOC, SOC lookup has to be adjusted
+            if rel_soc:
+                soc = np.array(soc)
+                # if the rotation starts with lower than desired soc, lift the soc
+                if soc[rot_start_idx] < self.args.desired_soc_deps:
+                    soc = self.lift_and_clip_positive_gradient(rot_start_idx, soc, soc_upper_thresh)
+
+            # combined data of the SoC data of the rotation and the original index
+            # the array will get masked later, so the index of the array might be different
             # to the index data column
             soc_idx = np.array((soc, idx))[:, rot_start_idx:rot_end_idx]
 
             # Mask for soc_idx which is used to know if an index has been checked or not
             mask = np.ones(len(soc_idx[0])).astype(bool)
 
-            # get the minimum soc and index of this value. The mask does nothing yet
+            # get the minimum SoC and index of this value. The mask does nothing yet
             min_soc, min_idx = get_min_soc_and_index(soc_idx, mask)
-
-            soc_lower_thresh_cur = soc_lower_thresh
-            # if rotation gets a start soc below 1 this should change below 0 soc events,
-            # since fixing the rotation before would lead to fixing this rotation
-
-            # if using relative SOC, SOC lookup has to be adjusted
-            if rel_soc:
-                start_soc = soc_idx[0, 0]
-                soc_lower_thresh_cur = min(start_soc, soc_upper_thresh) - (
-                        soc_upper_thresh - soc_lower_thresh)
-                soc_upper_thresh = soc_lower_thresh_cur + soc_upper_thresh
 
             # Used to check if an infinite loop is happening
             old_idx = -1
 
-            # while the minimal soc of the soc time series is below the threshold find the events
+            # while the minimal SoC of the SoC time series is below the threshold find the events
             # which are connected with this event. Every iteration the data of the found events is
             # removed. At some point the reduced time series is either empty or does not have a
-            # soc below the lower threshold.
-            while min_soc < soc_lower_thresh_cur:
+            # SoC below the lower threshold.
+            while min_soc < soc_lower_thresh:
                 # soc_idx is of type float, so the index needs to be cast to int
                 min_idx = int(min_idx)
 
@@ -1061,10 +1071,10 @@ class StationOptimizer:
                     old_idx = min_idx
                 i = min_idx
 
-                # find the first index by going back from the minimal soc index, where the soc
+                # find the first index by going back from the minimal SoC index, where the soc
                 # was above the upper threshold OR the index where the rotation started.
                 while soc[i] < soc_upper_thresh:
-                    if i == rot_start_idx:
+                    if i <= rot_start_idx:
                         break
                     i -= 1
 
@@ -1116,9 +1126,14 @@ class StationOptimizer:
                     v_type=v_type, ch_type=ch_type)
 
                 events.append(event)
+                events_per_rotation += 1
+
+                if events_per_rotation > len(rot.trips):
+                    self.logger.error("More low-soc-events than trips found for rotation "
+                                      f"{rot.id} with vehicle {rot.vehicle_id}")
 
                 # the mask is expanded to the just checked low_soc_event
-                mask[start-rot_start_idx:end-rot_start_idx+1] = False
+                mask[start - rot_start_idx:end - rot_start_idx + 1] = False
 
                 # if the mask does not leave any value, the loop is finished
                 if not np.any(mask):
@@ -1128,15 +1143,70 @@ class StationOptimizer:
 
         return events
 
+    def lift_and_clip_positive_gradient(self, start_idx: int, soc: np.array,
+                                        soc_upper_thresh: float):
+        """ Lift a SoC array to a given soc_upper_thresh and handle clipping
+
+        Lifts a given SoC array to the value of soc_upper_thresh from the start_index to the end.
+        Values which exceed soc_upper_thresh and have a positive gradient are clipped to
+        soc_upper_thresh. If values exist which exceed soc_upper_thresh and have negative gradients,
+        they and the following socs have this delta subtracted instead. This is the behavior of
+        approximate behaviour of charging a vehicle above 100%. Values can not exceed 100%. As soon
+        as discharge happens, the value drops.
+
+        :param start_idx: index from where the array is lifted
+        :type start_idx: int
+        :param soc: array which contains socs to be lifted
+        :type soc: np.array
+        :param soc_upper_thresh: max value of socs used for clipping
+        :type soc_upper_thresh: float
+        :return: None
+
+        """
+
+        delta = self.args.desired_soc_deps - soc[start_idx]
+        # lift all beyond the start index (including the start_idx)
+        soc[start_idx:] += delta
+        # values before the start index stay unaffected
+        soc_pre = soc[:start_idx]
+
+        # to speed up computation, only look at the affected part
+        soc = soc[start_idx:]
+        soc_max = np.max(soc)
+        # Clip soc values to soc_upper_thresh.
+        # Multiple local maxima above this value can exist which,
+        # if they are rising over time, need multiple clippings.
+        while soc_max > soc_upper_thresh:
+            # descending array from len(soc) to 0
+            desc = np.arange(len(soc), 0, -1)
+            # gradient of SoC i.e. positive if charging, negative if discharging
+            diff = np.hstack((np.diff(soc), -1))
+            # masking of socs >1 and negative gradient for local maximum
+            # i.e. after lifting the soc, it finds the first spot where the SoC is bigger
+            # than the upper threshold and descending.
+            idc_loc_max = np.argmax(desc * (soc > 1) * (diff < 0))
+
+            # find the SoC value of this local maximum
+            soc_max = soc[idc_loc_max]
+            # reducing everything after local maximum
+            soc[idc_loc_max:] = soc[idc_loc_max:] - (soc_max - soc_upper_thresh)
+
+            # clip everything before local maximum
+            soc[:idc_loc_max][soc[:idc_loc_max] > 1] = soc_upper_thresh
+            soc_max = np.max(soc)
+        # restore SoC with unaffected part
+        soc = np.hstack((soc_pre, soc))
+        return soc
+
 
 def get_min_soc_and_index(soc_idx, mask):
-    """ Returns the minimal soc and the corresponding index of a masked soc_idx.
+    """ Returns the minimal SoC and the corresponding index of a masked soc_idx.
 
-    :param soc_idx: soc values and their corresponding index of shape (2,nr_values).
+    :param soc_idx: SoC values and their corresponding index of shape (2,nr_values).
     :type soc_idx: np.array
     :param mask: boolean mask. It is false where the soc_idx has been checked already
     :type mask: np.array
-    :return: minimal soc and corresponding index
+    :return: minimal SoC and corresponding index
     :rtype: tuple(Float, Float)
     """
     return soc_idx[:, mask][:, np.argmin(soc_idx[0, mask])]

@@ -24,6 +24,10 @@ class Rotation:
         self.arrival_time = None
         self.arrival_name = None
 
+        # Tracks if a warning has been logged if the rotation ends at a non-electrified station.
+        # Further warnings will be turned off.
+        self.logged_warning = False
+
     def add_trip(self, trip):
         """ Create a trip object and append to rotations trip set.
 
@@ -123,7 +127,8 @@ class Rotation:
     def min_standing_time(self):
         """Minimum duration of standing time in minutes.
 
-        No consideration of depot buffer time or charging curve.
+        No consideration of depot buffer time or charging curve
+
         :return: Minimum duration of standing time in minutes.
         """
         # noqa: DAR201
@@ -136,9 +141,13 @@ class Rotation:
             charge_power = stations[self.arrival_name].get(
                 f"cs_power_deps_{ct}", vars(self.schedule)[f"cs_power_deps_{ct}"])
         except KeyError:
-            logging.warning(f"Rotation {self.id} ends at a non-electrified station.")
-            # min_standing_time set to zero, so if another rotation starts here,
-            # the vehicle can always be used.
+            # log a warning once for this. Since min_standing_time is called many times during
+            # vehicle assignment, this would clutter the console / log.
+            if not self.logged_warning:
+                self.logged_warning = True
+                logging.warning(f"Rotation {self.id} ends at a non-electrified station.")
+                # min_standing_time set to zero, so if another rotation starts here,
+                # the vehicle can always be used.
             return 0
 
         capacity = self.schedule.vehicle_types[self.vehicle_type][ct]["capacity"]
