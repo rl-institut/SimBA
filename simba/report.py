@@ -146,8 +146,11 @@ def generate(schedule, scenario, args):
     # generate simulation_timeseries.csv, simulation.json and vehicle_socs.csv in SpiceEV
     # re-route output paths
     args.save_soc = args.results_directory / "vehicle_socs.csv"
-    args.save_results = args.results_directory / "info.json"
-    args.save_timeseries = args.results_directory / "ts.csv"
+    # bundle station-specific output files in subdirectory
+    gc_dir = args.results_directory / "gcs"
+    gc_dir.mkdir(exist_ok=True)
+    args.save_results = gc_dir / "info.json"
+    args.save_timeseries = gc_dir / "ts.csv"
     generate_reports(scenario, vars(args).copy())
     args.save_timeseries = None
     args.save_results = None
