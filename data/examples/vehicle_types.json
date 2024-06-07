@@ -8,7 +8,7 @@
             "v2g": false,  // Is vehicle capable of vehicle to grid?
             "mileage": "data/examples/energy_consumption_example.csv",  // mileage in kWh/km or link to consumption.csv
             "battery_efficiency": 0.95,  // optional. default: 0.95
-            "idle_consumption" : 0.8 // [kWh/h] consumption while standing
+            "idle_consumption" : 0.0 // [kWh/h] consumption while standing during a rotation
         },
         "oppb": {
             "name": "articulated bus - opportunity charging",
@@ -17,7 +17,7 @@
             "min_charging_power": 0,
             "v2g": false,
             "mileage": "data/examples/energy_consumption_example.csv",
-            "idle_consumption" : 0.8, // [kWh/h] consumption while standing
+            "idle_consumption" : 0.0 // [kWh/h] consumption while standing during a rotation
         }
     },
     "SB": {
@@ -28,7 +28,7 @@
             "min_charging_power": 0,
             "v2g": false,
             "mileage": 1.2,
-            "idle_consumption" : 0.8, // [kWh/h] consumption while standing
+            "idle_consumption" : 0.0 // [kWh/h] consumption while standing during a rotation
         },
         "oppb": {
             "name": "solo bus - opportunity charging",
@@ -37,7 +37,7 @@
             "min_charging_power": 0,
             "v2g": false,
             "mileage": 1.1,
-            "idle_consumption" : 0.8, // [kWh/h] consumption while standing
+            "idle_consumption" : 0.0 // [kWh/h] consumption while standing during a rotation
         }
     }
 }
