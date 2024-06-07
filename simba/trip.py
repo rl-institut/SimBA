@@ -112,4 +112,4 @@ class Trip:
 
         break_duration = self.rotation.trips[idx + 1].departure_time - self.arrival_time
         idle_consumption = break_duration.total_seconds() / 3600 * idle_cons_spec
-        return idle_consumption, idle_consumption / capacity
+        return idle_consumption, -idle_consumption / capacity
