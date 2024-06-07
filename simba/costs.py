@@ -19,6 +19,7 @@ def calculate_costs(c_params, scenario, schedule, args):
     :type schedule: Schedule
     :param args: Configuration arguments specified in config files contained in configs directory
     :type args: argparse.Namespace
+    :return: cost object
     """
     cost_object = Costs(schedule, scenario, args, c_params)
 
@@ -302,7 +303,6 @@ class Costs:
             pv = sum([pv.nominal_power for pv in self.scenario.components.photovoltaics.values()
                       if pv.parent == gcID])
             timeseries = vars(self.scenario).get(f"{gcID}_timeseries")
-
 
             # Get the calculation strategy / method from args.
             # If no value is set, use the same strategy as the charging strategy

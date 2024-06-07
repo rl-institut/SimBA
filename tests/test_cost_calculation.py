@@ -38,7 +38,7 @@ class TestCostCalculation:
         print(costs_with_other_strat.costs_per_gc["cumulated"]["c_total_annual"])
         station = "cumulated"
         for key in costs_vanilla.costs_per_gc[station]:
-            if not "el_energy" in key:
+            if "el_energy" not in key:
                 continue
             assert (costs_vanilla.costs_per_gc[station][key] !=
                     costs_with_other_strat.costs_per_gc[station][key]), key
@@ -48,7 +48,7 @@ class TestCostCalculation:
         costs_with_other_strat = calculate_costs(cost_params, scenario, schedule, args)
         station = "cumulated"
         for key in costs_vanilla.costs_per_gc[station]:
-            if not "el_energy" in key:
+            if "el_energy" not in key:
                 continue
             assert (costs_vanilla.costs_per_gc[station][key] !=
                     costs_with_other_strat.costs_per_gc[station][key]), key
