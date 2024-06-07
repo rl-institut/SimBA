@@ -317,6 +317,13 @@ def get_args():
                         help='strategy to use in depot')
     parser.add_argument('--strategy-opps', default='greedy', choices=STRATEGIES,
                         help='strategy to use at station')
+
+    # #### Cost calculation strategy #####
+    parser.add_argument('--cost-calculation-strategy-deps', choices=STRATEGIES,
+                        help='Strategy for cost calculation to use in depot')
+    parser.add_argument('--cost-calculation-strategy-opps', choices=STRATEGIES,
+                        help='Strategy for cost calculation to use at station')
+
     parser.add_argument('--strategy-options-deps', default={},
                         type=lambda s: s if type(s) is dict else json.loads(s),
                         help='special strategy options to use in depot')

@@ -53,7 +53,7 @@ def calculate_costs(c_params, scenario, schedule, args):
 
     logging.info(cost_object.info())
 
-    setattr(scenario, "costs", cost_object)
+    return cost_object
 
 
 class Costs:
@@ -303,10 +303,18 @@ class Costs:
                       if pv.parent == gcID])
             timeseries = vars(self.scenario).get(f"{gcID}_timeseries")
 
+
+            # Get the calculation strategy / method from args.
+            # If no value is set use the same  strategy as the charging strategy
+            default_cost_strategy = vars(self.args)["strategy_" + station.get("type")]
+
+            strategy_name = "cost_calculation_strategy" + station.get("type")
+            cost_calculation_strategy = vars(self.args).get(strategy_name, default_cost_strategy)
+
             # calculate costs for electricity
             try:
                 costs_electricity = calc_costs_spice_ev(
-                    strategy=vars(self.args)["strategy_" + station.get("type")],
+                    strategy=cost_calculation_strategy,
                     voltage_level=gc.voltage_level,
                     interval=self.scenario.interval,
                     timestamps_list=timeseries.get("time"),

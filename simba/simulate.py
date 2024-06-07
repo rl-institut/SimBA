@@ -234,7 +234,7 @@ class Mode:
         if args.cost_calculation:
             # cost calculation part of report
             try:
-                calculate_costs(args.cost_parameters, scenario, schedule, args)
+                scenario.costs = calculate_costs(args.cost_parameters, scenario, schedule, args)
             except Exception:
                 logging.warning(f"Cost calculation failed due to {traceback.print_exc()}")
                 if args.propagate_mode_errors:
