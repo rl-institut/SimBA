@@ -308,7 +308,7 @@ class Costs:
             # If no value is set use the same  strategy as the charging strategy
             default_cost_strategy = vars(self.args)["strategy_" + station.get("type")]
 
-            strategy_name = "cost_calculation_strategy" + station.get("type")
+            strategy_name = "cost_calculation_strategy_" + station.get("type")
             cost_calculation_strategy = vars(self.args).get(strategy_name, default_cost_strategy)
 
             # calculate costs for electricity
