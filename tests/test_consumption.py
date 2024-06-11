@@ -19,7 +19,6 @@ class TestConsumption:
         rotation = schedule.rotations["1"]
         first_trip = rotation.trips[0]
         second_trip = rotation.trips[1]
-        last_trip = rotation.trips[-1]
 
         # shift all trips except the first
         for t in schedule.rotations["1"].trips[1:]:
@@ -45,10 +44,6 @@ class TestConsumption:
         assert idle_consumption == 0.5
 
         second_trip.departure_time = first_trip.arrival_time
-        idle_consumption, idle_delta_soc = get_idle_consumption(first_trip, second_trip, v_info)
-        assert idle_consumption == 0
-
-        # Last trip has no following trip, therefore no idle consumption
         idle_consumption, idle_delta_soc = get_idle_consumption(first_trip, second_trip, v_info)
         assert idle_consumption == 0
 
