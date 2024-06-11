@@ -2,6 +2,7 @@ import pytest
 from tests.test_schedule import BasicSchedule
 from tests.conftest import example_root
 from datetime import datetime, timedelta
+from simba.rotation import get_idle_consumption
 import pandas as pd
 
 
@@ -15,39 +16,40 @@ class TestConsumption:
         :param tmp_path: pytest fixture to create a temporary path
         """
         schedule, scenario, args = BasicSchedule().basic_run()
-        first_trip = schedule.rotations["1"].trips[0]
-        second_trip = schedule.rotations["1"].trips[1]
-        last_trip = schedule.rotations["1"].trips[-1]
+        rotation = schedule.rotations["1"]
+        first_trip = rotation.trips[0]
+        second_trip = rotation.trips[1]
+        last_trip = rotation.trips[-1]
 
         # shift all trips except the first
         for t in schedule.rotations["1"].trips[1:]:
             t.arrival_time = t.arrival_time + timedelta(minutes=70)
             t.departure_time = t.departure_time + timedelta(minutes=70)
 
-        vt, ct = schedule.rotations["1"].vehicle_type, schedule.rotations["1"].charging_type
-        vehicle_type = schedule.vehicle_types[vt][ct]
-        vehicle_type["idle_consumption"] = 0
+        vt, ct = schedule.rotations["1"].vehicle_type, rotation.charging_type
+        v_info = schedule.vehicle_types[vt][ct]
+        v_info["idle_consumption"] = 0
 
         # Make sure that there is a break duration.
         # By shifing all trips earlier we made sure that this "second_trip" stays the second trip
         second_trip.departure_time = first_trip.arrival_time + timedelta(minutes=60)
-        idle_consumption, idle_delta_soc = first_trip.get_idle_consumption()
+        idle_consumption, idle_delta_soc = get_idle_consumption(first_trip, second_trip, v_info)
         assert idle_consumption == 0
-        vehicle_type["idle_consumption"] = 1
+        v_info["idle_consumption"] = 1
         second_trip.departure_time = first_trip.arrival_time + timedelta(minutes=60)
-        idle_consumption, idle_delta_soc = first_trip.get_idle_consumption()
+        idle_consumption, idle_delta_soc = get_idle_consumption(first_trip, second_trip, v_info)
         assert idle_consumption == 1
 
         second_trip.departure_time = first_trip.arrival_time + timedelta(minutes=30)
-        idle_consumption, idle_delta_soc = first_trip.get_idle_consumption()
+        idle_consumption, idle_delta_soc = get_idle_consumption(first_trip, second_trip, v_info)
         assert idle_consumption == 0.5
 
         second_trip.departure_time = first_trip.arrival_time
-        idle_consumption, idle_delta_soc = first_trip.get_idle_consumption()
+        idle_consumption, idle_delta_soc = get_idle_consumption(first_trip, second_trip, v_info)
         assert idle_consumption == 0
 
         # Last trip has no following trip, therefore no idle consumption
-        idle_consumption, idle_delta_soc = last_trip.get_idle_consumption()
+        idle_consumption, idle_delta_soc = get_idle_consumption(first_trip, second_trip, v_info)
         assert idle_consumption == 0
 
         # Check that assignment of vehicles changes due to increased consumption. Only works

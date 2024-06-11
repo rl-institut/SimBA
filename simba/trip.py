@@ -72,44 +72,9 @@ class Trip:
                 height_diff=self.height_diff,
                 level_of_loading=self.level_of_loading,
                 mean_speed=self.mean_speed)
-
-            # Add idle consumption of the next break time
-            idle_consumption, idle_delta_soc = self.get_idle_consumption()
-
-            self.consumption = idle_consumption + driving_consumption
-            self.delta_soc = driving_delta_soc + idle_delta_soc
-
         except AttributeError as e:
             raise Exception(
                 'To calculate consumption, a consumption object needs to be constructed'
                 ' and linked to Trip class.').with_traceback(e.__traceback__)
 
-        return self.consumption
-
-    def get_idle_consumption(self):
-        """ Compute consumption while waiting for the next trip
-
-        Idle consumption is added during rotations and not in depots. Idle consumption is added
-        to the trip consumption which should be a good approximation in most cases. Might lead
-        to small overestimation of charge at an electrified stations.
-        :return: Consumption of trip [kWh], delta_soc [-]
-        :rtype: float, float
-        """
-        vt, ct = self.rotation.vehicle_type, self.rotation.charging_type
-        # get the specific idle consumption of this vehicle type in kWh/h
-        vehicle_type = self.rotation.schedule.vehicle_types[vt][ct]
-        capacity = vehicle_type["capacity"]
-        idle_cons_spec = vehicle_type.get("idle_consumption", 0)
-        if idle_cons_spec == 0:
-            return 0, 0
-
-        # Get next trip
-        self.rotation.trips = list(
-            sorted(self.rotation.trips, key=lambda trip: trip.departure_time))
-        idx = self.rotation.trips.index(self)
-        if idx >= len(self.rotation.trips) - 1:
-            return 0, 0
-
-        break_duration = self.rotation.trips[idx + 1].departure_time - self.arrival_time
-        idle_consumption = break_duration.total_seconds() / 3600 * idle_cons_spec
-        return idle_consumption, -idle_consumption / capacity
+        return driving_consumption, driving_delta_soc

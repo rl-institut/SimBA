@@ -73,8 +73,8 @@ class Rotation:
                 # set CT for whole rotation
                 self.set_charging_type(charging_type)
             elif self.charging_type == charging_type:
-                # same CT as other trips: just add trip consumption
-                self.consumption += new_trip.calculate_consumption()
+                # same CT as other trips
+                pass
             else:
                 # different CT than rotation: error
                 raise Exception(f"Two trips of rotation {self.id} have distinct charging types")
@@ -85,9 +85,31 @@ class Rotation:
         :return: Consumption of rotation [kWh]
         :rtype: float
         """
+        # get the specific idle consumption of this vehicle type in kWh/h
+        v_info = self.schedule.vehicle_types[self.vehicle_type][self.charging_type]
+
         rotation_consumption = 0
-        for trip in self.trips:
-            rotation_consumption += trip.calculate_consumption()
+
+        # make sure the trips are sorted, so the next trip can be determined
+        self.trips = list(sorted(self.trips, key=lambda trip: trip.arrival_time))
+
+        for i, trip in enumerate(self.trips):
+            # get consumption due to driving
+            driving_consumption, driving_delta_soc = trip.calculate_consumption()
+
+            # get idle consumption of the next break time
+            if i == len(self.trips) - 1:
+                # last trip is not idling, since a stop at a depot is assumed
+                idle_consumption, idle_delta_soc = 0, 0
+            else:
+                # calculate the consumption of idling between trips
+                next_trip = self.trips[i + 1]
+                idle_consumption, idle_delta_soc = get_idle_consumption(trip, next_trip, v_info)
+
+            # Set trip attributes
+            trip.consumption = driving_consumption + idle_consumption
+            trip.delta_soc = driving_delta_soc + idle_delta_soc
+            rotation_consumption += driving_consumption + idle_consumption
 
         self.consumption = rotation_consumption
 
@@ -158,3 +180,27 @@ class Rotation:
         desired_max_standing_time = ((capacity / charge_power) * min_recharge_soc)
         min_standing_time = min(min_standing_time, desired_max_standing_time)
         return min_standing_time
+
+
+def get_idle_consumption(first_trip: Trip, second_trip: Trip, vehicle_info: dict) -> (float, float):
+    """ Compute consumption while waiting for the next trip
+
+    Calculate the idle consumption between the arrival of the first trip and the departure of the
+    second trip with a vehicle_info containing the keys idle_consumption and capacity.
+    :param first_trip: First trip
+    :type first_trip: Trip
+    :param second_trip: Second trip
+    :type second_trip: Trip
+    :param vehicle_info: Vehicle information
+    :type vehicle_info: dict
+    :return: Consumption of idling [kWh], delta_soc [-]
+    :rtype: float, float
+    """
+    capacity = vehicle_info["capacity"]
+    idle_cons_spec = vehicle_info.get("idle_consumption", 0)
+    if idle_cons_spec == 0:
+        return 0, 0
+
+    break_duration = second_trip.departure_time - first_trip.arrival_time
+    idle_consumption = break_duration.total_seconds() / 3600 * idle_cons_spec
+    return idle_consumption, -idle_consumption / capacity
