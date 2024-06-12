@@ -1,3 +1,4 @@
+from simba.rotation import Rotation
 from tests.helpers import generate_basic_schedule
 
 
@@ -27,3 +28,29 @@ def test_set_charging_type():
     # check that the consumption changed due to the change in charging type. The proper calculation
     # of consumption is tested in test_consumption
     assert rot.consumption != consumption_oppb
+
+
+def test_calculate_consumption():
+    s = generate_basic_schedule()
+    vt = next(iter(s.vehicle_types))
+
+    r = Rotation("my_rot", vt, s)
+    # consumption without trips
+    assert r.calculate_consumption() == 0
+
+    some_rot = next(iter(s.rotations.values()))
+    first_trip = some_rot.trips[0]
+    first_trip.charging_type = "depb"
+    del first_trip.rotation
+    r.add_trip(vars(first_trip))
+    r.trips[0].consumption = None
+    r.calculate_consumption()
+    assert r.trips[0].consumption is not None
+    second_trip = some_rot.trips[1]
+    del second_trip.rotation
+    r.add_trip(vars(second_trip))
+    for trip in r.trips:
+        trip.consumption = None
+    r.calculate_consumption()
+    for trip in r.trips:
+        assert trip.consumption is not None
