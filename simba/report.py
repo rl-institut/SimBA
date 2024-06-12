@@ -478,9 +478,6 @@ def gc_power_time_overview(extended_plots_path, scenario):
             "battery power [kW]",
             "bat. stored energy [kWh]",
         ]
-        # todos
-        # beide y achsen gleich skalieren, gleiche Tickanzahl, 0 Elemente auf gleicher Höhe
-        # label von rechter y-Achse ist nicht zu sehen
 
         time_index = agg_ts["header"].index("time")
         time_values = [row[time_index] for row in agg_ts["timeseries"]]
@@ -495,13 +492,18 @@ def gc_power_time_overview(extended_plots_path, scenario):
                     ax2.set_ylabel("Power in kWh")
                     next_color = plt.rcParams['axes.prop_cycle'].by_key()["color"][index]
                     ax2.plot(time_values, header_values, label=header, c=next_color,
-                             linestyle="dashed")
+                             linestyle="dashdot")
                     ax2.legend()
                     ax2.tick_params(axis='x', rotation=30)
+                    fig.set_size_inches(8, 4.8)
                 else:
-                    ax.plot(time_values, header_values, label=header)  # Use ax instead of plt
+                    ax.plot(time_values, header_values, label=header)
             except ValueError:
                 continue
+        try:
+            ax2.set_ylim(ax.get_ylim())
+        except NameError:
+            continue
 
         ax.legend()
         ax.tick_params(axis='x', rotation=30)
