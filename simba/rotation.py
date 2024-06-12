@@ -85,6 +85,10 @@ class Rotation:
         :return: Consumption of rotation [kWh]
         :rtype: float
         """
+        if len(self.trips) == 0:
+            self.consumption = 0
+            return self.consumption
+
         # get the specific idle consumption of this vehicle type in kWh/h
         v_info = self.schedule.vehicle_types[self.vehicle_type][self.charging_type]
 
@@ -94,7 +98,6 @@ class Rotation:
         self.trips = list(sorted(self.trips, key=lambda trip: trip.arrival_time))
 
         trip = self.trips[0]
-        next_trip = None
         for next_trip in self.trips[1:]:
             # get consumption due to driving
             driving_consumption, driving_delta_soc = trip.calculate_consumption()
@@ -109,10 +112,9 @@ class Rotation:
             rotation_consumption += driving_consumption + idle_consumption
             trip = next_trip
 
-        if next_trip:
-            # last trip of the rotation has no idle consumption
-            next_trip.consumption, next_trip.delta_soc = next_trip.calculate_consumption()
-            rotation_consumption += next_trip.consumption
+        # last trip of the rotation has no idle consumption
+        trip.consumption, trip.delta_soc = trip.calculate_consumption()
+        rotation_consumption += trip.consumption
 
         self.consumption = rotation_consumption
         return rotation_consumption
