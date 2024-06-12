@@ -69,7 +69,7 @@ class OptimizerConfig:
         self.debug_level = 0
         self.console_level = 99
 
-        self.exclusion_rots = []
+        self.exclusion_rots = set()
         self.exclusion_stations = set()
         self.inclusion_stations = set()
         self.standard_opp_station = {"type": "opps", "n_charging_stations": None}
