@@ -93,26 +93,27 @@ class Rotation:
         # make sure the trips are sorted, so the next trip can be determined
         self.trips = list(sorted(self.trips, key=lambda trip: trip.arrival_time))
 
-        for i, trip in enumerate(self.trips):
+        trip = self.trips[0]
+        next_trip = None
+        for next_trip in self.trips[1:]:
             # get consumption due to driving
             driving_consumption, driving_delta_soc = trip.calculate_consumption()
 
             # get idle consumption of the next break time
-            if i == len(self.trips) - 1:
-                # last trip is not idling, since a stop at a depot is assumed
-                idle_consumption, idle_delta_soc = 0, 0
-            else:
-                # calculate the consumption of idling between trips
-                next_trip = self.trips[i + 1]
-                idle_consumption, idle_delta_soc = get_idle_consumption(trip, next_trip, v_info)
+            idle_consumption, idle_delta_soc = get_idle_consumption(trip, next_trip, v_info)
 
-            # Set trip attributes
+            # set trip attributes
             trip.consumption = driving_consumption + idle_consumption
             trip.delta_soc = driving_delta_soc + idle_delta_soc
+
             rotation_consumption += driving_consumption + idle_consumption
+            trip = next_trip
+
+        if next_trip:
+            next_trip.consumption, next_trip.delta_soc = next_trip.calculate_consumption()
+            rotation_consumption += next_trip.consumption
 
         self.consumption = rotation_consumption
-
         return rotation_consumption
 
     def set_charging_type(self, ct):
