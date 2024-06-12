@@ -206,5 +206,6 @@ def get_idle_consumption(first_trip: Trip, second_trip: Trip, vehicle_info: dict
         return 0, 0
 
     break_duration = second_trip.departure_time - first_trip.arrival_time
+    assert break_duration > 0
     idle_consumption = break_duration.total_seconds() / 3600 * idle_cons_spec
     return idle_consumption, -idle_consumption / capacity
