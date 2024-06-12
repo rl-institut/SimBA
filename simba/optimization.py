@@ -345,7 +345,7 @@ def recombination(schedule, args, trips, depot_trips):
             # rotation.add_trip needs dict, but consumption calculation is better done on Trip obj:
             # create temporary depot trip object for consumption calculation
             tmp_trip = Trip(rotation, **depot_trip)
-            tmp_trip.calculate_consumption()
+            tmp_trip.consumption, tmp_trip.delta_soc = tmp_trip.calculate_consumption()
             if soc >= -(trip.delta_soc + tmp_trip.delta_soc):
                 # next trip is possible: add trip, use info from original trip
                 trip_dict = vars(trip)
