@@ -110,6 +110,7 @@ class Rotation:
             trip = next_trip
 
         if next_trip:
+            # last trip of the rotation has no idle consumption
             next_trip.consumption, next_trip.delta_soc = next_trip.calculate_consumption()
             rotation_consumption += next_trip.consumption
 
