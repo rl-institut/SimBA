@@ -246,7 +246,7 @@ class StationOptimizer:
         stats = {stat for event in events for stat in event.stations_list
                  if stat not in self.not_possible_stations}
         electrified_station_set = set(stats)
-        vehicle_socs = self.timeseries_calc(ele_station_set=electrified_station_set)
+        vehicle_socs = self.timeseries_calc(electrified_station_set)
         new_events = self.get_low_soc_events(soc_data=vehicle_socs)
         return {event.rotation.id for event in new_events}
 
