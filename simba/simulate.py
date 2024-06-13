@@ -142,6 +142,7 @@ class Mode:
 
     @staticmethod
     def sim(schedule, scenario, args, _i):# Noqa
+        # Base simulation function for external access.
         scenario = schedule.run(args, mode="distributed")
         return schedule, scenario
 

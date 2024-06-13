@@ -113,7 +113,7 @@ class Rotation:
     def min_standing_time(self):
         """Minimum duration of standing time in minutes.
 
-        No consideration of depot buffer time or charging curve
+        No consideration of depot buffer time or charging curve.
 
         :return: Minimum duration of standing time in minutes.
         """

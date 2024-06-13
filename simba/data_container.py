@@ -8,20 +8,28 @@ from typing import Dict
 
 import pandas as pd
 
-from simba import util
+from simba import util, ids
 from simba.ids import INCLINE, LEVEL_OF_LOADING, SPEED, T_AMB, TEMPERATURE, CONSUMPTION
 
 
 class DataContainer:
     def __init__(self):
+        # Dictionary of dict[VehicleTypeName][ChargingType] containing the vehicle_info dictionary
         self.vehicle_types_data: Dict[str, any] = {}
+        # Dictionary of dict[consumption_lookup_name] containing a consumption lookup
         self.consumption_data: Dict[str, pd.DataFrame] = {}
+        # Dictionary of dict[hour_of_day] containing temperature in °C
         self.temperature_data: Dict[int, float] = {}
+        # Dictionary of dict[hour_of_day] containing level of loading [-]
         self.level_of_loading_data: Dict[int, float] = {}
+        # Dictionary of dict[station_name] containing information about electrification
         self.stations_data: Dict[str, dict] = {}
+        # Dictionary containing various infos about investment costs and grid operator
         self.cost_parameters_data: Dict[str, dict] = {}
+        # Dictionary containing all stations and their geo location (lng,lat,elevation)
         self.station_geo_data: Dict[str, dict] = {}
-
+        # List of trip dictionaries containing trip information like arrival time and station
+        # departure time and station, distance and more
         self.trip_data: [dict] = []
 
     def fill_with_args(self, args: argparse.Namespace) -> 'DataContainer':
@@ -57,8 +65,8 @@ class DataContainer:
                 trip_d = dict(trip)
                 trip_d["arrival_time"] = datetime.datetime.fromisoformat(trip["arrival_time"])
                 trip_d["departure_time"] = datetime.datetime.fromisoformat(trip["departure_time"])
-                trip_d[LEVEL_OF_LOADING] = cast_float_or_none(trip.get(LEVEL_OF_LOADING))
-                trip_d[TEMPERATURE] = cast_float_or_none(trip.get(TEMPERATURE))
+                trip_d[LEVEL_OF_LOADING] = util.cast_float_or_none(trip.get(LEVEL_OF_LOADING))
+                trip_d[TEMPERATURE] = util.cast_float_or_none(trip.get(TEMPERATURE))
                 trip_d["distance"] = float(trip["distance"])
                 self.trip_data.append(trip_d)
         return self
@@ -123,23 +131,27 @@ class DataContainer:
         # this data is stored in the schedule and passed to the trips, which use the information
         # for consumption calculation. Missing station data is handled with default values.
         self.station_geo_data = dict()
+        line_num = None
         try:
             with open(file_path, "r", encoding='utf-8') as f:
                 delim = util.get_csv_delim(file_path)
                 reader = csv.DictReader(f, delimiter=delim)
-                for row in reader:
+                for line_num, row in enumerate(reader):
                     self.station_geo_data[str(row['Endhaltestelle'])] = {
-                        "elevation": float(row['elevation']),
-                        "lat": float(row.get('lat', 0)),
-                        "long": float(row.get('long', 0)),
+                        ids.ELEVATION: float(row[ids.ELEVATION]),
+                        ids.LATITUDE: float(row.get(ids.LATITUDE, 0)),
+                        ids.LONGITUDE: float(row.get(ids.LONGITUDE, 0)),
                     }
         except (FileNotFoundError, KeyError):
             logging.log(msg=f"External csv file {file_path} not found or not named properly. "
                             "(Needed column names are 'Endhaltestelle' and 'elevation')",
                         level=100)
+            raise
         except ValueError:
-            logging.log(msg=f"External csv file {file_path} should only contain numeric data.",
+            line_num += 2
+            logging.log(msg=f"Can't parse numeric data in line {line_num} from file {file_path}.",
                         level=100)
+            raise
         return self
 
     def add_level_of_loading_data(self, data: dict) -> 'DataContainer':
@@ -156,7 +168,7 @@ class DataContainer:
     def add_level_of_loading_data_from_csv(self, file_path: Path) -> 'DataContainer':
         index = "hour"
         column = "level_of_loading"
-        level_of_loading_data_dict = get_dict_from_csv(column, file_path, index)
+        level_of_loading_data_dict = util.get_dict_from_csv(column, file_path, index)
         self.add_level_of_loading_data(level_of_loading_data_dict)
         return self
 
@@ -179,7 +191,7 @@ class DataContainer:
         """
         index = "hour"
         column = "temperature"
-        temperature_data_dict = get_dict_from_csv(column, file_path, index)
+        temperature_data_dict = util.get_dict_from_csv(column, file_path, index)
         self.add_temperature_data(temperature_data_dict)
         return self
 
@@ -260,7 +272,7 @@ class DataContainer:
             with open(file_path, encoding='utf-8') as f:
                 return util.uncomment_json_file(f)
         except FileNotFoundError:
-            raise FileNotFoundError(f"Path to {data_type} ({file_path}) "
+            raise FileNotFoundError(f"Path to {file_path} for {data_type} "
                                     "does not exist. Exiting...")
 
     def add_consumption_data_from_vehicle_type_linked_files(self):
@@ -291,9 +303,9 @@ class DataContainer:
         :type df: pd.DataFrame
         :return: DatacContainer instance with added consumption data
         """
-
-        for expected_col in [INCLINE, T_AMB, LEVEL_OF_LOADING, SPEED, CONSUMPTION]:
-            assert expected_col in df.columns, f"Consumption data is missing {expected_col}"
+        missing_cols = [c for c in [INCLINE, T_AMB, LEVEL_OF_LOADING, SPEED, CONSUMPTION] if
+                        c not in df.columns]
+        assert not missing_cols, f"Consumption data is missing {', '.join(missing_cols)}"
         assert data_name not in self.consumption_data, f"{data_name} already exists in data"
         self.consumption_data[data_name] = df
 
@@ -317,35 +329,3 @@ def get_values_from_nested_key(key, data: dict) -> list:
             yield from get_values_from_nested_key(key, value)
 
 
-def get_dict_from_csv(column, file_path, index):
-    """ Get a dictonary with the key of a numeric index and the value of a numeric column
-
-    :param column: column name for dictionary values. Content needs to be castable to float
-    :type column: str
-    :param file_path: file path
-    :type file_path: str or Path
-    :param index: column name of the index / keys of the dictionary.
-        Content needs to be castable to float
-    :return: dictionary with numeric keys of index and numeric values of column
-    """
-    output = dict()
-    with open(file_path, "r") as f:
-        delim = util.get_csv_delim(file_path)
-        reader = csv.DictReader(f, delimiter=delim)
-        for row in reader:
-            output[float(row[index])] = float(row[column])
-    return output
-
-
-def cast_float_or_none(val: any) -> any:
-    """ Cast a value to float. If a ValueError or TypeError is raised, None is returned
-
-    :param val: value to cast
-    :type val: any
-    :return: casted value
-    """
-
-    try:
-        return float(val)
-    except (ValueError, TypeError):
-        return None

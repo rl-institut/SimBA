@@ -5,10 +5,7 @@ import logging
 from typing import Iterable
 
 import matplotlib.pyplot as plt
-import matplotlib
 from spice_ev.report import aggregate_global_results, plot, generate_reports
-
-matplotlib.use('Agg')
 
 
 def open_for_csv(filepath):

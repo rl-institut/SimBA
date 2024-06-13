@@ -8,6 +8,7 @@ import warnings
 from typing import Dict, Type, Iterable
 
 import simba.rotation
+import spice_ev.strategy
 from simba.consumption import Consumption
 from simba.data_container import DataContainer
 from simba import util, optimizer_util
@@ -20,17 +21,23 @@ import spice_ev.util as spice_ev_util
 
 
 class SocDispatcher:
-    """Dispatches the right initial SoC for every vehicle id at scenario generation.
+    """Initializes vehicles with specific SoCs at the start of their rotations.
 
-    Used for specific vehicle initialization for example when coupling tools."""
+    The first rotation of a vehicle is initialized, later rotations have their desired_soc at
+    departure changed.
+    Used for specific vehicle initialization, for example, when coupling tools."""
 
-    def __init__(self,
-                 default_soc_deps: float,
-                 default_soc_opps: float,
-                 # vehicle_socs stores the departure soc of a rotation as a dict of the previous
-                 # trip, since this is how the SpiceEV scenario is generated.
-                 # The first trip of a vehicle has no previous trip and therefore is None
-                 vehicle_socs: Dict[str, Type[Dict["simba.trip.Trip", float]]] = None):
+
+    def __init__(self, default_soc_deps, default_soc_opps, vehicle_socs=None):
+        """
+        :param default_soc_deps: default desired SoC at departure for depot charger
+        :param default_soc_opps: default desired SoC at departure for opportunity charger
+        :param vehicle_socs: stores the desired departure SoC dict with the keys
+            [vehicle_id][previous_trip], since this is how the SpiceEV scenario is generated.
+            The first trip of a vehicle has no previous trip. In this case, the trip key is None.
+        :type vehicle_socs: Dict[str, Type[Dict["simba.trip.Trip", float]]]
+        :return: None
+        """
         self.default_soc_deps = default_soc_deps
         self.default_soc_opps = default_soc_opps
         self.vehicle_socs = {}
@@ -102,17 +109,13 @@ class Schedule:
 
         for trip in data.trip_data:
             rotation_id = trip['rotation_id']
-            # trip gets reference to station data and calculates height diff during trip
-            # initialization. Could also get the height difference from here on
-            # get average hour of trip if level of loading or temperature has to be read from
-            # auxiliary tabular data
 
             # get average hour of trip and parse to string, since tabular data has strings
             # as keys
             hour = (trip["departure_time"] +
                     (trip["arrival_time"] - trip["departure_time"]) / 2).hour
-            # Get height difference from station_data
 
+            # Get height difference from station_data
             trip["height_difference"] = schedule.get_height_difference(
                 trip["departure_name"], trip["arrival_name"])
 
@@ -223,7 +226,7 @@ class Schedule:
         """
         # Make sure all rotations have an assigned vehicle
         assert all([rot.vehicle_id is not None for rot in self.rotations.values()])
-        assert mode in ["distributed", "greedy"]
+        assert mode in spice_ev.strategy.STRATEGIES
         scenario = self.generate_scenario(args)
 
         logging.info("Running SpiceEV...")
@@ -346,21 +349,20 @@ class Schedule:
 
         self.vehicle_type_counts = vehicle_type_counts
 
-    def assign_vehicles_for_django(self, eflips_output: Iterable[dict]):
-        """Assign vehicles based on eflips outputs
+    def assign_vehicles_custom(self, vehicle_assigns: Iterable[dict]):
+        """ Assign vehicles on a custom basis.
 
-        eflips couples vehicles and returns for every rotation the departure soc and vehicle id.
-        This is included into simba by assigning new vehicles with the respective values. I.e. in
-        simba every rotation gets a new vehicle.
-        :param eflips_output: output from eflips meant for simba. Iterable contains
-            rotation_id, vehicle_id and start_soc for each rotation
-        :type eflips_output: iterable of dataclass "simba_input"
+        Assign vehicles based on a datasource, containing all rotations, their vehicle_ids and
+        desired start socs.
+        :param vehicle_assigns: Iterable of dict with keys rotation_id, vehicle_id and start_soc
+            for each rotation
+        :type vehicle_assigns: Iterable[dict]
         :raises KeyError: If not every rotation has a vehicle assigned to it
         """
-        eflips_rot_dict = {d["rot"]: {"v_id": d["v_id"], "soc": d["soc"]} for d in eflips_output}
-        unique_vids = {d["v_id"] for d in eflips_output}
+        eflips_rot_dict = {d["rot"]: {"v_id": d["v_id"], "soc": d["soc"]} for d in vehicle_assigns}
+        unique_vids = {d["v_id"] for d in vehicle_assigns}
         vehicle_socs = {v_id: dict() for v_id in unique_vids}
-        eflips_vid_dict = {v_id: sorted([d["rot"] for d in eflips_output
+        eflips_vid_dict = {v_id: sorted([d["rot"] for d in vehicle_assigns
                                          if d["v_id"] == v_id],
                                         key=lambda r_id: self.rotations[r_id].departure_time)
                            for v_id in unique_vids}
@@ -402,17 +404,20 @@ class Schedule:
                                             default_soc_opps=args.desired_soc_opps)
 
     def assign_only_new_vehicles(self):
-        """ Assign new vehicle IDs to rotations
+        """ Assign a new vehicle to every rotation.
+
+        Iterate over all rotations and add a vehicle for each rotation. Vehicles are named on the
+        basis of their vehicle_type, charging type and current amount of vehicles with this
+        vehicle_type / charging type combination.
         """
-        # count number of vehicles per type
-        # used for unique vehicle id e.g. vehicletype_chargingtype_id
+        # Initialize counting of all vehicle_type / charging type combination
         vehicle_type_counts = {f'{vehicle_type}_{charging_type}': 0
                                for vehicle_type, charging_types in self.vehicle_types.items()
                                for charging_type in charging_types.keys()}
         rotations = sorted(self.rotations.values(), key=lambda rot: rot.departure_time)
         for rot in rotations:
             vt_ct = f"{rot.vehicle_type}_{rot.charging_type}"
-            # no vehicle available for dispatch, generate new one
+            # Generate a new vehicle
             vehicle_type_counts[vt_ct] += 1
             rot.vehicle_id = f"{vt_ct}_{vehicle_type_counts[vt_ct]}"
         self.vehicle_type_counts = vehicle_type_counts
@@ -587,6 +592,7 @@ class Schedule:
 
     def calculate_trip_consumption(self, trip: Trip):
         """ Compute consumption for this trip.
+
         :param trip: trip to calculate consumption for
         :type trip: Trip
         :return: Consumption of trip [kWh]
@@ -682,25 +688,24 @@ class Schedule:
     def get_height_difference(self, departure_name, arrival_name):
         """ Get the height difference of two stations.
 
-        Defaults to 0 if height data is not found
         :param departure_name: Departure station
         :type departure_name: str
         :param arrival_name: Arrival station
         :type arrival_name: str
-        :return: Height difference
+        :return: Height difference. Defaults to 0 if height data is not found.
         :rtype: float
         """
         if isinstance(self.station_data, dict):
-            station = departure_name
+            station_name = departure_name
             try:
-                start_height = self.station_data[station]["elevation"]
-                station = arrival_name
-                end_height = self.station_data[arrival_name]["elevation"]
+                start_height = self.station_data[station_name]["elevation"]
+                station_name = arrival_name
+                end_height = self.station_data[station_name]["elevation"]
                 return end_height - start_height
             except KeyError:
-                logging.error(f"No elevation data found for {station}. Height Difference set to 0")
+                logging.error(f"No elevation data found for {station_name}. Height difference set to 0")
         else:
-            logging.error("No Station Data found for schedule. Height Difference set to 0")
+            logging.error("No station data found for schedule. Height difference set to 0")
         return 0
 
     def get_negative_rotations(self, scenario):
@@ -1080,16 +1085,6 @@ class Schedule:
             with p.open('w', encoding='utf-8') as f:
                 json.dump(self.scenario, f, indent=2)
         return Scenario(self.scenario, Path())
-
-    @classmethod
-    def get_dict_from_csv(cls, column, file_path, index):
-        output = dict()
-        with open(file_path, "r") as f:
-            delim = util.get_csv_delim(file_path)
-            reader = csv.DictReader(f, delimiter=delim)
-            for row in reader:
-                output[float(row[index])] = float(row[column])
-        return output
 
 
 def update_csv_file_info(file_info, gc_name):

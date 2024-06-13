@@ -78,42 +78,41 @@ class TestSocDispatcher:
         return sched, scen, args
 
     @pytest.fixture
-    def eflips_output(self):
-        # eflipsoutput
-        eflips_output = []
+    def custom_vehicle_assignment(self):
+        custom_vehicle_assignment = []
 
-        eflips_output.append(dict(rot="41", v_id="AB_depb_1", soc=1))
-        eflips_output.append(dict(rot="4", v_id="AB_depb_1", soc=1))
-        eflips_output.append(dict(rot="3", v_id="AB_depb_2", soc=0.8))
-        eflips_output.append(dict(rot="31", v_id="AB_depb_2", soc=0.8))
-        eflips_output.append(dict(rot="21", v_id="AB_depb_3", soc=0.69))
-        eflips_output.append(dict(rot="2", v_id="AB_depb_3", soc=1))
-        eflips_output.append(dict(rot="1", v_id="AB_oppb_1", soc=1))
-        eflips_output.append(dict(rot="11", v_id="AB_oppb_2", soc=0.6))
-        eflips_output.append(dict(rot="12", v_id="AB_oppb_1", soc=0.945))
-        return eflips_output
+        custom_vehicle_assignment.append(dict(rot="41", v_id="AB_depb_1", soc=1))
+        custom_vehicle_assignment.append(dict(rot="4", v_id="AB_depb_1", soc=1))
+        custom_vehicle_assignment.append(dict(rot="3", v_id="AB_depb_2", soc=0.8))
+        custom_vehicle_assignment.append(dict(rot="31", v_id="AB_depb_2", soc=0.8))
+        custom_vehicle_assignment.append(dict(rot="21", v_id="AB_depb_3", soc=0.69))
+        custom_vehicle_assignment.append(dict(rot="2", v_id="AB_depb_3", soc=1))
+        custom_vehicle_assignment.append(dict(rot="1", v_id="AB_oppb_1", soc=1))
+        custom_vehicle_assignment.append(dict(rot="11", v_id="AB_oppb_2", soc=0.6))
+        custom_vehicle_assignment.append(dict(rot="12", v_id="AB_oppb_1", soc=0.945))
+        return custom_vehicle_assignment
 
-    def test_basic_dispatching(self, eflips_output):
+    def test_basic_dispatching(self, custom_vehicle_assignment):
         """Returns a schedule, scenario and args after running SimBA.
         :param eflips_output: list of eflips data
         """
         sched, scen, args = self.basic_run()
         pd.DataFrame(scen.vehicle_socs).plot()
 
-        sched.assign_vehicles_for_django(eflips_output)
+        sched.assign_vehicles_custom(custom_vehicle_assignment)
         scen = sched.run(args)
 
         pd.DataFrame(scen.vehicle_socs).plot()
 
-    def test_basic_missing_rotation(self, eflips_output):
+    def test_basic_missing_rotation(self, custom_vehicle_assignment):
         """Test if missing a rotation throws an error
         :param eflips_output: list of eflips data
         """
         sched, scen, args = self.basic_run()
         # delete data for a single rotation but keep the rotation_id
-        missing_rot_id = eflips_output[-1]["rot"]
-        del eflips_output[-1]
+        missing_rot_id = custom_vehicle_assignment[-1]["rot"]
+        del custom_vehicle_assignment[-1]
 
         # if data for a rotation is missing an error containing the rotation id should be raised
         with pytest.raises(KeyError, match=missing_rot_id):
-            sched.assign_vehicles_for_django(eflips_output)
+            sched.assign_vehicles_custom(custom_vehicle_assignment)

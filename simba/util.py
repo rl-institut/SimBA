@@ -1,4 +1,5 @@
 import argparse
+import csv
 import json
 import logging
 import subprocess
@@ -455,3 +456,38 @@ def daterange(start_date, end_date, time_delta):
     while start_date < end_date:
         yield start_date
         start_date += time_delta
+
+
+
+def get_dict_from_csv(column, file_path, index):
+    """ Get a dictonary with the key of a numeric index and the value of a numeric column
+
+    :param column: column name for dictionary values. Content needs to be castable to float
+    :type column: str
+    :param file_path: file path
+    :type file_path: str or Path
+    :param index: column name of the index / keys of the dictionary.
+        Content needs to be castable to float
+    :return: dictionary with numeric keys of index and numeric values of column
+    """
+    output = dict()
+    with open(file_path, "r") as f:
+        delim = get_csv_delim(file_path)
+        reader = csv.DictReader(f, delimiter=delim)
+        for row in reader:
+            output[float(row[index])] = float(row[column])
+    return output
+
+
+def cast_float_or_none(val: any) -> any:
+    """ Cast a value to float. If a ValueError or TypeError is raised, None is returned
+
+    :param val: value to cast
+    :type val: any
+    :return: casted value
+    """
+
+    try:
+        return float(val)
+    except (ValueError, TypeError):
+        return None

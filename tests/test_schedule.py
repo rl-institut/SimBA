@@ -88,12 +88,12 @@ class TestSchedule(BasicSchedule):
 
         # check if reading a non valid station.csv throws warnings
         args.station_data_path = file_root / "not_existent_file"
-        data_container = DataContainer().fill_with_args(args)
-        assert len(caplog.records) == 1
+        with pytest.raises(FileNotFoundError):
+            data_container = DataContainer().fill_with_args(args)
 
         args.station_data_path = file_root / "not_numeric_stations.csv"
-        data_container = DataContainer().fill_with_args(args)
-        assert len(caplog.records) == 2
+        with pytest.raises(ValueError):
+            data_container = DataContainer().fill_with_args(args)
 
     def test_basic_run(self):
         """ Check if running a basic example works and if a scenario object is returned
