@@ -169,7 +169,7 @@ class TestStationOptimization:
         sopt.create_charging_curves()
         # remove none values from socs in the vehicle_socs
         sopt.replace_socs_from_none_to_value()
-        vehicle_socs_fast = sopt.timeseries_calc(ele_station_set=["Station-1"])
+        vehicle_socs_fast = sopt.timeseries_calc(set(sched.stations.keys()))
         for vehicle, socs in scen.vehicle_socs.items():
             assert vehicle_socs_fast[vehicle][-1] == pytest.approx(socs[-1], 0.01, abs=0.01)
         events = sopt.get_low_soc_events(soc_data=vehicle_socs_fast, rel_soc=True)

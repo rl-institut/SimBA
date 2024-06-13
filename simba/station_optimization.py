@@ -188,7 +188,12 @@ def run_optimization(conf, sched=None, scen=None, args=None):
     # remove none values from socs in the vehicle_socs so timeseries_calc can work
     optimizer.replace_socs_from_none_to_value()
 
-    vehicle_socs = optimizer.timeseries_calc()
+    # Restore the rotations and the scenario which where the goal of optimization.
+    optimizer.schedule.rotations = rotations_for_opt
+    optimizer.scenario = optimizer.base_scenario
+
+    # Check if the rotations which were part of the optimization are not negative anymore
+    vehicle_socs = optimizer.timeseries_calc(optimizer.electrified_station_set)
 
     new_events = optimizer.get_low_soc_events(soc_data=vehicle_socs)
 
