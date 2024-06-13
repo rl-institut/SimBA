@@ -94,7 +94,7 @@ class TestSocDispatcher:
 
     def test_basic_dispatching(self, custom_vehicle_assignment):
         """Returns a schedule, scenario and args after running SimBA.
-        :param eflips_output: list of eflips data
+        :param custom_vehicle_assignment: list of assignments
         """
         sched, scen, args = self.basic_run()
         pd.DataFrame(scen.vehicle_socs).plot()
@@ -106,7 +106,7 @@ class TestSocDispatcher:
 
     def test_basic_missing_rotation(self, custom_vehicle_assignment):
         """Test if missing a rotation throws an error
-        :param eflips_output: list of eflips data
+        :param custom_vehicle_assignment: list of assignments
         """
         sched, scen, args = self.basic_run()
         # delete data for a single rotation but keep the rotation_id

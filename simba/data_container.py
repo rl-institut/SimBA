@@ -327,5 +327,3 @@ def get_values_from_nested_key(key, data: dict) -> list:
     for value in data.values():
         if isinstance(value, dict):
             yield from get_values_from_nested_key(key, value)
-
-

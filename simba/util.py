@@ -458,7 +458,6 @@ def daterange(start_date, end_date, time_delta):
         start_date += time_delta
 
 
-
 def get_dict_from_csv(column, file_path, index):
     """ Get a dictonary with the key of a numeric index and the value of a numeric column
 

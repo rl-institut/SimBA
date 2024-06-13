@@ -5,7 +5,7 @@ import logging
 from pathlib import Path
 import random
 import warnings
-from typing import Dict, Type, Iterable
+from typing import Iterable
 
 import simba.rotation
 import spice_ev.strategy
@@ -27,7 +27,6 @@ class SocDispatcher:
     departure changed.
     Used for specific vehicle initialization, for example, when coupling tools."""
 
-
     def __init__(self, default_soc_deps, default_soc_opps, vehicle_socs=None):
         """
         :param default_soc_deps: default desired SoC at departure for depot charger
@@ -36,7 +35,6 @@ class SocDispatcher:
             [vehicle_id][previous_trip], since this is how the SpiceEV scenario is generated.
             The first trip of a vehicle has no previous trip. In this case, the trip key is None.
         :type vehicle_socs: Dict[str, Type[Dict["simba.trip.Trip", float]]]
-        :return: None
         """
         self.default_soc_deps = default_soc_deps
         self.default_soc_opps = default_soc_opps
@@ -703,7 +701,8 @@ class Schedule:
                 end_height = self.station_data[station_name]["elevation"]
                 return end_height - start_height
             except KeyError:
-                logging.error(f"No elevation data found for {station_name}. Height difference set to 0")
+                logging.error(
+                    f"No elevation data found for {station_name}. Height difference set to 0")
         else:
             logging.error("No station data found for schedule. Height difference set to 0")
         return 0
