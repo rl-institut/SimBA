@@ -42,7 +42,7 @@ class Trip:
         mean_speed = kwargs.get("mean_speed", (self.distance / 1000) /
                                 max(1 / 60, ((self.arrival_time - self.departure_time) / timedelta(
                                     hours=1))))
-        self.mean_speed = mean_speed
+        self.mean_speed = float(mean_speed)
 
         # Attention: Circular reference!
         # While a rotation carries a references to this trip, this trip
