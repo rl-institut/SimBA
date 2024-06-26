@@ -143,7 +143,6 @@ class TestSimulate:
         args.mode = "report"
         args.cost_calculation = True
         args.output_directory = tmp_path
-        args.strategy = "distributed"
         args.strategy_deps = "balanced"
         args.strategy_opps = "greedy"
 
@@ -162,7 +161,6 @@ class TestSimulate:
         args.ALLOW_NEGATIVE_SOC = True
         args.cost_calculation = True
         args.output_directory = tmp_path
-        args.strategy = "distributed"
         args.show_plots = False
         with warnings.catch_warnings():
             warnings.simplefilter("ignore")

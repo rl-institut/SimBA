@@ -44,7 +44,7 @@ def pre_simulation(args, data_container: DataContainer):
     :return: schedule, args
     :rtype: simba.schedule.Schedule, Namespace
     """
-    # Deepcopy args so original args do not get mutated, i.e. deleted
+    # Deepcopy args so original args do not get mutated
     args = deepcopy(args)
 
     # generate schedule from csv
@@ -136,19 +136,21 @@ class Mode:
     A function must return the updated schedule and scenario objects.
     """
     @staticmethod
-    def sim_greedy(schedule, scenario, args, _i):# Noqa
-        scenario = schedule.run(args, mode="greedy")
-        return schedule, scenario
-
-    @staticmethod
     def sim(schedule, scenario, args, _i):# Noqa
         # Base simulation function for external access.
+        # No effect when used directly in SimBA"
         scenario = schedule.run(args, mode="distributed")
         return schedule, scenario
 
     @staticmethod
+    def sim_greedy(schedule, scenario, args, _i):# Noqa
+        # Run a basic greedy simulation without depb/oppb distinction
+        scenario = schedule.run(args, mode="greedy")
+        return schedule, scenario
+
+    @staticmethod
     def service_optimization(schedule, scenario, args, _i):
-        # find largest set of rotations that produce no negative SoC
+        # Find largest set of rotations that produce no negative SoC
         result = optimization.service_optimization(schedule, scenario, args)
         schedule, scenario = result['optimized']
         if scenario is None:
@@ -192,25 +194,30 @@ class Mode:
         return schedule, scenario
 
     @staticmethod
-    def station_optimization(schedule, scenario, args, i):
-        conf = optimizer_util.OptimizerConfig()
-        if args.optimizer_config:
-            conf = read_optimizer_config(args.optimizer_config)
-        else:
+    def _station_optimization(schedule, scenario, args, _i, single_step: bool):
+        if not args.optimizer_config:
             logging.warning("Station optimization needs an optimization config file. "
                             "Default Config is used.")
-
-        # Get copies of the original schedule and scenario. In case of an exception the outer
+            conf = optimizer_util.OptimizerConfig().set_defaults()
+        else:
+            conf = read_optimizer_config(args.optimizer_config)
+        if single_step:
+            conf.early_return = True
+        # Work on copies of the original schedule and scenario. In case of an exception the outer
         # schedule and scenario stay intact.
         original_schedule = deepcopy(schedule)
         original_scenario = deepcopy(scenario)
         try:
-            create_results_directory(args, i+1)
+            create_results_directory(args, _i+1)
             return run_optimization(conf, sched=schedule, scen=scenario, args=args)
         except Exception as err:
             logging.warning('During Station optimization an error occurred {0}. '
                             'Optimization was skipped'.format(err))
             return original_schedule, original_scenario
+
+    @staticmethod
+    def station_optimization(schedule, scenario, args, i):
+        return Mode._station_optimization(schedule, scenario, args, i, False)
 
     @staticmethod
     def station_optimization_single_step(schedule, scenario, args, i):
@@ -226,25 +233,7 @@ class Mode:
         :return: schedule, scenario
         
         """  # noqa
-        if not args.optimizer_config:
-            logging.warning("Station optimization needs an optimization config file. "
-                            "Default Config is used.")
-            conf = optimizer_util.OptimizerConfig().set_defaults()
-        else:
-            conf = read_optimizer_config(args.optimizer_config)
-
-        conf.early_return = True
-        # Work on copies of the original schedule and scenario. In case of an exception the outer
-        # schedule and scenario stay intact.
-        original_schedule = deepcopy(schedule)
-        original_scenario = deepcopy(scenario)
-        try:
-            create_results_directory(args, i+1)
-            return run_optimization(conf, sched=schedule, scen=scenario, args=args)
-        except Exception as err:
-            logging.warning('During Station optimization an error occurred {0}. '
-                            'Optimization was skipped'.format(err))
-            return original_schedule, original_scenario
+        return Mode._station_optimization(schedule, scenario, args, i, True)
 
     @staticmethod
     def remove_negative(schedule, scenario, args, _i):

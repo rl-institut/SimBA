@@ -123,7 +123,7 @@ def run_optimization(conf, sched=None, scen=None, args=None):
             r for r in sched.rotations if "depb" == sched.rotations[r].charging_type)
         sched.rotations = {r: sched.rotations[r] for r in sched.rotations
                            if "oppb" == sched.rotations[r].charging_type}
-        if len(sched.rotations) < 1:
+        if len(sched.rotations) == 0:
             raise Exception("No rotations left after removing depot chargers")
 
     # rebasing the scenario meaning simulating it again with SpiceEV and the given conditions of

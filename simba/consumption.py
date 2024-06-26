@@ -97,13 +97,13 @@ class Consumption:
                 interpol_function = self.get_nd_interpolation(df_vt)
                 vt_specific_name = self.get_consumption_lookup_name(consumption_lookup_name, vt)
                 if vt_specific_name in self.consumption_interpolation:
-                    warnings.warn("Overwriting exising consumption function")
+                    warnings.warn(f"Overwriting exising consumption function {vt_specific_name}.")
                 self.consumption_interpolation.update({vt_specific_name: interpol_function})
             return
 
         interpol_function = self.get_nd_interpolation(df)
         if consumption_lookup_name in self.consumption_interpolation:
-            warnings.warn("Overwriting exising consumption function")
+            warnings.warn(f"Overwriting exising consumption function {consumption_lookup_name}.")
         self.consumption_interpolation.update({consumption_lookup_name: interpol_function})
 
     def get_nd_interpolation(self, df):

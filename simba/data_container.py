@@ -14,15 +14,15 @@ from simba.ids import INCLINE, LEVEL_OF_LOADING, SPEED, T_AMB, TEMPERATURE, CONS
 
 class DataContainer:
     def __init__(self):
-        # Dictionary of dict[VehicleTypeName][ChargingType] containing the vehicle_info dictionary
+        # Dictionary VehicleTypeName -> ChargingTypeName -> VehicleInfo
         self.vehicle_types_data: Dict[str, any] = {}
-        # Dictionary of dict[consumption_lookup_name] containing a consumption lookup
+        # Dictionary ConsumptionName -> Consumption lookup
         self.consumption_data: Dict[str, pd.DataFrame] = {}
-        # Dictionary of dict[hour_of_day] containing temperature in °C
+        # Dictionary hour_of_day -> temperature in °C
         self.temperature_data: Dict[int, float] = {}
-        # Dictionary of dict[hour_of_day] containing level of loading [-]
+        # Dictionary hour_of_day ->  level of loading [-]
         self.level_of_loading_data: Dict[int, float] = {}
-        # Dictionary of dict[station_name] containing information about electrification
+        # Dictionary station_name -> information about electrification
         self.stations_data: Dict[str, dict] = {}
         # Dictionary containing various infos about investment costs and grid operator
         self.cost_parameters_data: Dict[str, dict] = {}
@@ -131,20 +131,20 @@ class DataContainer:
         # this data is stored in the schedule and passed to the trips, which use the information
         # for consumption calculation. Missing station data is handled with default values.
         self.station_geo_data = dict()
-        line_num = None
         try:
             with open(file_path, "r", encoding='utf-8') as f:
                 delim = util.get_csv_delim(file_path)
                 reader = csv.DictReader(f, delimiter=delim)
                 for line_num, row in enumerate(reader):
-                    self.station_geo_data[str(row['Endhaltestelle'])] = {
+                    self.station_geo_data[str(row[ids.STOP_NAME])] = {
                         ids.ELEVATION: float(row[ids.ELEVATION]),
                         ids.LATITUDE: float(row.get(ids.LATITUDE, 0)),
                         ids.LONGITUDE: float(row.get(ids.LONGITUDE, 0)),
                     }
         except (FileNotFoundError, KeyError):
             logging.log(msg=f"External csv file {file_path} not found or not named properly. "
-                            "(Needed column names are 'Endhaltestelle' and 'elevation')",
+                            f"(Needed column names are {ids.STOP_NAME} and {ids.ELEVATION}. "
+                            f"Optional column names are {ids.LATITUDE} and {ids.LONGITUDE}.)",
                         level=100)
             raise
         except ValueError:
@@ -303,8 +303,8 @@ class DataContainer:
         :type df: pd.DataFrame
         :return: DatacContainer instance with added consumption data
         """
-        missing_cols = [c for c in [INCLINE, T_AMB, LEVEL_OF_LOADING, SPEED, CONSUMPTION] if
-                        c not in df.columns]
+        missing_cols = [c for c in [INCLINE, T_AMB, LEVEL_OF_LOADING, SPEED, CONSUMPTION]
+                        if c not in df.columns]
         assert not missing_cols, f"Consumption data is missing {', '.join(missing_cols)}"
         assert data_name not in self.consumption_data, f"{data_name} already exists in data"
         self.consumption_data[data_name] = df

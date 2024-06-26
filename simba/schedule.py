@@ -108,8 +108,7 @@ class Schedule:
         for trip in data.trip_data:
             rotation_id = trip['rotation_id']
 
-            # get average hour of trip and parse to string, since tabular data has strings
-            # as keys
+            # get average hour of trip and parse to string, since tabular data has strings as keys
             hour = (trip["departure_time"] +
                     (trip["arrival_time"] - trip["departure_time"]) / 2).hour
 
@@ -134,9 +133,8 @@ class Schedule:
                                           schedule=schedule)})
             schedule.rotations[rotation_id].add_trip(trip)
 
-        # set charging type for all rotations without explicitly specified charging type.
-        # charging type may have been set above if a trip of a rotation has a specified
-        # charging type
+        # Set charging type for all rotations without explicitly specified charging type.
+        # Charging type may have been set previously if a trip had specified a charging type.
         for rot in schedule.rotations.values():
             if rot.charging_type is None:
                 rot.set_charging_type(ct=vars(args).get('preferred_charging_type', 'depb'))
@@ -991,17 +989,15 @@ class Schedule:
                         departure_station_type = self.stations[gc_name]["type"]
                     except KeyError:
                         departure_station_type = "deps"
-
-                    vehicles[vehicle_id] = {
-                        "connected_charging_station": None,
-                        "estimated_time_of_departure": trip.departure_time.isoformat(),
-                        "desired_soc": None,
-                        "soc": self.soc_dispatcher.get_soc(vehicle_id=vehicle_id,
-                                                           trip=None,
-                                                           station_type=departure_station_type),
-                        "vehicle_type":
-                            f"{trip.rotation.vehicle_type}_{trip.rotation.charging_type}"
-                    }
+                vehicles[vehicle_id] = {
+                    "connected_charging_station": None,
+                    "estimated_time_of_departure": trip.departure_time.isoformat(),
+                    "desired_soc": None,
+                    "soc": self.soc_dispatcher.get_soc(
+                        vehicle_id=vehicle_id, trip=None, station_type=departure_station_type),
+                    "vehicle_type":
+                        f"{trip.rotation.vehicle_type}_{trip.rotation.charging_type}"
+                }
 
                 # create departure event
                 events["vehicle_events"].append({
