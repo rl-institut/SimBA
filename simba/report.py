@@ -2,6 +2,7 @@
 import csv
 import datetime
 import logging
+import re
 from typing import Iterable
 
 import matplotlib.pyplot as plt
@@ -130,12 +131,17 @@ def generate_trips_timeseries_data(schedule):
         # "distance", "temperature", "height_diff", "level_of_loading", "mean_speed",
     ]
     data = [header]
-    for rotation in schedule.rotations.values():
+    rotations = schedule.rotations.values()
+    # sort rotations naturally by ID
+    rotations = sorted(rotations, key=lambda r: [
+        # natural sort: split by numbers, then sort numbers by value and chars by lowercase
+        int(s) if s.isdigit() else s.lower() for s in re.split(r'(\d+)', r.id)])
+    for rotation in rotations:
         for trip in rotation.trips:
             # get trip info from trip or trip.rotation (same name in Trip/Rotation as in CSV)
             row = [vars(trip).get(k, vars(trip.rotation).get(k)) for k in header]
             # special case rotation_id
-            row[0] = trip.rotation.id
+            row[0] = rotation.id
             data.append(row)
     return data
 
