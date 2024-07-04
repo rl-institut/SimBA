@@ -1059,11 +1059,12 @@ class Schedule:
         }
 
         # create final dict
+        # n_intervals is rounded up to cover last simulation step in all cases
         self.scenario = {
             "scenario": {
                 "start_time": start_simulation.isoformat(),
                 "interval": interval.days * 24 * 60 + interval.seconds // 60,
-                "n_intervals": (stop_simulation - start_simulation) // interval
+                "n_intervals": abs((start_simulation- stop_simulation) // interval)
             },
             "components": {
                 "vehicle_types": vehicle_types_spiceev,
