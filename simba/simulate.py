@@ -150,7 +150,8 @@ class Mode:
 
     @staticmethod
     def service_optimization(schedule, scenario, args, _i):
-        # Find largest set of rotations that produce no negative SoC
+        """ Find largest set of rotations that produce no negative SoC.
+        """ # noqa
         result = optimization.service_optimization(schedule, scenario, args)
         schedule, scenario = result['optimized']
         if scenario is None:
@@ -194,7 +195,7 @@ class Mode:
         return schedule, scenario
 
     @staticmethod
-    def _station_optimization(schedule, scenario, args, _i, single_step: bool):
+    def _station_optimization(schedule, scenario, args, i, single_step: bool):
         if not args.optimizer_config:
             logging.warning("Station optimization needs an optimization config file. "
                             "Default Config is used.")
@@ -208,7 +209,7 @@ class Mode:
         original_schedule = deepcopy(schedule)
         original_scenario = deepcopy(scenario)
         try:
-            create_results_directory(args, _i+1)
+            create_results_directory(args, i + 1)
             return run_optimization(conf, sched=schedule, scen=scenario, args=args)
         except Exception as err:
             logging.warning('During Station optimization an error occurred {0}. '
@@ -217,7 +218,7 @@ class Mode:
 
     @staticmethod
     def station_optimization(schedule, scenario, args, i):
-        return Mode._station_optimization(schedule, scenario, args, i, False)
+        return Mode._station_optimization(schedule, scenario, args, i, sinlge_step=False)
 
     @staticmethod
     def station_optimization_single_step(schedule, scenario, args, i):
@@ -233,7 +234,7 @@ class Mode:
         :return: schedule, scenario
         
         """  # noqa
-        return Mode._station_optimization(schedule, scenario, args, i, True)
+        return Mode._station_optimization(schedule, scenario, args, i, single_step=True)
 
     @staticmethod
     def remove_negative(schedule, scenario, args, _i):
