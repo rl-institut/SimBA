@@ -4,6 +4,7 @@ from copy import deepcopy
 from datetime import timedelta, datetime # noqa
 import pytest
 import sys
+import spice_ev.scenario as scenario
 
 from simba.simulate import pre_simulation
 from spice_ev.events import VehicleEvent
