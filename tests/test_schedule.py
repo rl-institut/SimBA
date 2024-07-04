@@ -594,11 +594,11 @@ class TestSchedule(BasicSchedule):
         assert len(events_by_gc["Station-21"]) == 0
 
         # run schedule and check prices
-        # example scenario covers 2022-03-07 20:16 - 2022-03-09 04:59
+        # example scenario covers 2022-03-07 20:15 - 2022-03-09 04:59
         scenario = generated_schedule.run(args)
         # Station-0: price change every 24h, starting midnight => two price changes at midnight
         assert set(scenario.prices["Station-0"]) == {0.1599, 0.18404, 0.23492}
-        assert scenario.prices["Station-0"][223:225] == [0.1599, 0.18404]
+        assert scenario.prices["Station-0"][224:226] == [0.1599, 0.18404]
         # Station-3: price change every hour, starting 04:00 (from csv timestamp)
         # => 32 price changes
         assert len(set(scenario.prices["Station-3"])) == 33
