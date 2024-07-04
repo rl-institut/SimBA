@@ -1,11 +1,12 @@
+import math
 from argparse import Namespace
 from copy import deepcopy
 from datetime import timedelta, datetime # noqa
 import pytest
 import sys
-import spice_ev.scenario as scenario
 
 from simba.simulate import pre_simulation
+from spice_ev.events import VehicleEvent
 from tests.conftest import example_root, file_root
 from tests.helpers import generate_basic_schedule
 from simba import rotation, schedule, util
@@ -58,6 +59,53 @@ class BasicSchedule:
 
 
 class TestSchedule(BasicSchedule):
+
+    def test_timestep(self):
+        # Get the parser from util. This way the test is directly coupled to the parser arguments
+        sys.argv = ["foo", "--config", str(example_root / "simba.cfg")]
+        args = util.get_args()
+        data_container = DataContainer().fill_with_args(args)
+
+        assert args.interval == 1
+
+        # Reduce rotations to increase simulation / test speed
+        some_rotation = data_container.trip_data[0]["rotation_id"]
+        data_container.trip_data = [trip_dict for trip_dict in data_container.trip_data
+                                    if trip_dict["rotation_id"] == some_rotation]
+
+        first_trip = None
+        last_trip = None
+        for trip in data_container.trip_data:
+            if first_trip is None or trip["departure_time"] < first_trip["departure_time"]:
+                first_trip = trip
+            if last_trip is None or trip["arrival_time"] > last_trip["arrival_time"]:
+                last_trip = trip
+
+        # Make sure the duration is not an integer multiple of interval
+        first_trip["departure_time"] -= timedelta(minutes=1)
+        first_trip["departure_time"] = first_trip["departure_time"].replace(second=0)
+        last_trip["arrival_time"] += timedelta(minutes=1)
+        last_trip["arrival_time"] = last_trip["arrival_time"].replace(second=30)
+        duration_in_s = (last_trip["arrival_time"] - first_trip["departure_time"]).total_seconds()
+        assert duration_in_s % (args.interval * 60) != 0
+
+        n_steps = math.ceil((duration_in_s + args.signal_time_dif * 60) / (args.interval * 60)) + 1
+        sched, args = pre_simulation(args, data_container)
+        scenario = sched.generate_scenario(args)
+        assert n_steps == scenario.n_intervals
+        scenario.run("distributed", vars(args).copy())
+        assert scenario.strat.current_time >= last_trip["arrival_time"]
+        assert all(
+            not isinstance(e, VehicleEvent) for e in scenario.strat.world_state.future_events)
+
+        # Make sure that if the last step would not have been simulated,
+        # a vehicle_event would still be up for simulation
+        scenario = sched.generate_scenario(args)
+        scenario.n_intervals -= 1
+        scenario.run("distributed", vars(args).copy())
+        assert scenario.strat.current_time < last_trip["arrival_time"]
+        assert any(isinstance(e, VehicleEvent) for e in scenario.strat.world_state.future_events)
+
     def test_mandatory_options_exit(self):
         """
         Check if the schedule creation properly throws an error in case of missing mandatory options

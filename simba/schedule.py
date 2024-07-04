@@ -1064,7 +1064,7 @@ class Schedule:
             "scenario": {
                 "start_time": start_simulation.isoformat(),
                 "interval": interval.days * 24 * 60 + interval.seconds // 60,
-                "n_intervals": abs((start_simulation- stop_simulation) // interval)
+                "n_intervals": int(abs((start_simulation - stop_simulation) // interval))
             },
             "components": {
                 "vehicle_types": vehicle_types_spiceev,
