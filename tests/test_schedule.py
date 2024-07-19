@@ -592,7 +592,7 @@ class TestSchedule(BasicSchedule):
         # just file given
         prices = schedule.get_price_list_from_csv({'csv_file': tmp_path / 'price.csv'})
         assert len(prices) == 3
-        assert prices[0] == ('2022-03-07 00:00:00', 1)
+        assert prices[0] == ['2022-03-07 00:00:00', (0, 1.0, 0)]
 
         # change column
         with pytest.raises(KeyError):
@@ -610,13 +610,13 @@ class TestSchedule(BasicSchedule):
             'csv_file': tmp_path / 'price.csv',
             'factor': 1.5
         })
-        assert prices[0][1] == 1.5
+        assert sum(prices[0][1]) == 1.5
 
     def test_generate_event_list_from_prices(self):
         prices = [
-            ('2022-03-07 00:00:00', 1),
-            ('2022-03-07 01:00:00', 2),
-            ('2022-03-07 02:00:00', 3)]
+            ['2022-03-07 00:00:00', (1,)],
+            ['2022-03-07 01:00:00', (2,)],
+            ['2022-03-07 02:00:00', (3,)]]
         start = datetime.fromisoformat('2022-03-07')
         stop = datetime.fromisoformat('2022-03-08')
 
@@ -624,13 +624,13 @@ class TestSchedule(BasicSchedule):
         assert len(schedule.generate_event_list_from_prices([], 'GC', start, stop)) == 0
 
         # basic functionality: all events
-        events = schedule.generate_event_list_from_prices(prices, 'GC', start, stop)
+        events = schedule.generate_event_list_from_prices(deepcopy(prices), 'GC', start, stop)
         assert len(events) == 3
 
         # change list start time
         # in-between: all events, different time
         events = schedule.generate_event_list_from_prices(
-            prices, 'GC', start, stop,
+            deepcopy(prices), 'GC', start, stop,
             start_events='2022-03-07 01:30:00',
             price_interval_s=60
         )
@@ -639,19 +639,19 @@ class TestSchedule(BasicSchedule):
 
         # before: only last event
         events = schedule.generate_event_list_from_prices(
-            prices, 'GC', start, stop,
+            deepcopy(prices), 'GC', start, stop,
             start_events='1970-01-01',
             price_interval_s=3600
         )
         assert len(events) == 1 and events[0]["cost"]["value"] == 3
         # change start date after price list: only last event
         start = datetime.fromisoformat('2022-03-07 12:00:00')
-        events = schedule.generate_event_list_from_prices(prices, 'GC', start, stop)
+        events = schedule.generate_event_list_from_prices(deepcopy(prices), 'GC', start, stop)
         assert len(events) == 1 and events[0]["cost"]["value"] == 3
 
         # after: no events
         events = schedule.generate_event_list_from_prices(
-            prices, 'GC', start, stop,
+            deepcopy(prices), 'GC', start, stop,
             start_events='3000-01-01',
             price_interval_s=3600
         )
