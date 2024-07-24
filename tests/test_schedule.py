@@ -459,6 +459,7 @@ class TestSchedule(BasicSchedule):
 
         sys.argv = ["foo", "--config", str(example_root / "simba.cfg")]
         args = util.get_args()
+        args.cost_calculation = True  # needed for timeseries, but default is false
         for station in generated_schedule.stations.values():
             station["gc_power"] = 1000
             station.pop("peak_load_window_power", None)
