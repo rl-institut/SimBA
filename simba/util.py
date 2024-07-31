@@ -279,12 +279,13 @@ def get_args():
 
     # #### Modes #####
     mode_choices = [
-        'sim', 'neg_depb_to_oppb', 'neg_oppb_to_depb', 'service_optimization',
+        'sim', 'load_pickle', 'neg_depb_to_oppb', 'neg_oppb_to_depb', 'service_optimization',
         'station_optimization', 'remove_negative', 'split_negative_depb', 'report']
     parser.add_argument('--mode', default=['sim', 'report'], nargs='*', choices=mode_choices,
                         help=f"Specify what you want to do. Choose one or more from \
                         {', '.join(mode_choices)}. \
                         sim runs a single simulation with the given inputs. \
+                        load_pickle loads files specified in load_pickle argument. \
                         neg_depb_to_oppb changes charging type of negative depb rotations. \
                         neg_oppb_to_depb changes charging type of negative oppb rotations. \
                         service optimization finds the largest set of electrified rotations. \
@@ -307,6 +308,10 @@ def get_args():
     parser.add_argument('--create-scenario-file', help='Write scenario.json to file')
     parser.add_argument('--create-trips-in-report', action='store_true',
                         help='Write a trips.csv during report mode')
+    parser.add_argument('--create-pickle-in-report', action='store_true',
+                        help='Pickle current schedule and scenario during report mode')
+    parser.add_argument('--load-pickle',
+                        help='Load given pickle file, expects load_pickle as first mode')
     parser.add_argument('--rotation-filter-variable', default=None,
                         choices=[None, 'include', 'exclude'],
                         help='set mode for filtering schedule rotations')

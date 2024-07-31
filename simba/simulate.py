@@ -1,4 +1,5 @@
 import logging
+import dill as pickle
 import traceback
 
 from simba import report, optimization, util
@@ -22,8 +23,16 @@ def simulate(args):
     :return: final schedule and scenario
     :rtype: tuple
     """
-    schedule = pre_simulation(args)
-    scenario = schedule.run(args)
+    args.cost_parameters = load_cost_parameters_file(args.cost_parameters_file)
+    if vars(args).get("load_pickle"):
+        # load pickle file: skip pre_simulation
+        assert args.mode[0] == "load_pickle", "Load pickle: first mode must be load_pickle"
+        # schedule and scenario read out from pickle file in first mode
+        schedule = None
+        scenario = "pickle"  # must not be None
+    else:
+        schedule = pre_simulation(args)
+        scenario = schedule.run(args)
     return modes_simulation(schedule, scenario, args)
 
 
@@ -54,15 +63,6 @@ def pre_simulation(args):
         raise Exception(f"Path to electrified stations ({args.electrified_stations}) "
                         "does not exist. Exiting...")
 
-    # load cost parameters
-    if args.cost_parameters_file is not None:
-        try:
-            with open(args.cost_parameters_file, encoding='utf-8') as f:
-                args.cost_parameters = util.uncomment_json_file(f)
-        except FileNotFoundError:
-            raise Exception(f"Path to cost parameters ({args.cost_parameters_file}) "
-                            "does not exist. Exiting...")
-
     # setup consumption calculator that can be accessed by all trips
     Trip.consumption = Consumption(
         vehicle_types,
@@ -79,6 +79,18 @@ def pre_simulation(args):
     schedule.calculate_consumption()
 
     return schedule
+
+
+def load_cost_parameters_file(file_path):
+    # load cost parameters
+    # needed for both normal simulation and load_pickle
+    if file_path is None:
+        return None
+    try:
+        with open(file_path, encoding='utf-8') as f:
+            return util.uncomment_json_file(f)
+    except FileNotFoundError:
+        raise Exception(f"Path to cost parameters ({file_path}) does not exist. Exiting...")
 
 
 def modes_simulation(schedule, scenario, args):
@@ -225,6 +237,14 @@ class Mode:
         # re-run schedule
         scenario = recombined_schedule.run(args)
         return recombined_schedule, scenario
+
+    def load_pickle(_schedule=None, _scenario=None, args=None, _i=None):
+        with open(args.load_pickle, 'rb') as f:
+            unpickle = pickle.load(f)
+        schedule = unpickle["schedule"]
+        scenario = unpickle["scenario"]
+        Trip.consumption = unpickle["consumption"]
+        return schedule, scenario
 
     def report(schedule, scenario, args, i):
         if args.output_directory is None:

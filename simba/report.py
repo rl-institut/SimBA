@@ -2,10 +2,12 @@
 import csv
 import datetime
 import logging
+import dill as pickle
 import re
 from typing import Iterable
 
 import matplotlib.pyplot as plt
+from simba.trip import Trip
 from spice_ev.report import aggregate_global_results, plot, generate_reports
 
 
@@ -293,6 +295,15 @@ def generate(schedule, scenario, args):
     if vars(args).get('create_trips_in_report', False):
         file_path = args.results_directory / "trips.csv"
         write_csv(generate_trips_timeseries_data(schedule), file_path)
+
+    if vars(args).get('create_pickle_in_report', False):
+        file_path = args.results_directory / "scenario.pkl"
+        with file_path.open('wb') as f:
+            pickle.dump({
+                "schedule": schedule,
+                "scenario": scenario,
+                "consumption": Trip.consumption,
+            }, f)
 
     # summary of used vehicle types and all costs
     if args.cost_calculation:
