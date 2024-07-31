@@ -28,6 +28,10 @@ The example (data/simba.cfg) contains parameter descriptions which are explained
      - Default value
      - Expected values
      - Description
+   * - scenario_name
+     - Optional: no default given
+     - string
+     - scenario identifier, appended to output directory name and report file names
    * - input_schedule
      - Mandatory: no default given
      - Path as string
