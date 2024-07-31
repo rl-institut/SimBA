@@ -80,6 +80,22 @@ The example (data/simba.cfg) contains parameter descriptions which are explained
      - false
      - Boolean
      - If activated, plots are displayed with every run of :ref:`report` mode
+   * - rotation_filter_variable
+     - null
+     - string
+     - How to filter rotations according to file 'rotation_filter': options are "include" (whitelist), "exclude" (blacklist), null (ignore)
+   * - create_trips_in_report
+     - false
+     - Boolean
+     - Write a new trips.csv during report mode to output directory?
+   * - create_pickle_in_report
+     - false
+     - Boolean
+     - Pickle current schedule and scenario during report mode
+   * - load_pickle
+     - Optional, no default given
+     - Path to pickle file
+     - Load schedule and scenario from this pickle file, expects load_pickle as first mode
 
    * - preferred_charging_type
      - depb

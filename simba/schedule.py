@@ -921,6 +921,7 @@ def update_csv_file_info(file_info, gc_name):
     - set grid_connector_id
     - update csv_file path
     - set start_time and step_duration_s from CSV information if not given
+
     :param file_info: csv information from electrified station
     :type file_info: dict
     :param gc_name: station name
