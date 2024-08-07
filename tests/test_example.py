@@ -31,7 +31,7 @@ class TestExampleConfigs:
             'simba.cfg',
             'program_version.txt',
             'trips_example.csv',
-            'electrified_stations.json'
+            'electrified_stations.json',
             'vehicle_types.json',
 
             'cost_params.json',
