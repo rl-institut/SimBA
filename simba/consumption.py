@@ -4,11 +4,11 @@ from simba import util
 
 
 class Consumption:
-    def __init__(self, vehicle_types, **kwargs) -> None:
+    def __init__(self, vehicle_types, args) -> None:
         # load temperature of the day, now dummy winter day
         self.temperatures_by_hour = {}
 
-        temperature_file_path = kwargs.get("outside_temperatures", None)
+        temperature_file_path = vars(args).get("outside_temperature_over_day_path", None)
         # parsing the Temperature to a dict
         if temperature_file_path is not None:
             with open(temperature_file_path, encoding='utf-8') as f:
@@ -16,8 +16,9 @@ class Consumption:
                 reader = csv.DictReader(f, delimiter=delim)
                 for row in reader:
                     self.temperatures_by_hour.update({int(row['hour']): float(row['temperature'])})
+            util.save_input_file(temperature_file_path, args)
 
-        lol_file_path = kwargs.get("level_of_loading_over_day", None)
+        lol_file_path = vars(args).get("level_of_loading_over_day_path", None)
         # parsing the level of loading to a dict
         if lol_file_path is not None:
             with open(lol_file_path, encoding='utf-8') as f:
@@ -26,6 +27,14 @@ class Consumption:
                 self.lol_by_hour = {}
                 for row in reader:
                     self.lol_by_hour.update({int(row['hour']): float(row['level_of_loading'])})
+            util.save_input_file(lol_file_path, args)
+
+        # save mileage files
+        for vt in vehicle_types.values():
+            for vt_info in vt.values():
+                mileage = vt_info.get("mileage")
+                if mileage is not None and not isinstance(mileage, (int, float)):
+                    util.save_input_file(mileage, args)
 
         self.consumption_files = {}
         self.vehicle_types = vehicle_types

@@ -1,6 +1,7 @@
-import logging
+from argparse import Namespace
 from copy import copy, deepcopy
 import json
+import logging
 from pathlib import Path
 import pytest
 import random
@@ -117,14 +118,11 @@ class TestStationOptimization:
         sys.argv = ["foo", "--config", str(self.tmp_path / "simba.cfg")]
         args = util.get_args()
         args.input_schedule = path_to_trips
-        Trip.consumption = Consumption(self.vehicle_types,
-                                       outside_temperatures=None,
-                                       level_of_loading_over_day=None)
+        Trip.consumption = Consumption(self.vehicle_types, Namespace())
         args2 = copy(args)
         del args2.vehicle_types
-        generated_schedule = Schedule.from_csv(path_to_trips, self.vehicle_types,
-                                               self.electrified_stations,
-                                               **vars(args2))
+        generated_schedule = Schedule.from_csv(
+            path_to_trips, self.vehicle_types, self.electrified_stations, **vars(args2))
 
         scen = generated_schedule.run(args)
         # optimization depends on vehicle_socs, therefore they need to be generated

@@ -26,6 +26,10 @@ mandatory_args = {
 class BasicSchedule:
     temperature_path = example_root / 'default_temp_winter.csv'
     lol_path = example_root / 'default_level_of_loading_over_day.csv'
+    test_args = Namespace(
+        outside_temperature_over_day_path=temperature_path,
+        level_of_loading_over_day_path=lol_path
+    )
 
     with open(example_root / "electrified_stations.json", "r", encoding='utf-8') as file:
         electrified_stations = util.uncomment_json_file(file)
@@ -71,9 +75,7 @@ class TestSchedule(BasicSchedule):
         case the data was problematic, e.g. not numeric or not existent"""
         path_to_trips = example_root / "trips_example.csv"
 
-        trip.Trip.consumption = consumption.Consumption(
-            self.vehicle_types, outside_temperatures=self.temperature_path,
-            level_of_loading_over_day=self.lol_path)
+        trip.Trip.consumption = consumption.Consumption(self.vehicle_types, self.test_args)
 
         path_to_all_station_data = example_root / "all_stations.csv"
         generated_schedule = schedule.Schedule.from_csv(
@@ -105,9 +107,7 @@ class TestSchedule(BasicSchedule):
         """ Test if assigning vehicles works as intended using the fixed_recharge strategy
         """
 
-        trip.Trip.consumption = consumption.Consumption(self.vehicle_types,
-                                                        outside_temperatures=self.temperature_path,
-                                                        level_of_loading_over_day=self.lol_path)
+        trip.Trip.consumption = consumption.Consumption(self.vehicle_types, self.test_args)
 
         path_to_trips = file_root / "trips_assign_vehicles_extended.csv"
         generated_schedule = schedule.Schedule.from_csv(
@@ -152,9 +152,7 @@ class TestSchedule(BasicSchedule):
         """ Test if assigning vehicles works as intended using the adaptive strategy
         """
 
-        trip.Trip.consumption = consumption.Consumption(self.vehicle_types,
-                                                        outside_temperatures=self.temperature_path,
-                                                        level_of_loading_over_day=self.lol_path)
+        trip.Trip.consumption = consumption.Consumption(self.vehicle_types, self.test_args)
 
         path_to_trips = file_root / "trips_assign_vehicles_extended.csv"
         generated_schedule = schedule.Schedule.from_csv(
@@ -205,9 +203,7 @@ class TestSchedule(BasicSchedule):
         """
         # Changing self.vehicle_types can propagate to other tests
         vehicle_types = deepcopy(self.vehicle_types)
-        trip.Trip.consumption = consumption.Consumption(
-            vehicle_types, outside_temperatures=self.temperature_path,
-            level_of_loading_over_day=self.lol_path)
+        trip.Trip.consumption = consumption.Consumption(vehicle_types, self.test_args)
 
         path_to_trips = file_root / "trips_assign_vehicles.csv"
         generated_schedule = schedule.Schedule.from_csv(
@@ -230,9 +226,7 @@ class TestSchedule(BasicSchedule):
         on the second day. rotation 1 should not share any stations with other rotations and
         2 and 3 are almost simultaneous.
         """
-        trip.Trip.consumption = consumption.Consumption(
-            self.vehicle_types, outside_temperatures=self.temperature_path,
-            level_of_loading_over_day=self.lol_path)
+        trip.Trip.consumption = consumption.Consumption(self.vehicle_types, self.test_args)
 
         path_to_trips = file_root / "trips_assign_vehicles.csv"
         generated_schedule = schedule.Schedule.from_csv(
@@ -335,9 +329,7 @@ class TestSchedule(BasicSchedule):
         args.days = None
         args.seed = 5
 
-        trip.Trip.consumption = consumption.Consumption(
-            self.vehicle_types, outside_temperatures=self.temperature_path,
-            level_of_loading_over_day=self.lol_path)
+        trip.Trip.consumption = consumption.Consumption(self.vehicle_types, self.test_args)
 
         path_to_all_station_data = example_root / "all_stations.csv"
         generated_schedule = schedule.Schedule.from_csv(

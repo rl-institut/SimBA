@@ -1,6 +1,8 @@
 import argparse
 import json
 import logging
+from pathlib import Path
+import shutil
 import subprocess
 
 from spice_ev.strategy import STRATEGIES
@@ -14,6 +16,34 @@ def get_git_revision_hash() -> str:
 def save_version(file_path):
     with open(file_path, "w", encoding='utf-8') as f:
         f.write("Git Hash SimBA:" + get_git_revision_hash())
+
+
+def save_input_file(file_path, args):
+    """ Copy given file to output folder, to ensure reproducibility.
+
+    *file_path* must exist and *output_directory_input* must be set in *args*.
+    If either condition is not met or the file has already been copied, nothing is done.
+
+    :param file_path: source file
+    :type file_path: string or Path
+    :param args: general info, output_directory_input is required
+    :type args: Namespace
+    """
+    if file_path is None:
+        return
+    output_directory_input = vars(args).get("output_directory_input", None)
+    if output_directory_input is None:
+        # input directory was not created
+        return
+    source_path = Path(file_path)
+    target_path = output_directory_input / source_path.name
+    if not source_path.exists():
+        # original file missing
+        return
+    if target_path.exists():
+        # already saved
+        return
+    shutil.copy(source_path, target_path)
 
 
 def get_buffer_time(trip, default=0):

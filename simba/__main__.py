@@ -1,7 +1,6 @@
 from datetime import datetime
 import logging
 from pathlib import Path
-import shutil
 
 from simba import simulate, util
 
@@ -21,18 +20,15 @@ if __name__ == '__main__':
         except NotADirectoryError:
             # can't create new directory (may be write protected): no output
             args.output_directory = None
+
+    # copy basic input files to output to ensure reproducibility
     if args.output_directory is not None:
-        # copy input files to output to ensure reproducibility
-        copy_list = [args.config, args.electrified_stations, args.vehicle_types]
-        if "station_optimization" in args.mode:
-            copy_list.append(args.optimizer_config)
-
-        # only copy cost params if they exist
-        if args.cost_parameters_file is not None:
-            copy_list.append(args.cost_parameters_file)
-        for c_file in map(Path, copy_list):
-            shutil.copy(c_file, args.output_directory_input / c_file.name)
-
+        copy_list = [
+            args.config, args.input_schedule,
+            args.electrified_stations, args.vehicle_types,
+            args.cost_parameters_file]
+        for input_file in copy_list:
+            util.save_input_file(input_file, args)
         util.save_version(args.output_directory_input / "program_version.txt")
 
     util.setup_logging(args, time_str)

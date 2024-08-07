@@ -1,5 +1,6 @@
 """ Reusable functions that support tests
 """
+from argparse import Namespace
 from simba import schedule, trip, consumption, util
 
 
@@ -12,9 +13,12 @@ def generate_basic_schedule():
         vehicle_types = util.uncomment_json_file(f)
     with open(station_path, 'r', encoding='utf-8') as f:
         stations = util.uncomment_json_file(f)
-    trip.Trip.consumption = consumption.Consumption(vehicle_types,
-                                                    outside_temperatures=temperature_path,
-                                                    level_of_loading_over_day=lol_path)
+    trip.Trip.consumption = consumption.Consumption(
+        vehicle_types, Namespace(
+            outside_temperature_over_day_path=temperature_path,
+            level_of_loading_over_day_path=lol_path
+        )
+    )
 
     mandatory_args = {
         "min_recharge_deps_oppb": 0,

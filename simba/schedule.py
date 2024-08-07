@@ -672,6 +672,7 @@ class Schedule:
             if time_windows_path.exists():
                 with time_windows_path.open('r', encoding='utf-8') as f:
                     time_windows = util.uncomment_json_file(f)
+                    util.save_input_file(args.time_windows, args)
                 # convert time window strings to date/times
                 for grid_operator, grid_operator_seasons in time_windows.items():
                     for season, info in grid_operator_seasons.items():
@@ -797,6 +798,7 @@ class Schedule:
                         if local_generation:
                             local_generation = update_csv_file_info(local_generation, gc_name)
                             events["local_generation"][gc_name + " feed-in"] = local_generation
+                            util.save_input_file(local_generation["csv_file"], args)
                             # add PV component
                             photovoltaics[gc_name] = {
                                 "parent": gc_name,
@@ -808,6 +810,7 @@ class Schedule:
                         if fixed_load:
                             fixed_load = update_csv_file_info(fixed_load, gc_name)
                             events["fixed_load"][gc_name + " ext. load"] = fixed_load
+                            util.save_input_file(fixed_load["csv_file"], args)
 
                         # temporary lowering of grid connector max power during peak load windows
                         if time_windows is not None:
@@ -879,6 +882,7 @@ class Schedule:
             else:
                 # read prices from CSV, convert to events
                 prices = get_price_list_from_csv(price_csv)
+                util.save_input_file(price_csv["csv_file"], args)
                 events["grid_operator_signals"] += generate_event_list_from_prices(
                     prices, gc_name, start_simulation, stop_simulation,
                     price_csv.get('start_time'), price_csv.get('step_duration_s'))
