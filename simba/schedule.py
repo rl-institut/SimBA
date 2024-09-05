@@ -582,9 +582,42 @@ class Schedule:
 
     def calculate_rotation_consumption(self, rotation: Rotation):
         rotation.consumption = 0
-        for trip in rotation.trips:
-            rotation.consumption += self.calculate_trip_consumption(trip)
+        """ Calculate consumption of this rotation and all its trips.
+
+        :return: Consumption of rotation [kWh]
+        :rtype: float
+        """
+        if len(rotation.trips) == 0:
+            rotation.consumption = 0
+            return rotation.consumption
+
+        # get the specific idle consumption of this vehicle type in kWh/h
+        v_info = self.vehicle_types[rotation.vehicle_type][rotation.charging_type]
+        rotation_consumption = 0
+        # make sure the trips are sorted, so the next trip can be determined
+        rotation.trips = list(sorted(rotation.trips, key=lambda trip: trip.arrival_time))
+        trip = rotation.trips[0]
+        for next_trip in rotation.trips[1:]:
+            # get consumption due to driving
+            driving_consumption  = self.calculate_trip_consumption(trip)
+            driving_delta_soc = trip.delta_soc
+            # get idle consumption of the next break time
+            idle_consumption, idle_delta_soc = get_idle_consumption(trip, next_trip, v_info)
+
+            # set trip attributes
+            trip.consumption = driving_consumption + idle_consumption
+            trip.delta_soc = driving_delta_soc + idle_delta_soc
+
+            rotation_consumption += driving_consumption + idle_consumption
+            trip = next_trip
+
+        # last trip of the rotation has no idle consumption
+        trip.consumption = self.calculate_trip_consumption(trip)
+        rotation_consumption += trip.consumption
+
+        rotation.consumption = rotation_consumption
         return rotation.consumption
+
 
     def calculate_trip_consumption(self, trip: Trip):
         """ Compute consumption for this trip.
@@ -1329,7 +1362,6 @@ def generate_event_list_from_prices(
             logging.info(f"{gc_name} price csv does not cover simulation time")
     return events
 
-
 def get_charge_delta_soc(charge_curves: dict, vt: str, ct: str, max_power: float,
                          duration_min: float, start_soc: float) -> float:
     """ Get the delta soc of a charge event for a given vehicle and charge type
@@ -1351,6 +1383,32 @@ def get_charge_delta_soc(charge_curves: dict, vt: str, ct: str, max_power: float
     """
     charge_curve = charge_curves[vt][ct][max_power]
     return optimizer_util.get_delta_soc(charge_curve, start_soc, duration_min=duration_min)
+
+
+def get_idle_consumption(first_trip: Trip, second_trip: Trip, vehicle_info: dict) -> (float, float):
+    """ Compute consumption while waiting for the next trip
+
+    Calculate the idle consumption between the arrival of the first trip and the departure of the
+    second trip with a vehicle_info containing the keys idle_consumption and capacity.
+    :param first_trip: First trip
+    :type first_trip: Trip
+    :param second_trip: Second trip
+    :type second_trip: Trip
+    :param vehicle_info: Vehicle information
+    :type vehicle_info: dict
+    :return: Consumption of idling [kWh], delta_soc [-]
+    :rtype: float, float
+    """
+    capacity = vehicle_info["capacity"]
+    idle_cons_spec = vehicle_info.get("idle_consumption", 0)
+    if idle_cons_spec == 0:
+        return 0, 0
+
+    break_duration = second_trip.departure_time - first_trip.arrival_time
+    assert break_duration.total_seconds() >= 0
+    idle_consumption = break_duration.total_seconds() / 3600 * idle_cons_spec
+    return idle_consumption, -idle_consumption / capacity
+
 
 
 def soc_at_departure_time(v_id, deps, departure_time, vehicle_data, stations, charge_curves, args):

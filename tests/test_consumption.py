@@ -1,7 +1,7 @@
 from tests.test_schedule import BasicSchedule
 from tests.conftest import example_root
-from datetime import datetime, timedelta
-from simba.rotation import get_idle_consumption
+from datetime import timedelta
+from simba.schedule import get_idle_consumption
 import pandas as pd
 
 
@@ -46,11 +46,30 @@ class TestConsumption:
         idle_consumption, idle_delta_soc = get_idle_consumption(first_trip, second_trip, v_info)
         assert idle_consumption == 0
 
+
+        # make all rotations depb
+        for r in schedule.rotations.values():
+            r.set_charging_type("depb")
+        # make all trips of all rotations consecutive
+        last_trip = schedule.rotations["1"].trips[0]
+
+        for r in schedule.rotations.values():
+            r.departure_time = last_trip.arrival_time + timedelta(minutes=10)
+            for t in r.trips:
+                t.departure_time = last_trip.arrival_time + timedelta(minutes=10)
+                t.arrival_time = t.departure_time + timedelta(minutes=1)
+                last_trip = t
+            r.arrival_time = t.arrival_time
+
         # Check that assignment of vehicles changes due to increased consumption. Only works
         # with adaptive_soc assignment
         for vt in schedule.vehicle_types.values():
             for ct in vt:
                 vt[ct]["idle_consumption"] = 0
+                vt[ct]["mileage"] = 0
+        schedule.calculate_consumption()
+        assert schedule.consumption == 0
+
         schedule.assign_vehicles_w_adaptive_soc(args)
         no_idle_consumption = schedule.vehicle_type_counts.copy()
 
@@ -59,7 +78,9 @@ class TestConsumption:
                 vt[ct]["idle_consumption"] = 9999
         schedule.calculate_consumption()
         schedule.assign_vehicles_w_adaptive_soc(args)
-        assert no_idle_consumption["AB_depb"] * 2 == schedule.vehicle_type_counts["AB_depb"]
+        # Without consumption, single vehicle can service all rotations.
+        # With high idling, every rotation needs its own vehicle
+        assert no_idle_consumption["AB_depb"] * 4 == schedule.vehicle_type_counts["AB_depb"]
 
     def test_calculate_consumption(self, tmp_path):
         """Various tests to trigger errors and check if behaviour is as expected

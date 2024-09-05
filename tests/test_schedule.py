@@ -686,3 +686,26 @@ class TestSchedule(BasicSchedule):
             price_interval_s=3600
         )
         assert len(events) == 0
+
+    def test_rotation_consumption_calc(self):
+        s, args = generate_basic_schedule()
+        rot_iter = iter(s.rotations.values())
+        r = next(rot_iter)
+        r.trips = []
+        assert s.calculate_rotation_consumption(r) == 0
+
+        some_rot =   next(rot_iter)
+        first_trip = some_rot.trips[0]
+        del first_trip.rotation
+        r.add_trip(vars(first_trip))
+        r.trips[0].consumption = None
+        s.calculate_rotation_consumption(r)
+        assert r.trips[0].consumption is not None
+        second_trip = some_rot.trips[1]
+        del second_trip.rotation
+        r.add_trip(vars(second_trip))
+        for trip in r.trips:
+            trip.consumption = None
+        s.calculate_rotation_consumption(r)
+        for trip in r.trips:
+            assert trip.consumption is not None
