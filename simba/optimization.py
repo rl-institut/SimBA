@@ -297,7 +297,7 @@ def recombination(schedule, args, trips, depot_trips):
                     trip.departure_name, depot_name, depot_trips,
                     args.default_depot_distance, args.default_mean_speed)
                 height_difference = schedule.get_height_difference(
-                    depot_trip["name"], trip.departure_name)
+                    depot_name, trip.departure_name)
                 rotation.add_trip({
                     "departure_time": trip.departure_time - depot_trip["travel_time"],
                     "departure_name": depot_name,
@@ -332,7 +332,7 @@ def recombination(schedule, args, trips, depot_trips):
                 trip.arrival_name, depot_name, depot_trips,
                 args.default_depot_distance, args.default_mean_speed)
             height_difference = schedule.get_height_difference(trip.arrival_name,
-                                                               depot_trip["name"])
+                                                               depot_name)
             depot_trip = {
                 "departure_time": trip.arrival_time,
                 "departure_name": trip.arrival_name,
