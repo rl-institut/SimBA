@@ -1,11 +1,65 @@
 from tests.test_schedule import BasicSchedule
 from tests.conftest import example_root
+from datetime import datetime, timedelta
+from simba.rotation import get_idle_consumption
 import pandas as pd
 
 
 class TestConsumption:
     """Class to test Consumption functionality"""
     consumption_path = example_root / "energy_consumption_example.csv"
+
+    def test_calculate_idle_consumption(self, tmp_path):
+        """Various tests to trigger errors and check if behaviour is as expected
+
+        :param tmp_path: pytest fixture to create a temporary path
+        """
+        schedule, scenario, args = BasicSchedule().basic_run()
+        rotation = schedule.rotations["1"]
+        first_trip = rotation.trips[0]
+        second_trip = rotation.trips[1]
+
+        # shift all trips except the first
+        for t in schedule.rotations["1"].trips[1:]:
+            t.arrival_time = t.arrival_time + timedelta(minutes=70)
+            t.departure_time = t.departure_time + timedelta(minutes=70)
+
+        vt, ct = schedule.rotations["1"].vehicle_type, rotation.charging_type
+        v_info = schedule.vehicle_types[vt][ct]
+        v_info["idle_consumption"] = 0
+
+        # Make sure that there is a break duration.
+        # By shifing all trips earlier we made sure that this "second_trip" stays the second trip
+        second_trip.departure_time = first_trip.arrival_time + timedelta(minutes=60)
+        idle_consumption, idle_delta_soc = get_idle_consumption(first_trip, second_trip, v_info)
+        assert idle_consumption == 0
+        v_info["idle_consumption"] = 1
+        second_trip.departure_time = first_trip.arrival_time + timedelta(minutes=60)
+        idle_consumption, idle_delta_soc = get_idle_consumption(first_trip, second_trip, v_info)
+        assert idle_consumption == 1
+
+        second_trip.departure_time = first_trip.arrival_time + timedelta(minutes=30)
+        idle_consumption, idle_delta_soc = get_idle_consumption(first_trip, second_trip, v_info)
+        assert idle_consumption == 0.5
+
+        second_trip.departure_time = first_trip.arrival_time
+        idle_consumption, idle_delta_soc = get_idle_consumption(first_trip, second_trip, v_info)
+        assert idle_consumption == 0
+
+        # Check that assignment of vehicles changes due to increased consumption. Only works
+        # with adaptive_soc assignment
+        for vt in schedule.vehicle_types.values():
+            for ct in vt:
+                vt[ct]["idle_consumption"] = 0
+        schedule.assign_vehicles_w_adaptive_soc(args)
+        no_idle_consumption = schedule.vehicle_type_counts.copy()
+
+        for vt in schedule.vehicle_types.values():
+            for ct in vt:
+                vt[ct]["idle_consumption"] = 9999
+        schedule.calculate_consumption()
+        schedule.assign_vehicles_w_adaptive_soc(args)
+        assert no_idle_consumption["AB_depb"] * 2 == schedule.vehicle_type_counts["AB_depb"]
 
     def test_calculate_consumption(self, tmp_path):
         """Various tests to trigger errors and check if behaviour is as expected

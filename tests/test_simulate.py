@@ -166,6 +166,27 @@ class TestSimulate:
             warnings.simplefilter("ignore")
             simulate(args)
 
+    def test_create_trips_in_report(self, tmp_path):
+        # create_trips_in_report option: must generate valid input trips.csv
+        values = self.DEFAULT_VALUES.copy()
+        values.update({
+            "mode": ["report"],
+            "desired_soc_deps": 0,
+            "ALLOW_NEGATIVE_SOC": True,
+            "cost_calculation": False,
+            "output_directory": tmp_path,
+            "show_plots": False,
+            "create_trips_in_report": True,
+        })
+        # simulate base scenario, report generates new trips.csv in (tmp) output
+        with warnings.catch_warnings():
+            warnings.simplefilter("ignore")
+            simulate(Namespace(**values))
+        # new simulation with generated trips.csv
+        values = self.DEFAULT_VALUES.copy()
+        values["input_schedule"] = tmp_path / "report_1/trips.csv"
+        simulate(Namespace(**(values)))
+
     def test_mode_recombination(self):
         args = self.get_args()
         args.mode = "recombination"

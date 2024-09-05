@@ -19,7 +19,6 @@ def generate_basic_schedule():
         "cs_power_opps": 100,
         "cs_power_deps_depb": 50,
         "cs_power_deps_oppb": 150,
-        "desired_soc_deps": 1,
     }
     vars(args).update(mandatory_args)
     data_container = DataContainer().fill_with_args(args)

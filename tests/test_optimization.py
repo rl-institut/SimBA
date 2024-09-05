@@ -65,19 +65,22 @@ class TestOptimization:
         DEFAULT_SPEED = 30  # km/h
         # station known, only one trip
         trip_dict = optimization.generate_depot_trip_data_dict(
-            "opps-1", depot_trips, DEFAULT_DISTANCE, DEFAULT_SPEED)
-        assert trip_dict["name"] == "Station-0" and trip_dict["distance"] == trip1.distance
+            "opps-1", "Station-0", depot_trips, DEFAULT_DISTANCE, DEFAULT_SPEED)
+        assert trip_dict["distance"] == trip1.distance
 
         # station known, two depot trips: use trip with lower distance
         trip_dict = optimization.generate_depot_trip_data_dict(
-            "opps-2", depot_trips, DEFAULT_DISTANCE, DEFAULT_SPEED)
-        assert trip_dict["name"] == "Station-3" and trip_dict["distance"] == trip2.distance
+            "opps-2", "Station-3", depot_trips, DEFAULT_DISTANCE, DEFAULT_SPEED)
+        assert trip_dict["distance"] == trip2.distance
 
         # station unknown: use defaults for any depot
         trip_dict = optimization.generate_depot_trip_data_dict(
-            "station-unknown", depot_trips, DEFAULT_DISTANCE, DEFAULT_SPEED)
-        depot_station = schedule.stations[trip_dict["name"]]
-        assert depot_station["type"] == "deps"
+            "station-unknown", "depot-unknown", depot_trips, DEFAULT_DISTANCE, DEFAULT_SPEED)
+        assert trip_dict["distance"] == DEFAULT_DISTANCE * 1000
+
+        # depot unknown: use defaults
+        trip_dict = optimization.generate_depot_trip_data_dict(
+            "opps-2", "depot-unknown", depot_trips, DEFAULT_DISTANCE, DEFAULT_SPEED)
         assert trip_dict["distance"] == DEFAULT_DISTANCE * 1000
 
     def test_recombination(self):

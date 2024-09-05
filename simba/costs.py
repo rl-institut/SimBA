@@ -46,7 +46,10 @@ def calculate_costs(c_params, scenario, schedule, args):
     cost_object.set_total_annual_costs()
 
     # Calculate the costs per kilometer
-    cost_object.set_invest_per_km()
+    cost_object.set_invest_per_total_km()
+
+    # Set KPIs like total_energy per station, km of rotations per station, station type and more
+    cost_object.set_various_kpis()
 
     # Cumulate the costs of all gcs
     cost_object.cumulate()
@@ -128,10 +131,18 @@ class Costs:
         :return: Unit associated with the key
         :rtype: str
         """
-        if "annual" in key:
+        if "maximum_gc_power" == key:
+            return "kW"
+        elif "maximum Nr charging stations" == key:
+            return "[-]"
+        elif "total_km_per_year" == key:
+            return "km/year"
+        elif "annual" in key:
             return "€/year"
         elif "per_km" in key:
             return "€/km"
+        elif "kWh" in key:
+            return "kWh/year"
         else:
             return "€"
 
@@ -168,7 +179,12 @@ class Costs:
          :return: List of cost variables
          :rtype: list
          """
-        return [  # investment costs
+        return [
+            # various kpis and attributes
+            "station_type", "maximum_gc_power", "maximum Nr charging stations",
+            "total_km_per_year", "annual_kWh_from_grid", "annual_kWh_from_feed_in",
+
+            # investment costs
             "c_vehicles", "c_gcs", "c_cs", "c_garage_cs",
             "c_garage_workstations",
             "c_stat_storage", "c_feed_in", "c_invest",
@@ -449,6 +465,49 @@ class Costs:
                 pass
         return self
 
+    def set_various_kpis(self):
+        """ Set several kpis.
+
+        :return: self
+        :rtype: Costs
+        """
+        all_stations = self.schedule.scenario["components"]["charging_stations"]
+        stepsPerHour = self.scenario.stepsPerHour
+        simulated_days = max(
+            round(self.scenario.n_intervals / self.scenario.stepsPerHour / 24, 0), 1)
+        # Factor for scaling to a year.
+        # Expects Schedules to describe whole days, with some overlap allowed
+        annual_factor = self.DAYS_PER_YEAR / simulated_days
+        # get dict with costs for specific grid operator
+        for gcID, gc in self.gcs.items():
+            station = self.schedule.stations[gcID]
+            self.costs_per_gc[gcID]["station_type"] = station["type"]
+            timeseries = getattr(self.scenario, f"{gcID}_timeseries")
+            self.costs_per_gc[gcID]["maximum_gc_power"] = abs(min(timeseries["grid supply [kW]"]))
+            self.costs_per_gc[gcID]["annual_kWh_from_grid"] = \
+                (sum(timeseries["grid supply [kW]"]) / stepsPerHour) * annual_factor
+            self.costs_per_gc[gcID]["annual_kWh_from_feed_in"] = \
+                -sum(timeseries.get("local generation [kW]", [0])) / stepsPerHour * annual_factor
+            cs_at_station = len([cs for cs in all_stations.values() if cs["parent"] == gcID])
+            if station["n_charging_stations"] is not None:
+                # get nr of CS in use at station
+                cs_at_station = min(cs_at_station, station["n_charging_stations"])
+            self.costs_per_gc[gcID]["maximum Nr charging stations"] = cs_at_station
+
+        # total_km_per_year
+        rotations_per_station = {gcid: [] for gcid in self.gcs_and_garage}
+        for rotation in self.schedule.rotations.values():
+            try:
+                rotations_per_station[rotation.departure_name].append(rotation)
+            except KeyError:
+                # rotation starts at a non electrified station
+                rotations_per_station[self.NOT_ELECTRIFIED].append(rotation)
+        for gcID, rotations in rotations_per_station.items():
+            self.costs_per_gc[gcID]["total_km_per_year"] = \
+                (sum([r.distance for r in rotations]) * annual_factor) / 1000
+
+        return self
+
     def set_vehicles_per_gc(self):
         """ Calculate the number of vehicles at each grid connector.
 
@@ -525,7 +584,7 @@ class Costs:
             self.costs_per_gc[self.GARAGE]["c_total_annual"] += self.costs_per_gc[self.GARAGE][key]
         return self
 
-    def set_invest_per_km(self):
+    def set_invest_per_total_km(self):
         """ Calculate the annual investment costs per total driven distance.
 
         :return: self
@@ -560,7 +619,7 @@ class Costs:
             # Vehicle costs cannot be cumulated since they might be double counted for vehicles
             # with multiple depots. Instead, the vehicle costs were previously calculated in
             # set_vehicle_costs_per_gc()
-            if key in ["c_vehicles", "c_vehicles_annual"]:
+            if key in ["c_vehicles", "c_vehicles_annual", "station_type"]:
                 continue
             self.costs_per_gc[self.CUMULATED][key] = 0
             for gc in self.costs_per_gc.keys() - [self.CUMULATED]:
@@ -590,11 +649,8 @@ class Costs:
 
         total_annual_km = self.get_total_annual_km()
         if total_annual_km:
-            self.costs_per_gc[self.CUMULATED]["c_invest_per_km"] = (
-                    self.costs_per_gc[self.CUMULATED]["c_invest_annual"] /
-                    total_annual_km
-            )
-
+            self.costs_per_gc[self.CUMULATED]["c_invest_per_km"] = \
+                self.costs_per_gc[self.CUMULATED]["c_invest_annual"] / total_annual_km
         return self
 
     def get_total_annual_km(self):
@@ -635,7 +691,10 @@ class Costs:
             for col in self.get_columns():
                 # Get the cost at this gc. Stations which have no gc get 0
                 num = self.costs_per_gc.get(col, {}).get(key, 0)
-                row.append(round(num, self.rounding_precision))
+                try:
+                    row.append(round(num, self.rounding_precision))
+                except TypeError:
+                    row.append(num)
             output.append(row)
 
         transposed_output = []

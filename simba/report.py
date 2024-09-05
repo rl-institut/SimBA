@@ -2,6 +2,7 @@
 import csv
 import datetime
 import logging
+import re
 from typing import Iterable
 
 import matplotlib.pyplot as plt
@@ -39,7 +40,7 @@ def generate_gc_power_overview_timeseries(scenario, args):
         stations = []
         time_col = getattr(scenario, f"{gc_list[0]}_timeseries")["time"]
         for i in range(len(time_col)):
-            time_col[i] = time_col[i].isoformat()
+            time_col[i] = str(time_col[i])
         stations.append(time_col)
         for gc in gc_list:
             stations.append([-x for x in getattr(scenario, f"{gc}_timeseries")["grid supply [kW]"]])
@@ -107,6 +108,44 @@ def generate_gc_overview(schedule, scenario, args):
                                  *use_factors])
 
 
+def generate_trips_timeseries_data(schedule):
+    """
+    Build a trip data structure that can be saved to CSV.
+
+    This should be in the form of a valid trips.csv input file.
+    :param schedule: current schedule for the simulation
+    :type schedule: simba.Schedule
+    :return: trip data
+    :rtype: Iterable
+    """
+    header = [
+        # identifier
+        "rotation_id", "line",
+        # stations
+        "departure_name", "departure_time", "arrival_name", "arrival_time",
+        # types
+        "vehicle_type", "charging_type",
+        # consumption (minimal)
+        "distance", "consumption"
+        # consumption (extended). Not strictly needed.
+        # "distance", "temperature", "height_diff", "level_of_loading", "mean_speed",
+    ]
+    data = [header]
+    rotations = schedule.rotations.values()
+    # sort rotations naturally by ID
+    rotations = sorted(rotations, key=lambda r: [
+        # natural sort: split by numbers, then sort numbers by value and chars by lowercase
+        int(s) if s.isdigit() else s.lower() for s in re.split(r'(\d+)', r.id)])
+    for rotation in rotations:
+        for trip in rotation.trips:
+            # get trip info from trip or trip.rotation (same name in Trip/Rotation as in CSV)
+            row = [vars(trip).get(k, vars(trip.rotation).get(k)) for k in header]
+            # special case rotation_id
+            row[0] = rotation.id
+            data.append(row)
+    return data
+
+
 def generate_plots(scenario, args):
     """ Save plots as png and pdf.
 
@@ -146,8 +185,11 @@ def generate(schedule, scenario, args):
     # generate simulation_timeseries.csv, simulation.json and vehicle_socs.csv in SpiceEV
     # re-route output paths
     args.save_soc = args.results_directory / "vehicle_socs.csv"
-    args.save_results = args.results_directory / "info.json"
-    args.save_timeseries = args.results_directory / "ts.csv"
+    # bundle station-specific output files in subdirectory
+    gc_dir = args.results_directory / "gcs"
+    gc_dir.mkdir(exist_ok=True)
+    args.save_results = gc_dir / "info.json"
+    args.save_timeseries = gc_dir / "ts.csv"
     generate_reports(scenario, vars(args).copy())
     args.save_timeseries = None
     args.save_results = None
@@ -203,8 +245,8 @@ def generate(schedule, scenario, args):
 
         rotation_info = {
             "rotation_id": id,
-            "start_time": rotation.departure_time.isoformat(),
-            "end_time": rotation.arrival_time.isoformat(),
+            "start_time": str(rotation.departure_time),
+            "end_time": str(rotation.arrival_time),
             "vehicle_type": rotation.vehicle_type,
             "vehicle_id": rotation.vehicle_id,
             "depot_name": rotation.departure_name,
@@ -247,6 +289,10 @@ def generate(schedule, scenario, args):
             csv_writer = csv.DictWriter(f, list(rotation_infos[0].keys()))
             csv_writer.writeheader()
             csv_writer.writerows(rotation_infos)
+
+    if vars(args).get('create_trips_in_report', False):
+        file_path = args.results_directory / "trips.csv"
+        write_csv(generate_trips_timeseries_data(schedule), file_path)
 
     # summary of used vehicle types and all costs
     if args.cost_calculation:

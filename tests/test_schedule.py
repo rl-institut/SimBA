@@ -488,6 +488,8 @@ class TestSchedule(BasicSchedule):
         # setup basic schedule (reuse during test)
         generated_schedule, args = generate_basic_schedule()
         generated_schedule.init_soc_dispatcher(args)
+        # needed for timeseries, but default is false
+        args.cost_calculation = True
         for station in generated_schedule.stations.values():
             station["gc_power"] = 1000
             station.pop("peak_load_window_power", None)
