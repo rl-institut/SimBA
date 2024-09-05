@@ -694,7 +694,7 @@ class TestSchedule(BasicSchedule):
         r.trips = []
         assert s.calculate_rotation_consumption(r) == 0
 
-        some_rot =   next(rot_iter)
+        some_rot = next(rot_iter)
         first_trip = some_rot.trips[0]
         del first_trip.rotation
         r.add_trip(vars(first_trip))

@@ -46,7 +46,6 @@ class TestConsumption:
         idle_consumption, idle_delta_soc = get_idle_consumption(first_trip, second_trip, v_info)
         assert idle_consumption == 0
 
-
         # make all rotations depb
         for r in schedule.rotations.values():
             r.set_charging_type("depb")

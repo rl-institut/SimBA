@@ -144,5 +144,3 @@ class Rotation:
         desired_max_standing_time = ((capacity / charge_power) * min_recharge_soc)
         min_standing_time = min(min_standing_time, desired_max_standing_time)
         return min_standing_time
-
-

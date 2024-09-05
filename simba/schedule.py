@@ -599,7 +599,7 @@ class Schedule:
         trip = rotation.trips[0]
         for next_trip in rotation.trips[1:]:
             # get consumption due to driving
-            driving_consumption  = self.calculate_trip_consumption(trip)
+            driving_consumption = self.calculate_trip_consumption(trip)
             driving_delta_soc = trip.delta_soc
             # get idle consumption of the next break time
             idle_consumption, idle_delta_soc = get_idle_consumption(trip, next_trip, v_info)
@@ -617,7 +617,6 @@ class Schedule:
 
         rotation.consumption = rotation_consumption
         return rotation.consumption
-
 
     def calculate_trip_consumption(self, trip: Trip):
         """ Compute consumption for this trip.
@@ -1362,6 +1361,7 @@ def generate_event_list_from_prices(
             logging.info(f"{gc_name} price csv does not cover simulation time")
     return events
 
+
 def get_charge_delta_soc(charge_curves: dict, vt: str, ct: str, max_power: float,
                          duration_min: float, start_soc: float) -> float:
     """ Get the delta soc of a charge event for a given vehicle and charge type
@@ -1408,7 +1408,6 @@ def get_idle_consumption(first_trip: Trip, second_trip: Trip, vehicle_info: dict
     assert break_duration.total_seconds() >= 0
     idle_consumption = break_duration.total_seconds() / 3600 * idle_cons_spec
     return idle_consumption, -idle_consumption / capacity
-
 
 
 def soc_at_departure_time(v_id, deps, departure_time, vehicle_data, stations, charge_curves, args):

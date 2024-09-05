@@ -1,6 +1,5 @@
 import pytest
 
-from simba.rotation import Rotation
 from tests.helpers import generate_basic_schedule
 
 
@@ -29,4 +28,3 @@ def test_set_charging_type():
     # of consumption is tested in test_consumption
     consumption_depb = s.calculate_rotation_consumption(rot)
     assert consumption_depb * 2 == pytest.approx(consumption_oppb)
-

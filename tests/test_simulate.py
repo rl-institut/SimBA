@@ -169,7 +169,7 @@ class TestSimulate:
     def test_create_trips_in_report(self, tmp_path):
         # create_trips_in_report option: must generate valid input trips.csv
         args_dict = vars(self.get_args())
-        update_dict={
+        update_dict = {
             "mode": ["report"],
             "desired_soc_deps": 0,
             "ALLOW_NEGATIVE_SOC": True,
@@ -180,13 +180,12 @@ class TestSimulate:
         }
         args_dict.update(update_dict)
 
-
         # simulate base scenario, report generates new trips.csv in (tmp) output
         with warnings.catch_warnings():
             warnings.simplefilter("ignore")
             simulate(Namespace(**args_dict))
         # new simulation with generated trips.csv
-        args = vars(self.get_args())
+        args_dict = vars(self.get_args())
         args_dict["input_schedule"] = tmp_path / "report_1/trips.csv"
         simulate(Namespace(**(args_dict)))
 
