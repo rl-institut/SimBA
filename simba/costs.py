@@ -329,6 +329,9 @@ class Costs:
 
             # calculate costs for electricity
             try:
+                if cost_calculation_strategy == "peak_load_window":
+                    if timeseries.get("window signal [-]") is None:
+                        raise Exception("No peak load window signal provided for cost calculation")
                 costs_electricity = calc_costs_spice_ev(
                     strategy=cost_calculation_strategy,
                     voltage_level=gc.voltage_level,
