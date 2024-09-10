@@ -91,12 +91,11 @@ The example (data/simba.cfg) contains parameter descriptions which are explained
    * - cost_calculation_strategy_deps
      - strategy_deps value
      - SpiceEV Strategies (greedy, balanced, peak_shaving, peak_load_windows, balanced_market)
-     - Strategy for cost calculation.
+     - Strategy for cost calculation at depots.
    * - cost_calculation_strategy_opps
      - strategy_opps value
      - SpiceEV Strategies (greedy, balanced, peak_shaving, peak_load_windows, balanced_market)
-     - Strategy for cost calculation.
-
+     - Strategy for cost calculation at opportunity stations.
    * - preferred_charging_type
      - depb
      - depb, oppb
