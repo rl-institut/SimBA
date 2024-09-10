@@ -2,6 +2,7 @@
 import csv
 import datetime
 import logging
+import re
 from typing import Iterable
 
 import matplotlib.pyplot as plt
@@ -105,6 +106,44 @@ def generate_gc_overview(schedule, scenario, args):
                                  max_nr_cs,
                                  sum_of_cs_energy,
                                  *use_factors])
+
+
+def generate_trips_timeseries_data(schedule):
+    """
+    Build a trip data structure that can be saved to CSV.
+
+    This should be in the form of a valid trips.csv input file.
+    :param schedule: current schedule for the simulation
+    :type schedule: simba.Schedule
+    :return: trip data
+    :rtype: Iterable
+    """
+    header = [
+        # identifier
+        "rotation_id", "line",
+        # stations
+        "departure_name", "departure_time", "arrival_name", "arrival_time",
+        # types
+        "vehicle_type", "charging_type",
+        # consumption (minimal)
+        "distance", "consumption"
+        # consumption (extended). Not strictly needed.
+        # "distance", "temperature", "height_diff", "level_of_loading", "mean_speed",
+    ]
+    data = [header]
+    rotations = schedule.rotations.values()
+    # sort rotations naturally by ID
+    rotations = sorted(rotations, key=lambda r: [
+        # natural sort: split by numbers, then sort numbers by value and chars by lowercase
+        int(s) if s.isdigit() else s.lower() for s in re.split(r'(\d+)', r.id)])
+    for rotation in rotations:
+        for trip in rotation.trips:
+            # get trip info from trip or trip.rotation (same name in Trip/Rotation as in CSV)
+            row = [vars(trip).get(k, vars(trip.rotation).get(k)) for k in header]
+            # special case rotation_id
+            row[0] = rotation.id
+            data.append(row)
+    return data
 
 
 def generate_plots(scenario, args):
@@ -250,6 +289,10 @@ def generate(schedule, scenario, args):
             csv_writer = csv.DictWriter(f, list(rotation_infos[0].keys()))
             csv_writer.writeheader()
             csv_writer.writerows(rotation_infos)
+
+    if vars(args).get('create_trips_in_report', False):
+        file_path = args.results_directory / "trips.csv"
+        write_csv(generate_trips_timeseries_data(schedule), file_path)
 
     # summary of used vehicle types and all costs
     if args.cost_calculation:

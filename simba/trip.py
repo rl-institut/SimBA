@@ -42,7 +42,7 @@ class Trip:
         mean_speed = kwargs.get("mean_speed", (self.distance / 1000) /
                                 max(1 / 60, ((self.arrival_time - self.departure_time) / timedelta(
                                     hours=1))))
-        self.mean_speed = mean_speed
+        self.mean_speed = float(mean_speed)
 
         # Attention: Circular reference!
         # While a rotation carries a references to this trip, this trip
@@ -63,7 +63,7 @@ class Trip:
         """
 
         try:
-            self.consumption, self.delta_soc = Trip.consumption.calculate_consumption(
+            driving_consumption, driving_delta_soc = Trip.consumption.calculate_consumption(
                 self.arrival_time,
                 self.distance,
                 self.rotation.vehicle_type,
@@ -77,4 +77,4 @@ class Trip:
                 'To calculate consumption, a consumption object needs to be constructed'
                 ' and linked to Trip class.').with_traceback(e.__traceback__)
 
-        return self.consumption
+        return driving_consumption, driving_delta_soc

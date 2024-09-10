@@ -112,6 +112,7 @@ class TestSchedule(BasicSchedule):
         path_to_trips = file_root / "trips_assign_vehicles_extended.csv"
         generated_schedule = schedule.Schedule.from_csv(
             path_to_trips, self.vehicle_types, self.electrified_stations, **mandatory_args)
+        generated_schedule.calculate_consumption()
         all_rotations = [r for r in generated_schedule.rotations]
         args = Namespace(**{})
         args.assign_strategy = "fixed_recharge"
@@ -342,6 +343,7 @@ class TestSchedule(BasicSchedule):
         generated_schedule = schedule.Schedule.from_csv(
             path_to_trips, self.vehicle_types, electrified_stations, **mandatory_args,
             station_data_path=path_to_all_station_data)
+        generated_schedule.calculate_consumption()
 
         set_options_from_config(args, verbose=False)
         args.ALLOW_NEGATIVE_SOC = True
@@ -364,6 +366,7 @@ class TestSchedule(BasicSchedule):
         generated_schedule = schedule.Schedule.from_csv(
             path_to_trips, self.vehicle_types, electrified_stations, **mandatory_args,
             station_data_path=path_to_all_station_data)
+        generated_schedule.calculate_consumption()
 
         set_options_from_config(args, verbose=False)
 
@@ -453,8 +456,10 @@ class TestSchedule(BasicSchedule):
         # generate events to lower GC max power during peak load windows
         # setup basic schedule (reuse during test)
         generated_schedule = generate_basic_schedule()
+
         sys.argv = ["foo", "--config", str(example_root / "simba.cfg")]
         args = util.get_args()
+        args.cost_calculation = True  # needed for timeseries, but default is false
         for station in generated_schedule.stations.values():
             station["gc_power"] = 1000
             station.pop("peak_load_window_power", None)

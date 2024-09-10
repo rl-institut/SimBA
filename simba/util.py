@@ -305,6 +305,8 @@ def get_args():
     parser.add_argument('--propagate-mode-errors', default=False,
                         help='Re-raise errors instead of continuing during simulation modes')
     parser.add_argument('--create-scenario-file', help='Write scenario.json to file')
+    parser.add_argument('--create-trips-in-report', action='store_true',
+                        help='Write a trips.csv during report mode')
     parser.add_argument('--rotation-filter-variable', default=None,
                         choices=[None, 'include', 'exclude'],
                         help='set mode for filtering schedule rotations')
