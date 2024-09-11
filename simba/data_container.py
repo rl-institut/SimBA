@@ -130,8 +130,11 @@ class DataContainer:
     def add_station_geo_data_from_csv(self, file_path: Path) -> 'DataContainer':
         """ Fill DataContainer with geo data from file_paths.
 
-        :param file_path: csv path to geodata
+        :param file_path: csv path to geodata+
         :param file_path: Path
+        :raises FileNotFoundError: if file does not exist
+        :raises KeyError: if file does not contain the required keys
+        :raises ValueError: if values are not numeric
         :return: self
         """
         # Find the temperature and elevation of the stations by reading the .csv file.

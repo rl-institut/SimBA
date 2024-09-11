@@ -114,5 +114,5 @@ class TestSocDispatcher:
         del custom_vehicle_assignment[-1]
 
         # if data for a rotation is missing an error containing the rotation id should be raised
-        with pytest.raises(KeyError, match=missing_rot_id):
+        with pytest.raises(Exception, match=missing_rot_id):
             sched.assign_vehicles_custom(custom_vehicle_assignment)

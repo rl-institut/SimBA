@@ -108,14 +108,9 @@ class Schedule:
         for trip in data.trip_data:
             rotation_id = trip['rotation_id']
 
-            # get average hour of trip and parse to string, since tabular data has strings as keys
-            hour = (trip["departure_time"] +
-                    (trip["arrival_time"] - trip["departure_time"]) / 2).hour
-
             # Get height difference from station_data
             trip["height_difference"] = schedule.get_height_difference(
                 trip["departure_name"], trip["arrival_name"])
-
 
             if trip["level_of_loading"] is None:
                 trip["level_of_loading"] = util.get_mean_from_hourly_dict(
@@ -262,6 +257,7 @@ class Schedule:
 
     def assign_vehicles(self, args):
         """ Assign vehicles using the strategy given in the arguments
+
         :param args: Arguments with attribute assign_strategy
         :type args: Namespace
         :raises NotImplementedError: if args.assign_strategy has a no allowed value
@@ -356,15 +352,15 @@ class Schedule:
         :param vehicle_assigns: Iterable of dict with keys rotation_id, vehicle_id and start_soc
             for each rotation
         :type vehicle_assigns: Iterable[dict]
-        :raises KeyError: If not every rotation has a vehicle assigned to it
+        :raises Exception: If not every rotation has a vehicle assigned to it
         """
         rotation_dict = {d["rot"]: {"v_id": d["v_id"], "soc": d["soc"]} for d in vehicle_assigns}
         unique_vids = {d["v_id"] for d in vehicle_assigns}
         vehicle_socs = {v_id: dict() for v_id in unique_vids}
         vid_dict = {v_id: sorted([d["rot"] for d in vehicle_assigns
-                                         if d["v_id"] == v_id],
-                                        key=lambda r_id: self.rotations[r_id].departure_time)
-                           for v_id in unique_vids}
+                                  if d["v_id"] == v_id],
+                                 key=lambda r_id: self.rotations[r_id].departure_time)
+                    for v_id in unique_vids}
 
         # Calculate vehicle counts
         # count number of vehicles per type
@@ -384,8 +380,8 @@ class Schedule:
                 v_id = rotation_dict[rot.id]["v_id"]
             except KeyError as exc:
                 raise Exception(f"SoC-data does not include the rotation with the id: {rot.id}. "
-                               "Externally generated vehicle assignments need to include all "
-                               "rotations") from exc
+                                "Externally generated vehicle assignments need to include all "
+                                "rotations") from exc
             rot.vehicle_id = v_id
             index = vid_dict[v_id].index(rot.id)
             # if this rotation is not the first rotation of the vehicle, find the previous trip

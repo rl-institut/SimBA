@@ -4,6 +4,7 @@ import simba.data_container
 from simba import util
 from tests.conftest import example_root
 
+
 class TestDataContainer:
     def test_get_values_from_nested_key(self):
         nested_dict = {"foo": {"bar": "baz1"}, "bob": {"bar": "baz2"}}

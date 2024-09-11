@@ -48,10 +48,14 @@ def get_mean_from_hourly_dict(hourly_dict: dict, start: datetime, end: datetime)
 
     Uses the daterange from start until end to calculate the minute resolved mean value of
     a dictionary with hourly data.
-    :param hourly_dict:
-    :param start:
-    :param end:
-    :return:
+    :param hourly_dict: dictionary with hourly keys and data
+    :type hourly_dict: dict
+    :param start: start of the range for interpolation
+    :type start: datetime
+    :param end: end of the range for interpolation
+    :type end: datetime
+    :return: mean value
+    :rtype: float
     """
     # Special case for shared hour of same day.
     divider = end - start
