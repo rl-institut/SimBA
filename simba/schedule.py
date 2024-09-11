@@ -116,15 +116,18 @@ class Schedule:
             trip["height_difference"] = schedule.get_height_difference(
                 trip["departure_name"], trip["arrival_name"])
 
+
             if trip["level_of_loading"] is None:
-                trip["level_of_loading"] = data.level_of_loading_data.get(hour)
+                trip["level_of_loading"] = util.get_mean_from_hourly_dict(
+                    data.level_of_loading_data, trip["departure_time"], trip["arrival_time"])
             else:
                 if not 0 <= trip["level_of_loading"] <= 1:
                     logging.warning("Level of loading is out of range [0,1] and will be clipped.")
                     trip["level_of_loading"] = min(1, max(0, trip["level_of_loading"]))
 
             if trip["temperature"] is None:
-                trip["temperature"] = data.temperature_data.get(hour)
+                trip["temperature"] = util.get_mean_from_hourly_dict(
+                    data.temperature_data, trip["departure_time"], trip["arrival_time"])
 
             if rotation_id not in schedule.rotations.keys():
                 schedule.rotations.update({
@@ -142,7 +145,7 @@ class Schedule:
         if vars(args).get("check_rotation_consistency"):
             # check rotation expectations
             inconsistent_rotations = cls.check_consistency(schedule)
-            if inconsistent_rotations:
+            if inconsistent_rotations and args.output_directory is not None:
                 # write errors to file
                 filepath = args.output_directory / "inconsistent_rotations.csv"
                 with open(filepath, "w", encoding='utf-8') as f:
@@ -355,10 +358,10 @@ class Schedule:
         :type vehicle_assigns: Iterable[dict]
         :raises KeyError: If not every rotation has a vehicle assigned to it
         """
-        eflips_rot_dict = {d["rot"]: {"v_id": d["v_id"], "soc": d["soc"]} for d in vehicle_assigns}
+        rotation_dict = {d["rot"]: {"v_id": d["v_id"], "soc": d["soc"]} for d in vehicle_assigns}
         unique_vids = {d["v_id"] for d in vehicle_assigns}
         vehicle_socs = {v_id: dict() for v_id in unique_vids}
-        eflips_vid_dict = {v_id: sorted([d["rot"] for d in vehicle_assigns
+        vid_dict = {v_id: sorted([d["rot"] for d in vehicle_assigns
                                          if d["v_id"] == v_id],
                                         key=lambda r_id: self.rotations[r_id].departure_time)
                            for v_id in unique_vids}
@@ -378,21 +381,21 @@ class Schedule:
         rotations = sorted(self.rotations.values(), key=lambda rot: rot.departure_time)
         for rot in rotations:
             try:
-                v_id = eflips_rot_dict[rot.id]["v_id"]
+                v_id = rotation_dict[rot.id]["v_id"]
             except KeyError as exc:
-                raise KeyError(f"SoC-data does not include the rotation with the id: {rot.id}. "
-                               "Externally generated vehicles assignments need to include all "
+                raise Exception(f"SoC-data does not include the rotation with the id: {rot.id}. "
+                               "Externally generated vehicle assignments need to include all "
                                "rotations") from exc
             rot.vehicle_id = v_id
-            index = eflips_vid_dict[v_id].index(rot.id)
+            index = vid_dict[v_id].index(rot.id)
             # if this rotation is not the first rotation of the vehicle, find the previous trip
             if index != 0:
-                prev_rot_id = eflips_vid_dict[v_id][index - 1]
+                prev_rot_id = vid_dict[v_id][index - 1]
                 trip = self.rotations[prev_rot_id].trips[-1]
             else:
                 # if the rotation has no previous trip, trip is set as None
                 trip = None
-            vehicle_socs[v_id][trip] = eflips_rot_dict[rot.id]["soc"]
+            vehicle_socs[v_id][trip] = rotation_dict[rot.id]["soc"]
         self.soc_dispatcher.vehicle_socs = vehicle_socs
 
     def init_soc_dispatcher(self, args):
@@ -587,13 +590,13 @@ class Schedule:
         :return: Consumption of rotation [kWh]
         :rtype: float
         """
+        rotation.consumption = 0
+
         if len(rotation.trips) == 0:
-            rotation.consumption = 0
             return rotation.consumption
 
         # get the specific idle consumption of this vehicle type in kWh/h
         v_info = self.vehicle_types[rotation.vehicle_type][rotation.charging_type]
-        rotation_consumption = 0
         # make sure the trips are sorted, so the next trip can be determined
         rotation.trips = list(sorted(rotation.trips, key=lambda trip: trip.arrival_time))
         trip = rotation.trips[0]
@@ -608,14 +611,13 @@ class Schedule:
             trip.consumption = driving_consumption + idle_consumption
             trip.delta_soc = driving_delta_soc + idle_delta_soc
 
-            rotation_consumption += driving_consumption + idle_consumption
+            rotation.consumption += driving_consumption + idle_consumption
             trip = next_trip
 
         # last trip of the rotation has no idle consumption
         trip.consumption = self.calculate_trip_consumption(trip)
-        rotation_consumption += trip.consumption
+        rotation.consumption += trip.consumption
 
-        rotation.consumption = rotation_consumption
         return rotation.consumption
 
     def calculate_trip_consumption(self, trip: Trip):
@@ -1020,6 +1022,9 @@ class Schedule:
                     try:
                         departure_station_type = self.stations[gc_name]["type"]
                     except KeyError:
+                        # station was not found in electrified stations.
+                        # Initialization uses default of "deps",
+                        # since usually vehicles start from depots.
                         departure_station_type = "deps"
                 vehicles[vehicle_id] = {
                     "connected_charging_station": None,

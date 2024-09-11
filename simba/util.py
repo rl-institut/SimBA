@@ -3,6 +3,7 @@ import csv
 import json
 import logging
 import subprocess
+from datetime import datetime, timedelta
 
 from spice_ev.strategy import STRATEGIES
 from spice_ev.util import set_options_from_config
@@ -40,6 +41,34 @@ def uncomment_json_file(f, char='//'):
             # remove comment from line
             uncommented_data += line[:comment_idx]
     return json.loads(uncommented_data)
+
+
+def get_mean_from_hourly_dict(hourly_dict: dict, start: datetime, end: datetime) -> float:
+    """ Get the mean value from hourly data.
+
+    Uses the daterange from start until end to calculate the minute resolved mean value of
+    a dictionary with hourly data.
+    :param hourly_dict:
+    :param start:
+    :param end:
+    :return:
+    """
+    # Special case for shared hour of same day.
+    divider = end - start
+    if divider < timedelta(hours=1) and start.hour == end.hour:
+        return hourly_dict.get(start.hour)
+
+    timestep = timedelta(hours=1)
+    # Proportionally add the start value until the next hour
+    value = hourly_dict.get(start.hour) * (60 - start.minute)
+    start = (start + timestep).replace(minute=0)
+    for dt in daterange(start, end, timestep):
+        # proportionally apply value according to minutes inside the current hour.
+        duration = min((end - dt).total_seconds() / 60, 60)
+        value += (hourly_dict.get(dt.hour) * duration)
+    # divide by total minutes to get mean value
+    value /= (divider.total_seconds() / 60)
+    return value
 
 
 def get_csv_delim(path, other_delims=set()):

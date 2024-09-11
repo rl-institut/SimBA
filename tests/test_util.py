@@ -1,4 +1,4 @@
-from datetime import datetime
+from datetime import datetime, timedelta
 import json
 from simba import util
 from tests.test_schedule import BasicSchedule
@@ -74,3 +74,34 @@ class TestUtil:
 
         trip.arrival_time = datetime(year=2023, month=1, day=2, hour=6, second=1)
         assert util.get_buffer_time(trip, default=buffer_time) == 1
+
+    def test_get_mean_from_hourly_dict(self):
+        # Dict with values 0-23
+        hourly_dict = {x: x for x in range(0, 24)}
+        start = datetime.now().replace(hour=0, minute=0, second=0, microsecond=0)
+        end = (datetime.now() + timedelta(days=1)).replace(hour=0, minute=0, second=0,
+                                                           microsecond=0)
+        assert util.get_mean_from_hourly_dict(hourly_dict, start, end) == 11.5
+        end = (start + timedelta(hours=1))
+        assert util.get_mean_from_hourly_dict(hourly_dict, start, end) == 0
+        end = (start + timedelta(hours=2))
+        assert util.get_mean_from_hourly_dict(hourly_dict, start, end) == 0.5
+        start = start.replace(hour=0, minute=59, second=0, microsecond=0)
+        end = start.replace(hour=1, minute=1, second=0, microsecond=0)
+        assert util.get_mean_from_hourly_dict(hourly_dict, start, end) == 0.5
+        start = start.replace(hour=0, minute=59, second=0, microsecond=0)
+        end = start.replace(hour=1, minute=2, second=0, microsecond=0)
+        assert util.get_mean_from_hourly_dict(hourly_dict, start, end) == 2 / 3
+        start = start.replace(hour=0, minute=59, second=0, microsecond=0)
+        end = start.replace(hour=1, minute=59, second=0, microsecond=0)
+        assert util.get_mean_from_hourly_dict(hourly_dict, start, end) == 59 / 60
+
+        start = start.replace(hour=0, minute=0, second=0, microsecond=0)
+        end = start.replace(hour=0, minute=10, second=0, microsecond=0)
+        assert util.get_mean_from_hourly_dict(hourly_dict, start, end) == 0
+        start = start.replace(hour=1, minute=0, second=0, microsecond=0)
+        end = start.replace(hour=1, minute=0, second=0, microsecond=0)
+        assert util.get_mean_from_hourly_dict(hourly_dict, start, end) == 1
+        start = start.replace(hour=1, minute=0, second=0, microsecond=0)
+        end = start.replace(hour=1, minute=1, second=0, microsecond=0)
+        assert util.get_mean_from_hourly_dict(hourly_dict, start, end) == 1

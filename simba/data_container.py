@@ -4,7 +4,7 @@ import csv
 import logging
 import datetime
 from pathlib import Path
-from typing import Dict
+from typing import Dict, Iterator
 
 import pandas as pd
 
@@ -33,7 +33,7 @@ class DataContainer:
         self.trip_data: [dict] = []
 
     def fill_with_args(self, args: argparse.Namespace) -> 'DataContainer':
-        """ Fill self with data from file_paths defined in args
+        """ Fill DataContainer with data from file_paths defined in args.
 
         :param args: Arguments containing paths for input_schedule, vehicle_types_path,
             electrified_stations_path, cost_parameters_path, outside_temperature_over_day_path,
@@ -52,7 +52,7 @@ class DataContainer:
         )
 
     def add_trip_data_from_csv(self, file_path: Path) -> 'DataContainer':
-        """ Add trip data from csv file to DataContainer
+        """ Add trip data from csv file to DataContainer.
 
         :param file_path: csv file path
         :return: self with trip data
@@ -74,7 +74,7 @@ class DataContainer:
     def add_station_geo_data(self, data: dict) -> None:
         """Add station_geo data to the data container.
 
-        Used when adding station_geo to a data container from any source
+        Used when adding station_geo to a data container from any source.
         :param data: data containing station_geo
         :type data: dict
         """
@@ -89,7 +89,8 @@ class DataContainer:
                         cost_parameters_path=None,
                         station_data_path=None,
                         ):
-        """ Fill self with data from file_paths
+        """ Fill DataContainer with data from file_paths.
+
         :param trips_file_path: csv path to trips
         :param vehicle_types_path: json file path to vehicle_types
         :param electrified_stations_path: json file path to electrified stations
@@ -127,8 +128,14 @@ class DataContainer:
         return self
 
     def add_station_geo_data_from_csv(self, file_path: Path) -> 'DataContainer':
-        # find the temperature and elevation of the stations by reading the .csv file.
-        # this data is stored in the schedule and passed to the trips, which use the information
+        """ Fill DataContainer with geo data from file_paths.
+
+        :param file_path: csv path to geodata
+        :param file_path: Path
+        :return: self
+        """
+        # Find the temperature and elevation of the stations by reading the .csv file.
+        # This data is stored in the schedule and passed to the trips, which use the information
         # for consumption calculation. Missing station data is handled with default values.
         self.station_geo_data = dict()
         try:
@@ -148,16 +155,16 @@ class DataContainer:
                         level=100)
             raise
         except ValueError:
-            line_num += 2
-            logging.log(msg=f"Can't parse numeric data in line {line_num} from file {file_path}.",
-                        level=100)
+            logging.log(
+                msg=f"Can't parse numeric data in line {line_num + 2} from file {file_path}.",
+                level=100)
             raise
         return self
 
     def add_level_of_loading_data(self, data: dict) -> 'DataContainer':
         """Add level_of_loading data to the data container.
 
-        Used when adding level_of_loading to a data container from any source
+        Used when adding level_of_loading to a data container from any source.
         :param data: data containing hour and level_of_loading
         :type data: dict
         :return: DataContainer containing level of loading data
@@ -166,6 +173,13 @@ class DataContainer:
         return self
 
     def add_level_of_loading_data_from_csv(self, file_path: Path) -> 'DataContainer':
+        """ Fill DataContainer with level of loading data from file_paths.
+
+        :param file_path: csv path to level of loading data
+        :param file_path: Path
+        :return: self
+        """
+
         index = "hour"
         column = "level_of_loading"
         level_of_loading_data_dict = util.get_dict_from_csv(column, file_path, index)
@@ -263,6 +277,7 @@ class DataContainer:
     @staticmethod
     def get_json_from_file(file_path: Path, data_type: str) -> any:
         """ Get json data from a file_path and raise verbose error if it fails.
+
         :raises FileNotFoundError: if file does not exist
         :param file_path: file path
         :param data_type: data type used for error description
@@ -276,8 +291,12 @@ class DataContainer:
                                     "does not exist. Exiting...")
 
     def add_consumption_data_from_vehicle_type_linked_files(self):
-        """ Add mileage data from files linked in the vehicle_types to the container.
+        """ Add consumption data to the data container.
 
+        Consumption data will be used by the Consumption instance.
+        Vehicle types are expected to link to a file with their respective consumption data.
+        Example: if Vehicle type '12m_opp' has a mileage of 'consumption_12m.csv',
+        then the data_name must be 'consumption_12m.csv'.
         :return: DataContainer containing consumption data
         """
         assert self.vehicle_types_data, "No vehicle_type data in the data_container"
@@ -292,12 +311,12 @@ class DataContainer:
         return self
 
     def add_consumption_data(self, data_name, df: pd.DataFrame) -> 'DataContainer':
-        """Add consumption data to the data container. Consumption data will be used by the
-        Consumption instance
+        """Add consumption data to the data container.
 
-        data_name must be equal to the mileage attribute in vehicle_types. E.g. Vehicle type
+         Consumption data will be used by the Consumption instance.
+        __data_name__ must be equal to the mileage attribute in vehicle_types. E.g. Vehicle type
         '12m_opp' has a mileage of 'consumption_12m.csv' -> data_name ='consumption_12m.csv'
-        :param data_name: name of the data, linked with vehicle_type
+        :param data_name: name of the data, linked to vehicle_type
         :type data_name: str
         :param df: dataframe with consumption data and various expected columns
         :type df: pd.DataFrame
@@ -312,8 +331,8 @@ class DataContainer:
         return self
 
 
-def get_values_from_nested_key(key, data: dict) -> list:
-    """Get all the values of the specified key in a nested dict
+def get_values_from_nested_key(key, data: dict) -> Iterator[any]:
+    """Get all the values of the specified key in a nested dict.
 
     :param key: key to find
     :param data: data to search through

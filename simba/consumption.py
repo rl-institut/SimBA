@@ -44,7 +44,6 @@ class Consumption:
         consumption_path = str(vehicle_info["mileage"])
 
         # consumption_interpolation holds interpol functions of csv files which are called directly
-        # try to use the interpol function. If it does not exist yet its created in except case.
         consumption_lookup_name = self.get_consumption_lookup_name(consumption_path, vehicle_type)
 
         # This lookup includes the vehicle type. If the consumption data did not include vehicle
