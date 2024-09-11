@@ -254,10 +254,11 @@ def setup_logging(args, time_str):
 def get_args():
     parser = argparse.ArgumentParser(
         description='SimBA - Simulation toolbox for Bus Applications.')
+    parser.add_argument('--scenario-name', help='Identifier of scenario, appended to results')
 
     # #### Paths #####
     parser.add_argument('--input-schedule',
-                        help='Path to CSV file containing all trips of schedule to be analyzed.')
+                        help='Path to CSV file containing all trips of schedule to be analyzed')
     parser.add_argument('--output-directory', default="data/sim_outputs",
                         help='Location where all simulation outputs are stored')
     parser.add_argument('--electrified-stations', help='include electrified_stations json')
@@ -302,7 +303,7 @@ def get_args():
                         help='Remove rotations from schedule that violate assumptions. ')
     parser.add_argument('--show-plots', action='store_true',
                         help='show plots for users to view in "report" mode')
-    parser.add_argument('--propagate-mode-errors', default=False,
+    parser.add_argument('--propagate-mode-errors', action='store_true',
                         help='Re-raise errors instead of continuing during simulation modes')
     parser.add_argument('--create-scenario-file', help='Write scenario.json to file')
     parser.add_argument('--create-trips-in-report', action='store_true',

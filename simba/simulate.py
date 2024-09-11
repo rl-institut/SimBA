@@ -263,5 +263,8 @@ def create_results_directory(args, i):
     args.results_directory.mkdir(parents=True, exist_ok=True)
     # save used modes in report version
     used_modes = ['sim'] + [m for m in args.mode[:i] if m not in ['sim', 'report']]
-    with open(args.results_directory / "used_modes.txt", "w", encoding='utf-8') as f:
+    file_path = args.results_directory / "used_modes.txt"
+    if vars(args).get("scenario_name"):
+        file_path = file_path.with_stem(file_path.stem + '_' + args.scenario_name)
+    with open(file_path, "w", encoding='utf-8') as f:
         f.write(f"Used modes in this scenario: {', '.join(used_modes)}")

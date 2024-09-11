@@ -9,8 +9,13 @@ if __name__ == '__main__':
     args = util.get_args()
 
     time_str = datetime.now().strftime("%Y-%m-%d-%H-%M-%S")
+
+    if vars(args).get("scenario_name"):
+        dir_name = time_str + '_' + args.scenario_name
+    else:
+        dir_name = time_str
     if args.output_directory is not None:
-        args.output_directory = Path(args.output_directory) / time_str
+        args.output_directory = Path(args.output_directory) / dir_name
         # create subfolder for specific sim results with timestamp.
         # if folder doesn't exist, create folder.
         # needs to happen after set_options_from_config since
