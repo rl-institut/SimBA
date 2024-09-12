@@ -57,13 +57,13 @@ def get_mean_from_hourly_dict(hourly_dict: dict, start: datetime, end: datetime)
     :return: mean value
     :rtype: float
     """
-    # Special case for shared hour of same day.
+    # special case for shared hour of the same day.
     divider = end - start
     if divider < timedelta(hours=1) and start.hour == end.hour:
         return hourly_dict.get(start.hour)
 
     timestep = timedelta(hours=1)
-    # Proportionally add the start value until the next hour
+    # proportionally add the start value until the next hour
     value = hourly_dict.get(start.hour) * (60 - start.minute)
     start = (start + timestep).replace(minute=0)
     for dt in daterange(start, end, timestep):
