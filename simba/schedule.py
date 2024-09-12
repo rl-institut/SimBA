@@ -2,6 +2,7 @@ import csv
 import datetime
 import json
 import logging
+from math import ceil
 from pathlib import Path
 import random
 import warnings
@@ -1097,7 +1098,7 @@ class Schedule:
             "scenario": {
                 "start_time": start_simulation.isoformat(),
                 "interval": interval.days * 24 * 60 + interval.seconds // 60,
-                "n_intervals": int(abs((start_simulation - stop_simulation) // interval))
+                "n_intervals": ceil((stop_simulation-start_simulation) / interval)
             },
             "components": {
                 "vehicle_types": vehicle_types_spiceev,
@@ -1402,12 +1403,16 @@ def get_idle_consumption(first_trip: Trip, second_trip: Trip, vehicle_info: dict
     """
     capacity = vehicle_info["capacity"]
     idle_cons_spec = vehicle_info.get("idle_consumption", 0)
-    if idle_cons_spec == 0:
-        return 0, 0
+    if idle_cons_spec < 0:
+        logging.warning("Specific idle consumption is negative. This would charge the vehicle. "
+                        "Idle consumption is set to Zero instead.")
 
-    break_duration = second_trip.departure_time - first_trip.arrival_time
-    assert break_duration.total_seconds() >= 0
-    idle_consumption = break_duration.total_seconds() / 3600 * idle_cons_spec
+    break_duration_s = (second_trip.departure_time - first_trip.arrival_time).total_seconds()
+    if break_duration_s < 0:
+        logging.warning("Break duration is negative. This would charge the vehicle. "
+                        "Idle consumption is set to Zero instead")
+    # Do not allow negative idle consumption, i.e., charging the vehicle.
+    idle_consumption = max(break_duration_s / 3600 * idle_cons_spec, 0)
     return idle_consumption, -idle_consumption / capacity
 
 
