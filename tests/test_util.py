@@ -130,6 +130,6 @@ class TestUtil:
         assert util.get_mean_from_hourly_dict(hourly_dict, start, end) == 2 / 3
 
         # Check if seconds are properly handled. 1ms of 0 and 2ms of 1 -> 2/3
-        start = start.replace(hour=0, minute=59, second=59, microsecond=999)
+        start = start.replace(hour=0, minute=59, second=59, microsecond=int(1e6-1))
         end = start.replace(hour=1, minute=0, second=0, microsecond=2)
         assert util.get_mean_from_hourly_dict(hourly_dict, start, end) == 2 / 3

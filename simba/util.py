@@ -63,7 +63,7 @@ def get_mean_from_hourly_dict(hourly_dict: dict, start: datetime, end: datetime)
 
     timestep = timedelta(hours=1)
     # proportionally add the start value until the next hour
-    next_full_hour = start.replace(hour=start.hour + 1, minute=0, second=0, microsecond=0)
+    next_full_hour = (start+timestep).replace(hour=0, minute=0, second=0, microsecond=0)
     value = hourly_dict.get(start.hour) * (next_full_hour - start).total_seconds()
     start = next_full_hour
     for dt in daterange(start, end, timestep):
