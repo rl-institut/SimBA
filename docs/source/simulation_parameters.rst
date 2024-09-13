@@ -40,7 +40,7 @@ The example (data/simba.cfg) contains parameter descriptions which are explained
      - Data/sim_outputs
      - Path as string
      - Output files are stored here; set to null to deactivate
-   * - electrified_stations
+   * - electrified_stations_path
      - ./data/examples/vehicle_types.json
      - Path as string
      - Path to Electrified stations data

@@ -296,6 +296,8 @@ def recombination(schedule, args, trips, depot_trips):
                 depot_trip = generate_depot_trip_data_dict(
                     trip.departure_name, depot_name, depot_trips,
                     args.default_depot_distance, args.default_mean_speed)
+                height_difference = schedule.get_height_difference(
+                    depot_name, trip.departure_name)
                 rotation.add_trip({
                     "departure_time": trip.departure_time - depot_trip["travel_time"],
                     "departure_name": depot_name,
@@ -305,7 +307,7 @@ def recombination(schedule, args, trips, depot_trips):
                     "line": trip.line,
                     "charging_type": charging_type,
                     "temperature": trip.temperature,
-                    # "height_difference": None,  # compute from station data
+                    "height_difference": height_difference,
                     "level_of_loading": 0,  # no passengers from depot
                     "mean_speed": depot_trip["mean_speed"],
                     "station_data": schedule.station_data,
@@ -313,7 +315,7 @@ def recombination(schedule, args, trips, depot_trips):
 
                 # calculate consumption for initial trip
                 soc = args.desired_soc_deps  # vehicle leaves depot with this soc
-                rotation.calculate_consumption()
+                schedule.calculate_rotation_consumption(rotation)
                 soc += rotation.trips[0].delta_soc  # new soc after initial trip
 
                 if rot_counter > 0:
@@ -329,6 +331,8 @@ def recombination(schedule, args, trips, depot_trips):
             depot_trip = generate_depot_trip_data_dict(
                 trip.arrival_name, depot_name, depot_trips,
                 args.default_depot_distance, args.default_mean_speed)
+            height_difference = schedule.get_height_difference(trip.arrival_name,
+                                                               depot_name)
             depot_trip = {
                 "departure_time": trip.arrival_time,
                 "departure_name": trip.arrival_name,
@@ -338,6 +342,7 @@ def recombination(schedule, args, trips, depot_trips):
                 "line": trip.line,
                 "charging_type": charging_type,
                 "temperature": trip.temperature,
+                "height_difference": height_difference,
                 "level_of_loading": 0,
                 "mean_speed": depot_trip["mean_speed"],
                 "station_data": schedule.station_data,
@@ -345,7 +350,8 @@ def recombination(schedule, args, trips, depot_trips):
             # rotation.add_trip needs dict, but consumption calculation is better done on Trip obj:
             # create temporary depot trip object for consumption calculation
             tmp_trip = Trip(rotation, **depot_trip)
-            tmp_trip.consumption, tmp_trip.delta_soc = tmp_trip.calculate_consumption()
+            # Sets tmp_trip.delta_soc and tmp_trip.consumption
+            schedule.calculate_trip_consumption(tmp_trip)
             if soc >= -(trip.delta_soc + tmp_trip.delta_soc):
                 # next trip is possible: add trip, use info from original trip
                 trip_dict = vars(trip)
