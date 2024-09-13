@@ -581,9 +581,10 @@ class Schedule:
         return self.consumption
 
     def calculate_rotation_consumption(self, rotation: Rotation):
-        rotation.consumption = 0
         """ Calculate consumption of this rotation and all its trips.
 
+        :param: rotation: Rotation to calculate consumption for
+        :type rotation: Rotation
         :return: Consumption of rotation [kWh]
         :rtype: float
         """

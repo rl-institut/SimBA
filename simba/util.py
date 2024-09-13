@@ -46,8 +46,7 @@ def uncomment_json_file(f, char='//'):
 def get_mean_from_hourly_dict(hourly_dict: dict, start: datetime, end: datetime) -> float:
     """ Get the mean value from hourly data.
 
-    Uses the daterange from start until end to calculate the minute resolved mean value of
-    a dictionary with hourly data.
+    Use daterange from start to end for calculating a mean value by looking up hourly data.
     :param hourly_dict: dictionary with hourly keys and data
     :type hourly_dict: dict
     :param start: start of the range for interpolation
@@ -57,21 +56,22 @@ def get_mean_from_hourly_dict(hourly_dict: dict, start: datetime, end: datetime)
     :return: mean value
     :rtype: float
     """
-    # special case for shared hour of the same day.
-    divider = end - start
-    if divider < timedelta(hours=1) and start.hour == end.hour:
+    total_duration = end - start
+    # special case for shared hour of the same day
+    if total_duration < timedelta(hours=1) and start.hour == end.hour:
         return hourly_dict.get(start.hour)
 
     timestep = timedelta(hours=1)
     # proportionally add the start value until the next hour
-    value = hourly_dict.get(start.hour) * (60 - start.minute)
-    start = (start + timestep).replace(minute=0)
+    next_full_hour = start.replace(hour=start.hour + 1, minute=0, second=0, microsecond=0)
+    value = hourly_dict.get(start.hour) * (next_full_hour - start).total_seconds()
+    start = next_full_hour
     for dt in daterange(start, end, timestep):
-        # proportionally apply value according to minutes inside the current hour.
-        duration = min((end - dt).total_seconds() / 60, 60)
-        value += (hourly_dict.get(dt.hour) * duration)
-    # divide by total minutes to get mean value
-    value /= (divider.total_seconds() / 60)
+        # proportionally apply value according to seconds inside the current hour.
+        step_duration = min((end - dt).total_seconds(), 3600)
+        value += (hourly_dict.get(dt.hour) * step_duration)
+    # divide by total seconds to get mean value
+    value /= (total_duration.total_seconds())
     return value
 
 
