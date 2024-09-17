@@ -6,7 +6,7 @@ from simba.costs import calculate_costs
 class TestCostCalculation:
     def test_cost_calculation(self):
         schedule, scenario, args = BasicSchedule().basic_run()
-        file = args.cost_parameters_file
+        file = args.cost_parameters_path
         with open(file, "r") as file:
             cost_params = uncomment_json_file(file)
 
