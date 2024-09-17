@@ -268,7 +268,7 @@ class Mode:
             # cost calculation part of report
             try:
                 cost_parameters = schedule.data_container.cost_parameters_data
-                calculate_costs(cost_parameters, scenario, schedule, args)
+                scenario.costs = calculate_costs(cost_parameters, scenario, schedule, args)
             except Exception:
                 logging.warning(f"Cost calculation failed due to {traceback.format_exc()}")
                 if args.propagate_mode_errors:
