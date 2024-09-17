@@ -2,21 +2,22 @@
 import csv
 import datetime
 import logging
+import re
 from typing import Iterable
 
 import matplotlib.pyplot as plt
 from spice_ev.report import aggregate_global_results, plot, generate_reports, aggregate_timeseries
 
 
-def open_for_csv(filepath):
+def open_for_csv(file_path):
     """ Create a file handle to write to.
 
-    :param filepath: Path to new file, overwritten if existing
-    :type filepath: string or pathlib.Path
+    :param file_path: Path to new file, overwritten if existing
+    :type file_path: string or pathlib.Path
     :return: Function to open file
     :rtype: function
     """
-    return open(filepath, "w", newline='', encoding='utf-8')
+    return open(file_path, "w", newline='', encoding='utf-8')
 
 
 def generate_gc_power_overview_timeseries(scenario, args):
@@ -33,7 +34,11 @@ def generate_gc_power_overview_timeseries(scenario, args):
     if not gc_list:
         return
 
-    with open_for_csv(args.results_directory / "gc_power_overview_timeseries.csv") as f:
+    file_path = args.results_directory / "gc_power_overview_timeseries.csv"
+    if vars(args).get("scenario_name"):
+        file_path = file_path.with_stem(file_path.stem + '_' + args.scenario_name)
+
+    with open_for_csv(file_path) as f:
         csv_writer = csv.writer(f)
         csv_writer.writerow(["time"] + gc_list)
         stations = []
@@ -64,8 +69,11 @@ def generate_gc_overview(schedule, scenario, args):
     all_gc_list = list(schedule.stations.keys())
     used_gc_list = list(scenario.components.grid_connectors.keys())
     stations = getattr(schedule, "stations")
+    file_path = args.results_directory / "gc_overview.csv"
+    if vars(args).get("scenario_name"):
+        file_path = file_path.with_stem(file_path.stem + '_' + args.scenario_name)
 
-    with open_for_csv(args.results_directory / "gc_overview.csv") as f:
+    with open_for_csv(file_path) as f:
         csv_writer = csv.writer(f)
         csv_writer.writerow(["station_name",
                              "station_type",
@@ -107,6 +115,44 @@ def generate_gc_overview(schedule, scenario, args):
                                  *use_factors])
 
 
+def generate_trips_timeseries_data(schedule):
+    """
+    Build a trip data structure that can be saved to CSV.
+
+    This should be in the form of a valid trips.csv input file.
+    :param schedule: current schedule for the simulation
+    :type schedule: simba.Schedule
+    :return: trip data
+    :rtype: Iterable
+    """
+    header = [
+        # identifier
+        "rotation_id", "line",
+        # stations
+        "departure_name", "departure_time", "arrival_name", "arrival_time",
+        # types
+        "vehicle_type", "charging_type",
+        # consumption (minimal)
+        "distance", "consumption"
+        # consumption (extended). Not strictly needed.
+        # "distance", "temperature", "height_diff", "level_of_loading", "mean_speed",
+    ]
+    data = [header]
+    rotations = schedule.rotations.values()
+    # sort rotations naturally by ID
+    rotations = sorted(rotations, key=lambda r: [
+        # natural sort: split by numbers, then sort numbers by value and chars by lowercase
+        int(s) if s.isdigit() else s.lower() for s in re.split(r'(\d+)', r.id)])
+    for rotation in rotations:
+        for trip in rotation.trips:
+            # get trip info from trip or trip.rotation (same name in Trip/Rotation as in CSV)
+            row = [vars(trip).get(k, vars(trip.rotation).get(k)) for k in header]
+            # special case rotation_id
+            row[0] = rotation.id
+            data.append(row)
+    return data
+
+
 def generate_plots(scenario, args):
     """ Save plots as png and pdf.
 
@@ -122,8 +168,14 @@ def generate_plots(scenario, args):
         plt.clf()
         plot(scenario)
         plt.gcf().set_size_inches(10, 10)
-        plt.savefig(args.results_directory / "run_overview.png")
-        plt.savefig(args.results_directory / "run_overview.pdf")
+        file_path_png = args.results_directory / "run_overview.png"
+        if vars(args).get("scenario_name"):
+            file_path_png = file_path_png.with_stem(file_path_png.stem + '_' + args.scenario_name)
+        plt.savefig(file_path_png)
+        file_path_pdf = args.results_directory / "run_overview.pdf"
+        if vars(args).get("scenario_name"):
+            file_path_pdf = file_path_pdf.with_stem(file_path_pdf.stem + '_' + args.scenario_name)
+        plt.savefig(file_path_pdf)
     if args.show_plots:
         plt.show()
     # revert logging override
@@ -156,7 +208,10 @@ def generate(schedule, scenario, args):
 
     # generate simulation_timeseries.csv, simulation.json and vehicle_socs.csv in SpiceEV
     # re-route output paths
-    args.save_soc = args.results_directory / "vehicle_socs.csv"
+    file_path = args.results_directory / "vehicle_socs.csv"
+    if vars(args).get("scenario_name"):
+        file_path = file_path.with_stem(file_path.stem + '_' + args.scenario_name)
+    args.save_soc = file_path
     # bundle station-specific output files in subdirectory
     gc_dir = args.results_directory / "gcs"
     gc_dir.mkdir(exist_ok=True)
@@ -267,17 +322,28 @@ def generate(schedule, scenario, args):
         for i in range(len(data)):
             data[i].append(active_vehicles[i-1])
 
-        write_csv(data, args.results_directory / "rotation_socs.csv",
-                  propagate_errors=args.propagate_mode_errors)
+        file_path = args.results_directory / "rotation_socs.csv"
+        if vars(args).get("scenario_name"):
+            file_path = file_path.with_stem(file_path.stem + '_' + args.scenario_name)
+        write_csv(data, file_path, propagate_errors=args.propagate_mode_errors)
 
-        with open_for_csv(args.results_directory / "rotation_summary.csv") as f:
+        file_path = args.results_directory / "rotation_summary.csv"
+        if vars(args).get("scenario_name"):
+            file_path = file_path.with_stem(file_path.stem + '_' + args.scenario_name)
+        with open_for_csv(file_path) as f:
             csv_writer = csv.DictWriter(f, list(rotation_infos[0].keys()))
             csv_writer.writeheader()
             csv_writer.writerows(rotation_infos)
 
+    if vars(args).get('create_trips_in_report', False):
+        file_path = args.results_directory / "trips.csv"
+        write_csv(generate_trips_timeseries_data(schedule), file_path)
+
     # summary of used vehicle types and all costs
     if args.cost_calculation:
         file_path = args.results_directory / "summary_vehicles_costs.csv"
+        if vars(args).get("scenario_name"):
+            file_path = file_path.with_stem(file_path.stem + '_' + args.scenario_name)
         csv_report = None
         try:
             csv_report = scenario.costs.to_csv_lists()

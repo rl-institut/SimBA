@@ -1,44 +1,22 @@
-from datetime import datetime, timedelta
+from datetime import timedelta
 
 
 class Trip:
     def __init__(self, rotation, departure_time, departure_name,
-                 arrival_time, arrival_name, distance, **kwargs):
+                 arrival_time, arrival_name, distance, temperature, level_of_loading,
+                 height_difference, **kwargs):
         self.departure_name = departure_name
-        if type(departure_time) is str:
-            departure_time = datetime.fromisoformat(departure_time)
         self.departure_time = departure_time
-        if type(arrival_time) is str:
-            arrival_time = datetime.fromisoformat(arrival_time)
         self.arrival_time = arrival_time
         self.arrival_name = arrival_name
-        self.distance = float(distance)
+        self.distance = distance
         self.line = kwargs.get('line', None)
-        self.temperature = kwargs.get('temperature', None)
-        try:
-            self.temperature = float(self.temperature)
-            # In case of empty temperature column or no column at all
-        except (TypeError, ValueError):
-            self.temperature = None
-
-        height_diff = kwargs.get("height_difference", None)
-        if height_diff is None:
-            station_data = kwargs.get("station_data", dict())
-            try:
-                height_diff = station_data[self.arrival_name]["elevation"] \
-                              - station_data[self.departure_name]["elevation"]
-            except (KeyError, TypeError):
-                height_diff = 0
-        self.height_diff = height_diff
-        self.level_of_loading = kwargs.get('level_of_loading', None)
-        try:
-            # Clip level of loading to [0,1]
-            self.level_of_loading = max(0, min(float(self.level_of_loading), 1))
-        # In case of empty temperature column or no column at all
-        except (TypeError, ValueError):
-            self.level_of_loading = None
+        self.temperature = temperature
+        self.height_difference = height_difference
+        self.level_of_loading = level_of_loading
         # mean speed in km/h from distance and travel time or from initialization
         # travel time is at least 1 min
+
         mean_speed = kwargs.get("mean_speed", (self.distance / 1000) /
                                 max(1 / 60, ((self.arrival_time - self.departure_time) / timedelta(
                                     hours=1))))
@@ -53,28 +31,3 @@ class Trip:
 
         self.consumption = None  # kWh
         self.delta_soc = None
-
-    def calculate_consumption(self):
-        """ Compute consumption for this trip.
-
-        :return: Consumption of trip [kWh]
-        :rtype: float
-        :raises with_traceback: if consumption cannot be constructed
-        """
-
-        try:
-            driving_consumption, driving_delta_soc = Trip.consumption.calculate_consumption(
-                self.arrival_time,
-                self.distance,
-                self.rotation.vehicle_type,
-                self.rotation.charging_type,
-                temp=self.temperature,
-                height_diff=self.height_diff,
-                level_of_loading=self.level_of_loading,
-                mean_speed=self.mean_speed)
-        except AttributeError as e:
-            raise Exception(
-                'To calculate consumption, a consumption object needs to be constructed'
-                ' and linked to Trip class.').with_traceback(e.__traceback__)
-
-        return driving_consumption, driving_delta_soc
