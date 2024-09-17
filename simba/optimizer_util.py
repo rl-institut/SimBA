@@ -491,7 +491,7 @@ def get_groups_from_events(events, impossible_stations=None, could_not_be_electr
             could_not_be_electrified.update([event.rotation.id])
 
     groups = list(zip(event_groups, station_subsets))
-    # each event group should have events and stations. If not something went wrong.
+    # each event group should have events and stations. If not, something went wrong.
     filtered_groups = list(filter(lambda x: len(x[0]) != 0 and len(x[1]) != 0, groups))
     if len(filtered_groups) != len(groups):
         if optimizer:

@@ -65,9 +65,9 @@ class StationOptimizer:
         self.base_stations = self.electrified_stations.copy()
         self.base_not_possible_stations = self.not_possible_stations.copy()
 
-        # get events where soc fell below the minimal
-        # soc. The events contain info about the problematic
-        # time span, which includes stations which could provide a soc lift
+        # get events where SoC fell below the minimal
+        # SoC. The events contain info about the problematic
+        # time span, which includes stations which could provide a SoC lift
         base_events = self.get_low_soc_events(
             rel_soc=False, soc_data=self.base_scenario.vehicle_socs)
 
@@ -114,7 +114,7 @@ class StationOptimizer:
             self.electrified_station_set = self.base_electrified_station_set.copy()
 
             if self.config.solver == "spiceev":
-                # running SpiceEV changes the scenario and vehicle ids. Since the low soc events
+                # running SpiceEV changes the scenario and vehicle ids. Since the low SoC events
                 # point to the base vehicle ids, these have to be used in the group optimization
                 self.scenario = deepcopy(self.base_scenario)
 
@@ -232,7 +232,7 @@ class StationOptimizer:
     def get_negative_rotations_all_electrified(self, rel_soc=False):
         """ Get the ids for the rotations which show negative SoCs when everything is electrified.
 
-        :param rel_soc: if true, the start soc is handled like it has the desired deps soc
+        :param rel_soc: if true, the start SoC is handled like it has the desired deps SoC
         :type rel_soc: bool
         :return: rotation ids which are negative even with all stations electrified
         :rtype: set
@@ -342,11 +342,11 @@ class StationOptimizer:
 
         if solver == "quick":
             # quick calculation has to electrify everything in one step, that is chronologically.
-            # or the lifting of socs is not correct.
-            # Since its only adding charge on top of soc time series, electrification that took
+            # or the lifting of SoCs is not correct.
+            # Since its only adding charge on top of SoC time series, electrification that took
             # place before in the optimization but later in the time series in regards to the
             # current electrification would show to much charge, since charging curves decrease over
-            # soc.
+            # SoC.
             self.deepcopy_socs()
             electrified_stations = self.electrified_station_set.union(best_station_ids)
             self.scenario.vehicle_socs = self.timeseries_calc(electrified_stations, event_rotations)
@@ -430,7 +430,7 @@ class StationOptimizer:
 
     @opt_util.time_it
     def deepcopy_socs(self):
-        """ Deepcopy of the socs in the scenario."""
+        """ Deepcopy of the SoCs in the scenario."""
         self.scenario.vehicle_socs = deepcopy(self.base_scenario.vehicle_socs)
 
     @opt_util.time_it
@@ -451,11 +451,11 @@ class StationOptimizer:
 
     @opt_util.time_it
     def timeseries_calc(self, electrified_stations: set, rotations=None) -> dict:
-        """ A quick estimation of socs.
+        """ A quick estimation of SoCs.
 
-        Iterates through rotations and calculates the soc.
+        Iterates through rotations and calculates the SoC.
         The start value is assumed to be desired_soc_deps.
-        The function subtracts the consumption of each trip,
+        The function subtracts the consumption of each trip
         and numerically estimates the charge at the electrified station.
         Charging powers depend on the soc_charge_curve_dict, which were earlier created using the
         vehicle charge curve and the schedule.cs_power_opps.
@@ -466,7 +466,7 @@ class StationOptimizer:
         :type rotations: iterable[Rotation]
         :param electrified_stations: Stations which are electrified. Default None leads to using the
             so far optimized optimizer.electrified_station_set
-        :return: Returns soc dict with lifted socs
+        :return: Returns SoC dict with lifted SoCs
         :rtype dict()
         """
         if rotations is None:
@@ -490,8 +490,7 @@ class StationOptimizer:
                 d_soc = trip.consumption / capacity
 
                 # Linear interpolation of SoC during trip
-                soc[idx_start:idx_end + 1] = np.linspace(last_soc, last_soc - d_soc,
-                                                         delta_idx)
+                soc[idx_start:idx_end + 1] = np.linspace(last_soc, last_soc - d_soc, delta_idx)
 
                 # Update last known SoC with current value
                 last_soc = last_soc - d_soc
@@ -499,8 +498,8 @@ class StationOptimizer:
                 # Fill the values while the vehicle is standing waiting for the next trip
                 idx = opt_util.get_index_by_time(self.scenario, trip.arrival_time)
                 try:
-                    idx_end = opt_util.get_index_by_time(self.scenario,
-                                                         rot.trips[i + 1].departure_time)
+                    idx_end = opt_util.get_index_by_time(
+                        self.scenario, rot.trips[i + 1].departure_time)
                 except IndexError:
                     # No next trip. Rotation finished.
                     break
@@ -518,12 +517,12 @@ class StationOptimizer:
                 standing_time_min = opt_util.get_charging_time(
                     trip, rot.trips[i + 1], self.args)
 
-                # Assume that the start soc for charging is at least 0, since this results in the
+                # Assume that the start SoC for charging is at least 0, since this results in the
                 # largest possible charge for a monotonous decreasing charge curve in the SoC range
                 # of [0%,100%].
                 search_soc = max(0, soc[idx])
 
-                # Get the soc lift
+                # Get the SoC lift
                 d_soc = opt_util.get_delta_soc(soc_over_time_curve, search_soc, standing_time_min)
 
                 # Clip the SoC lift to the desired_soc_deps,
@@ -1039,7 +1038,7 @@ class StationOptimizer:
             # If using relative SOC, SOC lookup has to be adjusted
             if rel_soc:
                 soc = np.array(soc)
-                # if the rotation starts with lower than desired soc, lift the soc
+                # if the rotation starts with lower than desired soc, lift the SoC
                 if soc[rot_start_idx] < self.args.desired_soc_deps:
                     soc = self.lift_and_clip_positive_gradient(rot_start_idx, soc, soc_upper_thresh)
 
@@ -1071,7 +1070,7 @@ class StationOptimizer:
                     old_idx = min_idx
                 i = min_idx
 
-                # find the first index by going back from the minimal SoC index, where the soc
+                # find the first index by going back from the minimal SoC index, where the SoC
                 # was above the upper threshold OR the index where the rotation started.
                 while soc[i] < soc_upper_thresh:
                     if i <= rot_start_idx:
@@ -1082,7 +1081,7 @@ class StationOptimizer:
                 start = i
 
                 i = min_idx
-                # do the same as before but find the index after the minimal soc.
+                # do the same as before but find the index after the minimal SoC.
                 while soc[i] < soc_upper_thresh:
                     if i >= rot_end_idx - 1:
                         break
@@ -1138,7 +1137,7 @@ class StationOptimizer:
                 # if the mask does not leave any value, the loop is finished
                 if not np.any(mask):
                     break
-                # Check the remaining unmasked socs for the minimal soc
+                # Check the remaining unmasked SoCs for the minimal SoC
                 min_soc, min_idx = get_min_soc_and_index(soc_idx, mask)
 
         return events
@@ -1150,15 +1149,15 @@ class StationOptimizer:
         Lifts a given SoC array to the value of soc_upper_thresh from the start_index to the end.
         Values which exceed soc_upper_thresh and have a positive gradient are clipped to
         soc_upper_thresh. If values exist which exceed soc_upper_thresh and have negative gradients,
-        they and the following socs have this delta subtracted instead. This is the behavior of
+        they and the following SoCs have this delta subtracted instead. This is the behavior of
         approximate behaviour of charging a vehicle above 100%. Values can not exceed 100%. As soon
         as discharge happens, the value drops.
 
         :param start_idx: index from where the array is lifted
         :type start_idx: int
-        :param soc: array which contains socs to be lifted
+        :param soc: array which contains SoCs to be lifted
         :type soc: np.array
-        :param soc_upper_thresh: max value of socs used for clipping
+        :param soc_upper_thresh: max value of SoCs used for clipping
         :type soc_upper_thresh: float
         :return: None
 
@@ -1173,7 +1172,7 @@ class StationOptimizer:
         # to speed up computation, only look at the affected part
         soc = soc[start_idx:]
         soc_max = np.max(soc)
-        # Clip soc values to soc_upper_thresh.
+        # Clip SoC values to soc_upper_thresh.
         # Multiple local maxima above this value can exist which,
         # if they are rising over time, need multiple clippings.
         while soc_max > soc_upper_thresh:
@@ -1181,8 +1180,8 @@ class StationOptimizer:
             desc = np.arange(len(soc), 0, -1)
             # gradient of SoC i.e. positive if charging, negative if discharging
             diff = np.hstack((np.diff(soc), -1))
-            # masking of socs >1 and negative gradient for local maximum
-            # i.e. after lifting the soc, it finds the first spot where the SoC is bigger
+            # masking of SoCs >1 and negative gradient for local maximum
+            # i.e. after lifting the SoC, it finds the first spot where the SoC is bigger
             # than the upper threshold and descending.
             idc_loc_max = np.argmax(desc * (soc > 1) * (diff < 0))
 

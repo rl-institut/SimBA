@@ -1,7 +1,9 @@
 import argparse
+import csv
 import json
 import logging
 import subprocess
+from datetime import datetime, timedelta
 
 from spice_ev.strategy import STRATEGIES
 from spice_ev.util import set_options_from_config
@@ -14,52 +16,6 @@ def get_git_revision_hash() -> str:
 def save_version(file_path):
     with open(file_path, "w", encoding='utf-8') as f:
         f.write("Git Hash SimBA:" + get_git_revision_hash())
-
-
-def get_buffer_time(trip, default=0):
-    """ Get buffer time at arrival station of a trip.
-
-    Buffer time is an abstraction of delays like
-    docking procedures and is added to the planned arrival time.
-
-    :param trip: trip to calculate buffer time for
-    :type trip: simba.Trip
-    :param default: Default buffer time if no station specific buffer time is given. [minutes]
-    :type default: dict, numeric
-    :return: buffer time in minutes
-    :rtype: dict or int
-
-    NOTE: Buffer time dictionaries map hours of the day to a buffer time.
-    Keys are ranges of hours and corresponding values provide buffer time in
-    minutes for that time range.
-    An entry with key "else" is a must if not all hours of the day are covered.
-    Example: ``buffer_time = {"10-22": 2, "22-6": 3, "else": 1}``
-    """
-
-    schedule = trip.rotation.schedule
-    buffer_time = schedule.stations.get(trip.arrival_name, {}).get('buffer_time', default)
-
-    # distinct buffer times depending on time of day can be provided
-    # in that case buffer time is of type dict instead of int
-    if isinstance(buffer_time, dict):
-        # sort dict to make sure 'else' key is last key
-        buffer_time = {key: buffer_time[key] for key in sorted(buffer_time)}
-        current_hour = trip.arrival_time.hour
-        for time_range, buffer in buffer_time.items():
-            if time_range == 'else':
-                buffer_time = buffer
-                break
-            else:
-                start_hour, end_hour = [int(t) for t in time_range.split('-')]
-                if end_hour < start_hour:
-                    if current_hour >= start_hour or current_hour < end_hour:
-                        buffer_time = buffer
-                        break
-                else:
-                    if start_hour <= current_hour < end_hour:
-                        buffer_time = buffer
-                        break
-    return buffer_time
 
 
 def uncomment_json_file(f, char='//'):
@@ -85,6 +41,38 @@ def uncomment_json_file(f, char='//'):
             # remove comment from line
             uncommented_data += line[:comment_idx]
     return json.loads(uncommented_data)
+
+
+def get_mean_from_hourly_dict(hourly_dict: dict, start: datetime, end: datetime) -> float:
+    """ Get the mean value from hourly data.
+
+    Use daterange from start to end for calculating a mean value by looking up hourly data.
+    :param hourly_dict: dictionary with hourly keys and data
+    :type hourly_dict: dict
+    :param start: start of the range for interpolation
+    :type start: datetime
+    :param end: end of the range for interpolation
+    :type end: datetime
+    :return: mean value
+    :rtype: float
+    """
+    total_duration = end - start
+    # special case for shared hour of the same day
+    if total_duration < timedelta(hours=1) and start.hour == end.hour:
+        return hourly_dict.get(start.hour)
+
+    timestep = timedelta(hours=1)
+    # proportionally add the start value until the next hour
+    next_full_hour = (start+timestep).replace(hour=0, minute=0, second=0, microsecond=0)
+    value = hourly_dict.get(start.hour) * (next_full_hour - start).total_seconds()
+    start = next_full_hour
+    for dt in daterange(start, end, timestep):
+        # proportionally apply value according to seconds inside the current hour.
+        step_duration = min((end - dt).total_seconds(), 3600)
+        value += (hourly_dict.get(dt.hour) * step_duration)
+    # divide by total seconds to get mean value
+    value /= (total_duration.total_seconds())
+    return value
 
 
 def get_csv_delim(path, other_delims=set()):
@@ -137,6 +125,26 @@ def get_csv_delim(path, other_delims=set()):
     return ","
 
 
+def get_dict_from_csv(column, file_path, index):
+    """ Get a dictonary with the key of a numeric index and the value of a numeric column
+
+    :param column: column name for dictionary values. Content needs to be castable to float
+    :type column: str
+    :param file_path: file path
+    :type file_path: str or Path
+    :param index: column name of the index / keys of the dictionary.
+        Content needs to be castable to float
+    :return: dictionary with numeric keys of index and numeric values of column
+    """
+    output = dict()
+    with open(file_path, "r") as f:
+        delim = get_csv_delim(file_path)
+        reader = csv.DictReader(f, delimiter=delim)
+        for row in reader:
+            output[float(row[index])] = float(row[column])
+    return output
+
+
 def nd_interp(input_values, lookup_table):
     """ Interpolates a value from a table.
 
@@ -182,6 +190,9 @@ def nd_interp(input_values, lookup_table):
         else:
             points.append(row)
 
+    # Make points unique
+    points = [tuple(p) for p in points]
+    points = list(set(points))
     # interpolate between points that differ only in current dimension
     for i, x in enumerate(input_values):
         new_points = []
@@ -215,6 +226,37 @@ def nd_interp(input_values, lookup_table):
         points = new_points
 
     return points[0][-1]
+
+
+def daterange(start_date, end_date, time_delta):
+    """ Iterate over a datetime range using a time_delta step.
+
+    Like range(), the end_value is excluded.
+    :param start_date: first value of iteration
+    :type start_date: datetime.datetime
+    :param end_date: excluded end value of iteration
+    :type end_date: datetime.datetime
+    :param time_delta: step size of iteration
+    :type time_delta: datetime.timedelta
+    :yields: iterated value
+    :rtype: Iterator[datetime.datetime]
+    """
+    while start_date < end_date:
+        yield start_date
+        start_date += time_delta
+
+
+def cast_float_or_none(val: any) -> any:
+    """ Cast a value to float. If a ValueError or TypeError is raised, None is returned
+
+    :param val: value to cast
+    :type val: any
+    :return: casted value
+    """
+    try:
+        return float(val)
+    except (ValueError, TypeError):
+        return None
 
 
 def setup_logging(args, time_str):
@@ -251,19 +293,95 @@ def setup_logging(args, time_str):
     logging.captureWarnings(True)
 
 
+def get_buffer_time(trip, default=0):
+    """ Get buffer time at arrival station of a trip.
+
+    Buffer time is an abstraction of delays like
+    docking procedures and is added to the planned arrival time.
+
+    :param trip: trip to calculate buffer time for
+    :type trip: simba.Trip
+    :param default: Default buffer time if no station specific buffer time is given. [minutes]
+    :type default: dict, numeric
+    :return: buffer time in minutes
+    :rtype: dict or int
+
+    NOTE: Buffer time dictionaries map hours of the day to a buffer time.
+    Keys are ranges of hours and corresponding values provide buffer time in
+    minutes for that time range.
+    An entry with key "else" is a must if not all hours of the day are covered.
+    Example: ``buffer_time = {"10-22": 2, "22-6": 3, "else": 1}``
+    """
+
+    schedule = trip.rotation.schedule
+    buffer_time = schedule.stations.get(trip.arrival_name, {}).get('buffer_time', default)
+
+    # distinct buffer times depending on time of day can be provided
+    # in that case buffer time is of type dict instead of int
+    if isinstance(buffer_time, dict):
+        # sort dict to make sure 'else' key is last key
+        buffer_time = {key: buffer_time[key] for key in sorted(buffer_time)}
+        current_hour = trip.arrival_time.hour
+        for time_range, buffer in buffer_time.items():
+            if time_range == 'else':
+                buffer_time = buffer
+                break
+            else:
+                start_hour, end_hour = [int(t) for t in time_range.split('-')]
+                if end_hour < start_hour:
+                    if current_hour >= start_hour or current_hour < end_hour:
+                        buffer_time = buffer
+                        break
+                else:
+                    if start_hour <= current_hour < end_hour:
+                        buffer_time = buffer
+                        break
+    return buffer_time
+
+
+def mutate_args_for_spiceev(args):
+    # arguments relevant to SpiceEV, setting automatically to reduce clutter in config
+    args.margin = 1
+    args.ALLOW_NEGATIVE_SOC = True
+    args.PRICE_THRESHOLD = -100  # ignore price for charging decisions
+
+
 def get_args():
+    parser = get_parser()
+
+    args = parser.parse_args()
+
+    # arguments relevant to SpiceEV, setting automatically to reduce clutter in config
+    mutate_args_for_spiceev(args)
+
+    # If a config is provided, the config will overwrite previously parsed arguments
+    set_options_from_config(args, check=parser, verbose=False)
+
+    # rename special options
+    args.timing = args.eta
+
+    mandatory_arguments = ["input_schedule", "electrified_stations_path"]
+    missing = [a for a in mandatory_arguments if vars(args).get(a) is None]
+    if missing:
+        raise Exception("The following arguments are required: {}".format(", ".join(missing)))
+
+    return args
+
+
+def get_parser():
     parser = argparse.ArgumentParser(
         description='SimBA - Simulation toolbox for Bus Applications.')
+    parser.add_argument('--scenario-name', help='Identifier of scenario, appended to results')
 
     # #### Paths #####
     parser.add_argument('--input-schedule',
-                        help='Path to CSV file containing all trips of schedule to be analyzed.')
+                        help='Path to CSV file containing all trips of schedule to be analyzed')
     parser.add_argument('--output-directory', default="data/sim_outputs",
                         help='Location where all simulation outputs are stored')
-    parser.add_argument('--electrified-stations', help='include electrified_stations json')
-    parser.add_argument('--vehicle-types', default="data/examples/vehicle_types.json",
+    parser.add_argument('--electrified-stations-path', help='include electrified_stations json')
+    parser.add_argument('--vehicle-types-path', default="data/examples/vehicle_types.json",
                         help='location of vehicle type definitions')
-    parser.add_argument('--station_data_path', default=None,
+    parser.add_argument('--station-data-path', default=None,
                         help='Use station data to back calculation of consumption with height\
                          information of stations')
     parser.add_argument('--outside_temperature_over_day_path', default=None,
@@ -272,7 +390,7 @@ def get_args():
     parser.add_argument('--level_of_loading_over_day_path', default=None,
                         help="Use csv. data with 'hour' and level_of_loading' columns to set \
                         level of loading in case they are not in trips.csv")
-    parser.add_argument('--cost-parameters-file', default=None,
+    parser.add_argument('--cost-parameters-path', default=None,
                         help='include cost parameters json, needed if cost_calculation==True')
     parser.add_argument('--rotation-filter', default=None,
                         help='Use json data with rotation ids')
@@ -302,7 +420,7 @@ def get_args():
                         help='Remove rotations from schedule that violate assumptions. ')
     parser.add_argument('--show-plots', action='store_true',
                         help='show plots for users to view in "report" mode')
-    parser.add_argument('--propagate-mode-errors', default=False,
+    parser.add_argument('--propagate-mode-errors', action='store_true',
                         help='Re-raise errors instead of continuing during simulation modes')
     parser.add_argument('--create-scenario-file', help='Write scenario.json to file')
     parser.add_argument('--create-trips-in-report', action='store_true',
@@ -412,40 +530,4 @@ def get_args():
                         'during times of high grid load')
 
     parser.add_argument('--config', help='Use config file to set arguments')
-
-    args = parser.parse_args()
-
-    # arguments relevant to SpiceEV, setting automatically to reduce clutter in config
-    args.strategy = 'distributed'
-    args.margin = 1
-    args.ALLOW_NEGATIVE_SOC = True
-    args.PRICE_THRESHOLD = -100  # ignore price for charging decisions
-
-    set_options_from_config(args, check=parser, verbose=False)
-
-    # rename special options
-    args.timing = args.eta
-
-    missing = [a for a in ["input_schedule", "electrified_stations"] if vars(args).get(a) is None]
-    if missing:
-        raise Exception("The following arguments are required: {}".format(", ".join(missing)))
-
-    return args
-
-
-def daterange(start_date, end_date, time_delta):
-    """ Iterate over a datetime range using a time_delta step.
-
-    Like range(), the end_value is excluded.
-    :param start_date: first value of iteration
-    :type start_date: datetime.datetime
-    :param end_date: excluded end value of iteration
-    :type end_date: datetime.datetime
-    :param time_delta: step size of iteration
-    :type time_delta: datetime.timedelta
-    :yields: iterated value
-    :rtype: Iterator[datetime.datetime]
-    """
-    while start_date < end_date:
-        yield start_date
-        start_date += time_delta
+    return parser

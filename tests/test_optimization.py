@@ -7,7 +7,7 @@ from tests.helpers import generate_basic_schedule
 
 class TestOptimization:
     def test_prepare_trips(self):
-        schedule = generate_basic_schedule()
+        schedule, _ = generate_basic_schedule()
         for r in schedule.rotations.values():
             r.set_charging_type("depb")
         trips, depot_trips = optimization.prepare_trips(schedule)
@@ -48,7 +48,7 @@ class TestOptimization:
                 pass
 
     def test_generate_depot_trip_data_dict(self):
-        schedule = generate_basic_schedule()
+        schedule, _ = generate_basic_schedule()
         trip1 = schedule.rotations["1"].trips[0]
         trip2 = schedule.rotations["1"].trips[-1]
         trip2.distance = trip1.distance / 2
@@ -84,7 +84,7 @@ class TestOptimization:
         assert trip_dict["distance"] == DEFAULT_DISTANCE * 1000
 
     def test_recombination(self):
-        schedule = generate_basic_schedule()
+        schedule, _ = generate_basic_schedule()
         for r in schedule.rotations.values():
             r.set_charging_type("depb")
         args = Namespace(**({
@@ -112,10 +112,15 @@ class TestOptimization:
                 new_rot_name = f"{rot_id}_r_{counter}"
             assert len(trip_list) == trip_counter
 
-        # make one trip impossible
+        # make all trips except one easily possible
         schedule = original_schedule
         trips = deepcopy(original_trips)
+        for trips_ in trips.values():
+            for t in trips_:
+                t.delta_soc = 0.0000001
+        # make one trip impossible
         trips["1"][0].delta_soc = -2
+
         recombined_schedule = optimization.recombination(schedule, args, trips, depot_trips)
         # add Ein/Aussetzfahrt, subtract one impossible trip
         assert len(original_trips["1"]) + 2 - 1 == len(recombined_schedule.rotations["1_r"].trips)

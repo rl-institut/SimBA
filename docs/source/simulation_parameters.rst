@@ -28,6 +28,10 @@ The example (data/simba.cfg) contains parameter descriptions which are explained
      - Default value
      - Expected values
      - Description
+   * - scenario_name
+     - Optional: no default given
+     - string
+     - scenario identifier, appended to output directory name and report file names
    * - input_schedule
      - Mandatory: no default given
      - Path as string
@@ -36,7 +40,7 @@ The example (data/simba.cfg) contains parameter descriptions which are explained
      - Data/sim_outputs
      - Path as string
      - Output files are stored here; set to null to deactivate
-   * - electrified_stations
+   * - electrified_stations_path
      - ./data/examples/vehicle_types.json
      - Path as string
      - Path to Electrified stations data
