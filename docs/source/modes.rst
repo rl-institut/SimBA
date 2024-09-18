@@ -79,7 +79,7 @@ Now, only rotations are left that are non-negative when viewed alone, but might 
 In the end, the largest number of rotations that produce a non-negative result when taken together is returned as the optimized scenario.
 
 Recombination: split negative depot rotations into smaller rotations
--------------
+--------------------------------------------------------------------
 ::
 
     mode = split_negative_depb
