@@ -519,12 +519,10 @@ def plot_charge_type_distribution(extended_plots_path, scenario, schedule):
     bars1 = ax.bar(
         ["Opportunity", "Depot"],
         [charging_types["oppb"], charging_types["depb"]],
-        color=["#66CDAA", "#66CDAA"],
     )
     bars2 = ax.bar(
         ["Opportunity", "Depot"],
         [charging_types["oppb_neg"], charging_types["depb_neg"]],
-        color=["#6495ED", "#6495ED"],
         bottom=[charging_types["oppb"], charging_types["depb"]],
     )
     # create labels with counts
