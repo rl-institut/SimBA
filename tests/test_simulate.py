@@ -176,7 +176,7 @@ class TestSimulate:
             warnings.simplefilter("ignore")
             simulate(args)
             for expected_file in [
-                    "active_rotations.png", "charge_types.png", "Station-0_overview.png",
+                    "active_rotations.png", "charge_types.png", "Station-0_power_overview.png",
                     "distribution_consumption.png", "distribution_distance.png"
             ]:
                 assert (tmp_path / f"report_1/extended_plots/{expected_file}").exists(), (
