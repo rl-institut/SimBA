@@ -1,6 +1,7 @@
 from datetime import datetime
 import logging
 from pathlib import Path
+import shutil
 
 from simba import simulate, util
 
@@ -38,4 +39,10 @@ if __name__ == '__main__':
         logging.error(e)
         raise
     finally:
+        if args.zip_output and args.output_directory is not None and args.output_directory.exists():
+            # compress output directory after simulation
+            # generate <output_directory_name>.zip at location of original output directory
+            shutil.make_archive(args.output_directory, 'zip', args.output_directory)
+            # remove original output directory
+            shutil.rmtree(args.output_directory)
         logging.shutdown()

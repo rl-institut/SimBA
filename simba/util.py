@@ -458,6 +458,8 @@ def get_parser():
     parser.add_argument('--rotation-filter-variable', default=None,
                         choices=[None, 'include', 'exclude'],
                         help='set mode for filtering schedule rotations')
+    parser.add_argument('--zip-output', '-z', action='store_true',
+                        help='compress output folder after simulation')
 
     # #### Charging strategy #####
     parser.add_argument('--preferred-charging-type', '-pct', default='depb',
