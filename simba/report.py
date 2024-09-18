@@ -485,7 +485,7 @@ def plot_consumption_per_rotation_distribution(extended_plots_path, schedule):
     ax.set_ylabel('Number of rotations')
     ax.yaxis.get_major_locator().set_params(integer=True)
     ax.yaxis.grid(True)
-    ax.set_title('Distribution of energy consumption of rotations per vehicly type')
+    ax.set_title('Distribution of energy consumption of rotations per vehicle type')
     ax.legend()
     plt.tight_layout()
     plt.savefig(extended_plots_path / "distribution_consumption")
@@ -542,7 +542,7 @@ def plot_charge_type_distribution(extended_plots_path, scenario, schedule):
     ax.yaxis.grid(True)
     ax.yaxis.get_major_locator().set_params(integer=True)
     ax.legend(["successful rotations", "negative rotations"])
-    ax.set_title("Feasability of rotations per charging type")
+    ax.set_title("Feasibility of rotations per charging type")
     plt.savefig(extended_plots_path / "charge_types")
     plt.close()
 
@@ -625,7 +625,7 @@ def plot_gc_power_timeseries(extended_plots_path, scenario):
         ax.tick_params(axis='x', rotation=30)
 
         plt.tight_layout()
-        plt.savefig(extended_plots_path / f"{sanitize(gc)}_overview.png")
+        plt.savefig(extended_plots_path / f"{sanitize(gc)}_power_overview.png")
         plt.close(fig)
 
 
