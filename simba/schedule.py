@@ -114,6 +114,7 @@ class Schedule:
                 trip["departure_name"], trip["arrival_name"])
 
             if trip["level_of_loading"] is None:
+                assert len(data.level_of_loading_data) == 24, "Need 24 entries in level of loading"
                 trip["level_of_loading"] = util.get_mean_from_hourly_dict(
                     data.level_of_loading_data, trip["departure_time"], trip["arrival_time"])
             else:
@@ -122,6 +123,7 @@ class Schedule:
                     trip["level_of_loading"] = min(1, max(0, trip["level_of_loading"]))
 
             if trip["temperature"] is None:
+                assert len(data.temperature_data) == 24, "Need 24 entries in temperature data"
                 trip["temperature"] = util.get_mean_from_hourly_dict(
                     data.temperature_data, trip["departure_time"], trip["arrival_time"])
 
