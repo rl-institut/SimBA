@@ -385,6 +385,52 @@ def write_csv(data: Iterable, file_path, propagate_errors=False):
 
 # ##### EXTENDED PLOTTING ##### #
 
+def prepare_histogram(rotations, schedule):
+    """ Find suitable number of histogram bins for given rotation values.
+
+    :param rotations: Rotation values to create histogram for. ID -> value
+    :type rotations: dict
+    :param schedule: Driving schedule
+    :type schedule: simba.schedule.Schedule
+    :return: histogram bins, labels
+    """
+    # find suitable step size / number of bins
+    min_value = int(min(rotations.values()))
+    max_value = int(max(rotations.values()))
+    # maximum number of bins (some may be empty): between 1 and 20, optimally half of rotations
+    max_num_bins = min(max(len(rotations) / 2, 1), 20)
+    steps = [1, 2.5, 5]  # extended to 10, 25, 50, 100, 250, ...
+    idx = 0
+    mult = 1
+    while True:
+        step = steps[idx] * mult
+        min_bin = (min_value // step) * step
+        num_bins = int((max_value - min_bin) // step + 1)
+        if num_bins <= max_num_bins:
+            # first step with large enough step size / small enough number of bins:
+            # use this step size
+            if step != 2.5:
+                # step size is integer: cast to int for better labels
+                step = int(step)
+                min_bin = int(min_bin)
+            break
+        # too many bins: increase step size
+        idx = (idx + 1) % len(steps)
+        # all steps iterated: append a zero, try again
+        mult = mult if idx else mult * 10
+
+    # suitable step size found
+    labels = [f"{min_bin + i*step} - {min_bin + (i+1)*step}" for i in range(num_bins)]
+    # init bins: track bins for each vehicle type individually
+    bins = {v_types: [0]*num_bins for v_types in schedule.vehicle_types}
+
+    # fill bins with rotations
+    for rot, value in rotations.items():
+        position = int((value - min_bin) // step)
+        bins[schedule.rotations[rot].vehicle_type][position] += 1
+
+    return bins, labels
+
 
 def plot_distance_per_rotation_distribution(extended_plots_path, schedule):
     """Plots the distribution of bus types in distance brackets as a stacked bar chart.
@@ -392,35 +438,27 @@ def plot_distance_per_rotation_distribution(extended_plots_path, schedule):
     :param extended_plots_path: directory to save plot to
     :type extended_plots_path: Path
     :param schedule: Driving schedule for the simulation, schedule.rotations are used
-    :type schedule: eBus-Toolbox.Schedule
+    :type schedule: simba.schedule.Schedule
     """
-    step = 50
-    max_route = int(max([schedule.rotations[rot].distance / 1000 for rot in schedule.rotations]))
-    num_bins = max_route // step + 1  # number of bars in plot
-    labels = [f"{i*step} - {(i+1)*step}" for i in range(num_bins)]
-    # init bins: track distance bins for each vehicle type individually
-    bins = {v_types: [0]*num_bins for v_types in schedule.vehicle_types}
-
-    # fill bins with rotations
-    for rot in schedule.rotations:
-        position = int((schedule.rotations[rot].distance / 1000) // step)
-        bins[schedule.rotations[rot].vehicle_type][position] += 1
+    distances = {rot: schedule.rotations[rot].distance / 1000 for rot in schedule.rotations}
+    bins, labels = prepare_histogram(distances, schedule)
 
     # plot
     fig, ax = plt.subplots()
-    bar_bottom = [0] * num_bins
+    bar_bottom = [0] * len(labels)
     for v_type in schedule.vehicle_types:
         ax.bar(labels, bins[v_type], width=0.9, label=v_type, bottom=bar_bottom)
-        for i in range(num_bins):
+        for i in range(len(labels)):
             bar_bottom[i] += bins[v_type][i]
     ax.set_xlabel('Distance [km]')
     plt.xticks(rotation=30)  # slant labels for better readability
     ax.set_ylabel('Number of rotations')
     ax.yaxis.get_major_locator().set_params(integer=True)
     ax.yaxis.grid(True)
-    ax.set_title('Distribution of bus types over rotation distance')
+    ax.set_title('Distribution of rotation length per vehicle type')
     ax.legend()
-    plt.savefig(extended_plots_path / "distribution_bustypes_route_rotations")
+    plt.tight_layout()
+    plt.savefig(extended_plots_path / "distribution_distance.png")
     plt.close()
 
 
@@ -430,37 +468,27 @@ def plot_consumption_per_rotation_distribution(extended_plots_path, schedule):
     :param extended_plots_path: directory to save plot to
     :type extended_plots_path: Path
     :param schedule: Driving schedule for the simulation, schedule.rotations are used
-    :type schedule: eBus-Toolbox.Schedule
+    :type schedule: simba.schedule.Schedule
     """
-
-    step = 50
-    # get number of bins
-    max_con = int(max([schedule.rotations[rot].consumption for rot in schedule.rotations]))
-    num_bins = max_con // step + 1  # number of bars in plot
-    labels = [f"{i*step} - {(i+1)*step}" for i in range(num_bins)]
-    # init bins: track consumption bins for each vehicle type individually
-    bins = {v_types: [0]*num_bins for v_types in schedule.vehicle_types}
-
-    # fill bins with rotations
-    for rot in schedule.rotations:
-        position = int(schedule.rotations[rot].consumption // step)
-        bins[schedule.rotations[rot].vehicle_type][position] += 1
+    consumption = {rot: schedule.rotations[rot].consumption for rot in schedule.rotations}
+    bins, labels = prepare_histogram(consumption, schedule)
 
     # plot
     fig, ax = plt.subplots()
-    bar_bottom = [0] * num_bins
+    bar_bottom = [0] * len(labels)
     for v_type in schedule.vehicle_types:
         ax.bar(labels, bins[v_type], width=0.9, label=v_type, bottom=bar_bottom)
-        for i in range(num_bins):
+        for i in range(len(labels)):
             bar_bottom[i] += bins[v_type][i]
     ax.set_xlabel('Energy consumption [kWh]')
     plt.xticks(rotation=30)
     ax.set_ylabel('Number of rotations')
     ax.yaxis.get_major_locator().set_params(integer=True)
     ax.yaxis.grid(True)
-    ax.set_title('Distribution of bus types over rotation energy consumption')
+    ax.set_title('Distribution of energy consumption of rotations per vehicly type')
     ax.legend()
-    plt.savefig(extended_plots_path / "distribution_bustypes_consumption_rotations")
+    plt.tight_layout()
+    plt.savefig(extended_plots_path / "distribution_consumption")
     plt.close()
 
 
@@ -472,7 +500,7 @@ def plot_charge_type_distribution(extended_plots_path, scenario, schedule):
     :param scenario: Scenario for with to generate timeseries.
     :type scenario: spice_ev.Scenario
     :param schedule: Driving schedule for the simulation. schedule.rotations are used
-    :type schedule: eBus-Toolbox.Schedule
+    :type schedule: simba.schedule.Schedule
     """
     # count charging types (also with regard to negative rotations)
     charging_types = {'oppb': 0, 'oppb_neg': 0, 'depb': 0, 'depb_neg': 0}
@@ -516,7 +544,7 @@ def plot_charge_type_distribution(extended_plots_path, scenario, schedule):
     ax.yaxis.grid(True)
     ax.yaxis.get_major_locator().set_params(integer=True)
     ax.legend(["successful rotations", "negative rotations"])
-    ax.set_title("Distribution of opportunity and depot charging")
+    ax.set_title("Feasability of rotations per charging type")
     plt.savefig(extended_plots_path / "charge_types")
     plt.close()
 
@@ -598,7 +626,8 @@ def plot_gc_power_timeseries(extended_plots_path, scenario):
         ax.set_xlim(time_values[0], time_values[-1])
         ax.tick_params(axis='x', rotation=30)
 
-        plt.savefig(extended_plots_path / f"{sanitize(gc)}_power_time_overview.png")
+        plt.tight_layout()
+        plt.savefig(extended_plots_path / f"{sanitize(gc)}_overview.png")
         plt.close(fig)
 
 
@@ -622,7 +651,7 @@ def plot_active_rotations(extended_plots_path, scenario, schedule):
     :param scenario: Provides the data for the grid connectors over time.
     :type scenario: spice_ev.Scenario
     :param schedule: Driving schedule for the simulation. schedule.rotations are used
-    :type schedule: eBus-Toolbox.Schedule
+    :type schedule: simba.schedule.Schedule
     """
     ts = [scenario.start_time + scenario.interval * i for i in range(scenario.n_intervals)]
     num_active_rotations = count_active_rotations(scenario, schedule)

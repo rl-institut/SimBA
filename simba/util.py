@@ -420,7 +420,7 @@ def get_parser():
                         help='Remove rotations from schedule that violate assumptions. ')
     parser.add_argument('--show-plots', action='store_true',
                         help='show plots for users to view in "report" mode')
-    parser.add_argument('--extended_output_plots', action='store_true',
+    parser.add_argument('--extended-output-plots', action='store_true',
                         help='show extended plots')
     parser.add_argument('--propagate-mode-errors', action='store_true',
                         help='Re-raise errors instead of continuing during simulation modes')
