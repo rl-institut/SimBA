@@ -28,6 +28,10 @@ The example (data/simba.cfg) contains parameter descriptions which are explained
      - Default value
      - Expected values
      - Description
+   * - scenario_name
+     - Optional: no default given
+     - string
+     - scenario identifier, appended to output directory name and report file names
    * - input_schedule
      - Mandatory: no default given
      - Path as string
@@ -36,7 +40,7 @@ The example (data/simba.cfg) contains parameter descriptions which are explained
      - Data/sim_outputs
      - Path as string
      - Output files are stored here; set to null to deactivate
-   * - electrified_stations
+   * - electrified_stations_path
      - ./data/examples/vehicle_types.json
      - Path as string
      - Path to Electrified stations data
@@ -97,6 +101,22 @@ The example (data/simba.cfg) contains parameter descriptions which are explained
      - Path to pickle file
      - Load schedule and scenario from this pickle file, expects load_pickle as first mode
 
+   * - strategy_deps
+     - balanced
+     - SpiceEV Strategies (greedy, balanced, peak_shaving, peak_load_windows, balanced_market)
+     - Charging strategy used in depots.
+   * - strategy_opps
+     - greedy
+     - SpiceEV Strategies (greedy, balanced, peak_shaving, peak_load_windows, balanced_market)
+     - Charging strategy used in opportunity stations.
+   * - cost_calculation_strategy_deps
+     - strategy_deps value
+     - SpiceEV Strategies (greedy, balanced, peak_shaving, peak_load_windows, balanced_market)
+     - Strategy for cost calculation at depots.
+   * - cost_calculation_strategy_opps
+     - strategy_opps value
+     - SpiceEV Strategies (greedy, balanced, peak_shaving, peak_load_windows, balanced_market)
+     - Strategy for cost calculation at opportunity stations.
    * - preferred_charging_type
      - depb
      - depb, oppb

@@ -19,6 +19,7 @@ def calculate_costs(c_params, scenario, schedule, args):
     :type schedule: Schedule
     :param args: Configuration arguments specified in config files contained in configs directory
     :type args: argparse.Namespace
+    :return: cost object
     """
     cost_object = Costs(schedule, scenario, args, c_params)
 
@@ -56,7 +57,7 @@ def calculate_costs(c_params, scenario, schedule, args):
 
     logging.info(cost_object.info())
 
-    setattr(scenario, "costs", cost_object)
+    return cost_object
 
 
 class Costs:
@@ -319,10 +320,21 @@ class Costs:
                       if pv.parent == gcID])
             timeseries = vars(self.scenario).get(f"{gcID}_timeseries")
 
+            # Get the calculation strategy / method from args.
+            # If no value is set, use the same strategy as the charging strategy
+            default_cost_strategy = vars(self.args)["strategy_" + station.get("type")]
+
+            cost_strategy_name = "cost_calculation_strategy_" + station.get("type")
+            cost_calculation_strategy = (vars(self.args).get(cost_strategy_name)
+                                         or default_cost_strategy)
+
             # calculate costs for electricity
             try:
+                if cost_calculation_strategy == "peak_load_window":
+                    if timeseries.get("window signal [-]") is None:
+                        raise Exception("No peak load window signal provided for cost calculation")
                 costs_electricity = calc_costs_spice_ev(
-                    strategy=vars(self.args)["strategy_" + station.get("type")],
+                    strategy=cost_calculation_strategy,
                     voltage_level=gc.voltage_level,
                     interval=self.scenario.interval,
                     timestamps_list=timeseries.get("time"),
@@ -333,7 +345,7 @@ class Costs:
                     power_v2g_feed_in_list=timeseries.get("V2G feed-in [kW]"),
                     power_battery_feed_in_list=timeseries.get("battery feed-in [kW]"),
                     charging_signal_list=timeseries.get("window signal [-]"),
-                    price_sheet_path=self.args.cost_parameters_file,
+                    price_sheet_path=self.args.cost_parameters_path,
                     grid_operator=gc.grid_operator,
                     power_pv_nominal=pv,
                 )

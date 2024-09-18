@@ -4,6 +4,7 @@ from pathlib import Path
 import pytest
 import warnings
 
+from simba import util
 from simba.simulate import simulate
 
 
@@ -13,10 +14,24 @@ example_path = root_path / "data/examples"
 
 class TestSimulate:
     # Add propagate_mode_errors as developer setting to raise Exceptions.
-    DEFAULT_VALUES = {
-        "vehicle_types": example_path / "vehicle_types.json",
-        "electrified_stations": example_path / "electrified_stations.json",
-        "cost_parameters_file": example_path / "cost_params.json",
+    NON_DEFAULT_VALUES = {
+        "vehicle_types_path": example_path / "vehicle_types.json",
+        "electrified_stations_path": example_path / "electrified_stations.json",
+        "station_data_path": example_path / "all_stations.csv",
+        "cost_parameters_path": example_path / "cost_params.json",
+        "outside_temperature_over_day_path": example_path / "default_temp_summer.csv",
+        "level_of_loading_over_day_path": example_path / "default_level_of_loading_over_day.csv",
+        "input_schedule": example_path / "trips_example.csv",
+        "mode": [],
+        "interval": 15,
+        "propagate_mode_errors": True,
+        "preferred_charging_type": "oppb"
+    }
+
+    MANDATORY_ARGS = {
+        "vehicle_types_path": example_path / "vehicle_types.json",
+        "electrified_stations_path": example_path / "electrified_stations.json",
+        "cost_parameters_path": example_path / "cost_params.json",
         "outside_temperature_over_day_path": example_path / "default_temp_summer.csv",
         "level_of_loading_over_day_path": example_path / "default_level_of_loading_over_day.csv",
         "input_schedule": example_path / "trips_example.csv",
@@ -40,38 +55,45 @@ class TestSimulate:
         "desired_soc_deps": 1,
         "min_charging_time": 0,
         "default_voltage_level": "MV",
-        "propagate_mode_errors": True,
     }
 
+    def get_args(self):
+        # try to run a mode that does not exist
+        # Get the parser from util. This way the test is directly coupled to the parser arguments
+        parser = util.get_parser()
+        # Set the parser defaults to the specified non default values
+        parser.set_defaults(**self.NON_DEFAULT_VALUES)
+        # get all args with default values
+        args, _ = parser.parse_known_args()
+        return args
+
     def test_basic(self):
-        args = Namespace(**(self.DEFAULT_VALUES))
+        # Get the parser from util. This way the test is directly coupled to the parser arguments
+        args = self.get_args()
         simulate(args)
 
-    def test_missing(self):
-        # every value in DEFAULT_VALUES is expected to be set, so omitting one should raise an error
-        values = self.DEFAULT_VALUES.copy()
-        # except propagate_modes_error
-        del self.DEFAULT_VALUES["propagate_mode_errors"]
-        for k, v in self.DEFAULT_VALUES.items():
+    def test_mandatory_missing(self):
+        values = self.MANDATORY_ARGS.copy()
+
+        for k, v in self.MANDATORY_ARGS.items():
             del values[k]
             with pytest.raises(Exception):
                 simulate(Namespace(**values))
             # reset
             values[k] = v
-        # restore the setting for further testing
-        self.DEFAULT_VALUES["propagate_mode_errors"] = values["propagate_mode_errors"]
 
         # required file missing
-        for file_type in ["vehicle_types", "electrified_stations", "cost_parameters_file"]:
-            values[file_type] = ""
+        for fpath in ["vehicle_types_path", "electrified_stations_path", "cost_parameters_path"]:
+            values[fpath] = ""
             with pytest.raises(Exception):
                 simulate(Namespace(**values))
             # reset
-            values[file_type] = self.DEFAULT_VALUES[file_type]
+            values[fpath] = self.MANDATORY_ARGS[fpath]
 
     def test_unknown_mode(self, caplog):
         # try to run a mode that does not exist
-        args = Namespace(**(self.DEFAULT_VALUES))
+        # Get the parser from util. This way the test is directly coupled to the parser arguments
+        args = self.get_args()
         args.mode = "foo"
         with caplog.at_level(logging.ERROR):
             simulate(args)
@@ -79,7 +101,8 @@ class TestSimulate:
 
     def test_late_sim(self, caplog):
         # sim mode has no function, just produces a log info later
-        args = Namespace(**(self.DEFAULT_VALUES))
+        # Get the parser from util. This way the test is directly coupled to the parser arguments
+        args = self.get_args()
         args.mode = ["sim", "sim"]
         with caplog.at_level(logging.INFO):
             simulate(args)
@@ -88,69 +111,65 @@ class TestSimulate:
 
     def test_mode_service_opt(self):
         # basic run
-        values = self.DEFAULT_VALUES.copy()
-        values["mode"] = "service_optimization"
-        simulate(Namespace(**values))
+        # Get the parser from util. This way the test is directly coupled to the parser arguments
+        args = self.get_args()
+        args.mode = "service_optimization"
+        simulate(args)
         # all rotations remain negative
-        values["desired_soc_deps"] = 0
-        values["desired_soc_opps"] = 0
-        values["ALLOW_NEGATIVE_SOC"] = True
-        simulate(Namespace(**values))
+        args.desired_soc_deps = 0
+        args.desired_soc_opps = 0
+        args.ALLOW_NEGATIVE_SOC = True
+        simulate(args)
 
     def test_mode_change_charge_type(self):
         # all rotations remain negative
-        values = self.DEFAULT_VALUES.copy()
-        values["mode"] = "neg_oppb_to_depb"
-        values["desired_soc_deps"] = 0
-        values["desired_soc_opps"] = 0
-        values["ALLOW_NEGATIVE_SOC"] = True
-        simulate(Namespace(**values))
+        args = self.get_args()
+        args.mode = "neg_oppb_to_depb"
+        args.desired_soc_deps = 0
+        args.desired_soc_opps = 0
+        args.ALLOW_NEGATIVE_SOC = True
+        simulate(args)
 
     def test_mode_remove_negative(self):
-        values = self.DEFAULT_VALUES.copy()
-        values["mode"] = "remove_negative"
-        values["desired_soc_deps"] = 0
-        # values["desired_soc_opps"] = 0
-        values["ALLOW_NEGATIVE_SOC"] = True
-        simulate(Namespace(**values))
+        args = self.get_args()
+        args.mode = "remove_negative"
+        args.desired_soc_deps = 0
+        args.ALLOW_NEGATIVE_SOC = True
+        simulate(args)
 
     def test_mode_report(self, tmp_path):
         # report with cost calculation, write to tmp
-        values = self.DEFAULT_VALUES.copy()
-        values["mode"] = "report"
-        values["cost_calculation"] = True
-        values["output_directory"] = tmp_path
-        values["strategy"] = "distributed"
-        values["strategy_deps"] = "balanced"
-        values["strategy_opps"] = "greedy"
+        args = self.get_args()
+        args.mode = "report"
+        args.cost_calculation = True
+        args.output_directory = tmp_path
+        args.strategy_deps = "balanced"
+        args.strategy_opps = "greedy"
 
-        values["show_plots"] = False
+        args.show_plots = False
         # tuned so that some rotations don't complete
-        values["days"] = .33
+        args.days = .33
         with warnings.catch_warnings():
             warnings.simplefilter("ignore")
-            simulate(Namespace(**values))
+            simulate(args)
 
     def test_empty_report(self, tmp_path):
         # report with no rotations
-        values = self.DEFAULT_VALUES.copy()
-        values.update({
-            "mode": ["remove_negative", "report"],
-            "desired_soc_deps": 0,
-            "ALLOW_NEGATIVE_SOC": True,
-            "cost_calculation": True,
-            "output_directory": tmp_path,
-            "strategy": "distributed",
-            "show_plots": False,
-        })
+        args = self.get_args()
+        args.mode = ["remove_negative", "report"]
+        args.desired_soc_deps = 0
+        args.ALLOW_NEGATIVE_SOC = True
+        args.cost_calculation = True
+        args.output_directory = tmp_path
+        args.show_plots = False
         with warnings.catch_warnings():
             warnings.simplefilter("ignore")
-            simulate(Namespace(**values))
+            simulate(args)
 
     def test_create_trips_in_report(self, tmp_path):
         # create_trips_in_report option: must generate valid input trips.csv
-        values = self.DEFAULT_VALUES.copy()
-        values.update({
+        args_dict = vars(self.get_args())
+        update_dict = {
             "mode": ["report"],
             "desired_soc_deps": 0,
             "ALLOW_NEGATIVE_SOC": True,
@@ -158,17 +177,19 @@ class TestSimulate:
             "output_directory": tmp_path,
             "show_plots": False,
             "create_trips_in_report": True,
-        })
+        }
+        args_dict.update(update_dict)
+
         # simulate base scenario, report generates new trips.csv in (tmp) output
         with warnings.catch_warnings():
             warnings.simplefilter("ignore")
-            simulate(Namespace(**values))
+            simulate(Namespace(**args_dict))
         # new simulation with generated trips.csv
-        values = self.DEFAULT_VALUES.copy()
-        values["input_schedule"] = tmp_path / "report_1/trips.csv"
-        simulate(Namespace(**(values)))
+        args_dict = vars(self.get_args())
+        args_dict["input_schedule"] = tmp_path / "report_1/trips.csv"
+        simulate(Namespace(**(args_dict)))
 
     def test_mode_recombination(self):
-        values = self.DEFAULT_VALUES.copy()
-        values["mode"] = "recombination"
-        simulate(Namespace(**values))
+        args = self.get_args()
+        args.mode = "recombination"
+        simulate(args)
