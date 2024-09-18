@@ -1,4 +1,3 @@
-from argparse import Namespace
 from copy import copy, deepcopy
 import json
 import logging
@@ -10,11 +9,10 @@ import sys
 import shutil
 
 from simba import station_optimizer
-from simba.consumption import Consumption
 import simba.optimizer_util as opt_util
-from simba.schedule import Schedule
+from simba.data_container import DataContainer
+from simba.simulate import pre_simulation
 from simba.station_optimization import run_optimization
-from simba.trip import Trip
 import simba.util as util
 from spice_ev.report import generate_soc_timeseries
 from tests.conftest import example_root
@@ -75,8 +73,8 @@ class TestStationOptimization:
         # replace line which defines vehicle_types up to line break. line break is concatenated in
         # the replacement, to keep format
         src_text = re.sub(
-            r"(vehicle_types\s=.*)(:=\r\n|\r|\n)",
-            "vehicle_types = " + vehicles_dest_str + r"\g<2>", src_text)
+            r"(vehicle_types_path\s=.*)(:=\r\n|\r|\n)",
+            "vehicle_types_path = " + vehicles_dest_str + r"\g<2>", src_text)
 
         # Use the default electrified stations from example folder but change some values
         with open(example_root / "electrified_stations.json", "r", encoding='utf-8') as file:
@@ -107,30 +105,31 @@ class TestStationOptimization:
         dst = tmp_path / "simba.cfg"
         dst.write_text(src_text)
 
-    def basic_run(self, trips_file_name="trips.csv"):
-        """ Check if running a basic example works and if a scenario object is returned.
+    def generate_datacontainer_args(self, trips_file_name="trips.csv"):
+        """ Check if running a basic example works and return data container.
 
         :param trips_file_name: file name of the trips file. Has to be inside the test_input_file
             folder
         :type trips_file_name: str
-        :return: schedule, scenario"""
-        path_to_trips = file_root / trips_file_name
-        sys.argv = ["foo", "--config", str(self.tmp_path / "simba.cfg")]
-        args = util.get_args()
-        args.input_schedule = path_to_trips
-        Trip.consumption = Consumption(self.vehicle_types, Namespace())
-        args2 = copy(args)
-        del args2.vehicle_types
-        generated_schedule = Schedule.from_csv(
-            path_to_trips, self.vehicle_types, self.electrified_stations, **vars(args2))
+        :return: data_container, args"""
 
-        scen = generated_schedule.run(args)
-        # optimization depends on vehicle_socs, therefore they need to be generated
-        generate_soc_timeseries(scen)
+        sys.argv = ["foo", "--config", str(example_root / "simba.cfg")]
+        args = util.get_args()
         args.output_directory = self.tmp_path
         args.results_directory = self.tmp_path
         assert self.tmp_path
-        return generated_schedule, scen, args
+
+        args.input_schedule = file_root / trips_file_name
+        data_container = DataContainer().fill_with_args(args)
+        return data_container, args
+
+    def generate_schedule_scenario(self, args, data_container):
+        generated_schedule, args = pre_simulation(args, data_container)
+        scen = generated_schedule.run(args)
+
+        # optimization depends on vehicle_socs, therefore they need to be generated
+        generate_soc_timeseries(scen)
+        return generated_schedule, scen
 
     def test_join_all_subsets(self):
         subsets = [{1, 2, 3}, {3, 4, 6, 7}, {7, 8}, {20, 21}, {21, 22}, {6}]
@@ -153,11 +152,15 @@ class TestStationOptimization:
     def test_fast_calculations_and_events(self):
         """ Test if the base optimization finishes without raising errors"""
         trips_file_name = "trips_for_optimizer.csv"
-        sched, scen, args = self.basic_run(trips_file_name)
+        data_container, args = self.generate_datacontainer_args(trips_file_name)
+        data_container.stations_data = {}
+        args.preferred_charging_type = "oppb"
+        sched, scen = self.generate_schedule_scenario(args, data_container)
         t = sched.rotations["2"].trips[0]
-        t.distance = 10000
+        t.distance = 100000
         sched.calculate_consumption()
         sched.stations["Station-1"] = {"type": "opps", "n_charging_stations": None}
+        sched.stations["Station-2"] = {"type": "opps", "n_charging_stations": None}
         scen = sched.run(args)
         generate_soc_timeseries(scen)
 
@@ -169,9 +172,10 @@ class TestStationOptimization:
         sopt.create_charging_curves()
         # remove none values from socs in the vehicle_socs
         sopt.replace_socs_from_none_to_value()
-        vehicle_socs_fast = sopt.timeseries_calc({"Station-1"})
+        vehicle_socs_fast = sopt.timeseries_calc(list(sched.stations.keys()))
         for vehicle, socs in scen.vehicle_socs.items():
             assert vehicle_socs_fast[vehicle][-1] == pytest.approx(socs[-1], 0.01, abs=0.01)
+
         events = sopt.get_low_soc_events(soc_data=vehicle_socs_fast, rel_soc=True)
         assert len(events) == 1
         e = events[0]
@@ -202,7 +206,10 @@ class TestStationOptimization:
     def test_basic_optimization(self):
         """ Test if the base optimization finishes without raising errors"""
         trips_file_name = "trips_for_optimizer.csv"
-        sched, scen, args = self.basic_run(trips_file_name)
+        data_container, args = self.generate_datacontainer_args(trips_file_name)
+        data_container.stations_data = {}
+        args.preferred_charging_type = "oppb"
+        sched, scen = self.generate_schedule_scenario(args, data_container)
         config_path = example_root / "default_optimizer.cfg"
         conf = opt_util.read_config(config_path)
 
@@ -213,7 +220,9 @@ class TestStationOptimization:
     def test_schedule_consistency(self):
         """ Test if the optimization returns all rotations even when some filters are active"""
         trips_file_name = "trips_for_optimizer.csv"
-        sched, scen, args = self.basic_run(trips_file_name)
+        data_container, args = self.generate_datacontainer_args(trips_file_name)
+        args.preferred_charging_type = "oppb"
+        sched, scen = self.generate_schedule_scenario(args, data_container)
         config_path = example_root / "default_optimizer.cfg"
         conf = opt_util.read_config(config_path)
 
@@ -261,10 +270,16 @@ class TestStationOptimization:
 
         """
         trips_file_name = "trips_for_optimizer_deep.csv"
-        sched, scen, args = self.basic_run(trips_file_name=trips_file_name)
-        args.input_schedule = file_root / trips_file_name
+        data_container, args = self.generate_datacontainer_args(trips_file_name)
+        data_container.stations_data = {}
+        args.preferred_charging_type = "oppb"
+        for trip_d in data_container.trip_data:
+            trip_d["distance"] *= 15
+        sched, scen = self.generate_schedule_scenario(args, data_container)
         config_path = example_root / "default_optimizer.cfg"
         conf = opt_util.read_config(config_path)
+
+        assert len(sched.get_negative_rotations(scen)) == 2
 
         solvers = ["quick", "spiceev"]
         node_choices = ["step-by-step", "brute"]
@@ -279,14 +294,21 @@ class TestStationOptimization:
                 assert "Station-2" in opt_sched.stations
                 assert "Station-3" in opt_sched.stations
 
+    def test_deep_optimization_extended(self):
         trips_file_name = "trips_extended.csv"
-        # adjust mileage so scenario is not possible without adding electrification
-        self.vehicle_types = adjust_vehicle_file(args.vehicle_types, mileage=2, capacity=150)
-        sched, scen, args = self.basic_run(trips_file_name=trips_file_name)
+        data_container, args = self.generate_datacontainer_args(trips_file_name)
+        data_container.stations_data = {}
+        args.preferred_charging_type = "oppb"
+        sched, scen = self.generate_schedule_scenario(args, data_container)
         # optimization can only be properly tested if negative rotations exist
         assert len(sched.get_negative_rotations(scen)) > 0
         args.input_schedule = file_root / trips_file_name
+        config_path = example_root / "default_optimizer.cfg"
+        conf = opt_util.read_config(config_path)
 
+        solvers = ["quick", "spiceev"]
+        node_choices = ["step-by-step", "brute"]
+        conf.opt_type = "deep"
         opt_stat = None
         for solver in solvers:
             for node_choice in node_choices:
@@ -308,7 +330,12 @@ class TestStationOptimization:
             to have access to logging data
         """
         trips_file_name = "trips_for_optimizer_deep.csv"
-        sched, scen, args = self.basic_run(trips_file_name=trips_file_name)
+        data_container, args = self.generate_datacontainer_args(trips_file_name)
+        for trip_d in data_container.trip_data:
+            trip_d["distance"] *= 15
+        data_container.stations_data = {}
+        args.preferred_charging_type = "oppb"
+        sched, scen = self.generate_schedule_scenario(args, data_container)
         args.input_schedule = file_root / trips_file_name
         config_path = example_root / "default_optimizer.cfg"
         conf = opt_util.read_config(config_path)

@@ -15,7 +15,8 @@ class TestExampleConfigs:
         # provide path to input data
         src_text = src_text.replace("data/examples", str(EXAMPLE_PATH))
         # write output to tmp
-        src_text = re.sub(r"output_directory.+", f"output_directory = {str(tmp_path)}", src_text)
+        src_text = re.sub(r"output_directory.+", f"output_directory = {str(tmp_path.as_posix())}",
+                          src_text)
         dst = tmp_path / "simba.cfg"
         # don't show plots. spaces are optional, so use regex
         src_text = re.sub(r"show_plots\s*=\s*true", "show_plots = false", src_text)
