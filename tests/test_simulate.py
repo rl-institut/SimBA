@@ -65,6 +65,7 @@ class TestSimulate:
         parser.set_defaults(**self.NON_DEFAULT_VALUES)
         # get all args with default values
         args, _ = parser.parse_known_args()
+        util.mutate_args_for_spiceev(args)
         return args
 
     def test_basic(self):
@@ -118,7 +119,6 @@ class TestSimulate:
         # all rotations remain negative
         args.desired_soc_deps = 0
         args.desired_soc_opps = 0
-        args.ALLOW_NEGATIVE_SOC = True
         simulate(args)
 
     def test_mode_change_charge_type(self):
@@ -127,14 +127,12 @@ class TestSimulate:
         args.mode = "neg_oppb_to_depb"
         args.desired_soc_deps = 0
         args.desired_soc_opps = 0
-        args.ALLOW_NEGATIVE_SOC = True
         simulate(args)
 
     def test_mode_remove_negative(self):
         args = self.get_args()
         args.mode = "remove_negative"
         args.desired_soc_deps = 0
-        args.ALLOW_NEGATIVE_SOC = True
         simulate(args)
 
     def test_mode_report(self, tmp_path):
@@ -158,7 +156,6 @@ class TestSimulate:
         args = self.get_args()
         args.mode = ["remove_negative", "report"]
         args.desired_soc_deps = 0
-        args.ALLOW_NEGATIVE_SOC = True
         args.cost_calculation = True
         args.output_directory = tmp_path
         args.show_plots = False
@@ -168,26 +165,50 @@ class TestSimulate:
 
     def test_create_trips_in_report(self, tmp_path):
         # create_trips_in_report option: must generate valid input trips.csv
-        args_dict = vars(self.get_args())
-        update_dict = {
-            "mode": ["report"],
-            "desired_soc_deps": 0,
-            "ALLOW_NEGATIVE_SOC": True,
-            "cost_calculation": False,
-            "output_directory": tmp_path,
-            "show_plots": False,
-            "create_trips_in_report": True,
-        }
-        args_dict.update(update_dict)
+        args = self.get_args()
+        args.mode = "report"
+        args.desired_soc_deps = 0
+        args.cost_calculation = False
+        args.output_directory = tmp_path
+        args.show_plots = False
+        args.create_trips_in_report = True
 
         # simulate base scenario, report generates new trips.csv in (tmp) output
         with warnings.catch_warnings():
             warnings.simplefilter("ignore")
-            simulate(Namespace(**args_dict))
+            simulate(args)
         # new simulation with generated trips.csv
-        args_dict = vars(self.get_args())
-        args_dict["input_schedule"] = tmp_path / "report_1/trips.csv"
-        simulate(Namespace(**(args_dict)))
+        args = self.get_args()
+        args.input_schedule = tmp_path / "report_1/trips.csv"
+        simulate(args)
+
+    def test_pickle(self, tmp_path):
+        # create pickle in report
+        args = self.get_args()
+        args.mode = "report"
+        args.show_plots = False
+        args.cost_calculation = False
+        args.output_directory = tmp_path
+        args.create_pickle_in_report = True
+        simulate(args)
+        pickle_path = tmp_path / "report_1/scenario.pkl"
+        assert pickle_path.exists()
+
+        # read in pickle for new simulation
+        args.mode = "load_pickle"
+        args.output_directory = None
+        args.load_pickle = pickle_path
+        args.cost_parameters_path = None  # keep original cost parameters
+        schedule, _ = simulate(args)
+        assert "foo" not in schedule.data_container.cost_parameters_data
+
+        # replace cost parameters after loading pickle
+        args.mode = ["load_pickle"]
+        args.cost_parameters_path = tmp_path / "cost_params.json"
+        with open(args.cost_parameters_path, "w") as f:
+            f.write('{"foo": 1}')
+        schedule, _ = simulate(args)
+        assert schedule.data_container.cost_parameters_data["foo"] == 1
 
     def test_mode_recombination(self):
         args = self.get_args()
