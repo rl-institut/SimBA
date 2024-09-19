@@ -184,11 +184,11 @@ def generate_plots(schedule, scenario, args):
         file_path_png = args.results_directory / "run_overview.png"
         if vars(args).get("scenario_name"):
             file_path_png = file_path_png.with_stem(file_path_png.stem + '_' + args.scenario_name)
-        plt.savefig(file_path_png, dpi=300)
+        plt.savefig(file_path_png, dpi=DPI)
         file_path_pdf = args.results_directory / "run_overview.pdf"
         if vars(args).get("scenario_name"):
             file_path_pdf = file_path_pdf.with_stem(file_path_pdf.stem + '_' + args.scenario_name)
-        plt.savefig(file_path_pdf, dpi=300)
+        plt.savefig(file_path_pdf, dpi=DPI)
     if args.show_plots:
         plt.show()
 
@@ -468,7 +468,7 @@ def plot_distance_per_rotation_distribution(extended_plots_path, schedule):
     ax.set_title('Distribution of rotation length per vehicle type')
     ax.legend()
     plt.tight_layout()
-    plt.savefig(extended_plots_path / "distribution_distance.png", dpi=300)
+    plt.savefig(extended_plots_path / "distribution_distance.png", dpi=DPI)
     plt.close()
 
 
@@ -498,7 +498,7 @@ def plot_consumption_per_rotation_distribution(extended_plots_path, schedule):
     ax.set_title('Distribution of energy consumption of rotations per vehicle type')
     ax.legend()
     plt.tight_layout()
-    plt.savefig(extended_plots_path / "distribution_consumption", dpi=300)
+    plt.savefig(extended_plots_path / "distribution_consumption", dpi=DPI)
     plt.close()
 
 
@@ -553,7 +553,7 @@ def plot_charge_type_distribution(extended_plots_path, scenario, schedule):
     ax.yaxis.get_major_locator().set_params(integer=True)
     ax.legend(["successful rotations", "negative rotations"])
     ax.set_title("Feasibility of rotations per charging type")
-    plt.savefig(extended_plots_path / "charge_types", dpi=300)
+    plt.savefig(extended_plots_path / "charge_types", dpi=DPI)
     plt.close()
 
 
@@ -634,7 +634,7 @@ def plot_gc_power_timeseries(extended_plots_path, scenario):
         ax.set_xlim(time_values[0], time_values[-1])
         # ax.tick_params(axis='x', rotation=30)
         plt.tight_layout()
-        plt.savefig(extended_plots_path / f"{sanitize(gc)}_power_overview.png", dpi=300)
+        plt.savefig(extended_plots_path / f"{sanitize(gc)}_power_overview.png", dpi=DPI)
         plt.close(fig)
 
 
@@ -710,7 +710,7 @@ def plot_vehicle_services(schedule, output_path):
         fig.tight_layout()
         # PDF so Block names stay readable
         fig.savefig(output_path_folder / f"{sanitize(depot)}_vehicle_services.pdf")
-        fig.savefig(output_path_folder / f"{sanitize(depot)}_vehicle_services.png", dpi=300)
+        fig.savefig(output_path_folder / f"{sanitize(depot)}_vehicle_services.png", dpi=DPI)
         plt.close(fig)
 
 
@@ -771,7 +771,7 @@ def plot_blocks_dense(schedule, output_path):
         fig.tight_layout()
         # PDF so Block names stay readable
         fig.savefig(output_path_folder / f"{sanitize(depot)}_block_distribution.pdf")
-        fig.savefig(output_path_folder / f"{sanitize(depot)}_block_distribution.png", dpi=300)
+        fig.savefig(output_path_folder / f"{sanitize(depot)}_block_distribution.png", dpi=DPI)
         plt.close(fig)
 
 
@@ -835,5 +835,5 @@ def plot_active_rotations(extended_plots_path, scenario, schedule):
     plt.grid(axis="y")
     plt.title("Active Rotations")
     plt.tight_layout()
-    plt.savefig(extended_plots_path / "active_rotations", dpi=300)
+    plt.savefig(extended_plots_path / "active_rotations", dpi=DPI)
     plt.close()
