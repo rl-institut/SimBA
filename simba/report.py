@@ -678,7 +678,7 @@ def plot_vehicle_services(schedule, output_path):
             handles.append(Patch(color=color_generator.send(rot), label=key))
         # Position legend at the top outside of the plot
         ax.legend(handles=handles, loc='lower center', bbox_to_anchor=(0.5, 1),
-                  ncol=len(handles)//2, prop={"size": 7})
+                  ncol=len(handles)//2+1, prop={"size": 7})
         fig.tight_layout()
         # PDF so Block names stay readable
         fig.savefig(output_path_folder / f"{sanitize(depot)}_vehicle_services.pdf")
@@ -738,7 +738,7 @@ def plot_blocks_dense(schedule, output_path):
             handles.append(Patch(color=color_generator.send(rot), label=key))
         # Position legend at the top outside of the plot
         ax.legend(handles=handles, loc='lower center', bbox_to_anchor=(0.5, 1),
-                  ncol=len(handles)//2, prop={"size": 7})
+                  ncol=len(handles)//2+1, prop={"size": 7})
 
         fig.tight_layout()
         # PDF so Block names stay readable
