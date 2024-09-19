@@ -609,6 +609,25 @@ def plot_gc_power_timeseries(extended_plots_path, scenario):
         plt.close(fig)
 
 
+def ColorGenerator(vehicle_types):
+    # generates color according to vehicle_type and charging type of rotation
+    colors = util.cycling_generator(plt.rcParams['axes.prop_cycle'].by_key()["color"])
+    color_per_vt = {vt: next(colors) for vt in vehicle_types}
+    color = None
+    while True:
+        rotation = yield color
+        color = color_per_vt[rotation.vehicle_type]
+        rgb = matplotlib.colors.to_rgb(color)
+        hsv = matplotlib.colors.rgb_to_hsv(rgb)
+        if rotation.charging_type == "depb":
+            pass
+        elif rotation.charging_type == "oppb":
+            hsv[-1] /= 2
+        else:
+            raise NotImplementedError
+        color = matplotlib.colors.hsv_to_rgb(hsv)
+
+
 def plot_vehicle_services(schedule, output_path):
     """Plots the rotations serviced by the same vehicle
 
@@ -624,50 +643,30 @@ def plot_vehicle_services(schedule, output_path):
     for rotation in all_rotations.values():
         rotations_per_depot[rotation.departure_name].append(rotation)
 
-    def color_generator():
-        # generates color according to vehicle_type and charging type of rotation
-        colors = util.cycling_generator(plt.rcParams['axes.prop_cycle'].by_key()["color"])
-        color_per_vt = {vt: next(colors) for vt in schedule.vehicle_types}
-        color = None
-        while True:
-            rotation = yield color
-            color = color_per_vt[rotation.vehicle_type]
-            rgb = matplotlib.colors.to_rgb(color)
-            hsv = matplotlib.colors.rgb_to_hsv(rgb)
-            if rotation.charging_type == "depb":
-                pass
-            elif rotation.charging_type == "oppb":
-                hsv[-1] /= 2
-            else:
-                raise NotImplementedError
-            color = matplotlib.colors.hsv_to_rgb(hsv)
-
-    def vehicle_id_row_generator():
+    def VehicleIdRowGenerator():
         # generate row ids by using the vehicle_id of the rotation
         vehicle_id = None
         while True:
             rotation = yield vehicle_id
             vehicle_id = rotation.vehicle_id
 
-    # create instances of the generators
-    dense_row_generator = vehicle_id_row_generator()
-    color_gen = color_generator()
-    # initialize row_generator by yielding None
-    next(dense_row_generator)
-    next(color_gen)
-
     rotations_per_depot["All_Depots"] = all_rotations.values()
 
     output_path_folder = output_path / "vehicle_services"
     output_path_folder.mkdir(parents=True, exist_ok=True)
     for depot, rotations in rotations_per_depot.items():
+        # create instances of the generators
+        row_generator = VehicleIdRowGenerator()
+        color_generator = ColorGenerator(schedule.vehicle_types)
+
         sorted_rotations = list(
-            sorted(rotations,
-                   key=lambda x: (x.vehicle_type, x.charging_type, x.departure_time)))
-        fig, ax = create_plot_blocks(sorted_rotations, color_gen, dense_row_generator)
-        ax.set_xlabel("Vehicle ID")
-        ax.set_xlabel("Block")
-        fig.savefig(output_path_folder / f"{sanitize(depot)}_vehicle_services.png")
+            sorted(rotations, key=lambda x: (x.vehicle_type, x.charging_type, x.departure_time)))
+        fig, ax = create_plot_blocks(sorted_rotations, color_generator, row_generator)
+        ax.set_ylabel("Vehicle ID")
+        ax.tick_params(axis='y', labelsize=8)
+        fig.tight_layout()
+        # PDF so Block names stay readable
+        fig.savefig(output_path_folder / f"{sanitize(depot)}_vehicle_services.pdf")
         plt.close(fig)
 
 
@@ -685,17 +684,7 @@ def plot_blocks_dense(schedule, output_path):
     for rotation in all_rotations.values():
         rotations_per_depot[rotation.departure_name].append(rotation)
 
-    def color_generator():
-        # Generates color according to rotation vehicle_type
-
-        colors = util.cycling_generator(plt.rcParams['axes.prop_cycle'].by_key()["color"])
-        color_per_vt = {vt: next(colors) for vt in schedule.vehicle_types}
-        color = None
-        while True:
-            rotation = yield color
-            color = color_per_vt[rotation.vehicle_type]
-
-    def dense_row_generator():
+    def DenseRowGenerator():
         # Generates row id by trying to find lowes row with a rotation which arrived
         arrival_times = []
         row_nr = None
@@ -712,39 +701,41 @@ def plot_blocks_dense(schedule, output_path):
                 row_nr = len(arrival_times) - 1
 
     rotations_per_depot["All_Depots"] = all_rotations.values()
-    # create instances of the generators
-    dense_row_generator = dense_row_generator()
-    color_gen = color_generator()
-    # initialize row_generator by yielding None
-    next(dense_row_generator)
-    next(color_gen)
     output_path_folder = output_path / "block_distribution"
     output_path_folder.mkdir(parents=True, exist_ok=True)
     for depot, rotations in rotations_per_depot.items():
-        fig, ax = create_plot_blocks(rotations, color_gen, dense_row_generator)
-        ax.set_xlabel("Block")
-        fig.savefig(output_path_folder / f"{sanitize(depot)}_block_distribution.png")
+        # create instances of the generators
+        row_generator = DenseRowGenerator()
+        color_generator = ColorGenerator(schedule.vehicle_types)
+        # sort by departure_time and longest duration
+        sorted_rotations = list(
+            sorted(rotations, key=lambda r: (r.departure_time, -(r.departure_time-r.arrival_time))))
+        fig, ax = create_plot_blocks(sorted_rotations, color_generator, row_generator)
+        ax.set_ylabel("Block")
+        ax.yaxis.get_major_locator().set_params(integer=True)
+        fig.tight_layout()
+        # PDF so Block names stay readable
+        fig.savefig(output_path_folder / f"{sanitize(depot)}_block_distribution.pdf")
         plt.close(fig)
 
 
 def create_plot_blocks(rotations, color_generator, row_generator):
-    fig, ax = plt.subplots()
-    rotations = list(sorted(rotations, key=lambda r: r.departure_time))
+    # initialize row_generator by yielding None
+    next(row_generator)
+    next(color_generator)
+
+    fig, ax = plt.subplots(figsize=(5, len(rotations) * 0.02 + 2))
     for rotation in rotations:
         row_nr = row_generator.send(rotation)
         width = rotation.arrival_time - rotation.departure_time
         artist = ax.barh([row_nr], width=[width], height=0.8, left=rotation.departure_time,
                          label=rotation.id, color=color_generator.send(rotation))
-        ax.bar_label(artist, labels=[rotation.id], label_type='center')
-
+        ax.bar_label(artist, labels=[rotation.id], label_type='center', fontsize=2)
     ax.xaxis.set_major_locator(mdates.AutoDateLocator())
     ax.xaxis.set_major_formatter(mdates.DateFormatter('%D %H:%M'))
-    ax.yaxis.get_major_locator().set_params(integer=True)
     ax.set_xlim(min(r.departure_time for r in rotations) - datetime.timedelta(minutes=10),
                 max(r.arrival_time for r in rotations) + datetime.timedelta(minutes=10))
-    ax.set_xticklabels(ax.get_xticklabels(), rotation=30, ha='right')
-    ax.set_xlabel('Time')
-    fig.tight_layout()
+    ax.tick_params(axis='x', rotation=30)
     return fig, ax
 
 
