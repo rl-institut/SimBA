@@ -53,7 +53,10 @@ Generate report
 
 The generation of the report is implemented as a mode, that can be activated with the keyword "report" in modes (:ref:`report`). The report generates most of the output files. The report can be called any number of times e.g. mode = ["sim", "report", "neg_depb_to_oppb", "report", "service_optimization", "report"]. For each report, a sub-folder is created in the output directory (as defined in the :ref:`config`)  named "report_[nr]" with the respective number.
 
-The generation of the report can be modified using the flag "cost_calculation" in :ref:`config`. If this flag is set to true, each report will also generate the file "summary_vehicles_costs.csv".
+The generation of the report can be modified using flags in :ref:`config`.
+
+1. If ``cost_calculation`` is set, each report will also generate the file "summary_vehicles_costs.csv".
+2. If ``extended_output_plots`` is set, more plots will be saved to "extended_plots" in the report directory. These plots include the number of active rotations over time, a distribution of charge types, histograms of rotation consumption and distance as well as station-specific power levels.
 
 Default outputs
 ###############
