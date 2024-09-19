@@ -114,6 +114,7 @@ class Schedule:
                 trip["departure_name"], trip["arrival_name"])
 
             if trip["level_of_loading"] is None:
+                assert len(data.level_of_loading_data) == 24, "Need 24 entries in level of loading"
                 trip["level_of_loading"] = util.get_mean_from_hourly_dict(
                     data.level_of_loading_data, trip["departure_time"], trip["arrival_time"])
             else:
@@ -122,6 +123,7 @@ class Schedule:
                     trip["level_of_loading"] = min(1, max(0, trip["level_of_loading"]))
 
             if trip["temperature"] is None:
+                assert len(data.temperature_data) == 24, "Need 24 entries in temperature data"
                 trip["temperature"] = util.get_mean_from_hourly_dict(
                     data.temperature_data, trip["departure_time"], trip["arrival_time"])
 
@@ -209,15 +211,16 @@ class Schedule:
     def run(self, args, mode="distributed"):
         """Runs a schedule without assigning vehicles.
 
-        For external usage the core run functionality is accessible through this function. It
-        allows for defining a custom-made assign_vehicles method for the schedule.
+        For external usage the core run functionality is accessible through this function.
+        It allows for defining a custom-made assign_vehicles method for the schedule.
+
         :param args: used arguments are rotation_filter, path to rotation ids,
             and rotation_filter_variable that sets mode (options: include, exclude)
         :type args: argparse.Namespace
-        :param mode: option of "distributed" or "greedy"
+        :param mode: SpiceEV strategy name
         :type mode: str
         :return: scenario
-        :rtype spice_ev.Scenario
+        :rtype: spice_ev.Scenario
         """
         # Make sure all rotations have an assigned vehicle
         assert all([rot.vehicle_id is not None for rot in self.rotations.values()])
@@ -348,8 +351,9 @@ class Schedule:
     def assign_vehicles_custom(self, vehicle_assigns: Iterable[dict]):
         """ Assign vehicles on a custom basis.
 
-        Assign vehicles based on a datasource, containing all rotations, their vehicle_ids and
-        desired start socs.
+        Assign vehicles based on a datasource,
+        containing all rotations, their vehicle_ids and desired start socs.
+
         :param vehicle_assigns: Iterable of dict with keys rotation_id, vehicle_id and start_soc
             for each rotation
         :type vehicle_assigns: Iterable[dict]
@@ -1125,6 +1129,7 @@ def update_csv_file_info(file_info, gc_name):
     - set grid_connector_id
     - update csv_file path
     - set start_time and step_duration_s from CSV information if not given
+
     :param file_info: csv information from electrified station
     :type file_info: dict
     :param gc_name: station name

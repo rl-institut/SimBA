@@ -84,7 +84,26 @@ The example (data/simba.cfg) contains parameter descriptions which are explained
      - false
      - Boolean
      - If activated, plots are displayed with every run of :ref:`report` mode
-
+   * - extended_output_plots
+     - false
+     - Boolean
+     - If set, create additional plots when running :ref:`report` mode
+   * - strategy_deps
+     - balanced
+     - SpiceEV Strategies (greedy, balanced, peak_shaving, peak_load_windows, balanced_market)
+     - Charging strategy used in depots.
+   * - strategy_opps
+     - greedy
+     - SpiceEV Strategies (greedy, balanced, peak_shaving, peak_load_windows, balanced_market)
+     - Charging strategy used in opportunity stations.
+   * - cost_calculation_strategy_deps
+     - strategy_deps value
+     - SpiceEV Strategies (greedy, balanced, peak_shaving, peak_load_windows, balanced_market)
+     - Strategy for cost calculation at depots.
+   * - cost_calculation_strategy_opps
+     - strategy_opps value
+     - SpiceEV Strategies (greedy, balanced, peak_shaving, peak_load_windows, balanced_market)
+     - Strategy for cost calculation at opportunity stations.
    * - preferred_charging_type
      - depb
      - depb, oppb

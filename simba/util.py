@@ -433,7 +433,7 @@ def get_parser():
                         help='Remove rotations from schedule that violate assumptions. ')
     parser.add_argument('--show-plots', action='store_true',
                         help='show plots for users to view in "report" mode')
-    parser.add_argument('--extended_output_plots', action='store_true',
+    parser.add_argument('--extended-output-plots', action='store_true',
                         help='show extended plots')
     parser.add_argument('--propagate-mode-errors', action='store_true',
                         help='Re-raise errors instead of continuing during simulation modes')
@@ -452,6 +452,13 @@ def get_parser():
                         help='strategy to use in depot')
     parser.add_argument('--strategy-opps', default='greedy', choices=STRATEGIES,
                         help='strategy to use at station')
+
+    # #### Cost calculation strategy #####
+    parser.add_argument('--cost-calculation-strategy-deps', choices=STRATEGIES,
+                        help='Strategy for cost calculation to use in depot')
+    parser.add_argument('--cost-calculation-strategy-opps', choices=STRATEGIES,
+                        help='Strategy for cost calculation to use at station')
+
     parser.add_argument('--strategy-options-deps', default={},
                         type=lambda s: s if type(s) is dict else json.loads(s),
                         help='special strategy options to use in depot')

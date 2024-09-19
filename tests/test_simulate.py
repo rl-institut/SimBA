@@ -175,6 +175,12 @@ class TestSimulate:
         with warnings.catch_warnings():
             warnings.simplefilter("ignore")
             simulate(args)
+            for expected_file in [
+                    "active_rotations.png", "charge_types.png", "Station-0_power_overview.png",
+                    "distribution_consumption.png", "distribution_distance.png"
+            ]:
+                assert (tmp_path / f"report_1/extended_plots/{expected_file}").exists(), (
+                    f"{expected_file} not found in extended plots")
 
     def test_create_trips_in_report(self, tmp_path):
         # create_trips_in_report option: must generate valid input trips.csv
