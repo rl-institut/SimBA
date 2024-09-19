@@ -15,6 +15,8 @@ from spice_ev.util import sanitize
 
 from simba import util
 
+DPI = 300
+
 
 def open_for_csv(file_path):
     """ Create a file handle to write to.
@@ -182,11 +184,11 @@ def generate_plots(schedule, scenario, args):
         file_path_png = args.results_directory / "run_overview.png"
         if vars(args).get("scenario_name"):
             file_path_png = file_path_png.with_stem(file_path_png.stem + '_' + args.scenario_name)
-        plt.savefig(file_path_png)
+        plt.savefig(file_path_png, dpi=300)
         file_path_pdf = args.results_directory / "run_overview.pdf"
         if vars(args).get("scenario_name"):
             file_path_pdf = file_path_pdf.with_stem(file_path_pdf.stem + '_' + args.scenario_name)
-        plt.savefig(file_path_pdf)
+        plt.savefig(file_path_pdf, dpi=300)
     if args.show_plots:
         plt.show()
 
@@ -428,7 +430,7 @@ def plot_distance_per_rotation_distribution(extended_plots_path, schedule):
     ax.yaxis.grid(True)
     ax.set_title('Distribution of bus types over rotation distance')
     ax.legend()
-    plt.savefig(extended_plots_path / "distribution_bustypes_route_rotations")
+    plt.savefig(extended_plots_path / "distribution_bustypes_route_rotations", dpi=300)
     plt.close()
 
 
@@ -468,7 +470,7 @@ def plot_consumption_per_rotation_distribution(extended_plots_path, schedule):
     ax.yaxis.grid(True)
     ax.set_title('Distribution of bus types over rotation energy consumption')
     ax.legend()
-    plt.savefig(extended_plots_path / "distribution_bustypes_consumption_rotations")
+    plt.savefig(extended_plots_path / "distribution_bustypes_consumption_rotations", dpi=300)
     plt.close()
 
 
@@ -525,7 +527,7 @@ def plot_charge_type_distribution(extended_plots_path, scenario, schedule):
     ax.yaxis.get_major_locator().set_params(integer=True)
     ax.legend(["successful rotations", "negative rotations"])
     ax.set_title("Distribution of opportunity and depot charging")
-    plt.savefig(extended_plots_path / "charge_types")
+    plt.savefig(extended_plots_path / "charge_types", dpi=300)
     plt.close()
 
 
@@ -606,7 +608,7 @@ def plot_gc_power_timeseries(extended_plots_path, scenario):
         ax.set_xlim(time_values[0], time_values[-1])
         # ax.tick_params(axis='x', rotation=30)
 
-        plt.savefig(extended_plots_path / f"{sanitize(gc)}_power_time_overview.png")
+        plt.savefig(extended_plots_path / f"{sanitize(gc)}_power_time_overview.png", dpi=300)
         plt.close(fig)
 
 
@@ -682,7 +684,7 @@ def plot_vehicle_services(schedule, output_path):
         fig.tight_layout()
         # PDF so Block names stay readable
         fig.savefig(output_path_folder / f"{sanitize(depot)}_vehicle_services.pdf")
-        fig.savefig(output_path_folder / f"{sanitize(depot)}_vehicle_services.png")
+        fig.savefig(output_path_folder / f"{sanitize(depot)}_vehicle_services.png", dpi=300)
         plt.close(fig)
 
 
@@ -743,7 +745,7 @@ def plot_blocks_dense(schedule, output_path):
         fig.tight_layout()
         # PDF so Block names stay readable
         fig.savefig(output_path_folder / f"{sanitize(depot)}_block_distribution.pdf")
-        fig.savefig(output_path_folder / f"{sanitize(depot)}_block_distribution.png")
+        fig.savefig(output_path_folder / f"{sanitize(depot)}_block_distribution.png", dpi=300)
         plt.close(fig)
 
 
@@ -762,6 +764,7 @@ def create_plot_blocks(sorted_rotations, color_generator, row_generator):
 
     # Large heights create too much margin with default value of margins: Reduce value to 0.01
     ax.axes.margins(y=0.01)
+    ax.grid(axis='x')
     ax.xaxis.set_major_locator(mdates.AutoDateLocator())
     ax.xaxis.set_major_formatter(mdates.DateFormatter('%D %H:%M'))
     ax.set_xlim(min(r.departure_time for r in sorted_rotations) - datetime.timedelta(minutes=30),
@@ -803,5 +806,5 @@ def plot_active_rotations(extended_plots_path, scenario, schedule):
     ax.yaxis.get_major_locator().set_params(integer=True)
     plt.grid(axis="y")
     plt.title("Active Rotations")
-    plt.savefig(extended_plots_path / "active_rotations")
+    plt.savefig(extended_plots_path / "active_rotations", dpi=300)
     plt.close()
