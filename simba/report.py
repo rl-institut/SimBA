@@ -6,9 +6,16 @@ from math import ceil
 import re
 from typing import Iterable
 
+import matplotlib.colors
 import matplotlib.pyplot as plt
+import matplotlib.dates as mdates
+from matplotlib.patches import Patch
 from spice_ev.report import aggregate_global_results, plot, generate_reports, aggregate_timeseries
 from spice_ev.util import sanitize
+
+from simba import util
+
+DPI = 300
 
 
 def open_for_csv(file_path):
@@ -177,11 +184,11 @@ def generate_plots(schedule, scenario, args):
         file_path_png = args.results_directory / "run_overview.png"
         if vars(args).get("scenario_name"):
             file_path_png = file_path_png.with_stem(file_path_png.stem + '_' + args.scenario_name)
-        plt.savefig(file_path_png)
+        plt.savefig(file_path_png, dpi=DPI)
         file_path_pdf = args.results_directory / "run_overview.pdf"
         if vars(args).get("scenario_name"):
             file_path_pdf = file_path_pdf.with_stem(file_path_pdf.stem + '_' + args.scenario_name)
-        plt.savefig(file_path_pdf)
+        plt.savefig(file_path_pdf, dpi=DPI)
     if args.show_plots:
         plt.show()
 
@@ -190,6 +197,9 @@ def generate_plots(schedule, scenario, args):
         # create directory for extended plots
         extended_plots_path = args.results_directory.joinpath("extended_plots")
         extended_plots_path.mkdir(parents=True, exist_ok=True)
+
+        plot_blocks_dense(schedule, extended_plots_path)
+        plot_vehicle_services(schedule, extended_plots_path)
 
         plot_consumption_per_rotation_distribution(extended_plots_path, schedule)
         plot_distance_per_rotation_distribution(extended_plots_path, schedule)
@@ -458,7 +468,7 @@ def plot_distance_per_rotation_distribution(extended_plots_path, schedule):
     ax.set_title('Distribution of rotation length per vehicle type')
     ax.legend()
     plt.tight_layout()
-    plt.savefig(extended_plots_path / "distribution_distance.png")
+    plt.savefig(extended_plots_path / "distribution_distance.png", dpi=DPI)
     plt.close()
 
 
@@ -488,7 +498,7 @@ def plot_consumption_per_rotation_distribution(extended_plots_path, schedule):
     ax.set_title('Distribution of energy consumption of rotations per vehicle type')
     ax.legend()
     plt.tight_layout()
-    plt.savefig(extended_plots_path / "distribution_consumption")
+    plt.savefig(extended_plots_path / "distribution_consumption", dpi=DPI)
     plt.close()
 
 
@@ -543,7 +553,7 @@ def plot_charge_type_distribution(extended_plots_path, scenario, schedule):
     ax.yaxis.get_major_locator().set_params(integer=True)
     ax.legend(["successful rotations", "negative rotations"])
     ax.set_title("Feasibility of rotations per charging type")
-    plt.savefig(extended_plots_path / "charge_types")
+    plt.savefig(extended_plots_path / "charge_types", dpi=DPI)
     plt.close()
 
 
@@ -622,11 +632,171 @@ def plot_gc_power_timeseries(extended_plots_path, scenario):
 
         # xaxis are datetime strings
         ax.set_xlim(time_values[0], time_values[-1])
-        ax.tick_params(axis='x', rotation=30)
-
+        # ax.tick_params(axis='x', rotation=30)
         plt.tight_layout()
-        plt.savefig(extended_plots_path / f"{sanitize(gc)}_power_overview.png")
+        plt.savefig(extended_plots_path / f"{sanitize(gc)}_power_overview.png", dpi=DPI)
         plt.close(fig)
+
+
+def ColorGenerator(vehicle_types):
+    # generates color according to vehicle_type and charging type of rotation
+    colors = util.cycling_generator(plt.rcParams['axes.prop_cycle'].by_key()["color"])
+    color_per_vt = {vt: next(colors) for vt in vehicle_types}
+    color = None
+    while True:
+        rotation = yield color
+        color = color_per_vt[rotation.vehicle_type]
+        rgb = matplotlib.colors.to_rgb(color)
+        hsv = matplotlib.colors.rgb_to_hsv(rgb)
+        value = hsv[-1]
+        if rotation.charging_type == "depb":
+            if value >= 0.5:
+                value -= 0.3
+        elif rotation.charging_type == "oppb":
+            if value < 0.5:
+                value += 0.3
+        else:
+            raise NotImplementedError
+        hsv[-1] = value
+        color = matplotlib.colors.hsv_to_rgb(hsv)
+
+
+def plot_vehicle_services(schedule, output_path):
+    """Plots the rotations serviced by the same vehicle
+
+    :param schedule: Provides the schedule data.
+    :type schedule; simba.schedule.Schedule
+    :param output_path: Path to the output folder
+    :type output_path: pathlib.Path
+    """
+
+    # find depots for every rotation
+    all_rotations = schedule.rotations
+    rotations_per_depot = {r.departure_name: [] for r in all_rotations.values()}
+    for rotation in all_rotations.values():
+        rotations_per_depot[rotation.departure_name].append(rotation)
+
+    def VehicleIdRowGenerator():
+        # generate row ids by using the vehicle_id of the rotation
+        vehicle_id = None
+        while True:
+            rotation = yield vehicle_id
+            vehicle_id = rotation.vehicle_id
+
+    rotations_per_depot["All_Depots"] = all_rotations.values()
+
+    output_path_folder = output_path / "vehicle_services"
+    output_path_folder.mkdir(parents=True, exist_ok=True)
+    for depot, rotations in rotations_per_depot.items():
+        # create instances of the generators
+        row_generator = VehicleIdRowGenerator()
+        color_generator = ColorGenerator(schedule.vehicle_types)
+
+        sorted_rotations = list(
+            sorted(rotations, key=lambda x: (x.vehicle_type, x.charging_type, x.departure_time)))
+        fig, ax = create_plot_blocks(sorted_rotations, color_generator, row_generator)
+        ax.set_ylabel("Vehicle ID")
+        # Vehicle ids need small fontsize to fit
+        ax.tick_params(axis='y', labelsize=6)
+        # add legend
+        handles = []
+        vts = {f"{rotation.vehicle_type}_{rotation.charging_type}": rotation
+               for rotation in sorted_rotations}
+        for key, rot in vts.items():
+            handles.append(Patch(color=color_generator.send(rot), label=key))
+        # Position legend at the top outside of the plot
+        ax.legend(handles=handles, loc='lower center', bbox_to_anchor=(0.5, 1),
+                  ncol=len(handles)//2+1, prop={"size": 7})
+        fig.tight_layout()
+        # PDF so Block names stay readable
+        fig.savefig(output_path_folder / f"{sanitize(depot)}_vehicle_services.pdf")
+        fig.savefig(output_path_folder / f"{sanitize(depot)}_vehicle_services.png", dpi=DPI)
+        plt.close(fig)
+
+
+def plot_blocks_dense(schedule, output_path):
+    """Plots the different loads (total, feedin, external) of all grid connectors.
+
+    :param schedule: Provides the schedule data.
+    :type schedule; simba.schedule.Schedule
+    :param output_path: Path to the output folder
+    :type output_path: pathlib.Path
+    """
+    # find depots for every rotation
+    all_rotations = schedule.rotations
+    rotations_per_depot = {r.departure_name: [] for r in all_rotations.values()}
+    for rotation in all_rotations.values():
+        rotations_per_depot[rotation.departure_name].append(rotation)
+
+    def DenseRowGenerator():
+        # Generates row id by trying to find lowes row with a rotation which arrived
+        arrival_times = []
+        row_nr = None
+        while True:
+            rotation = yield row_nr
+            for i in range(len(arrival_times)):
+                at = arrival_times[i]
+                if at <= rotation.departure_time:
+                    arrival_times[i] = rotation.arrival_time
+                    row_nr = i
+                    break
+            else:
+                arrival_times.append(rotation.arrival_time)
+                row_nr = len(arrival_times) - 1
+
+    rotations_per_depot["All_Depots"] = all_rotations.values()
+    output_path_folder = output_path / "block_distribution"
+    output_path_folder.mkdir(parents=True, exist_ok=True)
+    for depot, rotations in rotations_per_depot.items():
+        # create instances of the generators
+        row_generator = DenseRowGenerator()
+        color_generator = ColorGenerator(schedule.vehicle_types)
+        # sort by departure_time and longest duration
+        sorted_rotations = list(
+            sorted(rotations,
+                   key=lambda r: (r.departure_time, -(r.departure_time - r.arrival_time))))
+        fig, ax = create_plot_blocks(sorted_rotations, color_generator, row_generator)
+        ax.set_ylabel("Block")
+        ax.yaxis.get_major_locator().set_params(integer=True)
+        # add legend
+        handles = []
+        vts = {f"{rotation.vehicle_type}_{rotation.charging_type}": rotation
+               for rotation in sorted_rotations}
+        for key, rot in vts.items():
+            handles.append(Patch(color=color_generator.send(rot), label=key))
+        # Position legend at the top outside of the plot
+        ax.legend(handles=handles, loc='lower center', bbox_to_anchor=(0.5, 1),
+                  ncol=len(handles)//2+1, prop={"size": 7})
+
+        fig.tight_layout()
+        # PDF so Block names stay readable
+        fig.savefig(output_path_folder / f"{sanitize(depot)}_block_distribution.pdf")
+        fig.savefig(output_path_folder / f"{sanitize(depot)}_block_distribution.png", dpi=DPI)
+        plt.close(fig)
+
+
+def create_plot_blocks(sorted_rotations, color_generator, row_generator):
+    # initialize row_generator by yielding None
+    next(row_generator)
+    next(color_generator)
+    y_size = len(sorted_rotations) * 0.02 + 1.5
+    fig, ax = plt.subplots(figsize=(7, y_size))
+    for rotation in sorted_rotations:
+        row_nr = row_generator.send(rotation)
+        width = rotation.arrival_time - rotation.departure_time
+        artist = ax.barh([row_nr], width=[width], height=0.8, left=rotation.departure_time,
+                         label=rotation.id, color=color_generator.send(rotation))
+        ax.bar_label(artist, labels=[rotation.id], label_type='center', fontsize=2)
+
+    # Large heights create too much margin with default value of margins: Reduce value to 0.01
+    ax.axes.margins(y=0.01)
+    ax.grid(axis='x')
+    ax.xaxis.set_major_locator(mdates.AutoDateLocator())
+    ax.xaxis.set_major_formatter(mdates.DateFormatter('%D %H:%M'))
+    ax.set_xlim(min(r.departure_time for r in sorted_rotations) - datetime.timedelta(minutes=30),
+                max(r.arrival_time for r in sorted_rotations) + datetime.timedelta(minutes=30))
+    ax.tick_params(axis='x', rotation=30)
+    return fig, ax
 
 
 def count_active_rotations(scenario, schedule):
@@ -665,5 +835,5 @@ def plot_active_rotations(extended_plots_path, scenario, schedule):
     plt.grid(axis="y")
     plt.title("Active Rotations")
     plt.tight_layout()
-    plt.savefig(extended_plots_path / "active_rotations")
+    plt.savefig(extended_plots_path / "active_rotations", dpi=DPI)
     plt.close()

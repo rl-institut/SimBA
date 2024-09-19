@@ -259,6 +259,19 @@ def cast_float_or_none(val: any) -> any:
         return None
 
 
+def cycling_generator(cycle: []):
+    """Generator to loop over lists
+    :param cycle: list to cycle through
+    :type cycle: list()
+    :yields: iterated value
+    :rtype:  Iterator[any]
+    """
+    i = 0
+    while True:
+        yield cycle[i % len(cycle)]
+        i += 1
+
+
 def setup_logging(args, time_str):
     """ Setup logging.
 
