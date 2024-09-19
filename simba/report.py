@@ -730,7 +730,16 @@ def plot_blocks_dense(schedule, output_path):
         fig, ax = create_plot_blocks(sorted_rotations, color_generator, row_generator)
         ax.set_ylabel("Block")
         ax.yaxis.get_major_locator().set_params(integer=True)
-        ax.set_ylim(0, 125)
+        # add legend
+        handles = []
+        vts = {f"{rotation.vehicle_type}_{rotation.charging_type}": rotation
+               for rotation in sorted_rotations}
+        for key, rot in vts.items():
+            handles.append(Patch(color=color_generator.send(rot), label=key))
+        # Position legend at the top outside of the plot
+        ax.legend(handles=handles, loc='lower center', bbox_to_anchor=(0.5, 1),
+                  ncol=len(handles)//2, prop={"size": 7})
+
         fig.tight_layout()
         # PDF so Block names stay readable
         fig.savefig(output_path_folder / f"{sanitize(depot)}_block_distribution.pdf")
