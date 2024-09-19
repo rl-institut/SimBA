@@ -9,6 +9,7 @@ from typing import Iterable
 import matplotlib.colors
 import matplotlib.pyplot as plt
 import matplotlib.dates as mdates
+from matplotlib.patches import Patch
 from spice_ev.report import aggregate_global_results, plot, generate_reports, aggregate_timeseries
 from spice_ev.util import sanitize
 
@@ -619,12 +620,16 @@ def ColorGenerator(vehicle_types):
         color = color_per_vt[rotation.vehicle_type]
         rgb = matplotlib.colors.to_rgb(color)
         hsv = matplotlib.colors.rgb_to_hsv(rgb)
+        value = hsv[-1]
         if rotation.charging_type == "depb":
-            pass
+            if value >= 0.5:
+                value -= 0.3
         elif rotation.charging_type == "oppb":
-            hsv[-1] /= 2
+            if value < 0.5:
+                value += 0.3
         else:
             raise NotImplementedError
+        hsv[-1] = value
         color = matplotlib.colors.hsv_to_rgb(hsv)
 
 
@@ -663,10 +668,21 @@ def plot_vehicle_services(schedule, output_path):
             sorted(rotations, key=lambda x: (x.vehicle_type, x.charging_type, x.departure_time)))
         fig, ax = create_plot_blocks(sorted_rotations, color_generator, row_generator)
         ax.set_ylabel("Vehicle ID")
-        ax.tick_params(axis='y', labelsize=8)
+        # Vehicle ids need small fontsize to fit
+        ax.tick_params(axis='y', labelsize=6)
+        # add legend
+        handles = []
+        vts = {f"{rotation.vehicle_type}_{rotation.charging_type}": rotation
+               for rotation in sorted_rotations}
+        for key, rot in vts.items():
+            handles.append(Patch(color=color_generator.send(rot), label=key))
+        # Position legend at the top outside of the plot
+        ax.legend(handles=handles, loc='lower center', bbox_to_anchor=(0.5, 1),
+                  ncol=len(handles)//2, prop={"size": 7})
         fig.tight_layout()
         # PDF so Block names stay readable
         fig.savefig(output_path_folder / f"{sanitize(depot)}_vehicle_services.pdf")
+        fig.savefig(output_path_folder / f"{sanitize(depot)}_vehicle_services.png")
         plt.close(fig)
 
 
@@ -709,32 +725,38 @@ def plot_blocks_dense(schedule, output_path):
         color_generator = ColorGenerator(schedule.vehicle_types)
         # sort by departure_time and longest duration
         sorted_rotations = list(
-            sorted(rotations, key=lambda r: (r.departure_time, -(r.departure_time-r.arrival_time))))
+            sorted(rotations,
+                   key=lambda r: (r.departure_time, -(r.departure_time - r.arrival_time))))
         fig, ax = create_plot_blocks(sorted_rotations, color_generator, row_generator)
         ax.set_ylabel("Block")
         ax.yaxis.get_major_locator().set_params(integer=True)
+        ax.set_ylim(0, 125)
         fig.tight_layout()
         # PDF so Block names stay readable
         fig.savefig(output_path_folder / f"{sanitize(depot)}_block_distribution.pdf")
+        fig.savefig(output_path_folder / f"{sanitize(depot)}_block_distribution.png")
         plt.close(fig)
 
 
-def create_plot_blocks(rotations, color_generator, row_generator):
+def create_plot_blocks(sorted_rotations, color_generator, row_generator):
     # initialize row_generator by yielding None
     next(row_generator)
     next(color_generator)
-
-    fig, ax = plt.subplots(figsize=(5, len(rotations) * 0.02 + 2))
-    for rotation in rotations:
+    y_size = len(sorted_rotations) * 0.02 + 1.5
+    fig, ax = plt.subplots(figsize=(7, y_size))
+    for rotation in sorted_rotations:
         row_nr = row_generator.send(rotation)
         width = rotation.arrival_time - rotation.departure_time
         artist = ax.barh([row_nr], width=[width], height=0.8, left=rotation.departure_time,
                          label=rotation.id, color=color_generator.send(rotation))
         ax.bar_label(artist, labels=[rotation.id], label_type='center', fontsize=2)
+
+    # Large heights create too much margin with default value of margins: Reduce value to 0.01
+    ax.axes.margins(y=0.01)
     ax.xaxis.set_major_locator(mdates.AutoDateLocator())
     ax.xaxis.set_major_formatter(mdates.DateFormatter('%D %H:%M'))
-    ax.set_xlim(min(r.departure_time for r in rotations) - datetime.timedelta(minutes=10),
-                max(r.arrival_time for r in rotations) + datetime.timedelta(minutes=10))
+    ax.set_xlim(min(r.departure_time for r in sorted_rotations) - datetime.timedelta(minutes=30),
+                max(r.arrival_time for r in sorted_rotations) + datetime.timedelta(minutes=30))
     ax.tick_params(axis='x', rotation=30)
     return fig, ax
 
