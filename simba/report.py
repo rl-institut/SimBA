@@ -654,6 +654,8 @@ def plot_active_rotations(extended_plots_path, scenario, schedule):
     ts = [scenario.start_time + scenario.interval * i for i in range(scenario.n_intervals)]
     num_active_rotations = count_active_rotations(scenario, schedule)
     plt.plot(ts, num_active_rotations)
+    fig = plt.gcf()
+    fig.set_size_inches(8, 4.8)
     ax = plt.gca()
     ax.xaxis_date()
     ax.set_xlim(ts[0], ts[-1])
@@ -662,5 +664,6 @@ def plot_active_rotations(extended_plots_path, scenario, schedule):
     ax.yaxis.get_major_locator().set_params(integer=True)
     plt.grid(axis="y")
     plt.title("Active Rotations")
+    plt.tight_layout()
     plt.savefig(extended_plots_path / "active_rotations")
     plt.close()
