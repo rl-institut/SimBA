@@ -339,6 +339,30 @@ def get_buffer_time(trip, default=0):
     return buffer_time
 
 
+def replace_deprecated_arguments(args):
+    if args.electrified_stations is not None:
+        assert args.electrified_stations_path is None
+        logging.warning("The parameter 'electrified_stations' is deprecated. "
+                        "Use 'electrified_stations_path 'instead.")
+        args.electrified_stations_path = args.electrified_stations
+    del args.electrified_stations
+
+    if args.vehicle_types is not None:
+        assert args.vehicle_types_path is None
+        logging.warning("The parameter 'vehicle_types' is deprecated. "
+                        "Use 'vehicle_types_path 'instead.")
+        args.vehicle_types_path = args.vehicle_types
+    del args.vehicle_types
+
+    if args.cost_parameters_file is not None:
+        assert args.cost_parameter_path is None
+        logging.warning("The parameter 'cost_parameter_file' is deprecated. "
+                        "Use 'cost_parameter_path 'instead.")
+        args.cost_parameter_path = args.cost_parameters_file
+    del args.cost_parameters_file
+    return args
+
+
 def mutate_args_for_spiceev(args):
     # arguments relevant to SpiceEV, setting automatically to reduce clutter in config
     args.margin = 1
@@ -356,6 +380,9 @@ def get_args():
 
     # If a config is provided, the config will overwrite previously parsed arguments
     set_options_from_config(args, check=parser, verbose=False)
+
+    # Check if deprecated arguments were given and change them accordingly
+    args = replace_deprecated_arguments(args)
 
     # rename special options
     args.timing = args.eta
@@ -528,6 +555,13 @@ def get_parser():
     parser.add_argument('--time-windows', metavar='FILE',
                         help='use peak load windows to force lower power '
                         'during times of high grid load')
+    # Deprecated options for downwards compatibility
+    parser.add_argument('--electrified-stations', default=None,
+                        help='Deprecated use "electrified-stations-path" instead')
+    parser.add_argument('--vehicle-types', default=None,
+                        help='Deprecated use "vehicle-types-path" instead')
+    parser.add_argument('--cost-parameters-file', default=None,
+                        help='Deprecated use "cost-parameters-path" instead')
 
     parser.add_argument('--config', help='Use config file to set arguments')
     return parser

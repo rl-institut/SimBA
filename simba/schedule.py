@@ -103,10 +103,16 @@ class Schedule:
         # Add geo data to schedule
         schedule.station_data = data.station_geo_data
 
+        if not schedule.station_data:
+            logging.warning(
+                "No station data found for schedule. Height difference for all trips set to 0")
+
         # Add consumption calculator to trip class
         schedule.consumption_calculator = Consumption.create_from_data_container(data)
 
         for trip in data.trip_data:
+            # De-link DataContainer and Schedule instances
+            trip = {key: data for key, data in trip.items()}
             rotation_id = trip['rotation_id']
 
             # Get height difference from station_data
@@ -114,18 +120,21 @@ class Schedule:
                 trip["departure_name"], trip["arrival_name"])
 
             if trip["level_of_loading"] is None:
-                assert len(data.level_of_loading_data) == 24, "Need 24 entries in level of loading"
-                trip["level_of_loading"] = util.get_mean_from_hourly_dict(
-                    data.level_of_loading_data, trip["departure_time"], trip["arrival_time"])
+                if data.level_of_loading_data:
+                    assert len(data.level_of_loading_data) == 24, \
+                        "Need 24 entries in level of loading"
+                    trip["level_of_loading"] = util.get_mean_from_hourly_dict(
+                        data.level_of_loading_data, trip["departure_time"], trip["arrival_time"])
             else:
                 if not 0 <= trip["level_of_loading"] <= 1:
                     logging.warning("Level of loading is out of range [0,1] and will be clipped.")
                     trip["level_of_loading"] = min(1, max(0, trip["level_of_loading"]))
 
             if trip["temperature"] is None:
-                assert len(data.temperature_data) == 24, "Need 24 entries in temperature data"
-                trip["temperature"] = util.get_mean_from_hourly_dict(
-                    data.temperature_data, trip["departure_time"], trip["arrival_time"])
+                if data.temperature_data:
+                    assert len(data.temperature_data) == 24, "Need 24 entries in temperature data"
+                    trip["temperature"] = util.get_mean_from_hourly_dict(
+                        data.temperature_data, trip["departure_time"], trip["arrival_time"])
 
             if rotation_id not in schedule.rotations.keys():
                 schedule.rotations.update({
@@ -727,7 +736,7 @@ class Schedule:
         :return: Height difference. Defaults to 0 if height data is not found.
         :rtype: float
         """
-        if isinstance(self.station_data, dict):
+        if isinstance(self.station_data, dict) and self.station_data:
             station_name = departure_name
             try:
                 start_height = self.station_data[station_name]["elevation"]
@@ -736,9 +745,8 @@ class Schedule:
                 return end_height - start_height
             except KeyError:
                 logging.error(
-                    f"No elevation data found for {station_name}. Height difference set to 0")
-        else:
-            logging.error("No station data found for schedule. Height difference set to 0")
+                    f"No elevation data found for {station_name} in station_data. "
+                    "Height difference set to 0")
         return 0
 
     def get_negative_rotations(self, scenario):

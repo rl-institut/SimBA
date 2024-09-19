@@ -65,6 +65,8 @@ class TestSimulate:
         parser.set_defaults(**self.NON_DEFAULT_VALUES)
         # get all args with default values
         args, _ = parser.parse_known_args()
+        args = util.replace_deprecated_arguments(args)
+
         return args
 
     def test_basic(self):

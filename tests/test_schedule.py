@@ -61,6 +61,46 @@ class BasicSchedule:
 
 class TestSchedule(BasicSchedule):
 
+    def test_optional_timeseries(self):
+        # Test if simulation runs if level of loading and temperature timeseries is not given
+        sys.argv = ["foo", "--config", str(example_root / "simba.cfg")]
+        args = util.get_args()
+        data_container = DataContainer().fill_with_args(args)
+        vehicle_mileage_path = None
+        found = False
+        for vt in data_container.vehicle_types_data.values():
+            for ct in vt.values():
+                if isinstance(ct["mileage"], str):
+                    vehicle_mileage_path = ct["mileage"]
+                    found = True
+                    break
+            if found:
+                break
+
+        sched, args = pre_simulation(args, data_container)
+
+        # Make sure at least a single used vehicle type has mileage lookup.
+        some_used_vehicle_type = next(iter(sched.rotations.values())).vehicle_type
+        data_container.vehicle_types_data[some_used_vehicle_type][
+            "oppb"]["mileage"] = vehicle_mileage_path
+        data_container.vehicle_types_data[some_used_vehicle_type][
+            "depb"]["mileage"] = vehicle_mileage_path
+
+        # Delete the lol and temp data sources -> pre-simulation should fail,
+        # since consumption cannot be calculated
+        data_container.level_of_loading_data = {}
+        data_container.temperature_data = {}
+        for trip in data_container.trip_data:
+            print(trip)
+        with pytest.raises(Exception):
+            sched, args = pre_simulation(args, data_container)
+
+        # if all vehicle types have constant consumption, pre-simulation should work
+        for vt in data_container.vehicle_types_data.values():
+            for ct in vt.values():
+                ct["mileage"] = 1
+        _, _ = pre_simulation(args, data_container)
+
     def test_timestep(self):
         # Get the parser from util. This way the test is directly coupled to the parser arguments
         sys.argv = ["foo", "--config", str(example_root / "simba.cfg")]
