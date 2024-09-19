@@ -341,24 +341,26 @@ def get_buffer_time(trip, default=0):
 
 def replace_deprecated_arguments(args):
     if args.electrified_stations is not None:
-        assert args.electrified_stations_path is None
+        assert args.electrified_stations_path is None, \
+            "Multiple electrified stations are not supported."
         logging.warning("The parameter 'electrified_stations' is deprecated. "
                         "Use 'electrified_stations_path 'instead.")
         args.electrified_stations_path = args.electrified_stations
     del args.electrified_stations
 
     if args.vehicle_types is not None:
-        assert args.vehicle_types_path is None
         logging.warning("The parameter 'vehicle_types' is deprecated. "
-                        "Use 'vehicle_types_path 'instead.")
+                        "Use 'vehicle_types_path 'instead. The value of args.vehicle_types_path "
+                        f"{args.vehicle_types_path} is replaced with {args.vehicle_types}.")
         args.vehicle_types_path = args.vehicle_types
     del args.vehicle_types
 
     if args.cost_parameters_file is not None:
-        assert args.cost_parameter_path is None
-        logging.warning("The parameter 'cost_parameter_file' is deprecated. "
-                        "Use 'cost_parameter_path 'instead.")
-        args.cost_parameter_path = args.cost_parameters_file
+        assert args.cost_parameters_path is None, \
+            "Multiple cost parameters files are not supported."
+        logging.warning("The parameter 'cost_parameters_file' is deprecated. "
+                        "Use 'cost_parameters_path 'instead.")
+        args.cost_parameters_path = args.cost_parameters_file
     del args.cost_parameters_file
     return args
 
