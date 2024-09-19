@@ -145,8 +145,8 @@ class TestSimulate:
         args.output_directory = tmp_path
         args.strategy_deps = "balanced"
         args.strategy_opps = "greedy"
-
         args.show_plots = False
+
         # tuned so that some rotations don't complete
         args.days = .33
         with warnings.catch_warnings():
@@ -165,6 +165,22 @@ class TestSimulate:
         with warnings.catch_warnings():
             warnings.simplefilter("ignore")
             simulate(args)
+
+    def test_extended_plot(self, tmp_path):
+        args = self.get_args()
+        args.mode = "report"
+        args.output_directory = tmp_path
+        args.show_plots = False
+        args.extended_output_plots = True
+        with warnings.catch_warnings():
+            warnings.simplefilter("ignore")
+            simulate(args)
+            for expected_file in [
+                    "active_rotations.png", "charge_types.png", "Station-0_power_overview.png",
+                    "distribution_consumption.png", "distribution_distance.png"
+            ]:
+                assert (tmp_path / f"report_1/extended_plots/{expected_file}").exists(), (
+                    f"{expected_file} not found in extended plots")
 
     def test_create_trips_in_report(self, tmp_path):
         # create_trips_in_report option: must generate valid input trips.csv
