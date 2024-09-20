@@ -31,6 +31,8 @@ class DataContainer:
         # List of trip dictionaries containing trip information like arrival time and station
         # departure time and station, distance and more
         self.trip_data: [dict] = []
+        # Simulation arguments
+        self.args = None
 
     def fill_with_args(self, args: argparse.Namespace) -> 'DataContainer':
         """ Fill DataContainer with data from file_paths defined in args.
@@ -40,6 +42,7 @@ class DataContainer:
             level_of_loading_over_day_path, station_data_path
         :return: self
         """
+        self.args = args
 
         return self.fill_with_paths(
             trips_file_path=args.input_schedule,
@@ -69,6 +72,7 @@ class DataContainer:
                 trip_d[TEMPERATURE] = util.cast_float_or_none(trip.get(TEMPERATURE))
                 trip_d["distance"] = float(trip["distance"])
                 self.trip_data.append(trip_d)
+        util.save_input_file(file_path, self.args)
         return self
 
     def add_station_geo_data(self, data: dict) -> None:
@@ -162,6 +166,7 @@ class DataContainer:
                 msg=f"Can't parse numeric data in line {line_num + 2} from file {file_path}.",
                 level=100)
             raise
+        util.save_input_file(file_path, self.args)
         return self
 
     def add_level_of_loading_data(self, data: dict) -> 'DataContainer':
@@ -186,6 +191,7 @@ class DataContainer:
         index = "hour"
         column = "level_of_loading"
         level_of_loading_data_dict = util.get_dict_from_csv(column, file_path, index)
+        util.save_input_file(file_path, self.args)
         self.add_level_of_loading_data(level_of_loading_data_dict)
         return self
 
@@ -209,6 +215,7 @@ class DataContainer:
         index = "hour"
         column = "temperature"
         temperature_data_dict = util.get_dict_from_csv(column, file_path, index)
+        util.save_input_file(file_path, self.args)
         self.add_temperature_data(temperature_data_dict)
         return self
 
@@ -231,6 +238,7 @@ class DataContainer:
         :return: DataContainer containing cost parameters
         """
         cost_parameters = self.get_json_from_file(file_path, "cost parameters")
+        util.save_input_file(file_path, self.args)
         self.add_cost_parameters(cost_parameters)
         return self
 
@@ -253,6 +261,7 @@ class DataContainer:
 
         """
         stations = self.get_json_from_file(file_path, "electrified stations")
+        util.save_input_file(file_path, self.args)
         self.add_stations(stations)
         return self
 
@@ -274,6 +283,7 @@ class DataContainer:
         :return: DataContainer containing vehicle types
         """
         vehicle_types = self.get_json_from_file(file_path, "vehicle types")
+        util.save_input_file(file_path, self.args)
         self.add_vehicle_types(vehicle_types)
         return self
 
@@ -311,6 +321,7 @@ class DataContainer:
             delim = util.get_csv_delim(mileage_path)
             df = pd.read_csv(mileage_path, sep=delim)
             self.add_consumption_data(mileage_path, df)
+            util.save_input_file(mileage_path, self.args)
         return self
 
     def add_consumption_data(self, data_name, df: pd.DataFrame) -> 'DataContainer':

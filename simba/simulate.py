@@ -2,7 +2,7 @@ import logging
 import traceback
 from copy import deepcopy
 
-from simba import report, optimization, optimizer_util
+from simba import report, optimization, optimizer_util, util
 from simba.data_container import DataContainer
 from simba.costs import calculate_costs
 from simba.optimizer_util import read_config as read_optimizer_config
@@ -44,6 +44,7 @@ def pre_simulation(args, data_container: DataContainer):
     :return: schedule, args
     :rtype: simba.schedule.Schedule, Namespace
     """
+
     # Deepcopy args so original args do not get mutated
     args = deepcopy(args)
 
@@ -202,6 +203,7 @@ class Mode:
             conf = optimizer_util.OptimizerConfig().set_defaults()
         else:
             conf = read_optimizer_config(args.optimizer_config)
+            util.save_input_file(args.optimizer_config, args)
         if single_step:
             conf.early_return = True
         # Work on copies of the original schedule and scenario. In case of an exception the outer
@@ -223,7 +225,7 @@ class Mode:
     @staticmethod
     def station_optimization_single_step(schedule, scenario, args, i):
         """ Electrify only the station with the highest potential
-        
+
         :param schedule: Schedule
         :type schedule: simba.schedule.Schedule
         :param scenario: Scenario
@@ -232,7 +234,7 @@ class Mode:
         :type args: argparse.Namespace
         :param i: counter of modes for directory creation
         :return: schedule, scenario
-        
+
         """  # noqa
         return Mode._station_optimization(schedule, scenario, args, i, single_step=True)
 

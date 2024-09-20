@@ -1,6 +1,6 @@
-import logging
 from copy import copy, deepcopy
 import json
+import logging
 from pathlib import Path
 import pytest
 import random
@@ -106,12 +106,12 @@ class TestStationOptimization:
         dst.write_text(src_text)
 
     def generate_datacontainer_args(self, trips_file_name="trips.csv"):
-        """ Check if running a basic example works and if a scenario object is returned.
+        """ Check if running a basic example works and return data container.
 
         :param trips_file_name: file name of the trips file. Has to be inside the test_input_file
             folder
         :type trips_file_name: str
-        :return: schedule, scenario, args"""
+        :return: data_container, args"""
 
         sys.argv = ["foo", "--config", str(example_root / "simba.cfg")]
         args = util.get_args()
