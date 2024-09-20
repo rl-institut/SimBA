@@ -198,7 +198,7 @@ class TestSchedule(BasicSchedule):
         args = util.get_args()
         args.min_recharge_deps_oppb = 1
         args.min_recharge_deps_depb = 1
-        args.input_schedule = file_root / "trips_assign_vehicles_extended.csv"
+        args.schedule_path = file_root / "trips_assign_vehicles_extended.csv"
         data_container = DataContainer().fill_with_args(args)
 
         generated_schedule, args = pre_simulation(args, data_container)
@@ -242,7 +242,7 @@ class TestSchedule(BasicSchedule):
         """
         sys.argv = ["foo", "--config", str(example_root / "simba.cfg")]
         args = util.get_args()
-        args.input_schedule = file_root / "trips_assign_vehicles_extended.csv"
+        args.schedule_path = file_root / "trips_assign_vehicles_extended.csv"
         data_container = DataContainer().fill_with_args(args)
 
         generated_schedule, args = pre_simulation(args, data_container)
@@ -295,7 +295,7 @@ class TestSchedule(BasicSchedule):
         """
         sys.argv = ["foo", "--config", str(example_root / "simba.cfg")]
         args = util.get_args()
-        args.input_schedule = file_root / "trips_assign_vehicles.csv"
+        args.schedule_path = file_root / "trips_assign_vehicles.csv"
         data_container = DataContainer().fill_with_args(args)
 
         generated_schedule, args = pre_simulation(args, data_container)
@@ -321,7 +321,7 @@ class TestSchedule(BasicSchedule):
         """
         sys.argv = ["foo", "--config", str(example_root / "simba.cfg")]
         args = util.get_args()
-        args.input_schedule = file_root / "trips_assign_vehicles.csv"
+        args.schedule_path = file_root / "trips_assign_vehicles.csv"
         data_container = DataContainer().fill_with_args(args)
         generated_schedule, args = pre_simulation(args, data_container)
 
@@ -348,14 +348,14 @@ class TestSchedule(BasicSchedule):
     def test_rotation_filter(self, tmp_path):
         sys.argv = ["foo", "--config", str(example_root / "simba.cfg")]
         args = util.get_args()
-        args.input_schedule = file_root / "trips_assign_vehicles.csv"
+        args.schedule_path = file_root / "trips_assign_vehicles.csv"
         data_container = DataContainer().fill_with_args(args)
 
         s, args = pre_simulation(args, data_container)
 
         args = Namespace(**{
             "rotation_filter_variable": None,
-            "rotation_filter": None,
+            "rotation_filter_path": None,
         })
         # add dummy rotations
         s.rotations = {
@@ -370,25 +370,25 @@ class TestSchedule(BasicSchedule):
 
         # filtering not disabled, but neither file nor list given -> warning
         args.rotation_filter_variable = "include"
-        args.rotation_filter = None
+        args.rotation_filter_path = None
         with pytest.warns(UserWarning):
             s.rotation_filter(args)
         assert s.rotations.keys() == s.original_rotations.keys()
 
         # filter file not found -> warning
-        args.rotation_filter = tmp_path / "filter.txt"
+        args.rotation_filter_path = tmp_path / "filter.txt"
         with pytest.warns(UserWarning):
             s.rotation_filter(args)
         assert s.rotations.keys() == s.original_rotations.keys()
 
         # filter (include) from JSON file
-        args.rotation_filter.write_text("3 \n 4\n16")
+        args.rotation_filter_path.write_text("3 \n 4\n16")
         s.rotation_filter(args)
         assert sorted(s.rotations.keys()) == ['3', '4']
 
         # filter (exclude) from given list
         args.rotation_filter_variable = "exclude"
-        args.rotation_filter = None
+        args.rotation_filter_path = None
         s.rotations = deepcopy(s.original_rotations)
         s.rotation_filter(args, rf_list=['3', '4'])
         assert sorted(s.rotations.keys()) == ['0', '1', '2', '5']
@@ -401,8 +401,8 @@ class TestSchedule(BasicSchedule):
 
         # filter nothing
         s.rotations = deepcopy(s.original_rotations)
-        args.rotation_filter = tmp_path / "filter.txt"
-        args.rotation_filter.write_text('')
+        args.rotation_filter_path = tmp_path / "filter.txt"
+        args.rotation_filter_path.write_text('')
         args.rotation_filter_variable = "exclude"
         s.rotation_filter(args, rf_list=[])
         assert s.rotations.keys() == s.original_rotations.keys()

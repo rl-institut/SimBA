@@ -152,9 +152,9 @@ class Schedule:
         if vars(args).get("check_rotation_consistency"):
             # check rotation expectations
             inconsistent_rotations = cls.check_consistency(schedule)
-            if inconsistent_rotations and args.output_directory is not None:
+            if inconsistent_rotations and args.output_path is not None:
                 # write errors to file
-                filepath = args.output_directory / "inconsistent_rotations.csv"
+                filepath = args.output_path / "inconsistent_rotations.csv"
                 with open(filepath, "w", encoding='utf-8') as f:
                     for rot_id, e in inconsistent_rotations.items():
                         f.write(f"Rotation {rot_id}: {e}\n")
@@ -223,7 +223,7 @@ class Schedule:
         For external usage the core run functionality is accessible through this function.
         It allows for defining a custom-made assign_vehicles method for the schedule.
 
-        :param args: used arguments are rotation_filter, path to rotation ids,
+        :param args: used arguments are rotation_filter_path, path to rotation ids,
             and rotation_filter_variable that sets mode (options: include, exclude)
         :type args: argparse.Namespace
         :param mode: SpiceEV strategy name
@@ -800,7 +800,7 @@ class Schedule:
     def rotation_filter(self, args, rf_list=[]):
         """ Edits rotations according to args.rotation_filter_variable.
 
-        :param args: used arguments are rotation_filter, path to rotation ids,
+        :param args: used arguments are rotation_filter_path, path to rotation ids,
                      and rotation_filter_variable that sets mode (options: include, exclude)
         :type args: argparse.Namespace
         :param rf_list: rotation filter list with strings of rotation ids (default is None)
@@ -812,18 +812,18 @@ class Schedule:
         # cast rotations in filter to string
         rf_list = [str(i) for i in rf_list]
 
-        if args.rotation_filter is None and not rf_list:
+        if args.rotation_filter_path is None and not rf_list:
             warnings.warn("Rotation filter variable is enabled but file and list are not used.")
             return
 
-        if args.rotation_filter:
+        if args.rotation_filter_path:
             # read out rotations from file (one rotation ID per line)
             try:
-                with open(args.rotation_filter, encoding='utf-8') as f:
+                with open(args.rotation_filter_path, encoding='utf-8') as f:
                     for line in f:
                         rf_list.append(line.strip())
             except FileNotFoundError:
-                warnings.warn(f"Path to rotation filter {args.rotation_filter} is invalid.")
+                warnings.warn(f"Path to rotation filter {args.rotation_filter_path} is invalid.")
                 # no file, no change
                 return
         # filter out rotations in self.rotations

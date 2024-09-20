@@ -21,7 +21,7 @@ class TestSimulate:
         "cost_parameters_path": example_path / "cost_params.json",
         "outside_temperature_over_day_path": example_path / "default_temp_summer.csv",
         "level_of_loading_over_day_path": example_path / "default_level_of_loading_over_day.csv",
-        "input_schedule": example_path / "trips_example.csv",
+        "schedule_path": example_path / "trips_example.csv",
         "mode": [],
         "interval": 15,
         "propagate_mode_errors": True,
@@ -34,7 +34,7 @@ class TestSimulate:
         "cost_parameters_path": example_path / "cost_params.json",
         "outside_temperature_over_day_path": example_path / "default_temp_summer.csv",
         "level_of_loading_over_day_path": example_path / "default_level_of_loading_over_day.csv",
-        "input_schedule": example_path / "trips_example.csv",
+        "schedule_path": example_path / "trips_example.csv",
         "mode": [],
         "min_recharge_deps_oppb": 1,
         "min_recharge_deps_depb": 1,
@@ -144,7 +144,7 @@ class TestSimulate:
         args = self.get_args()
         args.mode = "report"
         args.cost_calculation = True
-        args.output_directory = tmp_path
+        args.output_path = tmp_path
         args.strategy_deps = "balanced"
         args.strategy_opps = "greedy"
         args.show_plots = False
@@ -162,7 +162,7 @@ class TestSimulate:
         args.desired_soc_deps = 0
         args.ALLOW_NEGATIVE_SOC = True
         args.cost_calculation = True
-        args.output_directory = tmp_path
+        args.output_path = tmp_path
         args.show_plots = False
         with warnings.catch_warnings():
             warnings.simplefilter("ignore")
@@ -171,7 +171,7 @@ class TestSimulate:
     def test_extended_plot(self, tmp_path):
         args = self.get_args()
         args.mode = "report"
-        args.output_directory = tmp_path
+        args.output_path = tmp_path
         args.show_plots = False
         args.extended_output_plots = True
         with warnings.catch_warnings():
@@ -192,7 +192,7 @@ class TestSimulate:
             "desired_soc_deps": 0,
             "ALLOW_NEGATIVE_SOC": True,
             "cost_calculation": False,
-            "output_directory": tmp_path,
+            "output_path": tmp_path,
             "show_plots": False,
             "create_trips_in_report": True,
         }
@@ -204,7 +204,7 @@ class TestSimulate:
             simulate(Namespace(**args_dict))
         # new simulation with generated trips.csv
         args_dict = vars(self.get_args())
-        args_dict["input_schedule"] = tmp_path / "report_1/trips.csv"
+        args_dict["schedule_path"] = tmp_path / "report_1/trips.csv"
         simulate(Namespace(**(args_dict)))
 
     def test_mode_recombination(self):
