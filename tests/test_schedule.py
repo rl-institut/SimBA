@@ -60,6 +60,32 @@ class BasicSchedule:
 
 
 class TestSchedule(BasicSchedule):
+    def test_allow_opp_charging(self):
+        # test if the schedule properly skips charging events if the rotation is not allowed
+        # to opportunity charge
+        sched, scen, args = BasicSchedule().basic_run()
+        oppb_rotations = [rot for rot in sched.rotations.values() if rot.charging_type == "oppb"]
+        assert len(oppb_rotations) >= 1
+        oppb_rotation = oppb_rotations[0]
+        vehicle = oppb_rotation.vehicle_id
+        assert oppb_rotation.allow_opp_charging is True
+        index = list(scen.components.vehicles.keys()).index(vehicle)
+        min_soc = min(s[index] for s in scen.socs if s[index] is not None)
+        vehicle_event = [e for e in scen.events.vehicle_events if e.vehicle_id == vehicle]
+        charge_events = 0
+        for e in vehicle_event:
+            if vars(e).get("update", {}).get("connected_charging_station") is not None:
+                charge_events += 1
+
+        assert charge_events > 0, \
+            "Rotation has no charge events to check if allow_opp_charging works"
+        for rot in oppb_rotations:
+            rot.allow_opp_charging = False
+        scen2 = sched.run(args)
+
+        index = list(scen2.components.vehicles.keys()).index(vehicle)
+        min_soc_charging_not_allowed = min(s[index] for s in scen2.socs if s[index] is not None)
+        assert min_soc_charging_not_allowed < min_soc
 
     def test_timestep(self):
         # Get the parser from util. This way the test is directly coupled to the parser arguments
