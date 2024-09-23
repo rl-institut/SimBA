@@ -11,6 +11,7 @@ class Rotation:
         self.trips = []
         self.schedule = schedule
 
+        self.allow_opp_charging: bool = True
         self.vehicle_type = vehicle_type
         self.vehicle_id = None
         self.charging_type = None

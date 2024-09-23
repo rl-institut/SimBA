@@ -920,8 +920,11 @@ class Schedule:
                     # assume electrified station
                     station = self.stations[gc_name]
                     station_type = station["type"]
-                    if station_type == 'opps' and trip.rotation.charging_type == 'depb':
-                        # a depot bus cannot charge at an opp station
+                    if (station_type == 'opps' and
+                            (trip.rotation.charging_type == 'depb' or
+                             not trip.rotation.allow_opp_charging)):
+                        # a depot bus cannot charge at an opp station.
+                        # a bus can only charge at opps if its allowed
                         station_type = None
                     else:
                         # get desired soc by station type and trip
