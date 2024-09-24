@@ -922,9 +922,9 @@ class Schedule:
                     station_type = station["type"]
                     if (station_type == 'opps' and
                             (trip.rotation.charging_type == 'depb' or
-                             not trip.rotation.allow_opp_charging)):
+                             not trip.rotation.allow_oppb_charging)):
                         # a depot bus cannot charge at an opp station.
-                        # a bus can only charge at opps if its allowed
+                        # a bus cannot charge at opps if it's not allowed
                         station_type = None
                     else:
                         # get desired soc by station type and trip
