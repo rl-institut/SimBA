@@ -14,13 +14,13 @@ if __name__ == '__main__':
         dir_name = time_str + '_' + args.scenario_name
     else:
         dir_name = time_str
-    if args.output_directory is not None:
-        args.output_directory = Path(args.output_directory) / dir_name
+    if args.output_path is not None:
+        args.output_path = Path(args.output_path) / dir_name
         # create subfolder for specific sim results with timestamp.
         # if folder doesn't exist, create folder.
         # needs to happen after set_options_from_config since
-        # args.output_directory can be overwritten by config
-        args.output_directory_input = args.output_directory / "input_data"
+        # args.output_path can be overwritten by config
+        args.output_directory_input = args.output_path / "input_data"
         try:
             args.output_directory_input.mkdir(parents=True, exist_ok=True)
         except NotADirectoryError:

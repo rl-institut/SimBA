@@ -305,7 +305,7 @@ def cycling_generator(cycle: []):
 def setup_logging(args, time_str):
     """ Setup logging.
 
-    :param args: command line arguments. Used: logfile, loglevel, output_directory
+    :param args: command line arguments. Used: logfile, loglevel, output_path
     :type args: argparse.Namespace
     :param time_str: log file name if args.logfile is not given
     :type time_str: str
@@ -315,13 +315,14 @@ def setup_logging(args, time_str):
     console = logging.StreamHandler()
     console.setLevel(log_level)
     log_handlers = [console]
-    if args.logfile is not None and args.output_directory is not None:
+
+    if args.logfile is not None and args.output_path is not None:
         # optionally to file in output dir
         if args.logfile:
             log_name = args.logfile
         else:
             log_name = f"{time_str}.log"
-        log_path = args.output_directory / log_name
+        log_path = args.output_path / log_name
         print(f"Writing log to {log_path}")
         file_logger = logging.FileHandler(log_path, encoding='utf-8')
         log_level_file = vars(logging).get((args.loglevel_file or args.loglevel).upper())
@@ -382,6 +383,45 @@ def get_buffer_time(trip, default=0):
     return buffer_time
 
 
+def replace_deprecated_arguments(args):
+    # handling of args with default values
+    # Pairs of deprecated names and new names
+    deprecated_names = [
+        ("input_schedule", "schedule_path"),
+        ("vehicle_types", "vehicle_types_path"),
+        ("output_directory", "output_path"),
+    ]
+    for old, new in deprecated_names:
+        if vars(args)[old] is not None:
+            logging.warning(
+                f"Parameter '{old}' is deprecated. Use '{new}' instead. The value of args.{new}: "
+                f"{args.__getattribute__(new)} is replaced with {args.__getattribute__(old)} .")
+            # Replace value of current name with value of deprecated name
+            args.__setattr__(new, args.__getattribute__(old))
+        # delete deprecated name
+        args.__delattr__(old)
+
+    # Pairs of deprecated names and new names and verbose name
+    deprecated_names = [
+        ("electrified_stations", "electrified_stations_path", "electrified stations paths"),
+        ("cost_parameters_file", "cost_parameters_path", "costs parameter paths"),
+        ("rotation_filter", "rotation_filter_path", "rotation filter paths"),
+        ("optimizer_config", "optimizer_config_path", "station optimizer config paths"),
+    ]
+
+    for old, new, description in deprecated_names:
+        if vars(args)[old] is not None:
+            assert vars(args)[new] is None, \
+                f"Multiple {description} are not supported. Found values for {old} and {new}."
+            logging.warning(f"The parameter '{old}' is deprecated. "
+                            f"Use '{new}' instead.")
+            # Replace value of current name with value of deprecated name
+            args.__setattr__(new, args.__getattribute__(old))
+        # delete deprecated name
+        args.__delattr__(old)
+    return args
+
+
 def mutate_args_for_spiceev(args):
     # arguments relevant to SpiceEV, setting automatically to reduce clutter in config
     args.margin = 1
@@ -400,10 +440,13 @@ def get_args():
     # If a config is provided, the config will overwrite previously parsed arguments
     set_options_from_config(args, check=parser, verbose=False)
 
+    # Check if deprecated arguments were given and change them accordingly
+    args = replace_deprecated_arguments(args)
+
     # rename special options
     args.timing = args.eta
 
-    mandatory_arguments = ["input_schedule", "electrified_stations_path"]
+    mandatory_arguments = ["schedule_path", "electrified_stations_path"]
     missing = [a for a in mandatory_arguments if vars(args).get(a) is None]
     if missing:
         raise Exception("The following arguments are required: {}".format(", ".join(missing)))
@@ -417,9 +460,9 @@ def get_parser():
     parser.add_argument('--scenario-name', help='Identifier of scenario, appended to results')
 
     # #### Paths #####
-    parser.add_argument('--input-schedule',
+    parser.add_argument('--schedule-path',
                         help='Path to CSV file containing all trips of schedule to be analyzed')
-    parser.add_argument('--output-directory', default="data/sim_outputs",
+    parser.add_argument('--output-path', default="data/sim_outputs",
                         help='Location where all simulation outputs are stored')
     parser.add_argument('--electrified-stations-path', help='include electrified_stations json')
     parser.add_argument('--vehicle-types-path', default="data/examples/vehicle_types.json",
@@ -435,7 +478,7 @@ def get_parser():
                         level of loading in case they are not in trips.csv")
     parser.add_argument('--cost-parameters-path', default=None,
                         help='include cost parameters json, needed if cost_calculation==True')
-    parser.add_argument('--rotation-filter', default=None,
+    parser.add_argument('--rotation-filter-path', default=None,
                         help='Use json data with rotation ids')
 
     # #### Modes #####
@@ -470,6 +513,9 @@ def get_parser():
     parser.add_argument('--create-scenario-file', help='Write scenario.json to file')
     parser.add_argument('--create-trips-in-report', action='store_true',
                         help='Write a trips.csv during report mode')
+    parser.add_argument('--optimizer-config-path', default=None,
+                        help="For station_optimization an optimizer_config is needed. \
+                        Input a path to an .cfg file or use the default_optimizer.cfg")
     parser.add_argument('--rotation-filter-variable', default=None,
                         choices=[None, 'include', 'exclude'],
                         help='set mode for filtering schedule rotations')
@@ -569,12 +615,25 @@ def get_parser():
     parser.add_argument('--include-price-csv-option', '-po', metavar=('KEY', 'VALUE'),
                         nargs=2, default=[], action='append',
                         help='append additional argument to price signals')
-    parser.add_argument('--optimizer_config', default=None,
-                        help="For station_optimization an optimizer_config is needed. \
-                        Input a path to an .cfg file or use the default_optimizer.cfg")
     parser.add_argument('--time-windows', metavar='FILE',
                         help='use peak load windows to force lower power '
                         'during times of high grid load')
+
+    # Deprecated options for downwards compatibility
+    parser.add_argument('--input-schedule',  default=None,
+                        help='Deprecated use "schedule-path" instead')
+    parser.add_argument('--electrified-stations', default=None,
+                        help='Deprecated use "electrified-stations-path" instead')
+    parser.add_argument('--vehicle-types', default=None,
+                        help='Deprecated use "vehicle-types-path" instead')
+    parser.add_argument('--cost-parameters-file', default=None,
+                        help='Deprecated use "cost-parameters-path" instead')
+    parser.add_argument('--rotation-filter', default=None,
+                        help='Deprecated use "rotation-filter-path" instead')
+    parser.add_argument('--output-directory', default=None,
+                        help='Deprecated use "output-path" instead')
+    parser.add_argument('--optimizer_config', default=None,
+                        help='Deprecated use "optimizer-config-path" instead')
 
     parser.add_argument('--config', help='Use config file to set arguments')
     return parser

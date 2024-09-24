@@ -37,7 +37,7 @@ class DataContainer:
     def fill_with_args(self, args: argparse.Namespace) -> 'DataContainer':
         """ Fill DataContainer with data from file_paths defined in args.
 
-        :param args: Arguments containing paths for input_schedule, vehicle_types_path,
+        :param args: Arguments containing paths for schedule_path, vehicle_types_path,
             electrified_stations_path, cost_parameters_path, outside_temperature_over_day_path,
             level_of_loading_over_day_path, station_data_path
         :return: self
@@ -45,7 +45,7 @@ class DataContainer:
         self.args = args
 
         return self.fill_with_paths(
-            trips_file_path=args.input_schedule,
+            trips_file_path=args.schedule_path,
             vehicle_types_path=args.vehicle_types_path,
             electrified_stations_path=args.electrified_stations_path,
             cost_parameters_path=args.cost_parameters_path,

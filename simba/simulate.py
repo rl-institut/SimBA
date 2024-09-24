@@ -118,7 +118,7 @@ def modes_simulation(schedule, scenario, args):
             if scenario is not None and scenario.step_i > 0:
                 # generate plot of failed scenario
                 args.mode = args.mode[:i] + ["ABORTED"]
-                if args.output_directory is None:
+                if args.output_path is None:
                     create_results_directory(args, i+1)
                     if not args.skip_plots:
                         report.generate_plots(scenario, args)
@@ -262,7 +262,7 @@ class Mode:
 
     @staticmethod
     def report(schedule, scenario, args, i):
-        if args.output_directory is None:
+        if args.output_path is None:
             return schedule, scenario
 
         # create report based on all previous modes
@@ -290,12 +290,12 @@ def create_results_directory(args, i):
     :type i: int
     """
 
-    if args.output_directory is None:
+    if args.output_path is None:
         return
 
     prior_reports = sum([m.count('report') for m in args.mode[:i]])
     report_name = f"report_{prior_reports+1}"
-    args.results_directory = args.output_directory.joinpath(report_name)
+    args.results_directory = args.output_path.joinpath(report_name)
     args.results_directory.mkdir(parents=True, exist_ok=True)
     # save used modes in report version
     used_modes = ['sim'] + [m for m in args.mode[:i] if m not in ['sim', 'report']]

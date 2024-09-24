@@ -32,11 +32,11 @@ The example (data/simba.cfg) contains parameter descriptions which are explained
      - Optional: no default given
      - string
      - scenario identifier, appended to output directory name and report file names
-   * - input_schedule
+   * - schedule_path
      - Mandatory: no default given
      - Path as string
      - Input file containing :ref:`schedule` information
-   * - Output_directory
+   * - output_path
      - Data/sim_outputs
      - Path as string
      - Output files are stored here; set to null to deactivate
@@ -44,7 +44,7 @@ The example (data/simba.cfg) contains parameter descriptions which are explained
      - ./data/examples/vehicle_types.json
      - Path as string
      - Path to Electrified stations data
-   * - vehicle_types
+   * - vehicle_types_path
      - ./data/examples/vehicle_types.json
      - Path as string
      - Path to :ref:`vehicle_types`
@@ -60,10 +60,18 @@ The example (data/simba.cfg) contains parameter descriptions which are explained
      - Optional: no default given
      - Path as string
      - Path to :ref:`level_of_loading`
-   * - cost_parameters_file
+   * - cost_parameters_path
      - Optional: no default given
      - Path as string
      - Path to :ref:`cost_params`
+   * - optimizer_config_path
+     - Optional: no default given
+     - Path as string
+     - Path to station optimizer config :ref:`optimizer_config`
+   * - rotation_filter_path
+     - Optional: no default given
+     - Path as string
+     - Path to rotation filter json
    * - mode
      - ['sim', 'report']
      - List of modes is any order in range of ['sim', 'neg_depb_to_oppb', 'neg_oppb_to_depb', 'service_optimization', 'report']
