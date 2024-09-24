@@ -290,7 +290,6 @@ class TestSchedule(BasicSchedule):
 
     def test_calculate_consumption(self, default_schedule_arguments):
         """ Test if calling the consumption calculation works
-
         :param default_schedule_arguments: basic arguments the schedule needs for creation
         """
         sys.argv = ["foo", "--config", str(example_root / "simba.cfg")]

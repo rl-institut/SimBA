@@ -2,6 +2,8 @@ import argparse
 import csv
 import json
 import logging
+from pathlib import Path
+import shutil
 import subprocess
 from datetime import datetime, timedelta
 
@@ -16,6 +18,34 @@ def get_git_revision_hash() -> str:
 def save_version(file_path):
     with open(file_path, "w", encoding='utf-8') as f:
         f.write("Git Hash SimBA:" + get_git_revision_hash())
+
+
+def save_input_file(file_path, args):
+    """ Copy given file to output folder, to ensure reproducibility.
+
+    *file_path* must exist and *output_directory_input* must be set in *args*.
+    If either condition is not met or the file has already been copied, nothing is done.
+
+    :param file_path: source file
+    :type file_path: string or Path
+    :param args: general info, output_directory_input is required
+    :type args: Namespace
+    """
+    if file_path is None:
+        return
+    output_directory_input = vars(args).get("output_directory_input", None)
+    if output_directory_input is None:
+        # input directory was not created
+        return
+    source_path = Path(file_path)
+    target_path = output_directory_input / source_path.name
+    if not source_path.exists():
+        # original file missing
+        return
+    if target_path.exists():
+        # already saved
+        return
+    shutil.copy(source_path, target_path)
 
 
 def uncomment_json_file(f, char='//'):
@@ -259,6 +289,19 @@ def cast_float_or_none(val: any) -> any:
         return None
 
 
+def cycling_generator(cycle: []):
+    """Generator to loop over lists
+    :param cycle: list to cycle through
+    :type cycle: list()
+    :yields: iterated value
+    :rtype:  Iterator[any]
+    """
+    i = 0
+    while True:
+        yield cycle[i % len(cycle)]
+        i += 1
+
+
 def setup_logging(args, time_str):
     """ Setup logging.
 
@@ -476,6 +519,8 @@ def get_parser():
     parser.add_argument('--rotation-filter-variable', default=None,
                         choices=[None, 'include', 'exclude'],
                         help='set mode for filtering schedule rotations')
+    parser.add_argument('--zip-output', '-z', action='store_true',
+                        help='compress output folder after simulation')
 
     # #### Charging strategy #####
     parser.add_argument('--preferred-charging-type', '-pct', default='depb',

@@ -25,19 +25,10 @@ if __name__ == '__main__':
             args.output_directory_input.mkdir(parents=True, exist_ok=True)
         except NotADirectoryError:
             # can't create new directory (may be write protected): no output
-            args.output_path = None
-    if args.output_path is not None:
-        # copy input files to output to ensure reproducibility
-        copy_list = [args.config, args.electrified_stations_path, args.vehicle_types_path]
-        if "station_optimization" in args.mode:
-            copy_list.append(args.optimizer_config)
+            args.output_directory = None
 
-        # only copy cost params if they exist
-        if args.cost_parameters_path is not None:
-            copy_list.append(args.cost_parameters_path)
-        for c_file in map(Path, copy_list):
-            shutil.copy(c_file, args.output_directory_input / c_file.name)
-
+        # copy basic input to output to ensure reproducibility
+        util.save_input_file(args.config, args)
         util.save_version(args.output_directory_input / "program_version.txt")
 
     util.setup_logging(args, time_str)
@@ -49,3 +40,9 @@ if __name__ == '__main__':
         raise
     finally:
         logging.shutdown()
+        if args.zip_output and args.output_directory is not None and args.output_directory.exists():
+            # compress output directory after simulation
+            # generate <output_directory_name>.zip at location of original output directory
+            shutil.make_archive(args.output_directory, 'zip', args.output_directory)
+            # remove original output directory
+            shutil.rmtree(args.output_directory)
