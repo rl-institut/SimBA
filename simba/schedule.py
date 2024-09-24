@@ -826,7 +826,7 @@ class Schedule:
                 warnings.warn(f"Path to rotation filter {args.rotation_filter_path} is invalid.")
                 # no file, no change
                 return
-        util.save_input_file(args.rotation_filter, args)
+        util.save_input_file(args.rotation_filter_path, args)
         # filter out rotations in self.rotations
         if args.rotation_filter_variable == "exclude":
             self.rotations = {k: v for k, v in self.rotations.items() if k not in rf_list}
