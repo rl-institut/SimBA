@@ -3,7 +3,7 @@ import dill as pickle
 import traceback
 from copy import deepcopy
 
-from simba import report, optimization, optimizer_util
+from simba import report, optimization, optimizer_util, util
 from simba.data_container import DataContainer
 from simba.costs import calculate_costs
 from simba.optimizer_util import read_config as read_optimizer_config
@@ -55,6 +55,7 @@ def pre_simulation(args, data_container: DataContainer):
     :return: schedule, args
     :rtype: simba.schedule.Schedule, Namespace
     """
+
     # Deepcopy args so original args do not get mutated
     args = deepcopy(args)
 
@@ -128,7 +129,7 @@ def modes_simulation(schedule, scenario, args):
             if scenario is not None and scenario.step_i > 0:
                 # generate plot of failed scenario
                 args.mode = args.mode[:i] + ["ABORTED"]
-                if args.output_directory is None:
+                if args.output_path is None:
                     create_results_directory(args, i+1)
                     if not args.skip_plots:
                         report.generate_plots(scenario, args)
@@ -213,6 +214,7 @@ class Mode:
             conf = optimizer_util.OptimizerConfig().set_defaults()
         else:
             conf = read_optimizer_config(args.optimizer_config)
+            util.save_input_file(args.optimizer_config, args)
         if single_step:
             conf.early_return = True
         # Work on copies of the original schedule and scenario. In case of an exception the outer
@@ -284,7 +286,7 @@ class Mode:
 
     @staticmethod
     def report(schedule, scenario, args, i):
-        if args.output_directory is None:
+        if args.output_path is None:
             return schedule, scenario
 
         # create report based on all previous modes
@@ -312,12 +314,12 @@ def create_results_directory(args, i):
     :type i: int
     """
 
-    if args.output_directory is None:
+    if args.output_path is None:
         return
 
     prior_reports = sum([m.count('report') for m in args.mode[:i]])
     report_name = f"report_{prior_reports+1}"
-    args.results_directory = args.output_directory.joinpath(report_name)
+    args.results_directory = args.output_path.joinpath(report_name)
     args.results_directory.mkdir(parents=True, exist_ok=True)
     # save used modes in report version
     used_modes = ['sim'] + [m for m in args.mode[:i] if m not in ['sim', 'report']]

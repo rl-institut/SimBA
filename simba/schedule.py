@@ -103,10 +103,16 @@ class Schedule:
         # Add geo data to schedule
         schedule.station_data = data.station_geo_data
 
+        if not schedule.station_data:
+            logging.warning(
+                "No station data found for schedule. Height difference for all trips set to 0")
+
         # Add consumption calculator to trip class
         schedule.consumption_calculator = Consumption.create_from_data_container(data)
 
         for trip in data.trip_data:
+            # De-link DataContainer and Schedule instances
+            trip = {key: data for key, data in trip.items()}
             rotation_id = trip['rotation_id']
 
             # Get height difference from station_data
@@ -114,18 +120,21 @@ class Schedule:
                 trip["departure_name"], trip["arrival_name"])
 
             if trip["level_of_loading"] is None:
-                assert len(data.level_of_loading_data) == 24, "Need 24 entries in level of loading"
-                trip["level_of_loading"] = util.get_mean_from_hourly_dict(
-                    data.level_of_loading_data, trip["departure_time"], trip["arrival_time"])
+                if data.level_of_loading_data:
+                    assert len(data.level_of_loading_data) == 24, \
+                        "Need 24 entries in level of loading"
+                    trip["level_of_loading"] = util.get_mean_from_hourly_dict(
+                        data.level_of_loading_data, trip["departure_time"], trip["arrival_time"])
             else:
                 if not 0 <= trip["level_of_loading"] <= 1:
                     logging.warning("Level of loading is out of range [0,1] and will be clipped.")
                     trip["level_of_loading"] = min(1, max(0, trip["level_of_loading"]))
 
             if trip["temperature"] is None:
-                assert len(data.temperature_data) == 24, "Need 24 entries in temperature data"
-                trip["temperature"] = util.get_mean_from_hourly_dict(
-                    data.temperature_data, trip["departure_time"], trip["arrival_time"])
+                if data.temperature_data:
+                    assert len(data.temperature_data) == 24, "Need 24 entries in temperature data"
+                    trip["temperature"] = util.get_mean_from_hourly_dict(
+                        data.temperature_data, trip["departure_time"], trip["arrival_time"])
 
             if rotation_id not in schedule.rotations.keys():
                 schedule.rotations.update({
@@ -143,9 +152,9 @@ class Schedule:
         if vars(args).get("check_rotation_consistency"):
             # check rotation expectations
             inconsistent_rotations = cls.check_consistency(schedule)
-            if inconsistent_rotations and args.output_directory is not None:
+            if inconsistent_rotations and args.output_path is not None:
                 # write errors to file
-                filepath = args.output_directory / "inconsistent_rotations.csv"
+                filepath = args.output_path / "inconsistent_rotations.csv"
                 with open(filepath, "w", encoding='utf-8') as f:
                     for rot_id, e in inconsistent_rotations.items():
                         f.write(f"Rotation {rot_id}: {e}\n")
@@ -211,15 +220,16 @@ class Schedule:
     def run(self, args, mode="distributed"):
         """Runs a schedule without assigning vehicles.
 
-        For external usage the core run functionality is accessible through this function. It
-        allows for defining a custom-made assign_vehicles method for the schedule.
-        :param args: used arguments are rotation_filter, path to rotation ids,
+        For external usage the core run functionality is accessible through this function.
+        It allows for defining a custom-made assign_vehicles method for the schedule.
+
+        :param args: used arguments are rotation_filter_path, path to rotation ids,
             and rotation_filter_variable that sets mode (options: include, exclude)
         :type args: argparse.Namespace
-        :param mode: option of "distributed" or "greedy"
+        :param mode: SpiceEV strategy name
         :type mode: str
         :return: scenario
-        :rtype spice_ev.Scenario
+        :rtype: spice_ev.Scenario
         """
         # Make sure all rotations have an assigned vehicle
         assert all([rot.vehicle_id is not None for rot in self.rotations.values()])
@@ -350,8 +360,9 @@ class Schedule:
     def assign_vehicles_custom(self, vehicle_assigns: Iterable[dict]):
         """ Assign vehicles on a custom basis.
 
-        Assign vehicles based on a datasource, containing all rotations, their vehicle_ids and
-        desired start socs.
+        Assign vehicles based on a datasource,
+        containing all rotations, their vehicle_ids and desired start socs.
+
         :param vehicle_assigns: Iterable of dict with keys rotation_id, vehicle_id and start_soc
             for each rotation
         :type vehicle_assigns: Iterable[dict]
@@ -725,7 +736,7 @@ class Schedule:
         :return: Height difference. Defaults to 0 if height data is not found.
         :rtype: float
         """
-        if isinstance(self.station_data, dict):
+        if isinstance(self.station_data, dict) and self.station_data:
             station_name = departure_name
             try:
                 start_height = self.station_data[station_name]["elevation"]
@@ -734,9 +745,8 @@ class Schedule:
                 return end_height - start_height
             except KeyError:
                 logging.error(
-                    f"No elevation data found for {station_name}. Height difference set to 0")
-        else:
-            logging.error("No station data found for schedule. Height difference set to 0")
+                    f"No elevation data found for {station_name} in station_data. "
+                    "Height difference set to 0")
         return 0
 
     def get_negative_rotations(self, scenario):
@@ -790,7 +800,7 @@ class Schedule:
     def rotation_filter(self, args, rf_list=[]):
         """ Edits rotations according to args.rotation_filter_variable.
 
-        :param args: used arguments are rotation_filter, path to rotation ids,
+        :param args: used arguments are rotation_filter_path, path to rotation ids,
                      and rotation_filter_variable that sets mode (options: include, exclude)
         :type args: argparse.Namespace
         :param rf_list: rotation filter list with strings of rotation ids (default is None)
@@ -802,20 +812,21 @@ class Schedule:
         # cast rotations in filter to string
         rf_list = [str(i) for i in rf_list]
 
-        if args.rotation_filter is None and not rf_list:
+        if args.rotation_filter_path is None and not rf_list:
             warnings.warn("Rotation filter variable is enabled but file and list are not used.")
             return
 
-        if args.rotation_filter:
+        if args.rotation_filter_path:
             # read out rotations from file (one rotation ID per line)
             try:
-                with open(args.rotation_filter, encoding='utf-8') as f:
+                with open(args.rotation_filter_path, encoding='utf-8') as f:
                     for line in f:
                         rf_list.append(line.strip())
             except FileNotFoundError:
-                warnings.warn(f"Path to rotation filter {args.rotation_filter} is invalid.")
+                warnings.warn(f"Path to rotation filter {args.rotation_filter_path} is invalid.")
                 # no file, no change
                 return
+        util.save_input_file(args.rotation_filter_path, args)
         # filter out rotations in self.rotations
         if args.rotation_filter_variable == "exclude":
             self.rotations = {k: v for k, v in self.rotations.items() if k not in rf_list}
@@ -867,6 +878,7 @@ class Schedule:
             if time_windows_path.exists():
                 with time_windows_path.open('r', encoding='utf-8') as f:
                     time_windows = util.uncomment_json_file(f)
+                    util.save_input_file(args.time_windows, args)
                 # convert time window strings to date/times
                 for grid_operator, grid_operator_seasons in time_windows.items():
                     for season, info in grid_operator_seasons.items():
@@ -993,6 +1005,7 @@ class Schedule:
                         if local_generation:
                             local_generation = update_csv_file_info(local_generation, gc_name)
                             events["local_generation"][gc_name + " feed-in"] = local_generation
+                            util.save_input_file(local_generation["csv_file"], args)
                             # add PV component
                             photovoltaics[gc_name] = {
                                 "parent": gc_name,
@@ -1004,6 +1017,7 @@ class Schedule:
                         if fixed_load:
                             fixed_load = update_csv_file_info(fixed_load, gc_name)
                             events["fixed_load"][gc_name + " ext. load"] = fixed_load
+                            util.save_input_file(fixed_load["csv_file"], args)
 
                         # temporary lowering of grid connector max power during peak load windows
                         if time_windows is not None:
@@ -1084,6 +1098,7 @@ class Schedule:
             else:
                 # read prices from CSV, convert to events
                 prices = get_price_list_from_csv(price_csv)
+                util.save_input_file(price_csv["csv_file"], args)
                 events["grid_operator_signals"] += generate_event_list_from_prices(
                     prices, gc_name, start_simulation, stop_simulation,
                     price_csv.get('start_time'), price_csv.get('step_duration_s'))

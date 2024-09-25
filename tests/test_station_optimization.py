@@ -1,6 +1,6 @@
-import logging
 from copy import copy, deepcopy
 import json
+import logging
 from pathlib import Path
 import pytest
 import random
@@ -106,20 +106,20 @@ class TestStationOptimization:
         dst.write_text(src_text)
 
     def generate_datacontainer_args(self, trips_file_name="trips.csv"):
-        """ Check if running a basic example works and if a scenario object is returned.
+        """ Check if running a basic example works and return data container.
 
         :param trips_file_name: file name of the trips file. Has to be inside the test_input_file
             folder
         :type trips_file_name: str
-        :return: schedule, scenario, args"""
+        :return: data_container, args"""
 
         sys.argv = ["foo", "--config", str(example_root / "simba.cfg")]
         args = util.get_args()
-        args.output_directory = self.tmp_path
+        args.output_path = self.tmp_path
         args.results_directory = self.tmp_path
         assert self.tmp_path
 
-        args.input_schedule = file_root / trips_file_name
+        args.schedule_path = file_root / trips_file_name
         data_container = DataContainer().fill_with_args(args)
         return data_container, args
 
@@ -302,7 +302,7 @@ class TestStationOptimization:
         sched, scen = self.generate_schedule_scenario(args, data_container)
         # optimization can only be properly tested if negative rotations exist
         assert len(sched.get_negative_rotations(scen)) > 0
-        args.input_schedule = file_root / trips_file_name
+        args.schedule_path = file_root / trips_file_name
         config_path = example_root / "default_optimizer.cfg"
         conf = opt_util.read_config(config_path)
 
@@ -336,7 +336,7 @@ class TestStationOptimization:
         data_container.stations_data = {}
         args.preferred_charging_type = "oppb"
         sched, scen = self.generate_schedule_scenario(args, data_container)
-        args.input_schedule = file_root / trips_file_name
+        args.schedule_path = file_root / trips_file_name
         config_path = example_root / "default_optimizer.cfg"
         conf = opt_util.read_config(config_path)
 

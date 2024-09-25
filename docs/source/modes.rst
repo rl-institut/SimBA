@@ -221,6 +221,8 @@ To make use of this feature the parameters in the optimizer.cfg have to be set.
     decision_tree_path = data/last_optimization.pickle
     save_decision_tree = True
 
+.. _optimizer_config:
+
 Optimizer Configuration
 ###################################
 The functionality of the optimizer is controlled through the optimizer.cfg specified in the simba.cfg used for calling SimBA.

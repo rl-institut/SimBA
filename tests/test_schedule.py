@@ -61,6 +61,46 @@ class BasicSchedule:
 
 class TestSchedule(BasicSchedule):
 
+    def test_optional_timeseries(self):
+        # Test if simulation runs if level of loading and temperature timeseries is not given
+        sys.argv = ["foo", "--config", str(example_root / "simba.cfg")]
+        args = util.get_args()
+        data_container = DataContainer().fill_with_args(args)
+        vehicle_mileage_path = None
+        found = False
+        for vt in data_container.vehicle_types_data.values():
+            for ct in vt.values():
+                if isinstance(ct["mileage"], str):
+                    vehicle_mileage_path = ct["mileage"]
+                    found = True
+                    break
+            if found:
+                break
+
+        sched, args = pre_simulation(args, data_container)
+
+        # Make sure at least a single used vehicle type has mileage lookup.
+        some_used_vehicle_type = next(iter(sched.rotations.values())).vehicle_type
+        data_container.vehicle_types_data[some_used_vehicle_type][
+            "oppb"]["mileage"] = vehicle_mileage_path
+        data_container.vehicle_types_data[some_used_vehicle_type][
+            "depb"]["mileage"] = vehicle_mileage_path
+
+        # Delete the lol and temp data sources -> pre-simulation should fail,
+        # since consumption cannot be calculated
+        data_container.level_of_loading_data = {}
+        data_container.temperature_data = {}
+        for trip in data_container.trip_data:
+            print(trip)
+        with pytest.raises(Exception):
+            sched, args = pre_simulation(args, data_container)
+
+        # if all vehicle types have constant consumption, pre-simulation should work
+        for vt in data_container.vehicle_types_data.values():
+            for ct in vt.values():
+                ct["mileage"] = 1
+        _, _ = pre_simulation(args, data_container)
+
     def test_timestep(self):
         # Get the parser from util. This way the test is directly coupled to the parser arguments
         sys.argv = ["foo", "--config", str(example_root / "simba.cfg")]
@@ -158,7 +198,7 @@ class TestSchedule(BasicSchedule):
         args = util.get_args()
         args.min_recharge_deps_oppb = 1
         args.min_recharge_deps_depb = 1
-        args.input_schedule = file_root / "trips_assign_vehicles_extended.csv"
+        args.schedule_path = file_root / "trips_assign_vehicles_extended.csv"
         data_container = DataContainer().fill_with_args(args)
 
         generated_schedule, args = pre_simulation(args, data_container)
@@ -202,7 +242,7 @@ class TestSchedule(BasicSchedule):
         """
         sys.argv = ["foo", "--config", str(example_root / "simba.cfg")]
         args = util.get_args()
-        args.input_schedule = file_root / "trips_assign_vehicles_extended.csv"
+        args.schedule_path = file_root / "trips_assign_vehicles_extended.csv"
         data_container = DataContainer().fill_with_args(args)
 
         generated_schedule, args = pre_simulation(args, data_container)
@@ -250,12 +290,11 @@ class TestSchedule(BasicSchedule):
 
     def test_calculate_consumption(self, default_schedule_arguments):
         """ Test if calling the consumption calculation works
-
         :param default_schedule_arguments: basic arguments the schedule needs for creation
         """
         sys.argv = ["foo", "--config", str(example_root / "simba.cfg")]
         args = util.get_args()
-        args.input_schedule = file_root / "trips_assign_vehicles.csv"
+        args.schedule_path = file_root / "trips_assign_vehicles.csv"
         data_container = DataContainer().fill_with_args(args)
 
         generated_schedule, args = pre_simulation(args, data_container)
@@ -281,7 +320,7 @@ class TestSchedule(BasicSchedule):
         """
         sys.argv = ["foo", "--config", str(example_root / "simba.cfg")]
         args = util.get_args()
-        args.input_schedule = file_root / "trips_assign_vehicles.csv"
+        args.schedule_path = file_root / "trips_assign_vehicles.csv"
         data_container = DataContainer().fill_with_args(args)
         generated_schedule, args = pre_simulation(args, data_container)
 
@@ -308,14 +347,14 @@ class TestSchedule(BasicSchedule):
     def test_rotation_filter(self, tmp_path):
         sys.argv = ["foo", "--config", str(example_root / "simba.cfg")]
         args = util.get_args()
-        args.input_schedule = file_root / "trips_assign_vehicles.csv"
+        args.schedule_path = file_root / "trips_assign_vehicles.csv"
         data_container = DataContainer().fill_with_args(args)
 
         s, args = pre_simulation(args, data_container)
 
         args = Namespace(**{
             "rotation_filter_variable": None,
-            "rotation_filter": None,
+            "rotation_filter_path": None,
         })
         # add dummy rotations
         s.rotations = {
@@ -330,25 +369,25 @@ class TestSchedule(BasicSchedule):
 
         # filtering not disabled, but neither file nor list given -> warning
         args.rotation_filter_variable = "include"
-        args.rotation_filter = None
+        args.rotation_filter_path = None
         with pytest.warns(UserWarning):
             s.rotation_filter(args)
         assert s.rotations.keys() == s.original_rotations.keys()
 
         # filter file not found -> warning
-        args.rotation_filter = tmp_path / "filter.txt"
+        args.rotation_filter_path = tmp_path / "filter.txt"
         with pytest.warns(UserWarning):
             s.rotation_filter(args)
         assert s.rotations.keys() == s.original_rotations.keys()
 
         # filter (include) from JSON file
-        args.rotation_filter.write_text("3 \n 4\n16")
+        args.rotation_filter_path.write_text("3 \n 4\n16")
         s.rotation_filter(args)
         assert sorted(s.rotations.keys()) == ['3', '4']
 
         # filter (exclude) from given list
         args.rotation_filter_variable = "exclude"
-        args.rotation_filter = None
+        args.rotation_filter_path = None
         s.rotations = deepcopy(s.original_rotations)
         s.rotation_filter(args, rf_list=['3', '4'])
         assert sorted(s.rotations.keys()) == ['0', '1', '2', '5']
@@ -361,8 +400,8 @@ class TestSchedule(BasicSchedule):
 
         # filter nothing
         s.rotations = deepcopy(s.original_rotations)
-        args.rotation_filter = tmp_path / "filter.txt"
-        args.rotation_filter.write_text('')
+        args.rotation_filter_path = tmp_path / "filter.txt"
+        args.rotation_filter_path.write_text('')
         args.rotation_filter_variable = "exclude"
         s.rotation_filter(args, rf_list=[])
         assert s.rotations.keys() == s.original_rotations.keys()
