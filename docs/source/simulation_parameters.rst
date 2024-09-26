@@ -28,19 +28,23 @@ The example (data/simba.cfg) contains parameter descriptions which are explained
      - Default value
      - Expected values
      - Description
-   * - input_schedule
+   * - scenario_name
+     - Optional: no default given
+     - string
+     - scenario identifier, appended to output directory name and report file names
+   * - schedule_path
      - Mandatory: no default given
      - Path as string
      - Input file containing :ref:`schedule` information
-   * - Output_directory
+   * - output_path
      - Data/sim_outputs
      - Path as string
      - Output files are stored here; set to null to deactivate
-   * - electrified_stations
+   * - electrified_stations_path
      - ./data/examples/vehicle_types.json
      - Path as string
      - Path to Electrified stations data
-   * - vehicle_types
+   * - vehicle_types_path
      - ./data/examples/vehicle_types.json
      - Path as string
      - Path to :ref:`vehicle_types`
@@ -56,10 +60,18 @@ The example (data/simba.cfg) contains parameter descriptions which are explained
      - Optional: no default given
      - Path as string
      - Path to :ref:`level_of_loading`
-   * - cost_parameters_file
+   * - cost_parameters_path
      - Optional: no default given
      - Path as string
      - Path to :ref:`cost_params`
+   * - optimizer_config_path
+     - Optional: no default given
+     - Path as string
+     - Path to station optimizer config :ref:`optimizer_config`
+   * - rotation_filter_path
+     - Optional: no default given
+     - Path as string
+     - Path to rotation filter json
    * - mode
      - ['sim', 'report']
      - List of modes is any order in range of ['sim', 'neg_depb_to_oppb', 'neg_oppb_to_depb', 'service_optimization', 'report']
@@ -80,7 +92,26 @@ The example (data/simba.cfg) contains parameter descriptions which are explained
      - false
      - Boolean
      - If activated, plots are displayed with every run of :ref:`report` mode
-
+   * - extended_output_plots
+     - false
+     - Boolean
+     - If set, create additional plots when running :ref:`report` mode
+   * - strategy_deps
+     - balanced
+     - SpiceEV Strategies (greedy, balanced, peak_shaving, peak_load_windows, balanced_market)
+     - Charging strategy used in depots.
+   * - strategy_opps
+     - greedy
+     - SpiceEV Strategies (greedy, balanced, peak_shaving, peak_load_windows, balanced_market)
+     - Charging strategy used in opportunity stations.
+   * - cost_calculation_strategy_deps
+     - strategy_deps value
+     - SpiceEV Strategies (greedy, balanced, peak_shaving, peak_load_windows, balanced_market)
+     - Strategy for cost calculation at depots.
+   * - cost_calculation_strategy_opps
+     - strategy_opps value
+     - SpiceEV Strategies (greedy, balanced, peak_shaving, peak_load_windows, balanced_market)
+     - Strategy for cost calculation at opportunity stations.
    * - preferred_charging_type
      - depb
      - depb, oppb

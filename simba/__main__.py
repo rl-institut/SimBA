@@ -9,30 +9,26 @@ if __name__ == '__main__':
     args = util.get_args()
 
     time_str = datetime.now().strftime("%Y-%m-%d-%H-%M-%S")
-    if args.output_directory is not None:
-        args.output_directory = Path(args.output_directory) / time_str
+
+    if vars(args).get("scenario_name"):
+        dir_name = time_str + '_' + args.scenario_name
+    else:
+        dir_name = time_str
+    if args.output_path is not None:
+        args.output_path = Path(args.output_path) / dir_name
         # create subfolder for specific sim results with timestamp.
         # if folder doesn't exist, create folder.
         # needs to happen after set_options_from_config since
-        # args.output_directory can be overwritten by config
-        args.output_directory_input = args.output_directory / "input_data"
+        # args.output_path can be overwritten by config
+        args.output_directory_input = args.output_path / "input_data"
         try:
             args.output_directory_input.mkdir(parents=True, exist_ok=True)
         except NotADirectoryError:
             # can't create new directory (may be write protected): no output
             args.output_directory = None
-    if args.output_directory is not None:
-        # copy input files to output to ensure reproducibility
-        copy_list = [args.config, args.electrified_stations, args.vehicle_types]
-        if "station_optimization" in args.mode:
-            copy_list.append(args.optimizer_config)
 
-        # only copy cost params if they exist
-        if args.cost_parameters_file is not None:
-            copy_list.append(args.cost_parameters_file)
-        for c_file in map(Path, copy_list):
-            shutil.copy(c_file, args.output_directory_input / c_file.name)
-
+        # copy basic input to output to ensure reproducibility
+        util.save_input_file(args.config, args)
         util.save_version(args.output_directory_input / "program_version.txt")
 
     util.setup_logging(args, time_str)
@@ -44,3 +40,9 @@ if __name__ == '__main__':
         raise
     finally:
         logging.shutdown()
+        if args.zip_output and args.output_directory is not None and args.output_directory.exists():
+            # compress output directory after simulation
+            # generate <output_directory_name>.zip at location of original output directory
+            shutil.make_archive(args.output_directory, 'zip', args.output_directory)
+            # remove original output directory
+            shutil.rmtree(args.output_directory)
