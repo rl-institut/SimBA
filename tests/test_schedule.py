@@ -68,7 +68,7 @@ class TestSchedule(BasicSchedule):
         assert len(oppb_rotations) >= 1
         oppb_rotation = oppb_rotations[0]
         vehicle = oppb_rotation.vehicle_id
-        assert oppb_rotation.allow_oppb_charging is True
+        assert oppb_rotation.allow_opp_charging_for_oppb is True
         index = list(scen.components.vehicles.keys()).index(vehicle)
         min_soc = min(s[index] for s in scen.socs if s[index] is not None)
         vehicle_event = [e for e in scen.events.vehicle_events if e.vehicle_id == vehicle]
@@ -78,9 +78,9 @@ class TestSchedule(BasicSchedule):
                 charge_events += 1
 
         assert charge_events > 0, \
-            "Rotation has no charge events to check if allow_oppb_charging works"
+            "Rotation has no charge events to check if allow_opp_charging_for_oppb works"
         for rot in oppb_rotations:
-            rot.allow_oppb_charging = False
+            rot.allow_opp_charging_for_oppb = False
         scen2 = sched.run(args)
 
         index = list(scen2.components.vehicles.keys()).index(vehicle)
