@@ -1,4 +1,5 @@
 import logging
+import dill as pickle
 import traceback
 from copy import deepcopy
 
@@ -22,13 +23,23 @@ def simulate(args):
     :return: final schedule and scenario
     :rtype: tuple
     """
-    # The DataContainer stores various input data.
-    data_container = DataContainer().fill_with_args(args)
-
-    schedule, args = pre_simulation(args, data_container)
-    scenario = schedule.run(args)
-    schedule, scenario = modes_simulation(schedule, scenario, args)
-    return schedule, scenario
+    if vars(args).get("load_pickle"):
+        # load pickle file: skip pre_simulation
+        if isinstance(args.mode, list):
+            first_mode = args.mode[0]
+        else:
+            first_mode = args.mode
+        assert first_mode == "load_pickle", "Load pickle: first mode must be load_pickle"
+        # schedule and scenario read out from pickle file in first mode
+        # DataContainer is part of schedule
+        schedule = None
+        scenario = "pickle"  # must not be None
+    else:
+        # DataContainer stores various input data
+        data_container = DataContainer().fill_with_args(args)
+        schedule, args = pre_simulation(args, data_container)
+        scenario = schedule.run(args)
+    return modes_simulation(schedule, scenario, args)
 
 
 def pre_simulation(args, data_container: DataContainer):
@@ -259,6 +270,19 @@ class Mode:
         # re-run schedule
         scenario = recombined_schedule.run(args)
         return recombined_schedule, scenario
+
+    @staticmethod
+    def load_pickle(_schedule=None, _scenario=None, args=None, _i=None):
+        with open(args.load_pickle, 'rb') as f:
+            unpickle = pickle.load(f)
+        schedule = unpickle["schedule"]
+        scenario = unpickle["scenario"]
+        # DataContainer is part of schedule
+        # However, cost parameters are supposed to be mutable after loading from pickle
+        if args.cost_parameters_path:
+            schedule.data_container.add_cost_parameters_from_json(args.cost_parameters_path)
+
+        return schedule, scenario
 
     @staticmethod
     def report(schedule, scenario, args, i):

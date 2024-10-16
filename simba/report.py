@@ -1,6 +1,7 @@
 """ Module to generate meaningful output files and/or figures to describe simulation process. """
 import csv
 import datetime
+import dill as pickle
 import logging
 from math import ceil
 import re
@@ -346,6 +347,14 @@ def generate(schedule, scenario, args):
     if vars(args).get('create_trips_in_report', False):
         file_path = args.results_directory / "trips.csv"
         write_csv(generate_trips_timeseries_data(schedule), file_path)
+
+    if vars(args).get('create_pickle_in_report', False):
+        file_path = args.results_directory / "scenario.pkl"
+        with file_path.open('wb') as f:
+            pickle.dump({
+                "schedule": schedule,
+                "scenario": scenario,
+            }, f)
 
     # summary of used vehicle types and all costs
     if args.cost_calculation:
