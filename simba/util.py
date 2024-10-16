@@ -7,6 +7,7 @@ import shutil
 import subprocess
 from datetime import datetime, timedelta
 
+from spice_ev.costs import COST_CALCULATION
 from spice_ev.strategy import STRATEGIES
 from spice_ev.util import set_options_from_config
 
@@ -531,11 +532,11 @@ def get_parser():
     parser.add_argument('--strategy-opps', default='greedy', choices=STRATEGIES,
                         help='strategy to use at station')
 
-    # #### Cost calculation strategy #####
-    parser.add_argument('--cost-calculation-strategy-deps', choices=STRATEGIES,
-                        help='Strategy for cost calculation to use in depot')
-    parser.add_argument('--cost-calculation-strategy-opps', choices=STRATEGIES,
-                        help='Strategy for cost calculation to use at station')
+    # #### Cost calculation method #####
+    parser.add_argument('--cost-calculation-method-deps', choices=COST_CALCULATION,
+                        help='Cost calculation to use in depot')
+    parser.add_argument('--cost-calculation-method-opps', choices=COST_CALCULATION,
+                        help='Cost calculation to use at station')
 
     parser.add_argument('--strategy-options-deps', default={},
                         type=lambda s: s if type(s) is dict else json.loads(s),

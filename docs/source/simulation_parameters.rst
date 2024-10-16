@@ -104,14 +104,14 @@ The example (data/simba.cfg) contains parameter descriptions which are explained
      - greedy
      - SpiceEV Strategies (greedy, balanced, peak_shaving, peak_load_windows, balanced_market)
      - Charging strategy used in opportunity stations.
-   * - cost_calculation_strategy_deps
-     - strategy_deps value
-     - SpiceEV Strategies (greedy, balanced, peak_shaving, peak_load_windows, balanced_market)
-     - Strategy for cost calculation at depots.
-   * - cost_calculation_strategy_opps
-     - strategy_opps value
-     - SpiceEV Strategies (greedy, balanced, peak_shaving, peak_load_windows, balanced_market)
-     - Strategy for cost calculation at opportunity stations.
+   * - cost_calculation_method_deps
+     - fixed_wo_plw
+     - SpiceEV cost calculation type (fixed_wo_plw, fixed_w_plw, variable_wo_plw, variable_w_plw, balanced_market, flex_window)
+     - Method for cost calculation at depots.
+   * - cost_calculation_method_opps
+     - fixed_wo_plw
+     - SpiceEV cost calculation type, same choices as in depot
+     - Method for cost calculation at opportunity stations.
    * - preferred_charging_type
      - depb
      - depb, oppb
