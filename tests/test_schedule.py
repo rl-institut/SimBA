@@ -687,7 +687,7 @@ class TestSchedule(BasicSchedule):
         # just file given
         prices = schedule.get_price_list_from_csv({'csv_file': tmp_path / 'price.csv'})
         assert len(prices) == 3
-        assert prices[0] == ['2022-03-07 00:00:00', (0, 1.0, 0)]
+        assert prices[0] == ['2022-03-07 00:00:00', (None, 1.0, None)]
 
         # change column
         with pytest.raises(KeyError):
@@ -705,7 +705,7 @@ class TestSchedule(BasicSchedule):
             'csv_file': tmp_path / 'price.csv',
             'factor': 1.5
         })
-        assert sum(prices[0][1]) == 1.5
+        assert prices[0][1] == (None, 1.5, None)
 
     def test_generate_event_list_from_prices(self):
         prices = [

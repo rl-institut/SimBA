@@ -1324,9 +1324,9 @@ def get_price_list_from_csv(price_csv_dict, gc_name=None):
         for idx, row in enumerate(reader):
             row_values = list(row.values())
             # read values from given columns or last column
-            procurement = 0
-            commodity = 0
-            virtual = 0
+            procurement = None
+            commodity = None
+            virtual = None
             if use_last_column:
                 commodity = float(row_values[-1]) * factor
             else:
@@ -1399,8 +1399,8 @@ def generate_event_list_from_prices(
             events.append(event)
         # price events known one day in advance
         signal_time = event_time - day
-        # SpiceEV price: sum of procurement, commodity and virtual costs
-        sum_price = sum(price[1])
+        # SpiceEV price: sum of procurement, commodity and virtual costs (some may be None)
+        sum_price = sum([p or 0 for p in price[1]])
         event = {
             "start_time": event_time.isoformat(),
             "signal_time": signal_time.isoformat(),
@@ -1443,11 +1443,15 @@ def generate_price_timeseries(prices, start_simulation, stop_simulation, interva
     :return: procurement and commodity price lists
     :rtype: dict
     """
-    price_lists = {"procurement": [], "commodity": []}
+    price_lists = {"procurement": None, "commodity": None}
     if len(prices) == 0:
         return price_lists
     current_time = start_simulation
     price = prices.pop(0)
+    if price[1][0] is not None:
+        price_lists["procurement"] = list()
+    if price[1][1] is not None:
+        price_lists["commodity"] = list()
     while current_time < stop_simulation:
         # not end of simulation: fill up with price
         try:
@@ -1460,10 +1464,13 @@ def generate_price_timeseries(prices, start_simulation, stop_simulation, interva
             stop_time = stop_simulation
         while current_time < stop_time:
             # price remains constant until next change
-            price_lists["procurement"].append(price[1][0])
-            price_lists["commodity"].append(price[1][1])
+            if price[1][0] is not None:
+                price_lists["procurement"].append(price[1][0])
+            if price[1][1] is not None:
+                price_lists["commodity"].append(price[1][1])
             current_time += interval
         price = next_price
+    return price_lists
 
 
 def get_charge_delta_soc(charge_curves: dict, vt: str, ct: str, max_power: float,
