@@ -6,6 +6,7 @@ from pathlib import Path
 import shutil
 import subprocess
 from datetime import datetime, timedelta
+from scipy.interpolate import LinearNDInterpolator
 
 from spice_ev.costs import COST_CALCULATION
 from spice_ev.strategy import STRATEGIES
@@ -190,73 +191,26 @@ def nd_interp(input_values, lookup_table):
     :return: interpolated value
     :rtype: float
     """
-    # find all unique values in table per column
-    dim_sets = [set() for _ in input_values]
-    for row in lookup_table:
-        for i, v in enumerate(row[:-1]):
-            dim_sets[i].add(v)
-    dim_values = [sorted(s) for s in dim_sets]
-    # find nearest value(s) per column
-    # go through sorted column values until last less / first greater
-    lower = [None] * len(input_values)
-    upper = [None] * len(input_values)
-    for i, v in enumerate(input_values):
-        # initialize for out of bound values -> Constant value since lower and upper will both
-        # be the same boundary value. Still allows for interpolation in other dimensions
-        # forcing lower<upper could be implemented for extrapolation beyond the bounds.
-        lower[i] = dim_values[i][0]
-        upper[i] = dim_values[i][-1]
-        for c in dim_values[i]:
-            if v >= c:
-                lower[i] = c
-            if v <= c:
-                upper[i] = c
-                break
-    # find rows in table made up of only lower or upper values
-    points = []
-    for row in lookup_table:
-        for i, v in enumerate(row[:-1]):
-            if lower[i] != v and upper[i] != v:
-                break
-        else:
-            points.append(row)
+    dimensions_to_remove = []
+    for dimension in range(len(input_values)):
+        values_for_dimension = [row[dimension] for row in lookup_table]
+        if len(set(values_for_dimension)) == 1:
+            dimensions_to_remove.append(dimension)
 
-    # Make points unique
-    points = [tuple(p) for p in points]
-    points = list(set(points))
-    # interpolate between points that differ only in current dimension
-    for i, x in enumerate(input_values):
-        new_points = []
-        # find points that differ in just that dimension
-        for j, p1 in enumerate(points):
-            for p2 in points[j + 1:]:
-                for k in range(len(input_values)):
-                    if p1[k] != p2[k] and i != k:
-                        break
-                else:
-                    # differing row found
-                    x1 = p1[i]
-                    y1 = p1[-1]
-                    x2 = p2[i]
-                    y2 = p2[-1]
-                    dx = x2 - x1
-                    dy = y2 - y1
-                    m = dy / dx
-                    n = y1 - m * x1
-                    y = m * x + n
-                    # generate new point at interpolation
-                    p = [v for v in p1]
-                    p[i] = x
-                    p[-1] = y
-                    new_points.append(p)
-                    # only couple
-                    break
-            else:
-                # no matching row (singleton dimension?)
-                new_points.append(p1)
-        points = new_points
+    while len(dimensions_to_remove) > 0:
+        dimension = dimensions_to_remove.pop()
+        input_values = input_values[:dimension] + input_values[dimension+1:]
+        lookup_table = [row[:dimension] + row[dimension+1:] for row in lookup_table]
 
-    return points[0][-1]
+    # We now have removed all the invalid dimensions from the input values and the lookup table
+
+    # The first entries (except the last) of the lookup table are the input values
+    points = [row[:-1] for row in lookup_table]
+    # The last entry of the lookup table is the output value
+    values = [row[-1] for row in lookup_table]
+
+    interpolator = LinearNDInterpolator(points, values)
+    return interpolator(input_values)
 
 
 def daterange(start_date, end_date, time_delta):
