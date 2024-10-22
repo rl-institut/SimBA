@@ -5,7 +5,9 @@ import logging
 from pathlib import Path
 import shutil
 import subprocess
-from datetime import datetime, timedelta
+from functools import lru_cache
+
+import numpy as np
 from scipy.interpolate import LinearNDInterpolator
 
 from spice_ev.costs import COST_CALCULATION
@@ -177,6 +179,17 @@ def get_dict_from_csv(column, file_path, index):
     return output
 
 
+@lru_cache
+def cached_interpolator(points, values) -> LinearNDInterpolator:
+    """
+    Creates a LinearNDInterpolator from a lookup table. It is cached using the
+    lru_cache decorator to avoid creating the interpolator multiple times.
+    """
+    points = np.array(points)
+    values = np.array(values)
+    return LinearNDInterpolator(points, values)
+
+
 def nd_interp(input_values, lookup_table):
     """ Interpolates a value from a table.
 
@@ -209,7 +222,7 @@ def nd_interp(input_values, lookup_table):
     # The last entry of the lookup table is the output value
     values = [row[-1] for row in lookup_table]
 
-    interpolator = LinearNDInterpolator(points, values)
+    interpolator = cached_interpolator(tuple(points), tuple(values))
     return interpolator(input_values)
 
 
