@@ -2,10 +2,11 @@ import logging
 import traceback
 import warnings
 
-import spice_ev.scenario
-from spice_ev.costs import calculate_costs as calc_costs_spice_ev
-
 import simba.schedule
+
+import spice_ev.costs
+import spice_ev.scenario
+import spice_ev.util
 
 
 def calculate_costs(c_params, scenario, schedule, args):
@@ -320,21 +321,23 @@ class Costs:
                       if pv.parent == gcID])
             timeseries = vars(self.scenario).get(f"{gcID}_timeseries")
 
-            # Get the calculation strategy / method from args.
-            # If no value is set, use the same strategy as the charging strategy
-            default_cost_strategy = vars(self.args)["strategy_" + station.get("type")]
-
-            cost_strategy_name = "cost_calculation_strategy_" + station.get("type")
-            cost_calculation_strategy = (vars(self.args).get(cost_strategy_name)
-                                         or default_cost_strategy)
+            # Get the calculation method from args.
+            cost_calculation_name = "cost_calculation_method_" + station.get("type")
+            cost_calculation_method = vars(self.args).get(cost_calculation_name)
+            if cost_calculation_method is None:
+                # not given in config: use the same method as the charging strategy
+                default_strategy = vars(self.args)["strategy_" + station.get("type")]
+                cost_calculation_method = spice_ev.costs.DEFAULT_COST_CALCULATION[default_strategy]
 
             # calculate costs for electricity
             try:
-                if cost_calculation_strategy == "peak_load_window":
-                    if timeseries.get("window signal [-]") is None:
-                        raise Exception("No peak load window signal provided for cost calculation")
-                costs_electricity = calc_costs_spice_ev(
-                    strategy=cost_calculation_strategy,
+                is_peak_load_window = cost_calculation_method.endswith("w_plw")
+                if is_peak_load_window and timeseries.get("window signal [-]") is None:
+                    logging.info("Generating peak load window signal for cost calculation")
+                    timeseries["window signal [-]"] = spice_ev.util.get_time_windows_from_json(
+                        self.args.time_windows, gc.grid_operator, gc.voltage_level, self.scenario)
+                costs_electricity = spice_ev.costs.calculate_costs(
+                    cc_type=cost_calculation_method,
                     voltage_level=gc.voltage_level,
                     interval=self.scenario.interval,
                     timestamps_list=timeseries.get("time"),
@@ -344,9 +347,10 @@ class Costs:
                     power_generation_feed_in_list=timeseries.get("generation feed-in [kW]"),
                     power_v2g_feed_in_list=timeseries.get("V2G feed-in [kW]"),
                     power_battery_feed_in_list=timeseries.get("battery feed-in [kW]"),
-                    charging_signal_list=timeseries.get("window signal [-]"),
+                    window_signal_list=timeseries.get("window signal [-]"),
                     price_sheet_path=self.args.cost_parameters_path,
                     grid_operator=gc.grid_operator,
+                    fee_type=None,  # "RLM" or "SLP" or None (based on energy consumption)
                     power_pv_nominal=pv,
                 )
             except Exception:

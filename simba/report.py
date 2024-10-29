@@ -665,7 +665,7 @@ def plot_vehicle_services(schedule, output_path):
     """Plots the rotations serviced by the same vehicle
 
     :param schedule: Provides the schedule data.
-    :type schedule; simba.schedule.Schedule
+    :type schedule: simba.schedule.Schedule
     :param output_path: Path to the output folder
     :type output_path: pathlib.Path
     """
@@ -718,7 +718,7 @@ def plot_blocks_dense(schedule, output_path):
     """Plots the different loads (total, feedin, external) of all grid connectors.
 
     :param schedule: Provides the schedule data.
-    :type schedule; simba.schedule.Schedule
+    :type schedule: simba.schedule.Schedule
     :param output_path: Path to the output folder
     :type output_path: pathlib.Path
     """
