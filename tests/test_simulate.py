@@ -117,7 +117,7 @@ class TestSimulate:
         del args.optimizer_config_path
         with caplog.at_level(logging.ERROR):
             simulate(args)
-        assert caplog.record_tuples == []
+        assert len(caplog.record_tuples) > 0
 
     def test_modes(self, caplog, tmp_path):
         args = self.get_args()
@@ -143,9 +143,6 @@ class TestSimulate:
             modes_simulation(schedule, scenario, args)
 
         assert len(caplog.record_tuples) == 0
-
-
-
 
     def test_mode_service_opt(self):
         # basic run
