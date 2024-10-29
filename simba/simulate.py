@@ -220,7 +220,7 @@ class Mode:
 
     @staticmethod
     def station_optimization(schedule, scenario, args, i):
-        return Mode._station_optimization(schedule, scenario, args, i, sinlge_step=False)
+        return Mode._station_optimization(schedule, scenario, args, i, single_step=False)
 
     @staticmethod
     def station_optimization_single_step(schedule, scenario, args, i):
