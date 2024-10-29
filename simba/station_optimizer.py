@@ -3,7 +3,7 @@
 import logging
 import pickle
 from copy import deepcopy, copy
-from datetime import datetime
+from datetime import datetime, timedelta
 from pathlib import Path
 from typing import Iterable
 
@@ -532,8 +532,9 @@ class StationOptimizer:
                 # Add the charge as linear interpolation during the charge time, but only start
                 # after the buffer time
                 buffer_idx = (int(opt_util.get_buffer_time(
-                    trip, self.args.default_buffer_time_opps).total_seconds()/60))
-                delta_idx = int(standing_time_min) + 1
+                    trip,
+                    self.args.default_buffer_time_opps) / self.scenario.interval))
+                delta_idx = int(timedelta(minutes=standing_time_min)/self.scenario.interval + 1)
                 soc[idx + buffer_idx:idx + buffer_idx + delta_idx] += np.linspace(0, d_soc,
                                                                                   delta_idx)
                 # Keep track of the last SoC as starting point for the next trip
