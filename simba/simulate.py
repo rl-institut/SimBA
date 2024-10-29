@@ -1,6 +1,7 @@
 import logging
 import traceback
 from copy import deepcopy
+from pathlib import Path
 
 from simba import report, optimization, optimizer_util, util
 from simba.data_container import DataContainer
@@ -197,13 +198,13 @@ class Mode:
 
     @staticmethod
     def _station_optimization(schedule, scenario, args, i, single_step: bool):
-        if not args.optimizer_config:
+        if not args.optimizer_config_path:
             logging.warning("Station optimization needs an optimization config file. "
                             "Default Config is used.")
-            conf = optimizer_util.OptimizerConfig().set_defaults()
+            conf = optimizer_util.OptimizerConfig()
         else:
-            conf = read_optimizer_config(args.optimizer_config)
-            util.save_input_file(args.optimizer_config, args)
+            conf = read_optimizer_config(args.optimizer_config_path)
+            util.save_input_file(args.optimizer_config_path, args)
         if single_step:
             conf.early_return = True
         # Work on copies of the original schedule and scenario. In case of an exception the outer
@@ -295,7 +296,7 @@ def create_results_directory(args, i):
 
     prior_reports = sum([m.count('report') for m in args.mode[:i]])
     report_name = f"report_{prior_reports+1}"
-    args.results_directory = args.output_path.joinpath(report_name)
+    args.results_directory = Path(args.output_path).joinpath(report_name)
     args.results_directory.mkdir(parents=True, exist_ok=True)
     # save used modes in report version
     used_modes = ['sim'] + [m for m in args.mode[:i] if m not in ['sim', 'report']]
