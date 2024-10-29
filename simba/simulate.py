@@ -215,7 +215,7 @@ class Mode:
             create_results_directory(args, i + 1)
             return run_optimization(conf, sched=schedule, scen=scenario, args=args)
         except Exception as err:
-            logging.warning('During Station optimization an error occurred {0}. '
+            logging.error('During Station optimization an error occurred {0}. '
                             'Optimization was skipped'.format(err))
             return original_schedule, original_scenario
 
