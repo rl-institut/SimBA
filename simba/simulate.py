@@ -220,7 +220,7 @@ class Mode:
 
     @staticmethod
     def station_optimization(schedule, scenario, args, i):
-        return Mode._station_optimization(schedule, scenario, args, i, sinlge_step=False)
+        return Mode._station_optimization(schedule, scenario, args, i, single_step=False)
 
     @staticmethod
     def station_optimization_single_step(schedule, scenario, args, i):
@@ -263,6 +263,7 @@ class Mode:
     @staticmethod
     def report(schedule, scenario, args, i):
         if args.output_path is None:
+            logging.warning("No output path given, skipping report")
             return schedule, scenario
 
         # create report based on all previous modes
