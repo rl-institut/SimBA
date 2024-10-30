@@ -73,6 +73,7 @@ class Schedule:
         self.vehicle_types = vehicle_types
         self.original_rotations = None
         self.station_data = None
+        self.time_windows = None
 
         self.consumption_calculator: Consumption = None
         self.soc_dispatcher: SocDispatcher = None
@@ -893,6 +894,7 @@ class Schedule:
                 logging.debug("time windows read: " + str(time_windows))
             else:
                 warnings.warn(f"Time windows file {args.time_windows} does not exist")
+        self.time_windows = time_windows
 
         # add vehicle events
         for vehicle_id in sorted({rot.vehicle_id for rot in self.rotations.values()}):

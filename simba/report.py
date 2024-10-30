@@ -11,7 +11,7 @@ import matplotlib.pyplot as plt
 import matplotlib.dates as mdates
 from matplotlib.patches import Patch
 from spice_ev.report import aggregate_global_results, plot, generate_reports, aggregate_timeseries
-from spice_ev.util import sanitize
+from spice_ev.util import sanitize, datetime_within_time_window
 
 from simba import util
 
@@ -204,7 +204,7 @@ def generate_plots(schedule, scenario, args):
         plot_consumption_per_rotation_distribution(extended_plots_path, schedule)
         plot_distance_per_rotation_distribution(extended_plots_path, schedule)
         plot_charge_type_distribution(extended_plots_path, scenario, schedule)
-        plot_gc_power_timeseries(extended_plots_path, scenario)
+        plot_gc_power_timeseries(extended_plots_path, scenario, schedule)
         plot_active_rotations(extended_plots_path, scenario, schedule)
 
     # revert logging override
@@ -557,20 +557,20 @@ def plot_charge_type_distribution(extended_plots_path, scenario, schedule):
     plt.close()
 
 
-def plot_gc_power_timeseries(extended_plots_path, scenario):
+def plot_gc_power_timeseries(extended_plots_path, scenario, schedule):
     """Plots the different loads (total, feedin, external) of all grid connectors.
 
     :param extended_plots_path: directory to save plot to
     :type extended_plots_path: Path
-    :param scenario: Provides the data for the grid connectors over time.
+    :param scenario: provides the data for the grid connectors over time
     :type scenario: spice_ev.Scenario
+    :param schedule: provides default time windows
+    :type schedule: simba.schedule.Schedule
     """
-    gc_list = list(scenario.components.grid_connectors.keys())
-
-    for gc in gc_list:
+    for gcID, gc in scenario.components.grid_connectors.items():
         fig, ax = plt.subplots()
 
-        agg_ts = aggregate_timeseries(scenario, gc)
+        agg_ts = aggregate_timeseries(scenario, gcID)
         headers = [
             "grid supply [kW]",
             "fixed load [kW]",
@@ -624,17 +624,52 @@ def plot_gc_power_timeseries(extended_plots_path, scenario):
                 ax.set_ylim(bottom=ax1_ylims[1]*ax2_yratio)
             plt.tight_layout()
 
+        # show time windows
+        time_windows = agg_ts.get("window signal [-]")
+        if time_windows is None:
+            # no GC-specific time windows: use default from config
+            time_windows_dict = (schedule.time_windows or dict()).get(gc.grid_operator)
+            if time_windows_dict is not None:
+                # convert event-like structure to timeseries
+                time_windows = list()
+                for t_idx in range(scenario.n_intervals):
+                    time = scenario.start_time + t_idx * scenario.interval
+                    time_windows.append(
+                        datetime_within_time_window(time, time_windows_dict, gc.voltage_level))
+        if time_windows is not None:
+            # add shaded background based on time windows, no background if no values
+            start_idx = 0
+            label_shown = [False, False]
+            for i in range(scenario.step_i):
+                if time_windows[i] != time_windows[start_idx] or i == len(time_values)-1:
+                    # window value changed or end of scenario: plot new interval
+                    window = time_windows[start_idx]
+                    if window is not None:
+                        color = 'red' if window else 'lightgreen'
+                        label = 'Inside window' if window else 'Outside window'
+                        if label_shown[window]:
+                            # labels starting with underscores are ignored
+                            label = '_' + label
+                        else:
+                            # show label once, then set flag
+                            label_shown[window] = True
+                        # draw colored rectangle for window
+                        ax.axvspan(
+                            time_values[start_idx], time_values[i],
+                            label=label, facecolor=color, alpha=0.2)
+                        start_idx = i
+
         ax.legend()
-        plt.xticks(rotation=30)
+        # plt.xticks(rotation=30)
         ax.set_ylabel("Power [kW]")
-        ax.set_title(f"Power: {gc}")
+        ax.set_title(f"Power: {gcID}")
         ax.grid(color='gray', linestyle='-')
 
         # xaxis are datetime strings
         ax.set_xlim(time_values[0], time_values[-1])
-        # ax.tick_params(axis='x', rotation=30)
+        ax.tick_params(axis='x', rotation=30)
         plt.tight_layout()
-        plt.savefig(extended_plots_path / f"{sanitize(gc)}_power_overview.png", dpi=DPI)
+        plt.savefig(extended_plots_path / f"{sanitize(gcID)}_power_overview.png", dpi=DPI)
         plt.close(fig)
 
 
