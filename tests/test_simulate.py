@@ -124,6 +124,7 @@ class TestSimulate:
     def test_modes(self, caplog, tmp_path):
         args = self.get_args()
         args.output_path = tmp_path
+        args.propagate_mode_errors = True
         schedule, scenario = simulate(args)
         with caplog.at_level(logging.ERROR):
             args.mode = "sim"
