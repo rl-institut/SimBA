@@ -263,6 +263,7 @@ class Mode:
     @staticmethod
     def report(schedule, scenario, args, i):
         if args.output_path is None:
+            logging.warning("No output path given, skipping report")
             return schedule, scenario
 
         # create report based on all previous modes
