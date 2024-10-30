@@ -1,4 +1,6 @@
 from argparse import Namespace
+from csv import DictReader
+import json
 import logging
 from pathlib import Path
 import pytest
@@ -187,6 +189,25 @@ class TestSimulate:
         with warnings.catch_warnings():
             warnings.simplefilter("ignore")
             simulate(args)
+
+        # get power procurement price from price sheet
+        with open(args.cost_parameters_path) as file:
+            cost_params = json.load(file)
+            procurement_price = cost_params["default_grid_operator"]["power_procurement"]["charge"]
+            # given in ct/kWh, convert to €/kWh with sign change (direction of grid power)
+            procurement_price = -procurement_price / 100
+        # read out vehicle costs, procurement price must match
+        with (tmp_path / "report_1/summary_vehicles_costs.csv").open() as csvfile:
+            reader = DictReader(csvfile)
+            for row in reader:
+                if row["parameter"] == "unit":
+                    continue
+                energy = float(row["annual_kWh_from_grid"])
+                price = float(row["c_el_procurement_annual"])
+                if energy == 0:
+                    assert price == 0
+                else:
+                    assert pytest.approx(price / energy) == procurement_price
 
     def test_empty_report(self, tmp_path):
         # report with no rotations
