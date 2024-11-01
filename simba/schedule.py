@@ -1102,11 +1102,14 @@ class Schedule:
                     gc_name, start_simulation, stop_simulation)
             else:
                 # read prices from CSV, convert to events
-                prices = get_price_list_from_csv(price_csv)
+                prices = get_price_list_from_csv(price_csv, gc_name)
                 util.save_input_file(price_csv["csv_file"], args)
                 events["grid_operator_signals"] += generate_event_list_from_prices(
                     prices, gc_name, start_simulation, stop_simulation,
                     price_csv.get('start_time'), price_csv.get('step_duration_s'))
+                # attach expanded price lists to station for report
+                self.stations[gc_name]["prices"] = generate_price_timeseries(
+                    prices, start_simulation, stop_simulation, interval)
 
         # reformat vehicle types for SpiceEV
         vehicle_types_spiceev = {
@@ -1120,7 +1123,7 @@ class Schedule:
         self.scenario = {
             "scenario": {
                 "start_time": start_simulation.isoformat(),
-                "interval": interval.days * 24 * 60 + interval.seconds // 60,
+                "interval": interval.total_seconds() // 60,
                 "n_intervals": ceil((stop_simulation-start_simulation) / interval)
             },
             "components": {
@@ -1284,13 +1287,15 @@ def generate_random_price_list(gc_name, start_simulation, stop_simulation):
     return events
 
 
-def get_price_list_from_csv(price_csv_dict):
+def get_price_list_from_csv(price_csv_dict, gc_name=None):
     """ Read out price CSV.
 
     :param price_csv_dict: price CSV info
     :type price_csv_dict: dict
-    :return: price timestamp (if in first column of CSV) and values
-    :rtype: list of tuples
+    :param gc_name: grid connector ID (optional, only relevant for warning)
+    :type gc_name: string
+    :return: price timestamp (if in first column of CSV) and tuple of values
+    :rtype: list
     """
     csv_path = Path(price_csv_dict["csv_file"])
     if not csv_path.exists():
@@ -1298,17 +1303,43 @@ def get_price_list_from_csv(price_csv_dict):
         return []
 
     prices = []
-    column = price_csv_dict.get("column")
+    column = price_csv_dict.get("column")  # backwards compatibility, deprecated
+    procurement_column = price_csv_dict.get("procurement_column")
+    commodity_column = price_csv_dict.get("commodity_column")
+    virtual_column = price_csv_dict.get("virtual_column")
     factor = price_csv_dict.get("factor", 1)
+    # general checks of given columns
+    if (procurement_column is None) ^ (commodity_column is None):
+        logging.warning(f'Price CSV for {gc_name}: only one of '
+                        'procurement_column and commodity_column was given.')
+    if column is not None:
+        logging.warning(f'Price CSV for {gc_name}: "column" is deprecated, '
+                        'use procurement_column and commodity_column instead.')
+        if commodity_column is None:
+            commodity_column = column
+    # backup: if neither procurement_column nor commodity_column was given,
+    # use values from last column in CSV as commodity prices
+    use_last_column = procurement_column is None and commodity_column is None
+
     with csv_path.open('r', newline='', encoding='utf-8') as csvfile:
         reader = csv.DictReader(csvfile, delimiter=',', quotechar='"')
         for idx, row in enumerate(reader):
             row_values = list(row.values())
-            # read value from given column or last column
-            value_str = row[column] if column else row_values[-1]
-            value = float(value_str) * factor
-            # add entry: first cell (may contain datetime), value
-            prices.append((row_values[0], value))
+            # read values from given columns or last column
+            procurement = None
+            commodity = None
+            virtual = None
+            if use_last_column:
+                commodity = float(row_values[-1]) * factor
+            else:
+                if procurement_column is not None:
+                    procurement = float(row[procurement_column]) * factor
+                if commodity_column is not None:
+                    commodity = float(row[commodity_column]) * factor
+                if virtual_column is not None:
+                    virtual = float(row[virtual_column]) * factor
+            # add entry: first cell (may contain datetime), price values
+            prices.append([row_values[0], (procurement, commodity, virtual)])
     return prices
 
 
@@ -1317,7 +1348,7 @@ def generate_event_list_from_prices(
         start_events=None, price_interval_s=None):
     """ Generate grid operator signals from price list.
 
-    :param prices: price timestamp and values
+    :param prices: price timestamp and values (ts, (proc, comm, virtual cost))
     :type prices: list of tuples
     :param gc_name: grid connector ID
     :type gc_name: string
@@ -1355,6 +1386,10 @@ def generate_event_list_from_prices(
         else:
             # compute event timestamp from given arguments
             event_time = idx * price_interval + start_events
+        # update time info in internal list
+        # first item _may_ have contained iso-timestring,
+        # but is now guaranteed to contain correct datetime of price change
+        price[0] = event_time
         if stop is None or stop < event_time:
             # keep track of last event time
             stop = event_time
@@ -1366,12 +1401,13 @@ def generate_event_list_from_prices(
             events.append(event)
         # price events known one day in advance
         signal_time = event_time - day
-        # read value from given column or last column
+        # SpiceEV price: sum of procurement, commodity and virtual costs (some may be None)
+        sum_price = sum([p or 0 for p in price[1]])
         event = {
             "start_time": event_time.isoformat(),
             "signal_time": signal_time.isoformat(),
             "grid_connector_id": gc_name,
-            "cost": {"type": "fixed", "value": price[1]},
+            "cost": {"type": "fixed", "value": sum_price},
         }
         if event_time >= start_simulation:
             # event within scenario time: add to list
@@ -1386,6 +1422,57 @@ def generate_event_list_from_prices(
         if start_events > start_simulation or stop < stop_simulation:
             logging.info(f"{gc_name} price csv does not cover simulation time")
     return events
+
+
+def generate_price_timeseries(prices, start_simulation, stop_simulation, interval):
+    """
+    Generate price timeseries from event-like price list.
+
+    Converts sparse price change events to a timeseries
+    with entries for each timestep of the simulation.
+    Each entry contains a dictionary with "procurement" and "commodity" costs.
+    Virtual costs are ignored.
+    If the input timeseries covers only part of the simulation, the last price is used to fill up.
+    This is needed to retain information about specific costs for cost calculation in reports.
+    :param prices: event-like input price series, containing (ts, (procurement, commodity))
+    :type prices: list
+    :param start_simulation: start of simulation time
+    :type start_simulation: datetime.datetime
+    :param stop_simulation: end of simulation time
+    :type stop_simulation: datetime.datetime
+    :param interval: length of timestep
+    :type interval: datetime.timedelta
+    :return: procurement and commodity price lists
+    :rtype: dict
+    """
+    price_lists = {"procurement": None, "commodity": None}
+    if len(prices) == 0:
+        return price_lists
+    current_time = start_simulation
+    price = prices.pop(0)
+    if price[1][0] is not None:
+        price_lists["procurement"] = list()
+    if price[1][1] is not None:
+        price_lists["commodity"] = list()
+    while current_time < stop_simulation:
+        # not end of simulation: fill up with price
+        try:
+            # get next price step to know when to stop
+            next_price = prices.pop(0)
+            stop_time = next_price[0]
+        except IndexError:
+            # may fail if price list is not long enough, fill up with last known price
+            next_price = None
+            stop_time = stop_simulation
+        while current_time < stop_time:
+            # price remains constant until next change
+            if price[1][0] is not None:
+                price_lists["procurement"].append(price[1][0])
+            if price[1][1] is not None:
+                price_lists["commodity"].append(price[1][1])
+            current_time += interval
+        price = next_price
+    return price_lists
 
 
 def get_charge_delta_soc(charge_curves: dict, vt: str, ct: str, max_power: float,

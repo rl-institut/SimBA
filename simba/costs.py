@@ -293,8 +293,8 @@ class Costs:
                     self.costs_per_gc[gcID]["c_maint_feed_in_annual"])
 
             # calculate (ceil) number of days in scenario
-            drive_days = -(-(self.schedule.scenario["scenario"]["n_intervals"] *
-                             self.schedule.scenario["scenario"]["interval"]) // (24 * 60))
+            scenario_duration = self.scenario.stop_time - self.scenario.start_time
+            drive_days = -(-scenario_duration.total_seconds() // (60*60*24))
             for rot in self.gc_rotations[gcID]:
                 v_type_rot = f"{rot.vehicle_type}_{rot.charging_type}"
                 try:
@@ -322,6 +322,9 @@ class Costs:
                       if pv.parent == gcID])
             timeseries = vars(self.scenario).get(f"{gcID}_timeseries")
 
+            # use procurement and commodity costs read from CSV instead of SpiceEV prices, if exist
+            prices = station.get("prices", timeseries.get("price [EUR/kWh]"))
+
             # Get the calculation method from args.
             cost_calculation_name = "cost_calculation_method_" + station.get("type")
             cost_calculation_method = vars(self.args).get(cost_calculation_name)
@@ -343,7 +346,7 @@ class Costs:
                     interval=self.scenario.interval,
                     timestamps_list=timeseries.get("time"),
                     power_grid_supply_list=timeseries.get("grid supply [kW]"),
-                    price_list=timeseries.get("price [EUR/kWh]"),
+                    price_list=prices,
                     power_fix_load_list=timeseries.get("fixed load [kW]"),
                     power_generation_feed_in_list=timeseries.get("generation feed-in [kW]"),
                     power_v2g_feed_in_list=timeseries.get("V2G feed-in [kW]"),

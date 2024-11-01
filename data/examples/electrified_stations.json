@@ -25,11 +25,13 @@
             "factor": 2  // factor to multiply column values, eg 0.001 for conversion from W to kW
         },
         "price_csv": {  // optional: price timeseries for this station
-            "csv_file": "data/examples/price_timeseries.csv",  // path to price csv
+            "csv_file": "data/examples/price_timeseries_extended.csv",  // path to price csv
             "start_time": "2022-03-07 00:00:00",  // optional: start time as YYYY-MM-DD hh:mm:ss. If not given, use CSV timestamps (first column)
-            "step_duration_s": 3600,  // timestep in seconds, required if start_time is given
-            "column": "price",  // optional: column name in .csv. Defaults to last column
-            "factor": 0.01  // optional: factor to multiply column values, default 1. Simulation expects €/kWh
+            "step_duration_s": 21600,  // timestep in seconds, required if start_time is given
+            "procurement_column": "procurement", // optional: procurement column name in .csv
+            "commodity_column": "commodity", // optional: commodity column name in .csv
+            "virtual_column": "virtual", // optional: column name for virtual costs in .csv
+            "factor": 0.5  // optional: factor to multiply column values, default 1. Simulation expects €/kWh
         },
         "battery": {  // optional: local stationary battery
             "charging_curve": [[0,50], [1,50]], // piecewise linear function that maps SoC to power, from 0 to 1, required
