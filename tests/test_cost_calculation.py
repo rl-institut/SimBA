@@ -12,6 +12,7 @@ class TestCostCalculation:
 
         assert args.strategy_deps == "balanced"
         assert args.strategy_opps == "greedy"
+        assert args.cost_calculation
 
         args.cost_calculation_method_deps = None
         args.cost_calculation_method_opps = None
