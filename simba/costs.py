@@ -134,8 +134,10 @@ class Costs:
         :return: Unit associated with the key
         :rtype: str
         """
-        if "maximum_gc_power" == key:
+        if "power" in key:
             return "kW"
+        elif "station_type" == key:
+            return "[-]"
         elif "maximum Nr charging stations" == key:
             return "[-]"
         elif "total_km_per_year" == key:
@@ -184,7 +186,7 @@ class Costs:
          """
         return [
             # various kpis and attributes
-            "station_type", "maximum_gc_power", "maximum Nr charging stations",
+            "station_type", "maximum_gc_power", "max_power_in_plw", "maximum Nr charging stations",
             "total_km_per_year", "annual_kWh_from_grid", "annual_kWh_from_feed_in",
 
             # investment costs
@@ -372,8 +374,11 @@ class Costs:
                 'levies_fees_and_taxes_per_year', error_value)
             self.costs_per_gc[gcID]["c_el_feed_in_remuneration_annual"] = costs_electricity.get(
                 'feed_in_remuneration_per_year', error_value)
-            self.costs_per_gc[gcID]["c_el_annual"] = costs_electricity.get('total_costs_per_year',
-                                                                           error_value)
+            self.costs_per_gc[gcID]["c_el_annual"] = costs_electricity.get(
+                'total_costs_per_year', error_value)
+            self.costs_per_gc[gcID]["max_power_in_plw"] = costs_electricity.get(
+                'peak_power_in_windows', error_value)
+
         return self
 
     def set_garage_costs(self):
@@ -637,6 +642,9 @@ class Costs:
         """
         # Cumulate gcs variables
         for key in self.get_gc_cost_variables():
+            # skip special attributes
+            if key in ["station_type", "maximum_gc_power", "max_power_in_plw"]:
+                continue
             # Vehicle costs cannot be cumulated since they might be double counted for vehicles
             # with multiple depots. Instead, the vehicle costs were previously calculated in
             # set_vehicle_costs_per_gc()
@@ -688,9 +696,11 @@ class Costs:
             1)
         return self.DAYS_PER_YEAR / simulated_days * total_km
 
-    def to_csv_lists(self):
+    def to_csv_lists(self, transpose=False):
         """ Convert costs to a list of lists easily convertible to a CSV.
 
+        :param transpose: swap rows and columns
+        :type transpose: bool
         :return: List of lists of parameters, units and costs per gc
         :rtype: list
         """
@@ -718,7 +728,10 @@ class Costs:
                     row.append(num)
             output.append(row)
 
-        transposed_output = []
-        for column, _ in enumerate(output[0]):
-            transposed_output.append([row[column] for row in output])
-        return transposed_output
+        if transpose:
+            transposed_output = []
+            for column, _ in enumerate(output[0]):
+                transposed_output.append([row[column] for row in output])
+            output = transposed_output
+
+        return output
