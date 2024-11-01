@@ -28,10 +28,9 @@
             "csv_file": "data/examples/price_timeseries_extended.csv",  // path to price csv
             "start_time": "2022-03-07 00:00:00",  // optional: start time as YYYY-MM-DD hh:mm:ss. If not given, use CSV timestamps (first column)
             "step_duration_s": 21600,  // timestep in seconds, required if start_time is given
-            "procurement_column": "procurement", // optional: procurement column name in .csv
-            "commodity_column": "commodity", // optional: commodity column name in .csv
-            "virtual_column": "virtual", // optional: column name for virtual costs in .csv
-            "factor": 0.5  // optional: factor to multiply column values, default 1. Simulation expects €/kWh
+            "procurement_column": "procurement [ct/kWh]", // optional: procurement column name in .csv
+            "commodity_column": "commodity [ct/kWh]", // optional: commodity column name in .csv
+            "virtual_column": "virtual [ct/kWh]" // optional: column name for virtual costs in .csv
         },
         "battery": {  // optional: local stationary battery
             "charging_curve": [[0,50], [1,50]], // piecewise linear function that maps SoC to power, from 0 to 1, required
