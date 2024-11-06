@@ -7,8 +7,7 @@ import pytest
 import warnings
 
 from simba import util
-from simba.simulate import simulate
-
+from simba.simulate import simulate, modes_simulation
 
 root_path = Path(__file__).parent.parent
 example_path = root_path / "data/examples"
@@ -112,6 +111,41 @@ class TestSimulate:
             simulate(args)
         # also captures INFO about running SpiceEV, so only compare second element
         assert caplog.record_tuples[1] == ('root', logging.INFO, 'Intermediate sim ignored')
+
+    def test_error_handling_in_modes(self, caplog):
+        args = self.get_args()
+        args.mode = "station_optimization"
+        args.propagate_mode_errors = False
+        del args.optimizer_config_path
+        with caplog.at_level(logging.ERROR):
+            simulate(args)
+        assert len(caplog.record_tuples) > 0
+
+    def test_modes(self, caplog, tmp_path):
+        args = self.get_args()
+        args.output_path = tmp_path
+        args.propagate_mode_errors = True
+        schedule, scenario = simulate(args)
+        with caplog.at_level(logging.ERROR):
+            args.mode = "sim"
+            modes_simulation(schedule, scenario, args)
+
+            args.mode = "sim_greedy"
+            modes_simulation(schedule, scenario, args)
+
+            args.mode = "neg_depb_to_oppb"
+            modes_simulation(schedule, scenario, args)
+
+            args.mode = "split_negative_depb"
+            modes_simulation(schedule, scenario, args)
+
+            args.mode = "station_optimization_single_step"
+            modes_simulation(schedule, scenario, args)
+
+            args.mode = "station_optimization"
+            modes_simulation(schedule, scenario, args)
+
+        assert len(caplog.record_tuples) == 0
 
     def test_mode_service_opt(self):
         # basic run
