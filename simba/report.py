@@ -578,9 +578,11 @@ def plot_gc_power_timeseries(extended_plots_path, scenario, schedule):
             "sum CS power [kW]",
             "battery power [kW]",
             "bat. stored energy [kWh]",
+            "price [EUR/kWh]",
         ]
 
         has_battery_column = False
+        has_prices = False
 
         # find time column
         time_index = agg_ts["header"].index("time")
@@ -595,34 +597,56 @@ def plot_gc_power_timeseries(extended_plots_path, scenario, schedule):
                 # column does not exist
                 continue
 
-            if header == "bat. stored energy [kWh]":
-                has_battery_column = True
-                # special plot for battery: same subplot, different y-axis
-                ax2 = ax.twinx()
-                ax2.set_ylabel("stored battery energy [kWh]")
+            if header == "price [EUR/kWh]":
+                has_prices = True
+                twin_price = ax.twinx()
                 # get next color from color cycle (just plotting would start with first color)
                 next_color = plt.rcParams['axes.prop_cycle'].by_key()["color"][header_index]
-                ax2.plot(
-                    time_values, header_values,
-                    label=header, c=next_color, linestyle="dashdot")
-                ax2.legend()
-                fig.set_size_inches(8, 4.8)
+                twin_price.plot(
+                    time_values, header_values, label=header, c=next_color, linestyle="dashdot")
+                twin_price.yaxis.label.set_color(next_color)
+                twin_price.tick_params(axis='y', colors=next_color)
+                twin_price.set_ylabel("price [€/kWh]")
+                twin_price.legend()
+            elif header == "bat. stored energy [kWh]":
+                has_battery_column = True
+                twin_bat = ax.twinx()
+                # get next color from color cycle (just plotting would start with first color)
+                next_color = plt.rcParams['axes.prop_cycle'].by_key()["color"][header_index]
+                twin_bat.plot(
+                    time_values, header_values, label=header, c=next_color, linestyle="dashdot")
+                twin_bat.yaxis.label.set_color(next_color)
+                twin_bat.tick_params(axis='y', colors=next_color)
+                twin_bat.set_ylabel("stored battery energy [kWh]")
+                twin_bat.legend()
             else:
-                # normal (non-battery) plot
+                # normal plot (no price or battery)
                 ax.plot(time_values, header_values, label=header)
 
+        # align y axis so that 0 is shared
+        # (limits not necessary, as power, energy and prices can't be compared directly)
+        # find smallest ratio of all axes
+        ax_ylims = ax.axes.get_ylim()
+        yratio = ax_ylims[0] / ax_ylims[1]
+        if has_prices:
+            price_ylims = twin_price.axes.get_ylim()
+            ax_yratio = ax_ylims[0] / ax_ylims[1]
+            yratio = min(ax_yratio, yratio)
         if has_battery_column:
-            # align y axis so that 0 is shared
-            # (limits not necessary, as power and energy can't be compared directly)
-            ax1_ylims = ax.axes.get_ylim()
-            ax1_yratio = ax1_ylims[0] / ax1_ylims[1]
-            ax2_ylims = ax2.axes.get_ylim()
-            ax2_yratio = ax2_ylims[0] / ax2_ylims[1]
-            if ax1_yratio < ax2_yratio:
-                ax2.set_ylim(bottom=ax2_ylims[1]*ax1_yratio)
-            else:
-                ax.set_ylim(bottom=ax1_ylims[1]*ax2_yratio)
-            plt.tight_layout()
+            bat_ylims = twin_bat.axes.get_ylim()
+            ax_yratio = ax_ylims[0] / ax_ylims[1]
+            yratio = min(ax_yratio, yratio)
+
+        ax.set_ylim(bottom=ax_ylims[1]*yratio)
+        if has_prices:
+            twin_price.set_ylim(bottom=price_ylims[1]*yratio)
+        if has_battery_column:
+            twin_bat.set_ylim(bottom=bat_ylims[1]*yratio)
+        plt.tight_layout()
+
+        if has_prices and has_battery_column:
+            # offset battery yaxis, otherwise overlap with prices
+            twin_bat.spines.right.set_position(("axes", 1.2))
 
         # show time windows
         time_windows = agg_ts.get("window signal [-]")
