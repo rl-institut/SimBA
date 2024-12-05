@@ -204,7 +204,7 @@ def generate_plots(schedule, scenario, args):
         plot_consumption_per_rotation_distribution(extended_plots_path, schedule)
         plot_distance_per_rotation_distribution(extended_plots_path, schedule)
         plot_charge_type_distribution(extended_plots_path, scenario, schedule)
-        plot_gc_power_timeseries(extended_plots_path, scenario, schedule)
+        plot_gc_power_timeseries(extended_plots_path, scenario, schedule, args)
         plot_active_rotations(extended_plots_path, scenario, schedule)
 
     # revert logging override
@@ -557,7 +557,7 @@ def plot_charge_type_distribution(extended_plots_path, scenario, schedule):
     plt.close()
 
 
-def plot_gc_power_timeseries(extended_plots_path, scenario, schedule):
+def plot_gc_power_timeseries(extended_plots_path, scenario, schedule, args):
     """Plots the different loads (total, feedin, external) of all grid connectors.
 
     :param extended_plots_path: directory to save plot to
@@ -566,6 +566,8 @@ def plot_gc_power_timeseries(extended_plots_path, scenario, schedule):
     :type scenario: spice_ev.Scenario
     :param schedule: provides default time windows
     :type schedule: simba.schedule.Schedule
+    :param args: Configuration arguments
+    :type args: argparse.Namespace
     """
     for gcID, gc in scenario.components.grid_connectors.items():
         fig, ax = plt.subplots()
@@ -579,8 +581,14 @@ def plot_gc_power_timeseries(extended_plots_path, scenario, schedule):
             "battery power [kW]",
             "bat. stored energy [kWh]",
         ]
+        # for stations simulated with balanced market, plot price as well
+        station = schedule.stations[gcID]
+        plot_price = vars(args).get(f"strategy_{station['type']}") == "balanced_market"
+        if plot_price:
+            headers.append("price [ct/kWh]")
 
         has_battery_column = False
+        has_prices = False
 
         # find time column
         time_index = agg_ts["header"].index("time")
@@ -595,34 +603,61 @@ def plot_gc_power_timeseries(extended_plots_path, scenario, schedule):
                 # column does not exist
                 continue
 
-            if header == "bat. stored energy [kWh]":
-                has_battery_column = True
-                # special plot for battery: same subplot, different y-axis
-                ax2 = ax.twinx()
-                ax2.set_ylabel("stored battery energy [kWh]")
+            if header == "price [ct/kWh]":
+                has_prices = True
+                twin_price = ax.twinx()
                 # get next color from color cycle (just plotting would start with first color)
                 next_color = plt.rcParams['axes.prop_cycle'].by_key()["color"][header_index]
-                ax2.plot(
-                    time_values, header_values,
-                    label=header, c=next_color, linestyle="dashdot")
-                ax2.legend()
-                fig.set_size_inches(8, 4.8)
+                twin_price.plot(
+                    time_values, header_values, label=header, c=next_color, linestyle="dashdot")
+                twin_price.yaxis.label.set_color(next_color)
+                twin_price.tick_params(axis='y', colors=next_color)
+                twin_price.set_ylabel("price [ct/kWh]")
+                # add dummy values to primary axis for legend
+                ax.plot([], [], next_color, linestyle="dashdot", label=header)
+            elif header == "bat. stored energy [kWh]":
+                has_battery_column = True
+                twin_bat = ax.twinx()
+                # get next color from color cycle (just plotting would start with first color)
+                next_color = plt.rcParams['axes.prop_cycle'].by_key()["color"][header_index]
+                twin_bat.plot(
+                    time_values, header_values, label=header, c=next_color, linestyle="dashdot")
+                twin_bat.yaxis.label.set_color(next_color)
+                twin_bat.tick_params(axis='y', colors=next_color)
+                twin_bat.set_ylabel("stored battery energy [kWh]")
+                # add dummy values to primary axis for legend
+                ax.plot([], [], next_color, linestyle="dashdot", label=header)
             else:
-                # normal (non-battery) plot
+                # normal plot (no price or battery)
                 ax.plot(time_values, header_values, label=header)
 
+        if plot_price and not has_prices:
+            logging.error(f"Plot GC power: {gcID} simulated with balanced_market, but has no price")
+
+        # align y axis so that 0 is shared
+        # (limits not necessary, as power, energy and prices can't be compared directly)
+        # find smallest ratio of all axes
+        ax_ylims = ax.axes.get_ylim()
+        yratio = ax_ylims[0] / ax_ylims[1]
+        if has_prices:
+            price_ylims = twin_price.axes.get_ylim()
+            ax_yratio = ax_ylims[0] / ax_ylims[1]
+            yratio = min(ax_yratio, yratio)
         if has_battery_column:
-            # align y axis so that 0 is shared
-            # (limits not necessary, as power and energy can't be compared directly)
-            ax1_ylims = ax.axes.get_ylim()
-            ax1_yratio = ax1_ylims[0] / ax1_ylims[1]
-            ax2_ylims = ax2.axes.get_ylim()
-            ax2_yratio = ax2_ylims[0] / ax2_ylims[1]
-            if ax1_yratio < ax2_yratio:
-                ax2.set_ylim(bottom=ax2_ylims[1]*ax1_yratio)
-            else:
-                ax.set_ylim(bottom=ax1_ylims[1]*ax2_yratio)
-            plt.tight_layout()
+            bat_ylims = twin_bat.axes.get_ylim()
+            ax_yratio = ax_ylims[0] / ax_ylims[1]
+            yratio = min(ax_yratio, yratio)
+
+        ax.set_ylim(bottom=ax_ylims[1]*yratio)
+        if has_prices:
+            twin_price.set_ylim(bottom=price_ylims[1]*yratio)
+        if has_battery_column:
+            twin_bat.set_ylim(bottom=bat_ylims[1]*yratio)
+        plt.tight_layout()
+
+        if has_prices and has_battery_column:
+            # offset battery yaxis, otherwise overlap with prices
+            twin_bat.spines.right.set_position(("axes", 1.2))
 
         # show time windows
         time_windows = agg_ts.get("window signal [-]")
@@ -659,7 +694,7 @@ def plot_gc_power_timeseries(extended_plots_path, scenario, schedule):
                             label=label, facecolor=color, alpha=0.2)
                         start_idx = i
 
-        ax.legend()
+        ax.legend()  # fig.legend places legend outside of plot
         # plt.xticks(rotation=30)
         ax.set_ylabel("Power [kW]")
         ax.set_title(f"Power: {gcID}")
