@@ -31,6 +31,7 @@ class Rotation:
         """ Create a trip object and append to rotations trip set.
 
         :param trip: trip to be added to rotation
+        :type trip: Trip
         """
         self.distance += trip.distance
         if trip.line:
