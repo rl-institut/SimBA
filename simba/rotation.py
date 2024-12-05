@@ -1,8 +1,6 @@
 import datetime
 import logging
 
-from simba.trip import Trip
-
 
 class Rotation:
 
@@ -32,53 +30,34 @@ class Rotation:
     def add_trip(self, trip):
         """ Create a trip object and append to rotations trip set.
 
-        :param trip: Information on trip to be added to rotation
-        :type trip: dict
-        :raises Exception: if charging type of trip and rotation differ
+        :param trip: trip to be added to rotation
         """
-        new_trip = Trip(self, **trip)
-
-        self.distance += new_trip.distance
-        if new_trip.line:
-            self.lines.add(new_trip.line)
+        self.distance += trip.distance
+        if trip.line:
+            self.lines.add(trip.line)
 
         if self.departure_time is None and self.arrival_time is None:
             # first trip added
-            self.departure_time = new_trip.departure_time
-            self.departure_name = new_trip.departure_name
-            self.arrival_time = new_trip.arrival_time
-            self.arrival_name = new_trip.arrival_name
+            self.departure_time = trip.departure_time
+            self.departure_name = trip.departure_name
+            self.arrival_time = trip.arrival_time
+            self.arrival_name = trip.arrival_name
         else:
-            if self.departure_time > new_trip.departure_time:
+            if self.departure_time > trip.departure_time:
                 # first of rotation found (for now)
-                self.departure_time = new_trip.departure_time
-                self.departure_name = new_trip.departure_name
+                self.departure_time = trip.departure_time
+                self.departure_name = trip.departure_name
             # '<=' instead of '<' since last trip of rotation has no duration
             # in the sample data. The trips are however chronologically
             # sorted which is why this approach works for sample data.
             # Will also work if one only relies on timestamps!
-            elif self.arrival_time <= new_trip.arrival_time:
+            elif self.arrival_time <= trip.arrival_time:
                 # last trip of rotation (for now)
-                self.arrival_time = new_trip.arrival_time
-                self.arrival_name = new_trip.arrival_name
+                self.arrival_time = trip.arrival_time
+                self.arrival_name = trip.arrival_name
 
         # set charging type if given
-        charging_type = trip.get('charging_type')
-        self.trips.append(new_trip)
-        if charging_type in ['depb', 'oppb']:
-            assert self.schedule.vehicle_types.get(
-                self.vehicle_type, {}).get(charging_type) is not None, (
-                f"The required vehicle type {self.vehicle_type}({charging_type}) "
-                "is not given in the vehicle_types.json file.")
-            if self.charging_type is None:
-                # set CT for whole rotation
-                self.set_charging_type(charging_type)
-            elif self.charging_type == charging_type:
-                # same CT as other trips: just add trip consumption
-                self.consumption += self.schedule.calculate_trip_consumption(new_trip)
-            else:
-                # different CT than rotation: error
-                raise Exception(f"Two trips of rotation {self.id} have distinct charging types")
+        self.trips.append(trip)
 
     def set_charging_type(self, ct):
         """ Change charging type of either all or specified rotations.

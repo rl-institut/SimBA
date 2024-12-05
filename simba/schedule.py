@@ -142,7 +142,18 @@ class Schedule:
                     rotation_id: Rotation(id=rotation_id,
                                           vehicle_type=trip['vehicle_type'],
                                           schedule=schedule)})
-            schedule.rotations[rotation_id].add_trip(trip)
+            rotation = schedule.rotations[rotation_id]
+            charging_type = trip.get("charging_type")
+            trip = Trip(rotation, **trip)
+            rotation.add_trip(trip)
+            if charging_type in ['depb', 'oppb']:
+                if rotation.charging_type is None:
+                    # set CT for whole rotation
+                    rotation.set_charging_type(charging_type)
+                elif rotation.charging_type != charging_type:
+                    # different CT than rotation: error
+                    raise Exception(
+                        f"Two trips of rotation {rotation.id} have differing charging types")
 
         # Set charging type for all rotations without explicitly specified charging type.
         # Charging type may have been set previously if a trip had specified a charging type.
@@ -167,6 +178,7 @@ class Schedule:
             logging.warning("Option skip_inconsistent_rotations ignored, "
                             "as check_rotation_consistency is not set to 'true'")
 
+        schedule.calculate_consumption()
         return schedule
 
     @classmethod
