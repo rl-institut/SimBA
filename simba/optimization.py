@@ -344,10 +344,17 @@ def recombination(schedule, args, trips, depot_trips):
             )
 
             # check: can next trip be done with return to depot?
-            # create temp rotation (clone) to facilitate rollback
-            tmp_rot = deepcopy(rotation)
+            # create temp rotation (same trips) to facilitate rollback
+            # avoid deepcopy because schedule can get large
+            tmp_rot = Rotation(rotation.id, vt, schedule)
+            tmp_rot.set_charging_type(ct)
+            # add prior trips
+            for t in rotation.trips:
+                tmp_rot.add_trip(t)
+            # add current trip and return trip
             tmp_rot.add_trip(trip)
             tmp_rot.add_trip(depot_trip)
+            # calculate consumption with current and return trip
             schedule.calculate_rotation_consumption(tmp_rot)
             if tmp_rot.consumption <= allowed_consumption:
                 # next trip is possible: add trip to rotation
