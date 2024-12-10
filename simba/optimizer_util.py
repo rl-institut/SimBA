@@ -18,7 +18,7 @@ from matplotlib import pyplot as plt
 if typing.TYPE_CHECKING:
     from simba.station_optimizer import StationOptimizer
 
-from simba.util import get_buffer_time as get_buffer_time_util
+from simba.util import get_buffer_time
 from spice_ev.report import generate_soc_timeseries
 
 
@@ -229,7 +229,7 @@ def get_charging_time(trip1, trip2, args):
     :rtype: float
     """
     standing_time_min = (trip2.departure_time - trip1.arrival_time) / timedelta(minutes=1)
-    buffer_time = (get_buffer_time(trip1, args.default_buffer_time_opps) / timedelta(minutes=1))
+    buffer_time = get_buffer_time(trip1, args.default_buffer_time_opps)
     standing_time_min -= buffer_time
 
     if args.min_charging_time > standing_time_min:
@@ -249,19 +249,8 @@ def get_charging_start(trip1, args):
     :return: First possible charging time as datetime object
     """
     buffer_time = get_buffer_time(trip1, args.default_buffer_time_opps)
-    return trip1.arrival_time+buffer_time
-
-
-def get_buffer_time(trip, default_buffer_time_opps):
-    """ Return the buffer time as timedelta object.
-
-    :param trip: trip to be checked
-    :type trip: simba.trip.Trip
-    :param default_buffer_time_opps: the default buffer time at opps charging stations
-    :return: buffer time
-    :rtype: datetime.timedelta
-    """
-    return timedelta(minutes=get_buffer_time_util(trip, default_buffer_time_opps))
+    buffer_timedelta = timedelta(minutes=buffer_time)
+    return trip1.arrival_time + buffer_timedelta
 
 
 def get_index_by_time(scenario, search_time):
