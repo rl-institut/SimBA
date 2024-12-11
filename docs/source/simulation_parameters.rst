@@ -104,7 +104,7 @@ The example (data/simba.cfg) contains parameter descriptions which are explained
      - false
      - Boolean
      - Pickle current schedule and scenario during report mode
-   * - load_pickle
+   * - load_pickle_path
      - Optional, no default given
      - Path to pickle file
      - Load schedule and scenario from this pickle file, expects load_pickle as first mode

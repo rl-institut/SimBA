@@ -24,17 +24,13 @@ def simulate(args):
     :return: final schedule and scenario
     :rtype: tuple
     """
-    if vars(args).get("load_pickle"):
+    if vars(args).get("load_pickle_path"):
         # load pickle file: skip pre_simulation
-        if isinstance(args.mode, list):
-            first_mode = args.mode[0]
-        else:
-            first_mode = args.mode
-        assert first_mode == "load_pickle", "Load pickle: first mode must be load_pickle"
-        # schedule and scenario read out from pickle file in first mode
-        # DataContainer is part of schedule
-        schedule = None
-        scenario = "pickle"  # must not be None
+        assert len(args.mode) > 1, "Load pickle: follow-up modes required, for example report"
+        assert args.mode[0] == "load_pickle", "Load pickle: first mode must be load_pickle"
+        # read out schedule and scenario as first mode
+        schedule, scenario = Mode.load_pickle(None, None, args=args)
+        args.mode = args.mode[1:]
     else:
         # DataContainer stores various input data
         data_container = DataContainer().fill_with_args(args)
@@ -94,11 +90,6 @@ def modes_simulation(schedule, scenario, args):
     :rtype: tuple
     :raises Exception: if args.propagate_mode_errors is set, re-raises error instead of continuing
     """
-
-    if not isinstance(args.mode, list):
-        # backwards compatibility: run single mode
-        args.mode = [args.mode]
-
     for i, mode in enumerate(args.mode):
         # scenario must be set from initial run / prior modes
         assert scenario is not None, f"Scenario became None after mode {args.mode[i-1]} (index {i})"
@@ -274,7 +265,7 @@ class Mode:
 
     @staticmethod
     def load_pickle(_schedule=None, _scenario=None, args=None, _i=None):
-        with open(args.load_pickle, 'rb') as f:
+        with open(args.load_pickle_path, 'rb') as f:
             unpickle = pickle.load(f)
         schedule = unpickle["schedule"]
         scenario = unpickle["scenario"]

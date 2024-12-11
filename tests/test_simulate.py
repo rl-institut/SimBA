@@ -98,7 +98,7 @@ class TestSimulate:
         # try to run a mode that does not exist
         # Get the parser from util. This way the test is directly coupled to the parser arguments
         args = self.get_args()
-        args.mode = "foo"
+        args.mode = ["foo"]
         with caplog.at_level(logging.ERROR):
             simulate(args)
         assert caplog.record_tuples == [('root', logging.ERROR, 'Unknown mode foo ignored')]
@@ -128,22 +128,22 @@ class TestSimulate:
         args.propagate_mode_errors = True
         schedule, scenario = simulate(args)
         with caplog.at_level(logging.ERROR):
-            args.mode = "sim"
+            args.mode = ["sim"]
             modes_simulation(schedule, scenario, args)
 
-            args.mode = "sim_greedy"
+            args.mode = ["sim_greedy"]
             modes_simulation(schedule, scenario, args)
 
-            args.mode = "neg_depb_to_oppb"
+            args.mode = ["neg_depb_to_oppb"]
             modes_simulation(schedule, scenario, args)
 
-            args.mode = "split_negative_depb"
+            args.mode = ["split_negative_depb"]
             modes_simulation(schedule, scenario, args)
 
-            args.mode = "station_optimization_single_step"
+            args.mode = ["station_optimization_single_step"]
             modes_simulation(schedule, scenario, args)
 
-            args.mode = "station_optimization"
+            args.mode = ["station_optimization"]
             modes_simulation(schedule, scenario, args)
 
         assert len(caplog.record_tuples) == 0
@@ -152,7 +152,7 @@ class TestSimulate:
         # basic run
         # Get the parser from util. This way the test is directly coupled to the parser arguments
         args = self.get_args()
-        args.mode = "service_optimization"
+        args.mode = ["service_optimization"]
         simulate(args)
         # all rotations remain negative
         args.desired_soc_deps = 0
@@ -162,21 +162,21 @@ class TestSimulate:
     def test_mode_change_charge_type(self):
         # all rotations remain negative
         args = self.get_args()
-        args.mode = "neg_oppb_to_depb"
+        args.mode = ["neg_oppb_to_depb"]
         args.desired_soc_deps = 0
         args.desired_soc_opps = 0
         simulate(args)
 
     def test_mode_remove_negative(self):
         args = self.get_args()
-        args.mode = "remove_negative"
+        args.mode = ["remove_negative"]
         args.desired_soc_deps = 0
         simulate(args)
 
     def test_mode_report(self, tmp_path):
         # report with cost calculation, write to tmp
         args = self.get_args()
-        args.mode = "report"
+        args.mode = ["report"]
         args.cost_calculation = True
         args.output_path = tmp_path
         args.strategy_deps = "balanced"
@@ -222,7 +222,7 @@ class TestSimulate:
 
     def test_extended_plot(self, tmp_path):
         args = self.get_args()
-        args.mode = "report"
+        args.mode = ["report"]
         args.output_path = tmp_path
         args.show_plots = False
         args.extended_output_plots = True
@@ -239,7 +239,7 @@ class TestSimulate:
     def test_create_trips_in_report(self, tmp_path):
         # create_trips_in_report option: must generate valid input trips.csv
         args = self.get_args()
-        args.mode = "report"
+        args.mode = ["report"]
         args.desired_soc_deps = 0
         args.cost_calculation = False
         args.output_path = tmp_path
@@ -258,7 +258,7 @@ class TestSimulate:
     def test_pickle(self, tmp_path):
         # create pickle in report
         args = self.get_args()
-        args.mode = "report"
+        args.mode = ["report"]
         args.show_plots = False
         args.cost_calculation = False
         args.output_path = tmp_path
@@ -267,16 +267,16 @@ class TestSimulate:
         pickle_path = tmp_path / "report_1/scenario.pkl"
         assert pickle_path.exists()
 
-        # read in pickle for new simulation
-        args.mode = "load_pickle"
+        # read in pickle for new simulation. load_pickle can't be only mode, add dummy sim
+        args.mode = ["load_pickle", "sim"]
         args.output_path = None
-        args.load_pickle = pickle_path
+        args.load_pickle_path = pickle_path
         args.cost_parameters_path = None  # keep original cost parameters
         schedule, _ = simulate(args)
         assert "foo" not in schedule.data_container.cost_parameters_data
 
         # replace cost parameters after loading pickle
-        args.mode = ["load_pickle"]
+        args.mode = ["load_pickle", "sim"]
         args.cost_parameters_path = tmp_path / "cost_params.json"
         with open(args.cost_parameters_path, "w") as f:
             f.write('{"foo": 1}')
@@ -285,5 +285,5 @@ class TestSimulate:
 
     def test_mode_recombination(self):
         args = self.get_args()
-        args.mode = "recombination"
+        args.mode = ["recombination"]
         simulate(args)

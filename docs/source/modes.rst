@@ -50,7 +50,9 @@ Load Pickle
 
     mode = ["load_pickle"]
 
-Instead of simulating given scenario, read in pickle file instead. Needs the `load_pickle` option to point to a pickle file. If the `load_pickle` option is set, `load_pickle` must be the first mode. However, this mode may come in later in the mode chain again, reloading schedule and scenario from file. Options in config file that are stored in schedule are ignored.
+While normally scenarios are generated from a trips file and ancillary data, with this mode a previously simulated scenario can be loaded from a pickle file instead. This scenario already contains results. Modes can be chained after load_pickle in the usual fashion. Multiple "load_pickle" modes per chain are allowed, reloading the scenario again.
+This mode needs the `load_pickle_path` option to point to a pickle file. If the `load_pickle_path` option is set, `load_pickle` must be the first mode.
+All options in the config file (except for cost parameters) that are stored in schedule are ignored.
 
 .. _neg_depb_to_oppb:
 

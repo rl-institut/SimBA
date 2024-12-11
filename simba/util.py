@@ -447,11 +447,15 @@ def get_args():
     # rename special options
     args.timing = args.eta
 
+    # enforce modes to be a list
+    if not isinstance(args.mode, list):
+        args.mode = [args.mode]
+
     # check mandatory arguments
-    if not vars(args).get("load_pickle"):
+    if not vars(args).get("load_pickle_path"):
         mandatory_arguments = ["schedule_path", "electrified_stations_path"]
         if "load_pickle" in args.mode:
-            mandatory_arguments.append("load_pickle")
+            mandatory_arguments.append("load_pickle_path")
         missing = [a for a in mandatory_arguments if vars(args).get(a) is None]
         if missing:
             raise Exception("The following arguments are required: {}".format(", ".join(missing)))
@@ -494,7 +498,7 @@ def get_parser():
                         help=f"Specify what you want to do. Choose one or more from \
                         {', '.join(mode_choices)}. \
                         sim runs a single simulation with the given inputs. \
-                        load_pickle loads files specified in load_pickle argument. \
+                        load_pickle loads files specified in load_pickle_path argument. \
                         neg_depb_to_oppb changes charging type of negative depb rotations. \
                         neg_oppb_to_depb changes charging type of negative oppb rotations. \
                         service optimization finds the largest set of electrified rotations. \
@@ -521,7 +525,7 @@ def get_parser():
                         help='Write a trips.csv during report mode')
     parser.add_argument('--create-pickle-in-report', action='store_true',
                         help='Pickle current schedule and scenario during report mode')
-    parser.add_argument('--load-pickle',
+    parser.add_argument('--load-pickle-path',
                         help='Load given pickle file, expects load_pickle as first mode')
 
     parser.add_argument('--optimizer-config-path', default=None,
