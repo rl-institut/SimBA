@@ -1,17 +1,18 @@
-import math
 from argparse import Namespace
 from copy import deepcopy
 from datetime import timedelta, datetime # noqa
+import math
 import pytest
 import sys
+
+from spice_ev.events import VehicleEvent
 import spice_ev.scenario as scenario
 
-from simba.simulate import pre_simulation
-from spice_ev.events import VehicleEvent
-from tests.conftest import example_root, file_root
-from tests.helpers import generate_basic_schedule
 from simba import rotation, schedule, util
 from simba.data_container import DataContainer
+from simba.simulate import pre_simulation
+from tests.conftest import example_root, file_root
+from tests.helpers import generate_basic_schedule
 
 mandatory_args = {
     "min_recharge_deps_oppb": 1,
@@ -761,14 +762,14 @@ class TestSchedule(BasicSchedule):
 
         some_rot = next(rot_iter)
         first_trip = some_rot.trips[0]
-        del first_trip.rotation
-        r.add_trip(vars(first_trip))
+        first_trip.rotation = r
+        r.add_trip(first_trip)
         r.trips[0].consumption = None
         s.calculate_rotation_consumption(r)
         assert r.trips[0].consumption is not None
         second_trip = some_rot.trips[1]
-        del second_trip.rotation
-        r.add_trip(vars(second_trip))
+        second_trip.rotation = r
+        r.add_trip(second_trip)
         for trip in r.trips:
             trip.consumption = None
         s.calculate_rotation_consumption(r)

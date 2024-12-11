@@ -171,7 +171,7 @@ def run_optimization(conf, sched=None, scen=None, args=None):
     # rotations itself.
     rotations_for_opt = optimizer.schedule.rotations.copy()
 
-    logger.log(msg="Starting greedy station optimization", level=100)
+    logger.log(msg="Starting greedy station optimization", level=39)
 
     # start a timer to later check how long the optimization took
     opt_util.get_time()
@@ -220,7 +220,7 @@ def run_optimization(conf, sched=None, scen=None, args=None):
         electrified_stations=ele_stations, run_only_neg=False)
     neg_rotations = optimizer.schedule.get_negative_rotations(optimizer.scenario)
     if len(neg_rotations) > 0:
-        logger.log(msg=f"Still {len(neg_rotations)} negative rotations: {neg_rotations}", level=100)
-    logger.log(msg="Station optimization finished after " + opt_util.get_time(), level=100)
+        logger.log(msg=f"Still {len(neg_rotations)} negative rotations: {neg_rotations}", level=39)
+    logger.log(msg="Station optimization finished after " + opt_util.get_time(), level=39)
 
     return optimizer.schedule, optimizer.scenario

@@ -496,7 +496,6 @@ class Costs:
         :return: self
         :rtype: Costs
         """
-        all_stations = self.schedule.scenario["components"]["charging_stations"]
         stepsPerHour = self.scenario.stepsPerHour
         # factor for scaling to a year
         scenario_duration_s = self.scenario.n_intervals * self.scenario.interval.total_seconds()
@@ -514,10 +513,7 @@ class Costs:
                 (sum(timeseries["grid supply [kW]"]) / stepsPerHour) * annual_factor
             self.costs_per_gc[gcID]["annual_kWh_from_feed_in"] = \
                 -sum(timeseries.get("local generation [kW]", [0])) / stepsPerHour * annual_factor
-            cs_at_station = len([cs for cs in all_stations.values() if cs["parent"] == gcID])
-            if station["n_charging_stations"] is not None:
-                # get nr of CS in use at station
-                cs_at_station = min(cs_at_station, station["n_charging_stations"])
+            cs_at_station = max(getattr(self.scenario, f"{gcID}_timeseries")["# CS in use [-]"])
             self.costs_per_gc[gcID]["maximum Nr charging stations"] = cs_at_station
 
         # total_km_per_year
