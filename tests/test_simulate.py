@@ -167,18 +167,23 @@ class TestSimulate:
         with (tmp_path / "report_1/summary_vehicles_costs.csv").open() as csvfile:
             reader = DictReader(csvfile)
             # save procurement costs and annual energy for each Station
-            station_data = {s: [None, None] for s in reader.fieldnames if s.startswith("Station")}
+            station_data = {s: {"energy_costs": None, "energy_amount": None}
+                            for s in reader.fieldnames if s.startswith("Station")}
             for row in reader:
-                for i, param in enumerate(["c_el_procurement_annual", "annual_kWh_from_grid"]):
-                    if row["parameter"] == param:
-                        for k, v in station_data.items():
-                            v[i] = float(row[k])
+                if row["parameter"] == "c_el_procurement_annual":
+                    for name in station_data:
+                        station_data[name]["energy_costs"] = float(row[name])
+                if row["parameter"] == "annual_kWh_from_grid":
+                    for name in station_data:
+                        station_data[name]["energy_amount"] = float(row[name])
             # check quotient: no energy must mean no cost, otherwise procurement price
-            for k, v in station_data.items():
-                if v[1] == 0:
-                    assert v[0] == 0, f"{k} has costs without energy"
+            for name in station_data:
+                energy = station_data[name]["energy_amount"]
+                cost = station_data[name]["energy_costs"]
+                if energy == 0:
+                    assert cost == 0, f"{name} has costs without energy"
                 else:
-                    assert pytest.approx(v[0]/v[1]) == procurement_price, f"{k}: procurement price"
+                    assert pytest.approx(cost/energy) == procurement_price, f"{name}: procurement price"
 
     def test_empty_report(self, tmp_path):
         # report with no rotations

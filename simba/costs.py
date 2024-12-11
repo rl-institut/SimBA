@@ -648,7 +648,7 @@ class Costs:
             # Vehicle costs cannot be cumulated since they might be double counted for vehicles
             # with multiple depots. Instead, the vehicle costs were previously calculated in
             # set_vehicle_costs_per_gc()
-            if key in ["c_vehicles", "c_vehicles_annual", "station_type"]:
+            if key in ["c_vehicles", "c_vehicles_annual"]:
                 continue
             self.costs_per_gc[self.CUMULATED][key] = 0
             for gc in self.costs_per_gc.keys() - [self.CUMULATED]:
@@ -696,11 +696,9 @@ class Costs:
             1)
         return self.DAYS_PER_YEAR / simulated_days * total_km
 
-    def to_csv_lists(self, transpose=False):
+    def to_csv_lists(self):
         """ Convert costs to a list of lists easily convertible to a CSV.
 
-        :param transpose: swap rows and columns
-        :type transpose: bool
         :return: List of lists of parameters, units and costs per gc
         :rtype: list
         """
@@ -727,11 +725,4 @@ class Costs:
                 except TypeError:
                     row.append(num)
             output.append(row)
-
-        if transpose:
-            transposed_output = []
-            for column, _ in enumerate(output[0]):
-                transposed_output.append([row[column] for row in output])
-            output = transposed_output
-
         return output
