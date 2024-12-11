@@ -217,7 +217,7 @@ class TestSimulate:
                 if energy == 0:
                     assert cost == 0, f"{name} has costs without energy"
                 else:
-                    assert pytest.approx(cost/energy) == procurement_price, f"{name}: procurement price"
+                    assert pytest.approx(cost/energy) == procurement_price, f"{name}: procurement"
 
     def test_empty_report(self, tmp_path):
         # report with no rotations
