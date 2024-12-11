@@ -1,17 +1,16 @@
 """ Optimizer class which implements the optimizer object and methods needed"""
 
-import logging
-import pickle
 from copy import deepcopy, copy
-from datetime import datetime
-from pathlib import Path
-from typing import Iterable
-
+from datetime import datetime, timedelta
+import logging
 import numpy as np
+from pathlib import Path
+import pickle
+from typing import Iterable
 
 import simba.optimizer_util as opt_util
 from spice_ev import scenario
-from simba import rotation, schedule
+from simba import rotation, schedule, util
 
 
 class StationOptimizer:
@@ -531,9 +530,9 @@ class StationOptimizer:
 
                 # Add the charge as linear interpolation during the charge time, but only start
                 # after the buffer time
-                buffer_idx = (int(opt_util.get_buffer_time(
-                    trip, self.args.default_buffer_time_opps).total_seconds()/60))
-                delta_idx = int(standing_time_min) + 1
+                buffer_minutes = util.get_buffer_time(trip, self.args.default_buffer_time_opps)
+                buffer_idx = int(timedelta(minutes=buffer_minutes) / self.scenario.interval)
+                delta_idx = int(timedelta(minutes=standing_time_min) / self.scenario.interval + 1)
                 soc[idx + buffer_idx:idx + buffer_idx + delta_idx] += np.linspace(0, d_soc,
                                                                                   delta_idx)
                 # Keep track of the last SoC as starting point for the next trip

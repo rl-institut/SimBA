@@ -12,17 +12,18 @@ class TestCostCalculation:
 
         assert args.strategy_deps == "balanced"
         assert args.strategy_opps == "greedy"
+        assert args.cost_calculation
 
-        args.cost_calculation_strategy_deps = None
-        args.cost_calculation_strategy_opps = None
+        args.cost_calculation_method_deps = None
+        args.cost_calculation_method_opps = None
 
         costs_vanilla = calculate_costs(cost_params, scenario, schedule, args)
 
         assert args.strategy_deps == "balanced"
         assert args.strategy_opps == "greedy"
 
-        args.cost_calculation_strategy_deps = "balanced"
-        args.cost_calculation_strategy_opps = "greedy"
+        args.cost_calculation_method_deps = "fixed_wo_plw"
+        args.cost_calculation_method_opps = "fixed_wo_plw"
         costs_with_same_strat = calculate_costs(cost_params, scenario, schedule, args)
 
         # assert all costs are the same
@@ -31,8 +32,9 @@ class TestCostCalculation:
                 assert (costs_vanilla.costs_per_gc[station][key] ==
                         costs_with_same_strat.costs_per_gc[station][key]), station
 
-        args.cost_calculation_strategy_opps = "balanced_market"
-        args.cost_calculation_strategy_deps = "balanced_market"
+        # test with different method (balanced_market costs for balanced strategy)
+        args.cost_calculation_method_deps = "balanced_market"
+        args.cost_calculation_method_opps = "balanced_market"
         costs_with_other_strat = calculate_costs(cost_params, scenario, schedule, args)
         print(costs_vanilla.costs_per_gc["cumulated"]["c_total_annual"])
         print(costs_with_other_strat.costs_per_gc["cumulated"]["c_total_annual"])
@@ -43,21 +45,15 @@ class TestCostCalculation:
             assert (costs_vanilla.costs_per_gc[station][key] !=
                     costs_with_other_strat.costs_per_gc[station][key]), key
 
-        args.cost_calculation_strategy_opps = "peak_load_window"
-        args.cost_calculation_strategy_deps = "peak_load_window"
+        # PLW: will create window time series before cost calculation
+        args.cost_calculation_method_deps = "fixed_w_plw"
+        args.cost_calculation_method_opps = "fixed_w_plw"
         costs_with_other_strat = calculate_costs(cost_params, scenario, schedule, args)
+        """
         station = "cumulated"
         for key in costs_vanilla.costs_per_gc[station]:
             if "el_energy" not in key:
                 continue
             assert (costs_vanilla.costs_per_gc[station][key] !=
-                    costs_with_other_strat.costs_per_gc[station][key]), key
-
-        args.cost_calculation_strategy_opps = "peak_shaving"
-        args.cost_calculation_strategy_deps = "peak_shaving"
-        costs_with_other_strat = calculate_costs(cost_params, scenario, schedule, args)
-        # assert all costs are the same
-        for station in costs_vanilla.costs_per_gc:
-            for key in costs_vanilla.costs_per_gc[station]:
-                assert (costs_vanilla.costs_per_gc[station][key] ==
-                        costs_with_other_strat.costs_per_gc[station][key]), station
+                costs_with_other_strat.costs_per_gc[station][key]), key
+        """

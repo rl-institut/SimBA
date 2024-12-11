@@ -2,10 +2,11 @@ import logging
 import traceback
 import warnings
 
-import spice_ev.scenario
-from spice_ev.costs import calculate_costs as calc_costs_spice_ev
-
 import simba.schedule
+
+import spice_ev.costs
+import spice_ev.scenario
+import spice_ev.util
 
 
 def calculate_costs(c_params, scenario, schedule, args):
@@ -75,7 +76,7 @@ class Costs:
     GARAGE = "garage"
     NOT_ELECTRIFIED = "Non_electrified_station"
 
-    DAYS_PER_YEAR = 365.2422
+    DAYS_PER_YEAR = 365
 
     def __init__(self, schedule: simba.schedule.Schedule, scenario: spice_ev.scenario.Scenario,
                  args, c_params: dict):
@@ -116,6 +117,7 @@ class Costs:
         :rtype: str
         """
         cumulated = self.costs_per_gc[self.CUMULATED]
+
         return ("\nTotal costs:\n"
                 f"Investment cost: {cumulated['c_invest']} €. \n"
                 f"Annual investment costs: {cumulated['c_invest_annual']} €/a. \n"
@@ -291,8 +293,8 @@ class Costs:
                     self.costs_per_gc[gcID]["c_maint_feed_in_annual"])
 
             # calculate (ceil) number of days in scenario
-            drive_days = -(-(self.schedule.scenario["scenario"]["n_intervals"] *
-                             self.schedule.scenario["scenario"]["interval"]) // (24 * 60))
+            scenario_duration = self.scenario.stop_time - self.scenario.start_time
+            drive_days = -(-scenario_duration.total_seconds() // (60*60*24))
             for rot in self.gc_rotations[gcID]:
                 v_type_rot = f"{rot.vehicle_type}_{rot.charging_type}"
                 try:
@@ -320,33 +322,39 @@ class Costs:
                       if pv.parent == gcID])
             timeseries = vars(self.scenario).get(f"{gcID}_timeseries")
 
-            # Get the calculation strategy / method from args.
-            # If no value is set, use the same strategy as the charging strategy
-            default_cost_strategy = vars(self.args)["strategy_" + station.get("type")]
+            # use procurement and commodity costs read from CSV instead of SpiceEV prices, if exist
+            prices = station.get("prices", timeseries.get("price [EUR/kWh]"))
 
-            cost_strategy_name = "cost_calculation_strategy_" + station.get("type")
-            cost_calculation_strategy = (vars(self.args).get(cost_strategy_name)
-                                         or default_cost_strategy)
+            # Get the calculation method from args.
+            cost_calculation_name = "cost_calculation_method_" + station.get("type")
+            cost_calculation_method = vars(self.args).get(cost_calculation_name)
+            if cost_calculation_method is None:
+                # not given in config: use the same method as the charging strategy
+                default_strategy = vars(self.args)["strategy_" + station.get("type")]
+                cost_calculation_method = spice_ev.costs.DEFAULT_COST_CALCULATION[default_strategy]
 
             # calculate costs for electricity
             try:
-                if cost_calculation_strategy == "peak_load_window":
-                    if timeseries.get("window signal [-]") is None:
-                        raise Exception("No peak load window signal provided for cost calculation")
-                costs_electricity = calc_costs_spice_ev(
-                    strategy=cost_calculation_strategy,
+                is_peak_load_window = cost_calculation_method.endswith("w_plw")
+                if is_peak_load_window and timeseries.get("window signal [-]") is None:
+                    logging.info("Generating peak load window signal for cost calculation")
+                    timeseries["window signal [-]"] = spice_ev.util.get_time_windows_from_json(
+                        self.args.time_windows, gc.grid_operator, gc.voltage_level, self.scenario)
+                costs_electricity = spice_ev.costs.calculate_costs(
+                    cc_type=cost_calculation_method,
                     voltage_level=gc.voltage_level,
                     interval=self.scenario.interval,
                     timestamps_list=timeseries.get("time"),
                     power_grid_supply_list=timeseries.get("grid supply [kW]"),
-                    price_list=timeseries.get("price [EUR/kWh]"),
+                    price_list=prices,
                     power_fix_load_list=timeseries.get("fixed load [kW]"),
                     power_generation_feed_in_list=timeseries.get("generation feed-in [kW]"),
                     power_v2g_feed_in_list=timeseries.get("V2G feed-in [kW]"),
                     power_battery_feed_in_list=timeseries.get("battery feed-in [kW]"),
-                    charging_signal_list=timeseries.get("window signal [-]"),
+                    window_signal_list=timeseries.get("window signal [-]"),
                     price_sheet_path=self.args.cost_parameters_path,
                     grid_operator=gc.grid_operator,
+                    fee_type=None,  # "RLM" or "SLP" or None (based on energy consumption)
                     power_pv_nominal=pv,
                 )
             except Exception:
@@ -483,13 +491,13 @@ class Costs:
         :return: self
         :rtype: Costs
         """
-        all_stations = self.schedule.scenario["components"]["charging_stations"]
         stepsPerHour = self.scenario.stepsPerHour
-        simulated_days = max(
-            round(self.scenario.n_intervals / self.scenario.stepsPerHour / 24, 0), 1)
-        # Factor for scaling to a year.
-        # Expects Schedules to describe whole days, with some overlap allowed
-        annual_factor = self.DAYS_PER_YEAR / simulated_days
+        # factor for scaling to a year
+        scenario_duration_s = self.scenario.n_intervals * self.scenario.interval.total_seconds()
+        if scenario_duration_s > 0:
+            annual_factor = (self.DAYS_PER_YEAR * 24 * 60 * 60) / scenario_duration_s
+        else:
+            annual_factor = 0
         # get dict with costs for specific grid operator
         for gcID, gc in self.gcs.items():
             station = self.schedule.stations[gcID]
@@ -500,10 +508,7 @@ class Costs:
                 (sum(timeseries["grid supply [kW]"]) / stepsPerHour) * annual_factor
             self.costs_per_gc[gcID]["annual_kWh_from_feed_in"] = \
                 -sum(timeseries.get("local generation [kW]", [0])) / stepsPerHour * annual_factor
-            cs_at_station = len([cs for cs in all_stations.values() if cs["parent"] == gcID])
-            if station["n_charging_stations"] is not None:
-                # get nr of CS in use at station
-                cs_at_station = min(cs_at_station, station["n_charging_stations"])
+            cs_at_station = max(getattr(self.scenario, f"{gcID}_timeseries")["# CS in use [-]"])
             self.costs_per_gc[gcID]["maximum Nr charging stations"] = cs_at_station
 
         # total_km_per_year

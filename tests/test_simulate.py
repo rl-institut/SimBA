@@ -1,12 +1,13 @@
 from argparse import Namespace
+from csv import DictReader
+import json
 import logging
 from pathlib import Path
 import pytest
 import warnings
 
 from simba import util
-from simba.simulate import simulate
-
+from simba.simulate import simulate, modes_simulation
 
 root_path = Path(__file__).parent.parent
 example_path = root_path / "data/examples"
@@ -112,6 +113,41 @@ class TestSimulate:
         # also captures INFO about running SpiceEV, so only compare second element
         assert caplog.record_tuples[1] == ('root', logging.INFO, 'Intermediate sim ignored')
 
+    def test_error_handling_in_modes(self, caplog):
+        args = self.get_args()
+        args.mode = "station_optimization"
+        args.propagate_mode_errors = False
+        del args.optimizer_config_path
+        with caplog.at_level(logging.ERROR):
+            simulate(args)
+        assert len(caplog.record_tuples) > 0
+
+    def test_modes(self, caplog, tmp_path):
+        args = self.get_args()
+        args.output_path = tmp_path
+        args.propagate_mode_errors = True
+        schedule, scenario = simulate(args)
+        with caplog.at_level(logging.ERROR):
+            args.mode = "sim"
+            modes_simulation(schedule, scenario, args)
+
+            args.mode = "sim_greedy"
+            modes_simulation(schedule, scenario, args)
+
+            args.mode = "neg_depb_to_oppb"
+            modes_simulation(schedule, scenario, args)
+
+            args.mode = "split_negative_depb"
+            modes_simulation(schedule, scenario, args)
+
+            args.mode = "station_optimization_single_step"
+            modes_simulation(schedule, scenario, args)
+
+            args.mode = "station_optimization"
+            modes_simulation(schedule, scenario, args)
+
+        assert len(caplog.record_tuples) == 0
+
     def test_mode_service_opt(self):
         # basic run
         # Get the parser from util. This way the test is directly coupled to the parser arguments
@@ -152,6 +188,25 @@ class TestSimulate:
         with warnings.catch_warnings():
             warnings.simplefilter("ignore")
             simulate(args)
+
+        # get power procurement price from price sheet
+        with open(args.cost_parameters_path) as file:
+            cost_params = json.load(file)
+            procurement_price = cost_params["default_grid_operator"]["power_procurement"]["charge"]
+            # given in ct/kWh, convert to €/kWh with sign change (direction of grid power)
+            procurement_price = -procurement_price / 100
+        # read out vehicle costs, procurement price must match
+        with (tmp_path / "report_1/summary_vehicles_costs.csv").open() as csvfile:
+            reader = DictReader(csvfile)
+            for row in reader:
+                if row["parameter"] == "unit":
+                    continue
+                energy = float(row["annual_kWh_from_grid"])
+                price = float(row["c_el_procurement_annual"])
+                if energy == 0:
+                    assert price == 0
+                else:
+                    assert pytest.approx(price / energy) == procurement_price
 
     def test_empty_report(self, tmp_path):
         # report with no rotations
