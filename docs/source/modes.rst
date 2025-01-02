@@ -43,6 +43,17 @@ Simple Simulation
 
 The simple simulation case is the default mode. Its usage is explained in :ref:`Getting Started`. Every chain of modes starts with a simple simulation, even if it is not explicitly listed in the modes. The simulation takes the scenario as is. No parameters will be adjusted, optimized or changed in any way. The charging type for each vehicle is read from the rotation information from the trips.csv if this data is included. If the data is not included *preferred_charging_type* from the config file is used, as long as the provided vehicles data provides the preferred_charging_type for the specified vehicle type.
 
+Load Pickle
+-----------
+
+::
+
+    mode = ["load_pickle"]
+
+While normally scenarios are generated from a trips file and ancillary data, with this mode a previously simulated scenario can be loaded from a pickle file instead. This scenario already contains results. Modes can be chained after load_pickle in the usual fashion. Multiple "load_pickle" modes per chain are allowed, reloading the scenario again.
+This mode needs the `load_pickle_path` option to point to a pickle file. If the `load_pickle_path` option is set, `load_pickle` must be the first mode.
+All options in the config file (except for cost parameters) that are stored in schedule are ignored.
+
 .. _neg_depb_to_oppb:
 
 Negative Depot to Opportunity Charger
