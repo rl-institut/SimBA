@@ -200,15 +200,24 @@ class TestSimulate:
         # read out vehicle costs, procurement price must match
         with (tmp_path / "report_1/summary_vehicles_costs.csv").open() as csvfile:
             reader = DictReader(csvfile)
+            # save procurement costs and annual energy for each Station
+            station_data = {s: {"energy_costs": None, "energy_amount": None}
+                            for s in reader.fieldnames if s.startswith("Station")}
             for row in reader:
-                if row["parameter"] == "unit":
-                    continue
-                energy = float(row["annual_kWh_from_grid"])
-                price = float(row["c_el_procurement_annual"])
+                if row["parameter"] == "c_el_procurement_annual":
+                    for name in station_data:
+                        station_data[name]["energy_costs"] = float(row[name])
+                if row["parameter"] == "annual_kWh_from_grid":
+                    for name in station_data:
+                        station_data[name]["energy_amount"] = float(row[name])
+            # check quotient: no energy must mean no cost, otherwise procurement price
+            for name in station_data:
+                energy = station_data[name]["energy_amount"]
+                cost = station_data[name]["energy_costs"]
                 if energy == 0:
-                    assert price == 0
+                    assert cost == 0, f"{name} has costs without energy"
                 else:
-                    assert pytest.approx(price / energy) == procurement_price
+                    assert pytest.approx(cost/energy) == procurement_price, f"{name}: procurement"
 
     def test_empty_report(self, tmp_path):
         # report with no rotations
