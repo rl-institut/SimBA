@@ -291,7 +291,7 @@ def recombination(schedule, args, trips, depot_trips):
                 # first trip of new rotation: generate new rotation
                 rotation = Rotation(id=rot_name, vehicle_type=vt, schedule=schedule)
                 rotation.allow_opp_charging_for_oppb = original_rotation.allow_opp_charging_for_oppb
-                rotation.vehicle_id = original_rotation.vehicle_id
+                rotation.vehicle_id = None  # must be re-assigned later
                 rotation.set_charging_type(ct)
 
                 # begin rotation in depot: add initial trip

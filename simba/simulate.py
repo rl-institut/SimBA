@@ -259,6 +259,8 @@ class Mode:
         negative_rotations = schedule.get_negative_rotations(scenario)
         trips, depot_trips = optimization.prepare_trips(schedule, negative_rotations)
         recombined_schedule = optimization.recombination(schedule, args, trips, depot_trips)
+        # re-assign vehicles
+        recombined_schedule.assign_vehicles(args)
         # re-run schedule
         scenario = recombined_schedule.run(args)
         return recombined_schedule, scenario
