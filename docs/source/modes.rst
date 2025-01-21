@@ -89,13 +89,13 @@ It can happen that several buses influence each other while simultaneously charg
 Now, only rotations are left that are non-negative when viewed alone, but might become negative when run together. To find the largest subset of non-negative rotations, all possible set combinations are generated and tried out. When a union of two rotation-sets is non-negative, it is taken as the basis for new possible combinations. The previous two rotation-sets will not be tried on their own from now on.
 In the end, the largest number of rotations that produce a non-negative result when taken together is returned as the optimized scenario.
 
-Recombination: split negative depot rotations into smaller rotations
---------------------------------------------------------------------
+Split and recombine: split negative depot rotations into smaller rotations
+--------------------------------------------------------------------------
 ::
 
     mode = split_negative_depb
 
-This mode recombines trips from negative depot rotations into new rotations such that all new rotations are guaranteed to stay within their vehicle's capacity while leaving trips from the same rotation together as much as possible. This is done in two steps:
+This mode splits negative depot rotations and tries to recombine the remaining trips into new rotations such that all new rotations are guaranteed to stay within their vehicle's capacity while leaving trips from the same rotation together as much as possible. This is done in two steps:
 First, the trips of each rotation are analysed. Trips from or to a depot are inserted into a look-up-table to be able to generate new depot-trips as needed.
 Second, new rotations are generated from the trips of negative depot rotations. The first trip (by time of departure) must be the start of a new rotation. In addition, the bus has to drive from a depot to the departure station. And finally, it must be able to drive back to a depot again without exceeding capacity. A simple rotation must therefore consist of three trips: from a depot to the departure station (Einsetzfahrt), the trip itself and from the arrival station back to a depot (Aussetzfahrt). Only if the overall consumption is less than the capacity of the bus can the rotation be considered valid at all. If that is not the case, this trip must be discarded.
 Side note: the trips to or from the depot might not be part of any original rotation. In this case, default values for distance and speed are assumed. These can be set in the configuration as default_depot_distance and default_mean_speed, respectively.
