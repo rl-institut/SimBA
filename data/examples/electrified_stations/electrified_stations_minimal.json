@@ -61,5 +61,37 @@
         "gc_power": 250,  // optional: maximum gc power can be defined per station
         "cs_power_opps" : 140,  // optional: maximum cs power can be defined per station
         "voltage_level": "LV" // optional: voltage_level can be defined per station, influences cost
+    },
+    "Station-21": {
+        "type": "opps",
+        "n_charging_stations": 2
+    },
+    "Station-22": {
+        "type": "deps",
+        "n_charging_stations": null
+    },
+    "Station-26": {
+        "type": "opps",
+        "n_charging_stations": 5
+    },
+    "Station-28": {
+        "type": "opps",
+        "n_charging_stations": 4
+    },
+    "Station-30": {
+        "type": "opps",
+        "n_charging_stations": 4
+    },
+    "Station-32": {
+        "type": "opps",
+        "n_charging_stations": 3
+    },
+    "Station-39": {
+        "type": "opps",
+        "n_charging_stations": 5
+    },
+    "Station-42": {
+        "type": "deps",
+        "n_charging_stations": null
     }
 }
