@@ -1332,6 +1332,10 @@ def get_price_list_from_csv(price_csv_dict, gc_name=None):
     # backup: if neither procurement_column nor commodity_column was given,
     # use values from last column in CSV as commodity prices
     use_last_column = procurement_column is None and commodity_column is None
+    if use_last_column:
+        logging.warning(f'Price CSV for {gc_name}: Please specify procurement_column and/or'
+                        f' commodity_column. Now, the last column in csv was interpreted as '
+                        f'commodity price')
 
     with csv_path.open('r', newline='', encoding='utf-8') as csvfile:
         reader = csv.DictReader(csvfile, delimiter=',', quotechar='"')

@@ -611,7 +611,7 @@ def get_parser():
     parser.add_argument('--eta', action='store_true',
                         help='Show estimated time to finish simulation after each step, '
                              'instead of progress bar. Not recommended for fast computations.')
-    parser.add_argument('--skip-flex-report', action='store_true',
+    parser.add_argument('--skip-flex-report', action='store_false',
                         help='Skip flex band creation when generating reports.')
 
     # #### LOGGING PARAMETERS #### #

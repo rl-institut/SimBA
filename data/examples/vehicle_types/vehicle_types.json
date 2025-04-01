@@ -13,7 +13,7 @@
         "oppb": {
             "name": "articulated bus - opportunity charging",
             "capacity": 150,
-            "charging_curve": [[0, 250], [0.8, 250], [1, 25]],
+            "charging_curve": [[0, 500], [0.8, 500], [1, 25]],
             "min_charging_power": 0,
             "v2g": false,
             "mileage": "data/examples/consumption/energy_consumption_example.csv",
@@ -33,7 +33,7 @@
         "oppb": {
             "name": "solo bus - opportunity charging",
             "capacity": 150,
-            "charging_curve": [[0, 250], [0.8, 250], [1, 25]],
+            "charging_curve": [[0, 500], [0.8, 500], [1, 25]],
             "min_charging_power": 0,
             "v2g": false,
             "mileage": 1.1,
