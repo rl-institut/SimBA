@@ -55,7 +55,7 @@ class TestStationOptimization:
         self.tmp_path = tmp_path
 
         # Create a temporary config file as copy from the example configuration.
-        src = example_root / "simba.cfg"
+        src = example_root / "configs/basic.cfg"
         src_text = src.read_text()
 
         # don't show plots. spaces are optional, so use regex
@@ -63,7 +63,7 @@ class TestStationOptimization:
 
         vehicles_dest = tmp_path / "vehicle_types.json"
         # store vehicles temporarily and use them in the config file
-        shutil.copy(example_root / "vehicle_types.json", vehicles_dest)
+        shutil.copy(example_root / "vehicle_types/vehicle_types.json", vehicles_dest)
 
         # opens the vehicle type file, and adjust capacity and mileage of all vehicles
         self.vehicle_types = adjust_vehicle_file(vehicles_dest, capacity=50, mileage=10)
@@ -77,7 +77,8 @@ class TestStationOptimization:
             "vehicle_types_path = " + vehicles_dest_str + r"\g<2>", src_text)
 
         # Use the default electrified stations from example folder but change some values
-        with open(example_root / "electrified_stations.json", "r", encoding='utf-8') as file:
+        stations_path = example_root / "electrified_stations/electrified_stations.json"
+        with open(stations_path, "r", encoding='utf-8') as file:
             self.electrified_stations = util.uncomment_json_file(file)
         # only keep Station-0 electrified and remove the other staitons
         self.electrified_stations = {"Station-0": self.electrified_stations["Station-0"]}
@@ -113,7 +114,7 @@ class TestStationOptimization:
         :type trips_file_name: str
         :return: data_container, args"""
 
-        sys.argv = ["foo", "--config", str(example_root / "simba.cfg")]
+        sys.argv = ["foo", "--config", str(example_root / "configs/basic.cfg")]
         args = util.get_args()
         args.output_path = self.tmp_path
         args.results_directory = self.tmp_path

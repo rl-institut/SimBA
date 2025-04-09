@@ -17,7 +17,7 @@ class TestSocDispatcher:
         """
         # set the system variables to imitate the console call with the config argument.
         # first element has to be set to something or error is thrown
-        sys.argv = ["foo", "--config", str(example_root / "simba.cfg")]
+        sys.argv = ["foo", "--config", str(example_root / "configs/basic.cfg")]
         args = util.get_args()
         args.seed = 5
         args.attach_vehicle_soc = True

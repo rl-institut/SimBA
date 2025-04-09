@@ -19,7 +19,7 @@ The configuration file config.cfg is provided as example in ./examples/ and prov
 | Physical setup of environment: Here, the physical setup is characterized
 | Simulation Parameters: The simulation can be adjusted using these parameters
 
-The example (data/simba.cfg) contains parameter descriptions which are explained here in more detail:
+The example configurations in `data/examples/configs/` contain parameter descriptions which are explained here in more detail:
 
 .. list-table:: config.cfg parameters
    :header-rows: 1

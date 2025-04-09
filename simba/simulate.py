@@ -191,6 +191,7 @@ class Mode:
                 f'Changing charging type from {from_type} to {to_type} for rotations '
                 + ', '.join(sorted(relevant_rotations)))
             schedule.set_charging_type(to_type, relevant_rotations)
+            schedule.assign_vehicles(args)
             # simulate again
             scenario = schedule.run(args)
             neg_rot = schedule.get_negative_rotations(scenario)

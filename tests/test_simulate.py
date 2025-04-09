@@ -16,46 +16,19 @@ example_path = root_path / "data/examples"
 class TestSimulate:
     # Add propagate_mode_errors as developer setting to raise Exceptions.
     NON_DEFAULT_VALUES = {
-        "vehicle_types_path": example_path / "vehicle_types.json",
-        "electrified_stations_path": example_path / "electrified_stations.json",
-        "station_data_path": example_path / "all_stations.csv",
-        "cost_parameters_path": example_path / "cost_params.json",
-        "outside_temperature_over_day_path": example_path / "default_temp_summer.csv",
-        "level_of_loading_over_day_path": example_path / "default_level_of_loading_over_day.csv",
-        "schedule_path": example_path / "trips_example.csv",
+        "vehicle_types_path": example_path / "vehicle_types/vehicle_types.json",
+        "electrified_stations_path":
+            example_path / "electrified_stations/electrified_stations.json",
+        "station_data_path": example_path / "consumption/all_stations.csv",
+        "cost_parameters_path": example_path / "costs/cost_params.json",
+        "outside_temperature_over_day_path": example_path / "consumption/default_temp_summer.csv",
+        "level_of_loading_over_day_path":
+            example_path / "consumption/default_level_of_loading_over_day.csv",
+        "schedule_path": example_path / "trips/trips_example.csv",
         "mode": [],
         "interval": 15,
         "propagate_mode_errors": True,
         "preferred_charging_type": "oppb"
-    }
-
-    MANDATORY_ARGS = {
-        "vehicle_types_path": example_path / "vehicle_types.json",
-        "electrified_stations_path": example_path / "electrified_stations.json",
-        "cost_parameters_path": example_path / "cost_params.json",
-        "outside_temperature_over_day_path": example_path / "default_temp_summer.csv",
-        "level_of_loading_over_day_path": example_path / "default_level_of_loading_over_day.csv",
-        "schedule_path": example_path / "trips_example.csv",
-        "mode": [],
-        "min_recharge_deps_oppb": 1,
-        "min_recharge_deps_depb": 1,
-        "gc_power_opps": 100000,
-        "gc_power_deps": 100000,
-        "cs_power_opps": 300,
-        "cs_power_deps_depb": 150,
-        "cs_power_deps_oppb": 150,
-        "interval": 15,
-        "days": None,
-        "signal_time_dif": 10,
-        "include_price_csv": None,
-        "rotation_filter_variable": None,
-        "seed": 1,
-        "default_buffer_time_opps": 0,
-        "default_buffer_time_deps": 0,
-        "desired_soc_opps": 1,
-        "desired_soc_deps": 1,
-        "min_charging_time": 0,
-        "default_voltage_level": "MV",
     }
 
     def get_args(self):
@@ -77,9 +50,40 @@ class TestSimulate:
         simulate(args)
 
     def test_mandatory_missing(self):
-        values = self.MANDATORY_ARGS.copy()
+        mandatory_args = {
+            "vehicle_types_path": example_path / "vehicle_types/vehicle_types.json",
+            "electrified_stations_path":
+                example_path / "electrified_stations/electrified_stations.json",
+            "cost_parameters_path": example_path / "costs/cost_params.json",
+            "outside_temperature_over_day_path":
+                example_path / "consumption/default_temp_summer.csv",
+            "level_of_loading_over_day_path":
+                example_path / "consumption/default_level_of_loading_over_day.csv",
+            "schedule_path": example_path / "trips/trips_example.csv",
+            "mode": [],
+            "min_recharge_deps_oppb": 1,
+            "min_recharge_deps_depb": 1,
+            "gc_power_opps": 100000,
+            "gc_power_deps": 100000,
+            "cs_power_opps": 300,
+            "cs_power_deps_depb": 150,
+            "cs_power_deps_oppb": 150,
+            "interval": 15,
+            "days": None,
+            "signal_time_dif": 10,
+            "include_price_csv": None,
+            "rotation_filter_variable": None,
+            "seed": 1,
+            "default_buffer_time_opps": 0,
+            "default_buffer_time_deps": 0,
+            "desired_soc_opps": 1,
+            "desired_soc_deps": 1,
+            "min_charging_time": 0,
+            "default_voltage_level": "MV",
+        }
 
-        for k, v in self.MANDATORY_ARGS.items():
+        values = mandatory_args.copy()
+        for k, v in mandatory_args.items():
             del values[k]
             with pytest.raises(Exception):
                 simulate(Namespace(**values))
@@ -92,7 +96,7 @@ class TestSimulate:
             with pytest.raises(Exception):
                 simulate(Namespace(**values))
             # reset
-            values[fpath] = self.MANDATORY_ARGS[fpath]
+            values[fpath] = mandatory_args[fpath]
 
     def test_unknown_mode(self, caplog):
         # try to run a mode that does not exist
@@ -110,8 +114,8 @@ class TestSimulate:
         args.mode = ["sim", "sim"]
         with caplog.at_level(logging.INFO):
             simulate(args)
-        # also captures INFO about running SpiceEV, so only compare second element
-        assert caplog.record_tuples[1] == ('root', logging.INFO, 'Intermediate sim ignored')
+        # also captures INFO about running SpiceEV, so only compare last element
+        assert caplog.record_tuples[-1] == ('root', logging.INFO, 'Intermediate sim ignored')
 
     def test_error_handling_in_modes(self, caplog):
         args = self.get_args()
@@ -146,7 +150,8 @@ class TestSimulate:
             args.mode = ["station_optimization"]
             modes_simulation(schedule, scenario, args)
 
-        assert len(caplog.record_tuples) == 0
+        # warning: no column for Station-3 price CSV
+        assert len(caplog.record_tuples) == 1
 
     def test_mode_service_opt(self):
         # basic run
