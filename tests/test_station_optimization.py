@@ -182,16 +182,14 @@ class TestStationOptimization:
 
         events = sopt.get_low_soc_events(soc_data=vehicle_socs_fast, rel_soc=True)
         # The scenario was generated to create a single low soc event, e.g. lower than 0
-        assert 1 == sum(min(socs)<0 for socs in scen.vehicle_socs.values())
+        assert 1 == sum(min(socs) < 0 for socs in scen.vehicle_socs.values())
         assert len(events) == 1
         e = events[0]
         e1 = copy(e)
         vehicle_socs_reduced = {vehicle: [soc - 1 for soc in socs] for vehicle, socs in
                                 scen.vehicle_socs.items()}
         # The vehicle socs were reduced. Now both vehicles have socs below 0
-        assert 2 == sum(min(socs)<0 for socs in vehicle_socs_reduced.values())
-
-
+        assert 2 == sum(min(socs) < 0 for socs in vehicle_socs_reduced.values())
 
         # Depending on the option "rel_soc" a relative soc is used or not
         events = sopt.get_low_soc_events(soc_data=vehicle_socs_reduced, rel_soc=False)
@@ -202,8 +200,6 @@ class TestStationOptimization:
         # The optimizer should only show a single event, since the low socs which was artifically
         # created would not be low, if the vehicle would start with a "full" soc.
         assert len(events) == 1
-
-
 
         e2 = events[0]
         # This shows that the events are identical. The shift in socs does not change the times,
@@ -216,8 +212,9 @@ class TestStationOptimization:
         # This increases the soc, so that only a single time step is negative with new_low_soc.
         # Higher socs are increased.
         # Since the soc stays at 1 for longer, the start index should change
-        vehicle_socs_increased = {vehicle: [min(soc + abs(e1.min_soc) +new_low_soc, 1) for soc in socs] for
-                                  vehicle, socs in scen.vehicle_socs.items()}
+        vehicle_socs_increased = {
+            vehicle: [min(soc + abs(e1.min_soc) + new_low_soc, 1) for soc in socs] for
+            vehicle, socs in scen.vehicle_socs.items()}
         events = sopt.get_low_soc_events(soc_data=vehicle_socs_increased, rel_soc=True)
         e3 = events[0]
         assert e1.start_idx != e3.start_idx
@@ -279,49 +276,11 @@ class TestStationOptimization:
         opt_sched, opt_scen = run_optimization(conf, sched=deepcopy(sched), scen=scen, args=args)
         assert len(opt_sched.rotations) == amount_rotations
 
-    # def test_deep_optimization(self):
-        # """ Check if deep analysis finds the prepared optimal solution for the test case.
-
-        # The Test case is a a 3 star like network with two rotations which are negative without
-        # electrification.
-        # Rotation 1:
-        # Depot --> Station-1 ---> Station-2 -->Station-1-->Depot
-        # Rotation 2:
-        # Depot --> Station-1 ---> Station-3 -->Station-1-->Depot
-
-        # Greedy optimization will electrify Station-1 first since it is helpful for both rotations.
-        # Since electrifying Station-1 is not enough to electrify either rotations, greedy
-        # optimization will electrify Station-2 and Station-3 as well. Deep Analysis will expand
-        # the checked nodes --> It should find that electrifying Station-2 and Station-3 is enough
-        # without electrifying Station-1
-
-        # """
-        # trips_file_name = "trips_for_optimizer_deep.csv"
-        # data_container, args = self.generate_datacontainer_args(trips_file_name)
-        # data_container.stations_data = {}
-        # args.preferred_charging_type = "oppb"
-        # for trip_d in data_container.trip_data:
-            # trip_d["distance"] *= 15
-        # sched, scen = self.generate_schedule_scenario(args, data_container)
-        # config_path = example_root / "default_optimizer.cfg"
-        # conf = opt_util.read_config(config_path)
-
-        # assert len(sched.get_negative_rotations(scen)) == 2
-
-        # solvers = ["quick", "spiceev"]
-        # node_choices = ["step-by-step", "brute"]
-        # conf.opt_type = "deep"
-        # for solver in solvers:
-            # for node_choice in node_choices:
-                # conf.solver = solver
-                # conf.node_choice = node_choice
-                # opt_sched, opt_scen = run_optimization(conf, sched=sched, scen=scen, args=args)
-                # assert len(opt_sched.get_negative_rotations(opt_scen)) == 0
-                # assert "Station-1" not in opt_sched.stations
-                # assert "Station-2" in opt_sched.stations
-                # assert "Station-3" in opt_sched.stations
-
-    @pytest.mark.parametrize("solver,node_choice",  [("quick", "step-by-step"), ("quick", "brute"), ("spiceev", "step-by-step"), ("spiceev", "brute")])
+    @pytest.mark.parametrize("solver,node_choice",
+                             [("quick", "step-by-step"),
+                              ("quick", "brute"),
+                              ("spiceev", "step-by-step"),
+                              ("spiceev", "brute")])
     def test_deep_optimization(self, solver, node_choice):
         trips_file_name = "trips_for_optimizer_deep.csv"
         data_container, args = self.generate_datacontainer_args(trips_file_name)
