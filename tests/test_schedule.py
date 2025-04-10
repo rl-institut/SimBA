@@ -12,7 +12,7 @@ from simba import rotation, schedule, util
 from simba.data_container import DataContainer
 from simba.simulate import pre_simulation
 from tests.conftest import example_root, file_root
-from tests.helpers import generate_basic_schedule, mandatory_args
+from tests.helpers import generate_basic_schedule, MANDATORY_ARGS
 
 
 class BasicSchedule:
@@ -173,7 +173,7 @@ class TestSchedule(BasicSchedule):
         args = util.get_args()
         data_container = DataContainer().fill_with_args(args)
 
-        for key in mandatory_args.keys():
+        for key in MANDATORY_ARGS.keys():
             args = util.get_args()
             args.__delattr__(key)
             with pytest.raises(Exception):
