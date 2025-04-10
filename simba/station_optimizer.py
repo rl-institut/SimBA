@@ -36,6 +36,9 @@ class StationOptimizer:
         self.base_stations = self.electrified_stations.copy()
         self.base_electrified_station_set = set()
 
+        # Generator for producing combinations for the brute force algorithm
+        self.brute_generator = dict()
+
         # stations which are included can not be included again. Therefore they go into
         # the set of not possible stations together with excluded stations
         self.not_possible_stations = config.inclusion_stations.union(config.exclusion_stations)
@@ -626,8 +629,7 @@ class StationOptimizer:
 
     @opt_util.time_it
     def choose_station_brute(self, station_eval,
-                             pre_optimized_set=None, missing_energy=0,
-                             gens=dict()):
+                             pre_optimized_set=None, missing_energy=0):
         """ Return a possible set of stations to electrify which has not been tried yet.
 
         Gives back a possible set of stations to electrify which shows potential and has not been
@@ -648,10 +650,10 @@ class StationOptimizer:
 
         station_ids = [x[0] for x in station_eval]
         try:
-            generator = gens[str(station_ids) + str(len(pre_optimized_set) - 1)]
+            generator = self.brute_generator[str(station_ids) + str(len(pre_optimized_set) - 1)]
         except KeyError:
             generator = opt_util.combination_generator(station_ids, len(pre_optimized_set) - 1)
-            gens[str(station_ids) + str(len(pre_optimized_set) - 1)] = generator
+            self.brute_generator[str(station_ids) + str(len(pre_optimized_set) - 1)] = generator
         station_eval_dict = {stat[0]: stat[1] for stat in station_eval}
         for comb in generator:
             node_name = opt_util.stations_hash(comb)
