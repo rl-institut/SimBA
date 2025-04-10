@@ -641,8 +641,6 @@ class StationOptimizer:
         :type pre_optimized_set: set
         :param missing_energy: missing energy in this branch before electrification
         :type missing_energy: float
-        :param gens: generators for brute force generation
-        :type gens: dict
         :return: combination of stations to electrify and
             false since this function does not support recursive calling
         :raises AllCombinationsCheckedException: If all combinations have been checked
