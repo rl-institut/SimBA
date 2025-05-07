@@ -647,13 +647,14 @@ class StationOptimizer:
         """
 
         station_ids = [x[0] for x in station_eval]
+        # get combination generator (reuse if possible)
+        generator_key = f"{station_ids} {len(pre_optimized_set) - 1}"
         try:
-            # get combination generator (reuse if possible)
-            generator = self.brute_generator[str(station_ids) + str(len(pre_optimized_set) - 1)]
+            generator = self.brute_generator[generator_key]
         except KeyError:
-            # create a new generator
+            # create new generator
             generator = opt_util.combination_generator(station_ids, len(pre_optimized_set) - 1)
-            self.brute_generator[str(station_ids) + str(len(pre_optimized_set) - 1)] = generator
+            self.brute_generator[generator_key] = generator
         station_eval_dict = {stat[0]: stat[1] for stat in station_eval}
         for comb in generator:
             node_name = opt_util.stations_hash(comb)
