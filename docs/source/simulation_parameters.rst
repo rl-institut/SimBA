@@ -224,10 +224,10 @@ The example configurations in `data/examples/configs/` contain parameter descrip
      - false
      - Boolean
      - Show estimated time to finish simulation after each step. Not recommended for fast computations
-   * - skip_flex_report
+   * - create_flex_report
      - false
      - Boolean
-     - Skip generation of flex_report in SpiceEV. Activating can save time as this feature is rarely used
+     - Create flex band information in SpiceEV when reporting. Rarely used.
 
 
 Schedule
