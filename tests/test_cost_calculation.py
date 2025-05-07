@@ -36,14 +36,11 @@ class TestCostCalculation:
         args.cost_calculation_method_deps = "balanced_market"
         args.cost_calculation_method_opps = "balanced_market"
         costs_with_other_strat = calculate_costs(cost_params, scenario, schedule, args)
-        print(costs_vanilla.costs_per_gc["cumulated"]["c_total_annual"])
-        print(costs_with_other_strat.costs_per_gc["cumulated"]["c_total_annual"])
         station = "cumulated"
-        for key in costs_vanilla.costs_per_gc[station]:
-            if "el_energy" not in key:
-                continue
-            assert (costs_vanilla.costs_per_gc[station][key] !=
-                    costs_with_other_strat.costs_per_gc[station][key]), key
+        cost_vanilla = costs_vanilla.costs_per_gc[station]
+        cost_other = costs_with_other_strat.costs_per_gc[station]
+        assert cost_vanilla["c_el_power_price_annual"] != cost_other["c_el_power_price_annual"], (
+            "electric power costs should differ")
 
         # PLW: will create window time series before cost calculation
         args.cost_calculation_method_deps = "fixed_w_plw"

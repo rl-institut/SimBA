@@ -20,7 +20,7 @@ different modes support the user in finding optimal solutions for their eBus-Sys
 
 Chained Modes
 -------------
-While the default mode of SimBA is the simple simulation together with a report, modes can be chained together differently to achieve the desired results. The chain of modes is defined in the config file (default: simba.cfg) under the keyword *mode*:
+While the default mode of SimBA is the simple simulation together with a report, modes can be chained together differently to achieve the desired results. The chain of modes is defined in the config file under the keyword *mode*:
 
 ::
 
@@ -227,7 +227,7 @@ To make use of this feature the parameters in the optimizer.cfg have to be set.
 
 Optimizer Configuration
 ###################################
-The functionality of the optimizer is controlled through the optimizer.cfg specified in the simba.cfg used for calling SimBA.
+The functionality of the optimizer is controlled through the optimizer.cfg specified in the config file used for calling SimBA.
 
 .. list-table:: Optimizer.cfg parameters
    :header-rows: 1

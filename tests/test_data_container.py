@@ -14,6 +14,6 @@ class TestDataContainer:
 
     def test_data_container(self):
         data_container = simba.data_container.DataContainer()
-        sys.argv = ["foo", "--config", str(example_root / "simba.cfg")]
+        sys.argv = ["foo", "--config", str(example_root / "configs/minimal.cfg")]
         args = util.get_args()
         data_container.fill_with_args(args)

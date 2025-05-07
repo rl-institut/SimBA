@@ -55,7 +55,7 @@ class TestStationOptimization:
         self.tmp_path = tmp_path
 
         # Create a temporary config file as copy from the example configuration.
-        src = example_root / "simba.cfg"
+        src = example_root / "configs/basic.cfg"
         src_text = src.read_text()
 
         # don't show plots. spaces are optional, so use regex
@@ -63,7 +63,7 @@ class TestStationOptimization:
 
         vehicles_dest = tmp_path / "vehicle_types.json"
         # store vehicles temporarily and use them in the config file
-        shutil.copy(example_root / "vehicle_types.json", vehicles_dest)
+        shutil.copy(example_root / "vehicle_types/vehicle_types.json", vehicles_dest)
 
         # opens the vehicle type file, and adjust capacity and mileage of all vehicles
         self.vehicle_types = adjust_vehicle_file(vehicles_dest, capacity=50, mileage=10)
@@ -77,7 +77,8 @@ class TestStationOptimization:
             "vehicle_types_path = " + vehicles_dest_str + r"\g<2>", src_text)
 
         # Use the default electrified stations from example folder but change some values
-        with open(example_root / "electrified_stations.json", "r", encoding='utf-8') as file:
+        stations_path = example_root / "electrified_stations/electrified_stations.json"
+        with open(stations_path, "r", encoding='utf-8') as file:
             self.electrified_stations = util.uncomment_json_file(file)
         # only keep Station-0 electrified and remove the other staitons
         self.electrified_stations = {"Station-0": self.electrified_stations["Station-0"]}
@@ -113,7 +114,7 @@ class TestStationOptimization:
         :type trips_file_name: str
         :return: data_container, args"""
 
-        sys.argv = ["foo", "--config", str(example_root / "simba.cfg")]
+        sys.argv = ["foo", "--config", str(example_root / "configs/basic.cfg")]
         args = util.get_args()
         args.output_path = self.tmp_path
         args.results_directory = self.tmp_path
@@ -172,25 +173,48 @@ class TestStationOptimization:
         sopt.create_charging_curves()
         # remove none values from socs in the vehicle_socs
         sopt.replace_socs_from_none_to_value()
+
+        # Let the optimizer approximate the socs, with the two stations which are electrified
         vehicle_socs_fast = sopt.timeseries_calc(list(sched.stations.keys()))
         for vehicle, socs in scen.vehicle_socs.items():
+            # Optimizer and SpiceEV should result in approximately the same socs
             assert vehicle_socs_fast[vehicle][-1] == pytest.approx(socs[-1], 0.01, abs=0.01)
 
         events = sopt.get_low_soc_events(soc_data=vehicle_socs_fast, rel_soc=True)
+        # The scenario was generated to create a single low soc event, i.e. lower than 0
+        assert 1 == sum(min(socs) < 0 for socs in scen.vehicle_socs.values())
         assert len(events) == 1
         e = events[0]
         e1 = copy(e)
         vehicle_socs_reduced = {vehicle: [soc - 1 for soc in socs] for vehicle, socs in
                                 scen.vehicle_socs.items()}
+        # The vehicle socs were reduced. Now both vehicles have socs below 0
+        assert 2 == sum(min(socs) < 0 for socs in vehicle_socs_reduced.values())
+
+        # Depending on the option "rel_soc" a relative soc is used or not
+        events = sopt.get_low_soc_events(soc_data=vehicle_socs_reduced, rel_soc=False)
+        # Without a relative soc, there should be two low soc events
+        assert len(events) == 2
+
         events = sopt.get_low_soc_events(soc_data=vehicle_socs_reduced, rel_soc=True)
+        # The optimizer should only show a single event, since the low socs which was artificially
+        # created would not be low if the vehicle started with a "full" soc.
         assert len(events) == 1
+
         e2 = events[0]
+        # Compare events found with and without rel_soc:
+        # The soc shift does not change the timestep, so both events refer to the same occurrence.
         assert e1.start_idx == e2.start_idx
         assert e1.end_idx == e2.end_idx
         assert e1.min_soc == e2.min_soc
 
-        vehicle_socs_increased = {vehicle: [min(soc + abs(e1.min_soc) - 0.1, 1) for soc in socs] for
-                                  vehicle, socs in scen.vehicle_socs.items()}
+        new_low_soc = -0.01
+        # This increases the soc, so that only a single time step is negative with new_low_soc.
+        # Higher socs are increased.
+        # Since the soc stays at 1 for longer, the start index should change
+        vehicle_socs_increased = {
+            vehicle: [min(soc + abs(e1.min_soc) + new_low_soc, 1) for soc in socs] for
+            vehicle, socs in scen.vehicle_socs.items()}
         events = sopt.get_low_soc_events(soc_data=vehicle_socs_increased, rel_soc=True)
         e3 = events[0]
         assert e1.start_idx != e3.start_idx
@@ -252,23 +276,12 @@ class TestStationOptimization:
         opt_sched, opt_scen = run_optimization(conf, sched=deepcopy(sched), scen=scen, args=args)
         assert len(opt_sched.rotations) == amount_rotations
 
-    def test_deep_optimization(self):
-        """ Check if deep analysis finds the prepared optimal solution for the test case.
-
-        The Test case is a a 3 star like network with two rotations which are negative without
-        electrification.
-        Rotation 1:
-        Depot --> Station-1 ---> Station-2 -->Station-1-->Depot
-        Rotation 2:
-        Depot --> Station-1 ---> Station-3 -->Station-1-->Depot
-
-        Greedy optimization will electrify Station-1 first since it is helpful for both rotations.
-        Since electrifying Station-1 is not enough to electrify either rotations, greedy
-        optimization will electrify Station-2 and Station-3 as well. Deep Analysis will expand
-        the checked nodes --> It should find that electrifying Station-2 and Station-3 is enough
-        without electrifying Station-1
-
-        """
+    @pytest.mark.parametrize("solver,node_choice",
+                             [("quick", "step-by-step"),
+                              ("quick", "brute"),
+                              ("spiceev", "step-by-step"),
+                              ("spiceev", "brute")])
+    def test_deep_optimization(self, solver, node_choice):
         trips_file_name = "trips_for_optimizer_deep.csv"
         data_container, args = self.generate_datacontainer_args(trips_file_name)
         data_container.stations_data = {}
@@ -281,18 +294,16 @@ class TestStationOptimization:
 
         assert len(sched.get_negative_rotations(scen)) == 2
 
-        solvers = ["quick", "spiceev"]
-        node_choices = ["step-by-step", "brute"]
         conf.opt_type = "deep"
-        for solver in solvers:
-            for node_choice in node_choices:
-                conf.solver = solver
-                conf.node_choice = node_choice
-                opt_sched, opt_scen = run_optimization(conf, sched=sched, scen=scen, args=args)
-                assert len(opt_sched.get_negative_rotations(opt_scen)) == 0
-                assert "Station-1" not in opt_sched.stations
-                assert "Station-2" in opt_sched.stations
-                assert "Station-3" in opt_sched.stations
+        # conf.solver = "spiceev"  # solver
+        # conf.node_choice = "brute"  # node_choice
+        conf.solver = solver
+        conf.node_choice = node_choice
+        opt_sched, opt_scen = run_optimization(conf, sched=sched, scen=scen, args=args)
+        assert len(opt_sched.get_negative_rotations(opt_scen)) == 0
+        assert "Station-1" not in opt_sched.stations
+        assert "Station-2" in opt_sched.stations
+        assert "Station-3" in opt_sched.stations
 
     def test_deep_optimization_extended(self):
         trips_file_name = "trips_extended.csv"

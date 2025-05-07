@@ -505,10 +505,11 @@ class Schedule:
                                             all_standing_vehicles))
 
             # join standing vehicles with their expected soc and sort by soc
-            socs = list(map(lambda v_id_deps: soc_at_departure_time(v_id_deps[0], v_id_deps[1],
-                                                                    departure_time, vehicle_data,
-                                                                    self.stations, charge_curves,
-                                                                    args), standing_vehicles))
+            socs = list(map(
+                lambda v_id_deps: soc_at_departure_time(
+                    v_id_deps[0], v_id_deps[1], departure_time, vehicle_data,
+                    self.stations, charge_curves, args
+                ), standing_vehicles))
 
             # pair with socs
             standing_vehicles_w_soc = [(*v, rot_idx) for v, rot_idx in zip(standing_vehicles, socs)]
@@ -1332,6 +1333,10 @@ def get_price_list_from_csv(price_csv_dict, gc_name=None):
     # backup: if neither procurement_column nor commodity_column was given,
     # use values from last column in CSV as commodity prices
     use_last_column = procurement_column is None and commodity_column is None
+    if use_last_column:
+        logging.warning(f'Price CSV for {gc_name}: Please specify procurement_column and/or'
+                        f' commodity_column. Now, the last column in csv was interpreted as '
+                        f'commodity price')
 
     with csv_path.open('r', newline='', encoding='utf-8') as csvfile:
         reader = csv.DictReader(csvfile, delimiter=',', quotechar='"')
@@ -1574,7 +1579,6 @@ def soc_at_departure_time(v_id, deps, departure_time, vehicle_data, stations, ch
     if ct == "oppb":
         # for opportunity chargers assume a minimal soc>=0
         start_soc = max(start_soc, 0)
-    charge_delta_soc = \
-        get_charge_delta_soc(charge_curves, vt, ct, station_power, duration_in_m,
-                             start_soc)
+    charge_delta_soc = get_charge_delta_soc(
+        charge_curves, vt, ct, station_power, duration_in_m, start_soc)
     return min(start_soc + charge_delta_soc, args.desired_soc_deps)

@@ -1,5 +1,5 @@
-import pathlib
+from pathlib import Path
 
-test_root = pathlib.Path(__file__).parent
+test_root = Path(__file__).parent
 file_root = test_root / "test_input_files"
-example_root = pathlib.Path(__file__).parent.parent / "data/examples"
+example_root = Path(__file__).parent.parent / "data/examples"

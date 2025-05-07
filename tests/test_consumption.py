@@ -7,7 +7,7 @@ import pandas as pd
 
 class TestConsumption:
     """Class to test Consumption functionality"""
-    consumption_path = example_root / "energy_consumption_example.csv"
+    consumption_path = example_root / "consumption/energy_consumption_example.csv"
 
     def test_calculate_idle_consumption(self, tmp_path):
         """Various tests to trigger errors and check if behaviour is as expected

@@ -1,0 +1,23 @@
+{
+    "Station-0": {  // name of station
+        "type": "deps",  // type: "deps" or "opps"
+        "n_charging_stations": null,  // nr of charging stataions, "null" for unlimited
+        "price_csv": {
+            "csv_file": "data/examples/costs/price_timeseries.csv"
+        }
+    },
+    "Station-3": {
+        "type": "opps",
+        "n_charging_stations": null,
+        "price_csv": {
+            "csv_file": "data/examples/costs/price_timeseries.csv"
+        }
+    },
+    "Station-10": {
+        "type": "opps",
+        "n_charging_stations": null,
+        "price_csv": {
+            "csv_file": "data/examples/costs/price_timeseries.csv"
+        }
+    }
+}

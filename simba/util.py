@@ -428,6 +428,9 @@ def mutate_args_for_spiceev(args):
     args.margin = 1
     args.ALLOW_NEGATIVE_SOC = True
     args.PRICE_THRESHOLD = -100  # ignore price for charging decisions
+    # in SpiceEV, default is to create a flex report
+    # in SimBA, we usually want to skip it
+    args.skip_flex_report = not args.create_flex_report
 
 
 def get_args():
@@ -435,11 +438,11 @@ def get_args():
 
     args = parser.parse_args()
 
-    # arguments relevant to SpiceEV, setting automatically to reduce clutter in config
-    mutate_args_for_spiceev(args)
-
     # If a config is provided, the config will overwrite previously parsed arguments
     set_options_from_config(args, check=parser, verbose=False)
+
+    # arguments relevant to SpiceEV, setting automatically to reduce clutter in config
+    mutate_args_for_spiceev(args)
 
     # Check if deprecated arguments were given and change them accordingly
     args = replace_deprecated_arguments(args)
@@ -474,7 +477,8 @@ def get_parser():
     parser.add_argument('--output-path', default="data/sim_outputs",
                         help='Location where all simulation outputs are stored')
     parser.add_argument('--electrified-stations-path', help='include electrified_stations json')
-    parser.add_argument('--vehicle-types-path', default="data/examples/vehicle_types.json",
+    parser.add_argument('--vehicle-types-path',
+                        default="data/examples/vehicle_types/vehicle_types.json",
                         help='location of vehicle type definitions')
     parser.add_argument('--station-data-path', default=None,
                         help='Use station data to back calculation of consumption with height\
@@ -611,8 +615,8 @@ def get_parser():
     parser.add_argument('--eta', action='store_true',
                         help='Show estimated time to finish simulation after each step, '
                              'instead of progress bar. Not recommended for fast computations.')
-    parser.add_argument('--skip-flex-report', action='store_true',
-                        help='Skip flex band creation when generating reports.')
+    parser.add_argument('--create-flex-report', action='store_true',
+                        help='Create a flex band when generating reports.')
 
     # #### LOGGING PARAMETERS #### #
     parser.add_argument('--loglevel', default='INFO', type=str.upper,

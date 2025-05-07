@@ -19,7 +19,7 @@ The configuration file config.cfg is provided as example in ./examples/ and prov
 | Physical setup of environment: Here, the physical setup is characterized
 | Simulation Parameters: The simulation can be adjusted using these parameters
 
-The example (data/simba.cfg) contains parameter descriptions which are explained here in more detail:
+The example configurations in `data/examples/configs/` contain parameter descriptions which are explained here in more detail:
 
 .. list-table:: config.cfg parameters
    :header-rows: 1
@@ -224,10 +224,10 @@ The example (data/simba.cfg) contains parameter descriptions which are explained
      - false
      - Boolean
      - Show estimated time to finish simulation after each step. Not recommended for fast computations
-   * - skip_flex_report
+   * - create_flex_report
      - false
      - Boolean
-     - Skip generation of flex_report in SpiceEV. Activating can save time as this feature is rarely used
+     - Create flex band information in SpiceEV when reporting. Rarely used.
 
 
 Schedule
