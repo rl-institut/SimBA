@@ -212,7 +212,7 @@ class TestSchedule(BasicSchedule):
         """ Test if assigning vehicles works as intended using the fixed_recharge strategy
         """
 
-        sys.argv = ["foo", "--config", str(example_root / "configs/minimal.cfg")]
+        sys.argv = ["foo", "--config", str(example_root / "configs/basic.cfg")]
         args = util.get_args()
         args.min_recharge_deps_oppb = 1
         args.min_recharge_deps_depb = 1
@@ -258,7 +258,7 @@ class TestSchedule(BasicSchedule):
     def test_assign_vehicles_adaptive(self):
         """ Test if assigning vehicles works as intended using the adaptive strategy
         """
-        sys.argv = ["foo", "--config", str(example_root / "configs/basic.cfg")]
+        sys.argv = ["foo", "--config", str(example_root / "configs/extensive.cfg")]
         args = util.get_args()
         args.schedule_path = file_root / "trips_assign_vehicles_extended.csv"
         data_container = DataContainer().fill_with_args(args)
