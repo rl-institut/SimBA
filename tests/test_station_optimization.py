@@ -177,11 +177,11 @@ class TestStationOptimization:
         # Let the optimizer approximate the socs, with the two stations which are electrified
         vehicle_socs_fast = sopt.timeseries_calc(list(sched.stations.keys()))
         for vehicle, socs in scen.vehicle_socs.items():
-            # Optimizer and SpiceEV should result in approximatly the same socs
+            # Optimizer and SpiceEV should result in approximately the same socs
             assert vehicle_socs_fast[vehicle][-1] == pytest.approx(socs[-1], 0.01, abs=0.01)
 
         events = sopt.get_low_soc_events(soc_data=vehicle_socs_fast, rel_soc=True)
-        # The scenario was generated to create a single low soc event, e.g. lower than 0
+        # The scenario was generated to create a single low soc event, i.e. lower than 0
         assert 1 == sum(min(socs) < 0 for socs in scen.vehicle_socs.values())
         assert len(events) == 1
         e = events[0]
@@ -193,17 +193,17 @@ class TestStationOptimization:
 
         # Depending on the option "rel_soc" a relative soc is used or not
         events = sopt.get_low_soc_events(soc_data=vehicle_socs_reduced, rel_soc=False)
-        # Whiout a relative soc both low socs should be found
+        # Without a relative soc, there should be two low soc events
         assert len(events) == 2
 
         events = sopt.get_low_soc_events(soc_data=vehicle_socs_reduced, rel_soc=True)
-        # The optimizer should only show a single event, since the low socs which was artifically
-        # created would not be low, if the vehicle would start with a "full" soc.
+        # The optimizer should only show a single event, since the low socs which was artificially
+        # created would not be low if the vehicle started with a "full" soc.
         assert len(events) == 1
 
         e2 = events[0]
-        # This shows that the events are identical. The shift in socs does not change the times,
-        # where a low soc event is found.
+        # Compare events found with and without rel_soc:
+        # The soc shift does not change the timestep, so both events refer to the same occurrence.
         assert e1.start_idx == e2.start_idx
         assert e1.end_idx == e2.end_idx
         assert e1.min_soc == e2.min_soc
