@@ -20,7 +20,7 @@ different modes support the user in finding optimal solutions for their eBus-Sys
 
 Chained Modes
 -------------
-While the default mode of SimBA is the simple simulation together with a report, modes can be chained together differently to achieve the desired results. The chain of modes is defined in the config file (default: simba.cfg) under the keyword *mode*:
+While the default mode of SimBA is the simple simulation together with a report, modes can be chained together differently to achieve the desired results. The chain of modes is defined in the config file under the keyword *mode*:
 
 ::
 
@@ -42,6 +42,17 @@ Simple Simulation
     mode = ["sim"]
 
 The simple simulation case is the default mode. Its usage is explained in :ref:`Getting Started`. Every chain of modes starts with a simple simulation, even if it is not explicitly listed in the modes. The simulation takes the scenario as is. No parameters will be adjusted, optimized or changed in any way. The charging type for each vehicle is read from the rotation information from the trips.csv if this data is included. If the data is not included *preferred_charging_type* from the config file is used, as long as the provided vehicles data provides the preferred_charging_type for the specified vehicle type.
+
+Load Pickle
+-----------
+
+::
+
+    mode = ["load_pickle"]
+
+While normally scenarios are generated from a trips file and ancillary data, with this mode a previously simulated scenario can be loaded from a pickle file instead. This scenario already contains results. Modes can be chained after load_pickle in the usual fashion. Multiple "load_pickle" modes per chain are allowed, reloading the scenario again.
+This mode needs the `load_pickle_path` option to point to a pickle file. If the `load_pickle_path` option is set, `load_pickle` must be the first mode.
+All options in the config file (except for cost parameters) that are stored in schedule are ignored.
 
 .. _neg_depb_to_oppb:
 
@@ -78,10 +89,26 @@ It can happen that several buses influence each other while simultaneously charg
 Now, only rotations are left that are non-negative when viewed alone, but might become negative when run together. To find the largest subset of non-negative rotations, all possible set combinations are generated and tried out. When a union of two rotation-sets is non-negative, it is taken as the basis for new possible combinations. The previous two rotation-sets will not be tried on their own from now on.
 In the end, the largest number of rotations that produce a non-negative result when taken together is returned as the optimized scenario.
 
+Split and recombine: split negative depot rotations into smaller rotations
+--------------------------------------------------------------------------
+::
+
+    mode = split_negative_depb
+
+This mode splits negative depot rotations and tries to recombine the remaining trips into new rotations such that all new rotations are guaranteed to stay within their vehicle's capacity while leaving trips from the same rotation together as much as possible. This is done in two steps:
+First, the trips of each rotation are analysed. Trips from or to a depot are inserted into a look-up-table to be able to generate new depot-trips as needed.
+Second, new rotations are generated from the trips of negative depot rotations. The first trip (by time of departure) must be the start of a new rotation. In addition, the bus has to drive from a depot to the departure station. And finally, it must be able to drive back to a depot again without exceeding capacity. A simple rotation must therefore consist of three trips: from a depot to the departure station (Einsetzfahrt), the trip itself and from the arrival station back to a depot (Aussetzfahrt). Only if the overall consumption is less than the capacity of the bus can the rotation be considered valid at all. If that is not the case, this trip must be discarded.
+Side note: the trips to or from the depot might not be part of any original rotation. In this case, default values for distance and speed are assumed. These can be set in the configuration as default_depot_distance and default_mean_speed, respectively.
+After making sure the first trip is possible, the next trip of the same original rotation is checked. Now it must be possible to have the Einsetzfahrt, the first trip, the second trip and a new Aussetzfahrt (not necessarily to the same depot as before). Again, the consumption must not exceed the capacity. If that is not the case, the new rotation ends after the first trip. The second trip must be evaluated later and will be the start of a new rotation.
+In this fashion, all the trips of a rotation are checked if they can be made even without opportunity charging. Rotations will not become longer (different rotations are not mixed), but a smart vehicle disposition may assign the same vehicle to multiple rotations.
+Naming convention of new rotations: the new identifier will start with the original rotation name, followed by the letter "r" and may end with a counter of new rotations if there are multiple new recombinations from the same original, all parts separated by underscores. If the original rotations was named "Monday", the following recombination identifiers are possible (but not limited to this):
+- Monday_r (first recombination)
+- Monday_r_3 (third recombination)
+
 Station Optimization
 --------------------
 Greedy Optimization
-####################
+###################
 This mode optimizes a scenario by electrifying as few opportunity stations as possible using a greedy approach. Two basic approaches to use the optimization module are setting the mode in the SimBA configuration file to
 
 ::
@@ -196,9 +223,11 @@ To make use of this feature the parameters in the optimizer.cfg have to be set.
     decision_tree_path = data/last_optimization.pickle
     save_decision_tree = True
 
+.. _optimizer_config:
+
 Optimizer Configuration
 ###################################
-The functionality of the optimizer is controlled through the optimizer.cfg specified in the simba.cfg used for calling SimBA.
+The functionality of the optimizer is controlled through the optimizer.cfg specified in the config file used for calling SimBA.
 
 .. list-table:: Optimizer.cfg parameters
    :header-rows: 1

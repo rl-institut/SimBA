@@ -1,15 +1,37 @@
-""" Module to generate meaningful output files and/or figures to describe simulation process
-"""
+""" Module to generate meaningful output files and/or figures to describe simulation process. """
 import csv
 import datetime
+import dill as pickle
 import logging
+from math import ceil
+import re
+from typing import Iterable
+
+import matplotlib.colors
 import matplotlib.pyplot as plt
-import warnings
-from spice_ev.report import aggregate_global_results, plot, generate_reports
+import matplotlib.dates as mdates
+from matplotlib.patches import Patch
+from spice_ev.report import aggregate_global_results, plot, generate_reports, aggregate_timeseries
+from spice_ev.util import sanitize, datetime_within_time_window
+
+from simba import util
+
+DPI = 300
+
+
+def open_for_csv(file_path):
+    """ Create a file handle to write to.
+
+    :param file_path: Path to new file, overwritten if existing
+    :type file_path: string or pathlib.Path
+    :return: Function to open file
+    :rtype: function
+    """
+    return open(file_path, "w", newline='', encoding='utf-8')
 
 
 def generate_gc_power_overview_timeseries(scenario, args):
-    """Generate a csv timeseries with each grid connector's summed up charging station power
+    """ Generate a csv timeseries with each grid connector's summed up charging station power.
 
     :param scenario: Scenario for with to generate timeseries.
     :type scenario: spice_ev.Scenario
@@ -22,13 +44,17 @@ def generate_gc_power_overview_timeseries(scenario, args):
     if not gc_list:
         return
 
-    with open(args.results_directory / "gc_power_overview_timeseries.csv", "w", newline='') as f:
+    file_path = args.results_directory / "gc_power_overview_timeseries.csv"
+    if vars(args).get("scenario_name"):
+        file_path = file_path.with_stem(file_path.stem + '_' + args.scenario_name)
+
+    with open_for_csv(file_path) as f:
         csv_writer = csv.writer(f)
         csv_writer.writerow(["time"] + gc_list)
         stations = []
         time_col = getattr(scenario, f"{gc_list[0]}_timeseries")["time"]
         for i in range(len(time_col)):
-            time_col[i] = time_col[i].isoformat()
+            time_col[i] = str(time_col[i])
         stations.append(time_col)
         for gc in gc_list:
             stations.append([-x for x in getattr(scenario, f"{gc}_timeseries")["grid supply [kW]"]])
@@ -37,7 +63,7 @@ def generate_gc_power_overview_timeseries(scenario, args):
 
 
 def generate_gc_overview(schedule, scenario, args):
-    """Generate a csv file with information regarding electrified stations.
+    """ Generate a csv file with information regarding electrified stations.
 
     For each electrified station, the name, type, max. power, max. number of occupied
     charging stations, sum of charged energy and use factors of least used stations is saved.
@@ -53,8 +79,11 @@ def generate_gc_overview(schedule, scenario, args):
     all_gc_list = list(schedule.stations.keys())
     used_gc_list = list(scenario.components.grid_connectors.keys())
     stations = getattr(schedule, "stations")
+    file_path = args.results_directory / "gc_overview.csv"
+    if vars(args).get("scenario_name"):
+        file_path = file_path.with_stem(file_path.stem + '_' + args.scenario_name)
 
-    with open(args.results_directory / "gc_overview.csv", "w", newline='') as f:
+    with open_for_csv(file_path) as f:
         csv_writer = csv.writer(f)
         csv_writer.writerow(["station_name",
                              "station_type",
@@ -96,12 +125,54 @@ def generate_gc_overview(schedule, scenario, args):
                                  *use_factors])
 
 
-def generate_plots(scenario, args):
-    """Save plots as png and pdf.
+def generate_trips_timeseries_data(schedule):
+    """
+    Build a trip data structure that can be saved to CSV.
 
+    This should be in the form of a valid trips.csv input file.
+    :param schedule: current schedule for the simulation
+    :type schedule: simba.Schedule
+    :return: trip data
+    :rtype: Iterable
+    """
+    header = [
+        # identifier
+        "rotation_id", "line",
+        # stations
+        "departure_name", "departure_time", "arrival_name", "arrival_time",
+        # types
+        "vehicle_type", "charging_type",
+        # consumption (minimal)
+        "distance", "consumption"
+        # consumption (extended). Not strictly needed.
+        # "distance", "temperature", "height_diff", "level_of_loading", "mean_speed",
+    ]
+    data = [header]
+    rotations = schedule.rotations.values()
+    # sort rotations naturally by ID
+    rotations = sorted(rotations, key=lambda r: [
+        # natural sort: split by numbers, then sort numbers by value and chars by lowercase
+        int(s) if s.isdigit() else s.lower() for s in re.split(r'(\d+)', r.id)])
+    for rotation in rotations:
+        for trip in rotation.trips:
+            # get trip info from trip or trip.rotation (same name in Trip/Rotation as in CSV)
+            row = [vars(trip).get(k, vars(trip.rotation).get(k)) for k in header]
+            # special case rotation_id
+            row[0] = rotation.id
+            data.append(row)
+    return data
+
+
+def generate_plots(schedule, scenario, args):
+    """ Save plots as png and pdf.
+
+    Optionally create extended output plots as well.
+
+    :param schedule: Driving schedule for the simulation, used in extended plots.
+    :type schedule: simba.Schedule
     :param scenario: Scenario to plot.
     :type scenario: spice_ev.Scenario
-    :param args: Configuration. Uses results_directory and show_plots.
+    :param args: Configuration. Uses results_directory, show_plots and extended_output_plots.
     :type args: argparse.Namespace
     """
     aggregate_global_results(scenario)
@@ -111,16 +182,38 @@ def generate_plots(scenario, args):
         plt.clf()
         plot(scenario)
         plt.gcf().set_size_inches(10, 10)
-        plt.savefig(args.results_directory / "run_overview.png")
-        plt.savefig(args.results_directory / "run_overview.pdf")
+        file_path_png = args.results_directory / "run_overview.png"
+        if vars(args).get("scenario_name"):
+            file_path_png = file_path_png.with_stem(file_path_png.stem + '_' + args.scenario_name)
+        plt.savefig(file_path_png, dpi=DPI)
+        file_path_pdf = args.results_directory / "run_overview.pdf"
+        if vars(args).get("scenario_name"):
+            file_path_pdf = file_path_pdf.with_stem(file_path_pdf.stem + '_' + args.scenario_name)
+        plt.savefig(file_path_pdf, dpi=DPI)
     if args.show_plots:
         plt.show()
+
+    if args.extended_output_plots:
+        plt.clf()
+        # create directory for extended plots
+        extended_plots_path = args.results_directory.joinpath("extended_plots")
+        extended_plots_path.mkdir(parents=True, exist_ok=True)
+
+        plot_blocks_dense(schedule, extended_plots_path)
+        plot_vehicle_services(schedule, extended_plots_path)
+
+        plot_consumption_per_rotation_distribution(extended_plots_path, schedule)
+        plot_distance_per_rotation_distribution(extended_plots_path, schedule)
+        plot_charge_type_distribution(extended_plots_path, scenario, schedule)
+        plot_gc_power_timeseries(extended_plots_path, scenario, schedule, args)
+        plot_active_rotations(extended_plots_path, scenario, schedule)
+
     # revert logging override
     logging.disable(logging.NOTSET)
 
 
 def generate(schedule, scenario, args):
-    """Generates all output files/ plots and saves them in the output directory.
+    """ Generates all output files and saves them in the args.results_directory.
 
     :param schedule: Driving schedule for the simulation.
     :type schedule: simba.Schedule
@@ -128,19 +221,25 @@ def generate(schedule, scenario, args):
     :type scenario: spice_ev.Scenario
     :param args: Configuration arguments specified in config files contained in configs directory.
     :type args: argparse.Namespace
+    :raises Exception: if cost calculation cannot be written to file and
+        args.propagate_mode_errors=True
     """
 
     # generate simulation_timeseries.csv, simulation.json and vehicle_socs.csv in SpiceEV
-    with warnings.catch_warnings():
-        warnings.simplefilter('ignore', UserWarning)
-        # re-route output paths
-        args.save_soc = args.results_directory / "vehicle_socs.csv"
-        args.save_results = args.results_directory / "info.json"
-        args.save_timeseries = args.results_directory / "ts.csv"
-        generate_reports(scenario, vars(args).copy())
-        args.save_timeseries = None
-        args.save_results = None
-        args.save_soc = None
+    # re-route output paths
+    file_path = args.results_directory / "vehicle_socs.csv"
+    if vars(args).get("scenario_name"):
+        file_path = file_path.with_stem(file_path.stem + '_' + args.scenario_name)
+    args.save_soc = file_path
+    # bundle station-specific output files in subdirectory
+    gc_dir = args.results_directory / "gcs"
+    gc_dir.mkdir(exist_ok=True)
+    args.save_results = gc_dir / "info.json"
+    args.save_timeseries = gc_dir / "ts.csv"
+    generate_reports(scenario, vars(args).copy())
+    args.save_timeseries = None
+    args.save_results = None
+    args.save_soc = None
 
     # generate gc power overview
     generate_gc_power_overview_timeseries(scenario, args)
@@ -148,8 +247,8 @@ def generate(schedule, scenario, args):
     # generate gc overview
     generate_gc_overview(schedule, scenario, args)
 
-    # save plots as png and pdf
-    generate_plots(scenario, args)
+    # save plots as png and pdf, includes optional extended plots
+    generate_plots(schedule, scenario, args)
 
     # calculate SOCs for each rotation
     rotation_infos = []
@@ -170,14 +269,16 @@ def generate(schedule, scenario, args):
         # get SOC timeseries for this rotation
         vehicle_id = rotation.vehicle_id
 
-        # get soc timeseries for current rotation
-        vehicle_soc = scenario.vehicle_socs[vehicle_id]
         start_idx = (rotation.departure_time - sim_start_time) // interval
         end_idx = start_idx + ((rotation.arrival_time - rotation.departure_time) // interval)
         if end_idx > scenario.n_intervals:
             # SpiceEV stopped before rotation was fully simulated
             incomplete_rotations.append(id)
             continue
+
+        # get soc timeseries for current rotation
+        vehicle_soc = scenario.vehicle_socs[vehicle_id]
+
         rotation_soc_ts = vehicle_soc[start_idx:end_idx]
 
         # bus does not return before simulation end
@@ -190,8 +291,8 @@ def generate(schedule, scenario, args):
 
         rotation_info = {
             "rotation_id": id,
-            "start_time": rotation.departure_time.isoformat(),
-            "end_time": rotation.arrival_time.isoformat(),
+            "start_time": str(rotation.departure_time),
+            "end_time": str(rotation.arrival_time),
             "vehicle_type": rotation.vehicle_type,
             "vehicle_id": rotation.vehicle_id,
             "depot_name": rotation.departure_name,
@@ -216,30 +317,602 @@ def generate(schedule, scenario, args):
             "Omit parameter <days> to simulate entire schedule.")
 
     if rotation_infos:
-        with open(args.results_directory / "rotation_socs.csv", "w", newline='') as f:
-            csv_writer = csv.writer(f)
-            csv_writer.writerow(("time",) + tuple(rotation_socs.keys()))
-            for i, row in enumerate(zip(*rotation_socs.values())):
-                t = sim_start_time + i * scenario.interval
-                csv_writer.writerow((t,) + row)
+        try:
+            # order rotations naturally
+            rotations = sorted(rotation_socs.keys(), key=lambda k: int(k))
+        except ValueError:
+            # Some strings cannot be cast to int and throw a value error
+            rotations = sorted(rotation_socs.keys(), key=lambda k: k)
+        # count active rotations for each timestep
+        num_active_rotations = count_active_rotations(scenario, schedule)
+        data = [["time"] + rotations + ['# active rotations']]
+        for i in range(scenario.n_intervals):
+            t = sim_start_time + i * scenario.interval
+            socs = [str(rotation_socs[k][i]) for k in rotations]
+            data.append([str(t)] + socs + [num_active_rotations[i]])
 
-        with open(args.results_directory / "rotation_summary.csv", "w", newline='') as f:
+        file_path = args.results_directory / "rotation_socs.csv"
+        if vars(args).get("scenario_name"):
+            file_path = file_path.with_stem(file_path.stem + '_' + args.scenario_name)
+        write_csv(data, file_path, propagate_errors=args.propagate_mode_errors)
+
+        file_path = args.results_directory / "rotation_summary.csv"
+        if vars(args).get("scenario_name"):
+            file_path = file_path.with_stem(file_path.stem + '_' + args.scenario_name)
+        with open_for_csv(file_path) as f:
             csv_writer = csv.DictWriter(f, list(rotation_infos[0].keys()))
             csv_writer.writeheader()
             csv_writer.writerows(rotation_infos)
 
+    if vars(args).get('create_trips_in_report', False):
+        file_path = args.results_directory / "trips.csv"
+        write_csv(generate_trips_timeseries_data(schedule), file_path)
+
+    if vars(args).get('create_pickle_in_report', False):
+        file_path = args.results_directory / "scenario.pkl"
+        with file_path.open('wb') as f:
+            pickle.dump({
+                "schedule": schedule,
+                "scenario": scenario,
+            }, f)
+
     # summary of used vehicle types and all costs
     if args.cost_calculation:
-        with open(args.results_directory / "summary_vehicles_costs.csv", "w", newline='') as f:
-            csv_writer = csv.writer(f)
-            csv_writer.writerow(["parameter", "value", "unit"])
-            for key, value in schedule.vehicle_type_counts.items():
-                if value > 0:
-                    csv_writer.writerow([key, value, "vehicles"])
-            for key, value in scenario.costs.items():
-                if "annual" in key:
-                    csv_writer.writerow([key, round(value, 2), "€/year"])
-                else:
-                    csv_writer.writerow([key, round(value, 2), "€"])
+        file_path = args.results_directory / "summary_vehicles_costs.csv"
+        if vars(args).get("scenario_name"):
+            file_path = file_path.with_stem(file_path.stem + '_' + args.scenario_name)
+        csv_report = None
+        try:
+            csv_report = scenario.costs.to_csv_lists()
+        except Exception as e:
+            logging.warning(f"Generating the cost calculation to {file_path} calculation failed "
+                            f"due to {str(e)}")
+            if args.propagate_mode_errors:
+                raise
+        write_csv(csv_report, file_path, propagate_errors=args.propagate_mode_errors)
 
     logging.info(f"Plots and output files saved in {args.results_directory}")
+
+
+def write_csv(data: Iterable, file_path, propagate_errors=False):
+    """ Write iterable data to CSV file.
+
+    Errors are caught if propagate_errors=False. If data is None, no file is created.
+
+    :param data: data which is written to a file
+    :type data: Iterable
+    :param file_path: file_path for file creation
+    :type file_path: str or Path
+    :param propagate_errors: should errors be propagated?
+    :type propagate_errors: bool
+    :raises Exception: if file cannot be written and propagate_errors=True
+    """
+
+    if data is None:
+        logging.debug(f"Writing to {file_path} aborted since no data is passed.")
+        return
+    try:
+        with open_for_csv(file_path) as f:
+            csv_writer = csv.writer(f)
+            for row in data:
+                csv_writer.writerow(row)
+    except Exception as e:
+        logging.warning(f"Writing to {file_path} failed due to {str(e)}")
+        if propagate_errors:
+            raise
+
+
+# ##### EXTENDED PLOTTING ##### #
+
+def prepare_histogram(rotations, schedule):
+    """ Find suitable number of histogram bins for given rotation values.
+
+    :param rotations: Rotation values to create histogram for. ID -> value
+    :type rotations: dict
+    :param schedule: Driving schedule
+    :type schedule: simba.schedule.Schedule
+    :return: histogram bins, labels
+    """
+    # find suitable step size / number of bins
+    min_value = int(min(rotations.values()))
+    max_value = int(max(rotations.values()))
+    # maximum number of bins (some may be empty): between 1 and 20, optimally half of rotations
+    max_num_bins = min(max(len(rotations) / 2, 1), 20)
+    steps = [1, 2.5, 5]  # extended to 10, 25, 50, 100, 250, ...
+    idx = 0
+    mult = 1
+    while True:
+        step = steps[idx] * mult
+        min_bin = (min_value // step) * step
+        num_bins = int((max_value - min_bin) // step + 1)
+        if num_bins <= max_num_bins:
+            # first step with large enough step size / small enough number of bins:
+            # use this step size
+            if step != 2.5:
+                # step size is integer: cast to int for better labels
+                step = int(step)
+                min_bin = int(min_bin)
+            break
+        # too many bins: increase step size
+        idx = (idx + 1) % len(steps)
+        # all steps iterated: append a zero, try again
+        mult = mult if idx else mult * 10
+
+    # suitable step size found
+    labels = [f"{min_bin + i*step} - {min_bin + (i+1)*step}" for i in range(num_bins)]
+    # init bins: track bins for each vehicle type individually
+    bins = {v_types: [0]*num_bins for v_types in schedule.vehicle_types}
+
+    # fill bins with rotations
+    for rot, value in rotations.items():
+        position = int((value - min_bin) // step)
+        bins[schedule.rotations[rot].vehicle_type][position] += 1
+
+    return bins, labels
+
+
+def plot_distance_per_rotation_distribution(extended_plots_path, schedule):
+    """Plots the distribution of bus types in distance brackets as a stacked bar chart.
+
+    :param extended_plots_path: directory to save plot to
+    :type extended_plots_path: Path
+    :param schedule: Driving schedule for the simulation, schedule.rotations are used
+    :type schedule: simba.schedule.Schedule
+    """
+    distances = {rot: schedule.rotations[rot].distance / 1000 for rot in schedule.rotations}
+    bins, labels = prepare_histogram(distances, schedule)
+
+    # plot
+    fig, ax = plt.subplots()
+    bar_bottom = [0] * len(labels)
+    for v_type in schedule.vehicle_types:
+        ax.bar(labels, bins[v_type], width=0.9, label=v_type, bottom=bar_bottom)
+        for i in range(len(labels)):
+            bar_bottom[i] += bins[v_type][i]
+    ax.set_xlabel('Distance [km]')
+    plt.xticks(rotation=30)  # slant labels for better readability
+    ax.set_ylabel('Number of rotations')
+    ax.yaxis.get_major_locator().set_params(integer=True)
+    ax.yaxis.grid(True)
+    ax.set_title('Distribution of rotation length per vehicle type')
+    ax.legend()
+    plt.tight_layout()
+    plt.savefig(extended_plots_path / "distribution_distance.png", dpi=DPI)
+    plt.close()
+
+
+def plot_consumption_per_rotation_distribution(extended_plots_path, schedule):
+    """Plots the distribution of bus types in consumption brackets as a stacked bar chart.
+
+    :param extended_plots_path: directory to save plot to
+    :type extended_plots_path: Path
+    :param schedule: Driving schedule for the simulation, schedule.rotations are used
+    :type schedule: simba.schedule.Schedule
+    """
+    consumption = {rot: schedule.rotations[rot].consumption for rot in schedule.rotations}
+    bins, labels = prepare_histogram(consumption, schedule)
+
+    # plot
+    fig, ax = plt.subplots()
+    bar_bottom = [0] * len(labels)
+    for v_type in schedule.vehicle_types:
+        ax.bar(labels, bins[v_type], width=0.9, label=v_type, bottom=bar_bottom)
+        for i in range(len(labels)):
+            bar_bottom[i] += bins[v_type][i]
+    ax.set_xlabel('Energy consumption [kWh]')
+    plt.xticks(rotation=30)
+    ax.set_ylabel('Number of rotations')
+    ax.yaxis.get_major_locator().set_params(integer=True)
+    ax.yaxis.grid(True)
+    ax.set_title('Distribution of energy consumption of rotations per vehicle type')
+    ax.legend()
+    plt.tight_layout()
+    plt.savefig(extended_plots_path / "distribution_consumption", dpi=DPI)
+    plt.close()
+
+
+def plot_charge_type_distribution(extended_plots_path, scenario, schedule):
+    """Plots the number of rotations of each charging type in a bar chart.
+
+    :param extended_plots_path: directory to save plot to
+    :type extended_plots_path: Path
+    :param scenario: Scenario for with to generate timeseries.
+    :type scenario: spice_ev.Scenario
+    :param schedule: Driving schedule for the simulation. schedule.rotations are used
+    :type schedule: simba.schedule.Schedule
+    """
+    # count charging types (also with regard to negative rotations)
+    charging_types = {'oppb': 0, 'oppb_neg': 0, 'depb': 0, 'depb_neg': 0}
+    negative_rotations = schedule.get_negative_rotations(scenario)
+    for rot in schedule.rotations:
+        ct = schedule.rotations[rot].charging_type
+        if rot in negative_rotations:
+            ct += '_neg'
+        try:
+            charging_types[ct] += 1
+        except KeyError:
+            logging.error(f"Rotation {rot}: unknown charging type: '{ct}'")
+
+    # plot
+    fig, ax = plt.subplots()
+    bars1 = ax.bar(
+        ["Opportunity", "Depot"],
+        [charging_types["oppb"], charging_types["depb"]],
+    )
+    bars2 = ax.bar(
+        ["Opportunity", "Depot"],
+        [charging_types["oppb_neg"], charging_types["depb_neg"]],
+        bottom=[charging_types["oppb"], charging_types["depb"]],
+    )
+    # create labels with counts
+    # create empty labels for empty bins
+    labels = [
+        [
+            f"{ct}{suffix}: {charging_types[f'{ct}{suffix}']}"
+            if charging_types[f'{ct}{suffix}'] > 0 else ""
+            for ct in ['oppb', 'depb']
+        ] for suffix in ['', '_neg']
+    ]
+    ax.bar_label(bars1, labels=labels[0], label_type='center')  # oppb, depb
+    ax.bar_label(bars2, labels=labels[1], label_type='center')  # oppb_neg, depb_neg
+
+    ax.set_xlabel("Charging type")
+    ax.set_ylabel("Number of rotations")
+    ax.yaxis.grid(True)
+    ax.yaxis.get_major_locator().set_params(integer=True)
+    ax.legend(["successful rotations", "negative rotations"])
+    ax.set_title("Feasibility of rotations per charging type")
+    plt.savefig(extended_plots_path / "charge_types", dpi=DPI)
+    plt.close()
+
+
+def plot_gc_power_timeseries(extended_plots_path, scenario, schedule, args):
+    """Plots the different loads (total, feedin, external) of all grid connectors.
+
+    :param extended_plots_path: directory to save plot to
+    :type extended_plots_path: Path
+    :param scenario: provides the data for the grid connectors over time
+    :type scenario: spice_ev.Scenario
+    :param schedule: provides default time windows
+    :type schedule: simba.schedule.Schedule
+    :param args: Configuration arguments
+    :type args: argparse.Namespace
+    """
+    for gcID, gc in scenario.components.grid_connectors.items():
+        fig, ax = plt.subplots()
+
+        agg_ts = aggregate_timeseries(scenario, gcID)
+        headers = [
+            "grid supply [kW]",
+            "fixed load [kW]",
+            "local generation [kW]",
+            "sum CS power [kW]",
+            "battery power [kW]",
+            "bat. stored energy [kWh]",
+        ]
+        # for stations simulated with balanced market, plot price as well
+        station = schedule.stations[gcID]
+        plot_price = vars(args).get(f"strategy_{station['type']}") == "balanced_market"
+        if plot_price:
+            headers.append("price [ct/kWh]")
+
+        has_battery_column = False
+        has_prices = False
+
+        # find time column
+        time_index = agg_ts["header"].index("time")
+        time_values = [row[time_index] for row in agg_ts["timeseries"]]
+
+        for header_index, header in enumerate(headers):
+            try:
+                # try to find column with current header
+                idx = agg_ts["header"].index(header)
+                header_values = [row[idx] for row in agg_ts["timeseries"]]
+            except ValueError:
+                # column does not exist
+                continue
+
+            if header == "price [ct/kWh]":
+                has_prices = True
+                twin_price = ax.twinx()
+                # get next color from color cycle (just plotting would start with first color)
+                next_color = plt.rcParams['axes.prop_cycle'].by_key()["color"][header_index]
+                twin_price.plot(
+                    time_values, header_values, label=header, c=next_color, linestyle="dashdot")
+                twin_price.yaxis.label.set_color(next_color)
+                twin_price.tick_params(axis='y', colors=next_color)
+                twin_price.set_ylabel("price [ct/kWh]")
+                # add dummy values to primary axis for legend
+                ax.plot([], [], next_color, linestyle="dashdot", label=header)
+            elif header == "bat. stored energy [kWh]":
+                has_battery_column = True
+                twin_bat = ax.twinx()
+                # get next color from color cycle (just plotting would start with first color)
+                next_color = plt.rcParams['axes.prop_cycle'].by_key()["color"][header_index]
+                twin_bat.plot(
+                    time_values, header_values, label=header, c=next_color, linestyle="dashdot")
+                twin_bat.yaxis.label.set_color(next_color)
+                twin_bat.tick_params(axis='y', colors=next_color)
+                twin_bat.set_ylabel("stored battery energy [kWh]")
+                # add dummy values to primary axis for legend
+                ax.plot([], [], next_color, linestyle="dashdot", label=header)
+            else:
+                # normal plot (no price or battery)
+                ax.plot(time_values, header_values, label=header)
+
+        if plot_price and not has_prices:
+            logging.error(f"Plot GC power: {gcID} simulated with balanced_market, but has no price")
+
+        # align y axis so that 0 is shared
+        # (limits not necessary, as power, energy and prices can't be compared directly)
+        # find smallest ratio of all axes
+        ax_ylims = ax.axes.get_ylim()
+        yratio = ax_ylims[0] / ax_ylims[1]
+        if has_prices:
+            price_ylims = twin_price.axes.get_ylim()
+            ax_yratio = ax_ylims[0] / ax_ylims[1]
+            yratio = min(ax_yratio, yratio)
+        if has_battery_column:
+            bat_ylims = twin_bat.axes.get_ylim()
+            ax_yratio = ax_ylims[0] / ax_ylims[1]
+            yratio = min(ax_yratio, yratio)
+
+        ax.set_ylim(bottom=ax_ylims[1]*yratio)
+        if has_prices:
+            twin_price.set_ylim(bottom=price_ylims[1]*yratio)
+        if has_battery_column:
+            twin_bat.set_ylim(bottom=bat_ylims[1]*yratio)
+        plt.tight_layout()
+
+        if has_prices and has_battery_column:
+            # offset battery yaxis, otherwise overlap with prices
+            twin_bat.spines.right.set_position(("axes", 1.2))
+
+        # show time windows
+        time_windows = agg_ts.get("window signal [-]")
+        if time_windows is None:
+            # no GC-specific time windows: use default from config
+            time_windows_dict = (schedule.time_windows or dict()).get(gc.grid_operator)
+            if time_windows_dict is not None:
+                # convert event-like structure to timeseries
+                time_windows = list()
+                for t_idx in range(scenario.n_intervals):
+                    time = scenario.start_time + t_idx * scenario.interval
+                    time_windows.append(
+                        datetime_within_time_window(time, time_windows_dict, gc.voltage_level))
+        if time_windows is not None:
+            # add shaded background based on time windows, no background if no values
+            start_idx = 0
+            label_shown = [False, False]
+            for i in range(scenario.step_i):
+                if time_windows[i] != time_windows[start_idx] or i == len(time_values)-1:
+                    # window value changed or end of scenario: plot new interval
+                    window = time_windows[start_idx]
+                    if window is not None:
+                        color = 'red' if window else 'lightgreen'
+                        label = 'Inside window' if window else 'Outside window'
+                        if label_shown[window]:
+                            # labels starting with underscores are ignored
+                            label = '_' + label
+                        else:
+                            # show label once, then set flag
+                            label_shown[window] = True
+                        # draw colored rectangle for window
+                        ax.axvspan(
+                            time_values[start_idx], time_values[i],
+                            label=label, facecolor=color, alpha=0.2)
+                        start_idx = i
+
+        ax.legend()  # fig.legend places legend outside of plot
+        # plt.xticks(rotation=30)
+        ax.set_ylabel("Power [kW]")
+        ax.set_title(f"Power: {gcID}")
+        ax.grid(color='gray', linestyle='-')
+
+        # xaxis are datetime strings
+        ax.set_xlim(time_values[0], time_values[-1])
+        ax.tick_params(axis='x', rotation=30)
+        plt.tight_layout()
+        plt.savefig(extended_plots_path / f"{sanitize(gcID)}_power_overview.png", dpi=DPI)
+        plt.close(fig)
+
+
+def ColorGenerator(vehicle_types):
+    # generates color according to vehicle_type and charging type of rotation
+    colors = util.cycling_generator(plt.rcParams['axes.prop_cycle'].by_key()["color"])
+    color_per_vt = {vt: next(colors) for vt in vehicle_types}
+    color = None
+    while True:
+        rotation = yield color
+        color = color_per_vt[rotation.vehicle_type]
+        rgb = matplotlib.colors.to_rgb(color)
+        hsv = matplotlib.colors.rgb_to_hsv(rgb)
+        value = hsv[-1]
+        if rotation.charging_type == "depb":
+            if value >= 0.5:
+                value -= 0.3
+        elif rotation.charging_type == "oppb":
+            if value < 0.5:
+                value += 0.3
+        else:
+            raise NotImplementedError
+        hsv[-1] = value
+        color = matplotlib.colors.hsv_to_rgb(hsv)
+
+
+def plot_vehicle_services(schedule, output_path):
+    """Plots the rotations serviced by the same vehicle
+
+    :param schedule: Provides the schedule data.
+    :type schedule: simba.schedule.Schedule
+    :param output_path: Path to the output folder
+    :type output_path: pathlib.Path
+    """
+
+    # find depots for every rotation
+    all_rotations = schedule.rotations
+    rotations_per_depot = {r.departure_name: [] for r in all_rotations.values()}
+    for rotation in all_rotations.values():
+        rotations_per_depot[rotation.departure_name].append(rotation)
+
+    def VehicleIdRowGenerator():
+        # generate row ids by using the vehicle_id of the rotation
+        vehicle_id = None
+        while True:
+            rotation = yield vehicle_id
+            vehicle_id = rotation.vehicle_id
+
+    rotations_per_depot["All_Depots"] = all_rotations.values()
+
+    output_path_folder = output_path / "vehicle_services"
+    output_path_folder.mkdir(parents=True, exist_ok=True)
+    for depot, rotations in rotations_per_depot.items():
+        # create instances of the generators
+        row_generator = VehicleIdRowGenerator()
+        color_generator = ColorGenerator(schedule.vehicle_types)
+
+        sorted_rotations = list(
+            sorted(rotations, key=lambda x: (x.vehicle_type, x.charging_type, x.departure_time)))
+        fig, ax = create_plot_blocks(sorted_rotations, color_generator, row_generator)
+        ax.set_ylabel("Vehicle ID")
+        # Vehicle ids need small fontsize to fit
+        ax.tick_params(axis='y', labelsize=6)
+        # add legend
+        handles = []
+        vts = {f"{rotation.vehicle_type}_{rotation.charging_type}": rotation
+               for rotation in sorted_rotations}
+        for key, rot in vts.items():
+            handles.append(Patch(color=color_generator.send(rot), label=key))
+        # Position legend at the top outside of the plot
+        ax.legend(handles=handles, loc='lower center', bbox_to_anchor=(0.5, 1),
+                  ncol=len(handles)//2+1, prop={"size": 7})
+        fig.tight_layout()
+        # PDF so Block names stay readable
+        fig.savefig(output_path_folder / f"{sanitize(depot)}_vehicle_services.pdf")
+        fig.savefig(output_path_folder / f"{sanitize(depot)}_vehicle_services.png", dpi=DPI)
+        plt.close(fig)
+
+
+def plot_blocks_dense(schedule, output_path):
+    """Plots the different loads (total, feedin, external) of all grid connectors.
+
+    :param schedule: Provides the schedule data.
+    :type schedule: simba.schedule.Schedule
+    :param output_path: Path to the output folder
+    :type output_path: pathlib.Path
+    """
+    # find depots for every rotation
+    all_rotations = schedule.rotations
+    rotations_per_depot = {r.departure_name: [] for r in all_rotations.values()}
+    for rotation in all_rotations.values():
+        rotations_per_depot[rotation.departure_name].append(rotation)
+
+    def DenseRowGenerator():
+        # Generates row id by trying to find lowes row with a rotation which arrived
+        arrival_times = []
+        row_nr = None
+        while True:
+            rotation = yield row_nr
+            for i in range(len(arrival_times)):
+                at = arrival_times[i]
+                if at <= rotation.departure_time:
+                    arrival_times[i] = rotation.arrival_time
+                    row_nr = i
+                    break
+            else:
+                arrival_times.append(rotation.arrival_time)
+                row_nr = len(arrival_times) - 1
+
+    rotations_per_depot["All_Depots"] = all_rotations.values()
+    output_path_folder = output_path / "block_distribution"
+    output_path_folder.mkdir(parents=True, exist_ok=True)
+    for depot, rotations in rotations_per_depot.items():
+        # create instances of the generators
+        row_generator = DenseRowGenerator()
+        color_generator = ColorGenerator(schedule.vehicle_types)
+        # sort by departure_time and longest duration
+        sorted_rotations = list(
+            sorted(rotations,
+                   key=lambda r: (r.departure_time, -(r.departure_time - r.arrival_time))))
+        fig, ax = create_plot_blocks(sorted_rotations, color_generator, row_generator)
+        ax.set_ylabel("Block")
+        ax.yaxis.get_major_locator().set_params(integer=True)
+        # add legend
+        handles = []
+        vts = {f"{rotation.vehicle_type}_{rotation.charging_type}": rotation
+               for rotation in sorted_rotations}
+        for key, rot in vts.items():
+            handles.append(Patch(color=color_generator.send(rot), label=key))
+        # Position legend at the top outside of the plot
+        ax.legend(handles=handles, loc='lower center', bbox_to_anchor=(0.5, 1),
+                  ncol=len(handles)//2+1, prop={"size": 7})
+
+        fig.tight_layout()
+        # PDF so Block names stay readable
+        fig.savefig(output_path_folder / f"{sanitize(depot)}_block_distribution.pdf")
+        fig.savefig(output_path_folder / f"{sanitize(depot)}_block_distribution.png", dpi=DPI)
+        plt.close(fig)
+
+
+def create_plot_blocks(sorted_rotations, color_generator, row_generator):
+    # initialize row_generator by yielding None
+    next(row_generator)
+    next(color_generator)
+    y_size = len(sorted_rotations) * 0.02 + 1.5
+    fig, ax = plt.subplots(figsize=(7, y_size))
+    for rotation in sorted_rotations:
+        row_nr = row_generator.send(rotation)
+        width = rotation.arrival_time - rotation.departure_time
+        artist = ax.barh([row_nr], width=[width], height=0.8, left=rotation.departure_time,
+                         label=rotation.id, color=color_generator.send(rotation))
+        ax.bar_label(artist, labels=[rotation.id], label_type='center', fontsize=2)
+
+    # Large heights create too much margin with default value of margins: Reduce value to 0.01
+    ax.axes.margins(y=0.01)
+    ax.grid(axis='x')
+    ax.xaxis.set_major_locator(mdates.AutoDateLocator())
+    ax.xaxis.set_major_formatter(mdates.DateFormatter('%D %H:%M'))
+    ax.set_xlim(min(r.departure_time for r in sorted_rotations) - datetime.timedelta(minutes=30),
+                max(r.arrival_time for r in sorted_rotations) + datetime.timedelta(minutes=30))
+    ax.tick_params(axis='x', rotation=30)
+    return fig, ax
+
+
+def count_active_rotations(scenario, schedule):
+    num_active_rotations = [0] * scenario.n_intervals
+    for rotation in schedule.rotations.values():
+        ts_start = int((rotation.departure_time - scenario.start_time) / scenario.interval)
+        ts_end = ceil((rotation.arrival_time - scenario.start_time) / scenario.interval)
+        # ignore rotations after scenario end
+        ts_end = min(ts_end, scenario.n_intervals)
+        for ts_idx in range(ts_start, ts_end):
+            num_active_rotations[ts_idx] += 1
+    return num_active_rotations
+
+
+def plot_active_rotations(extended_plots_path, scenario, schedule):
+    """Generate a plot with number of active rotations over time.
+
+    :param extended_plots_path: directory to save plot to
+    :type extended_plots_path: Path
+    :param scenario: Provides the data for the grid connectors over time.
+    :type scenario: spice_ev.Scenario
+    :param schedule: Driving schedule for the simulation. schedule.rotations are used
+    :type schedule: simba.schedule.Schedule
+    """
+    ts = [scenario.start_time + scenario.interval * i for i in range(scenario.n_intervals)]
+    num_active_rotations = count_active_rotations(scenario, schedule)
+    plt.plot(ts, num_active_rotations)
+    fig = plt.gcf()
+    fig.set_size_inches(8, 4.8)
+    ax = plt.gca()
+    ax.xaxis_date()
+    ax.set_xlim(ts[0], ts[-1])
+    plt.xticks(rotation=30)
+    plt.ylabel("Number of active rotations")
+    ax.yaxis.get_major_locator().set_params(integer=True)
+    plt.grid(axis="y")
+    plt.title("Active Rotations")
+    plt.tight_layout()
+    plt.savefig(extended_plots_path / "active_rotations", dpi=DPI)
+    plt.close()

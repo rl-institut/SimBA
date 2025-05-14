@@ -1,0 +1,7 @@
+rotation_id,line,departure_name,departure_time,arrival_time,arrival_name,distance,vehicle_type,temperature,level_of_loading,charging_type
+1,LINE_0,Station-0,2022-03-07 08:00:00,2022-03-07 09:31:00,Station-1,0.06,AB,20,0,oppb
+1,LINE_0,Station-1,2022-03-07 09:31:00,2022-03-07 10:04:00,Station-2,14519,AB,-5,0.9,oppb
+1,LINE_0,Station-2,2022-03-07 10:08:00,2022-03-07 10:43:00,Station-1,13541,AB,,,oppb
+1,LINE_0,Station-1,2022-03-07 10:51:00,2022-03-07 11:24:00,Station-2,14519,AB,,,oppb
+1,LINE_0,Station-2,2022-03-07 11:28:00,2022-03-07 12:03:00,Station-1,13541,AB,,,oppb
+1,LINE_0,Station-1,2022-03-07 12:11:00,2022-03-07 12:44:00,Station-0,14519,AB,,,oppb

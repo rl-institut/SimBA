@@ -21,12 +21,30 @@ The level_of_loading describes the share between an empty vehicle (0) and a full
 Vehicle Dispatch
 ----------------
 
-To allocate the rotations to vehicles, vehicles of the needed type to fulfil the rotation are used. If no suitable vehicle is available, a new vehicle is created. A vehicle is defined as "available" if it is currently not serving another rotation, has the same depot and if it had enough time after return to the depot to be charged. This "minimum standing time" at the depot is calculated using the variable min_recharge_deps_oppb or min_recharge_deps_depb from the :ref`config` together with the respective battery capacity of the vehicle and assuming the maximum available power of the depot charging stations.
+To allocate the rotations to vehicles, vehicles of the needed type to fulfil the rotation are used. If no suitable vehicle is available, a new vehicle is created. The suitability depends on the chosen value of assign_strategy. Possible options are "adaptive" and "fixed_recharge". If no value is provided "adaptive" is used.
+
+
+adaptive
+###############
+A vehicle is defined as "available" if it is currently not serving another rotation, is of the same vehicle type, is at the same depot and if it had approximately enough time after return to the depot to be charged to service the next rotation. If multiple vehicles can service the same rotation, the vehicle with a lower expected SoC after charging and before leaving is used. The dispatch differs between opportunity and depot rotations. A vehicle is only assigned to a depot rotation if its expected SoC at time of departure is equal or greater than a) the SoC needed for this rotation or b) the desired_soc from :refconfig. A vehicle can be assigned to an opportunity rotation if its SoC is less than the needed SoC, if the charge during the last standing time is enough to service the rotation or if the expected SoC is equal or greater than the desired_soc from :refconfig. This can happen when the previous rotation ended with a negative SoC. This design decision is made to simplify the expected mode chain of.
+
+["sim", "neg_depb_to_oppb", "station_optimization", "report"]
+
+This way depot rotations can not be negative because of their previous rotation and therefore not wrongly switched to opportunity rotations. Opportunity rotations can be negative because of their previous rotation, but this is handled during station_optimization. In these cases the rotation will not be negative when the previous rotation can be made positive by adding electrified stations.
+
+The strategy considers the maximum available power of the current depot charging station, the default_buffer_time_deps and the charging curve of the vehicle. Since SoCs are calculated numerically which is different from SpiceEV the vehicle dispatch can lead to slightly negative rotations. The error is not expected to exceed -1%.
+
+
+fixed recharge
+###############
+A vehicle is defined as "available" if it is currently not serving another rotation, has the same depot and if it had approximately enough time after return to the depot to be charged to a fixed value defined by min_recharge_deps_oppb or min_recharge_deps_depb from the :ref`config` together with the respective battery capacity of the vehicle and assuming the maximum available power of the current depot charging station. The default_buffer_time_deps and charging curve of the vehicle is not considered. This can lead to the dispatch of vehicles with less than the min_recharge values.
+
+
 
 Charging simulation
 -------------------
 
-The charging simulation is carried out in the open source software `SpiceEV <https://github.com/rl-institut/spice_ev>`_, that is included in SimBA as a package. SimBA therefore uses SpiceEVs charging strategy "distributed", that allows to separate the charging strategy depending on the station type. The station types can be either depot charging station (deps) or opportunity charging station (opps). At depot charging stations vehicles are being charged using SpiceEVs strategy "balanced", which uses the whole standing time to charge with the minimal power to reach a desired SoC. At opportunity charging stations the strategy "greedy" is employed, that charges with the maximum available power due to restrictions from the grid connection, the charging curve of the vehicle and the charging station.
+The charging simulation is carried out in the open source software `SpiceEV <https://github.com/rl-institut/spice_ev>`_, that is included in SimBA as a package. SimBA therefore uses SpiceEVs charging strategy "distributed", that allows to separate the charging strategy depending on the station type. The station types can be either depot charging station (deps) or opportunity charging station (opps). The charging strategy that is applied at depot and opportunity charging stations can be chosen in the config as "strategy_deps" respectively "strategy_opps", together with the strategy options. See the SpiceEV documentation for the description of all possible `strategies <https://spice-ev.readthedocs.io/en/latest/charging_strategies_incentives.html>`_ and  `options <https://spice-ev.readthedocs.io/en/latest/simulating_with_spiceev.html#strategy-options>`_.
 
 .. _generate_report:
 
@@ -35,7 +53,10 @@ Generate report
 
 The generation of the report is implemented as a mode, that can be activated with the keyword "report" in modes (:ref:`report`). The report generates most of the output files. The report can be called any number of times e.g. mode = ["sim", "report", "neg_depb_to_oppb", "report", "service_optimization", "report"]. For each report, a sub-folder is created in the output directory (as defined in the :ref:`config`)  named "report_[nr]" with the respective number.
 
-The generation of the report can be modified using the flag "cost_calculation" in :ref:`config`. If this flag is set to true, each report will also generate the file "summary_vehicles_costs.csv".
+The generation of the report can be modified using flags in :ref:`config`.
+
+1. If ``cost_calculation`` is set, each report will also generate the file "summary_vehicles_costs.csv".
+2. If ``extended_output_plots`` is set, more plots will be saved to "extended_plots" in the report directory. These plots include the number of active rotations over time, a distribution of charge types, histograms of rotation consumption and distance as well as station-specific power levels.
 
 Default outputs
 ###############
@@ -46,10 +67,10 @@ Default outputs
 | **Grid Connector Time Series (gc_power_overview_timeseries.csv)**
 | Time series of power flow in kW for every grid connector
 
-| **Rotation SoC Data (rotation_socs.csv)**
+| **Rotation SoC Data (rotation_SoCs.csv)**
 | Time series of SoC for each rotation.
 
-| **Vehicle SoC Data (vehicle_socs.csv)**
+| **Vehicle SoC Data (vehicle_SoCs.csv)**
 | Time series of SoC for each vehicle.
 
 | **Rotation Summary (rotation_summary.csv)**
@@ -76,6 +97,7 @@ Cost calculation
 ################
 | **Cost calculation (summary_vehicles_costs.csv)**
 | This is an optional output which calculates investment and maintenance costs of the infrastructure as well as energy costs in the scenario. The costs are calculated based on the price sheet, given as input in the :ref:`cost_params`.
+| The energy costs and the grid connector costs are specific for each grid operator, as given by the :ref:`cost_params`.
 | The following costs are calculated as both total and annual, depending on the lifetime of each component. See `SpiceEV documentation <https://spice-ev.readthedocs.io/en/latest/charging_strategies_incentives.html#incentive-scheme>`_ for the calculation of electricity costs.
 
 * Investment
@@ -83,16 +105,21 @@ Cost calculation
     * **Charging infrastructure**: Costs for all depot and opportunity charging stations, depending on the number of actually used charging stations at each grid connector.
     * **Grid connectors**: Costs for grid connectors and transformers, depending on the voltage level and the distance to the grid.
     * **Garages**: Costs for workstations and charging infrastructure at garages.
-    * **Stationary storages**: Costs for stationary batteries at depot and opportunity stations, depending on its capacity.
+    * **Stationary storages**: Costs for stationary batteries at depot and opportunity stations, depending on its capacity [kWh].
+    * **Feed-in**: Costs for feed-in (power generation plant such as PV modules) at depot and opportunity stations, depending on its capacity [kW].
 * Maintenance
-    * Depending on the lifetime of each component maintenance costs are calculated for buses, charging infrastructure, grid connectors and stationary storages.
+    * Depending on the lifetime of each component maintenance costs are calculated for buses, charging infrastructure, grid connectors,  stationary storages and feed-in.
 * Electricity
     * **Power procurement**: Costs for the procurement of energy.
     * **Grid fees**: Costs for power and energy price, depending on the voltage level and the utilization time per year.
     * **Taxes**: Taxes like electricity taxes, depending on given taxes by price sheet.
     * **Feed-in remuneration**: Remuneration for electricity fed into the grid.
 
-As result the following table is saved as CSV:
+As result the following table is saved as CSV. The first two columns of the csv file are "parameter" and "unit" as descibed below. The third column "cumulated" returns the results for the whole scenario. In the consecutive columns, the results for each electrified station are displayed separately. Be aware that:
+
+* Busses, that start or stop at more then one depot are displayed in each column of the respective electrified station, but only once in the column "cumulated", so the sum of all depots in not necessarily equal to the sum of all electrified stations. This is valid for both number of vehicles and investment costs.
+* Costs are only calculated for :ref:`electrified_stations`. Vehicles for rotations starting at non electrified stations get added to the column "Non_elctrified_station".
+
 
 +---------------------------------+----------+-----------------------------------------------------------------------+
 |**parameter**                    | **unit** | **description**                                                       |
@@ -111,6 +138,8 @@ As result the following table is saved as CSV:
 +---------------------------------+----------+-----------------------------------------------------------------------+
 |c_stat_storage                   | EUR      | Investment costs of stationary storages                               |
 +---------------------------------+----------+-----------------------------------------------------------------------+
+|c_feed_in                        | EUR      | Investment costs of feed in (power generation plant)                  |
++---------------------------------+----------+-----------------------------------------------------------------------+
 |c_invest                         | EUR      | Sum of all investment costs                                           |
 +---------------------------------+----------+-----------------------------------------------------------------------+
 +---------------------------------+----------+-----------------------------------------------------------------------+
@@ -124,6 +153,8 @@ As result the following table is saved as CSV:
 +---------------------------------+----------+-----------------------------------------------------------------------+
 |c_stat_storage_annual            | EUR/year | Annual investment costs of all stationary storages                    |
 +---------------------------------+----------+-----------------------------------------------------------------------+
+|c_feed_in                        | EUR/year | Annual investment costs of all feed-ins                               |
++---------------------------------+----------+-----------------------------------------------------------------------+
 |c_invest_annual                  | EUR/year | Sum of all annual investment costs                                    |
 +---------------------------------+----------+-----------------------------------------------------------------------+
 +---------------------------------+----------+-----------------------------------------------------------------------+
@@ -134,6 +165,8 @@ As result the following table is saved as CSV:
 |c_maint_vehicles_annual          | EUR/year | Annual maintenance costs of buses                                     |
 +---------------------------------+----------+-----------------------------------------------------------------------+
 |c_maint_stat_storage_annual      | EUR/year | Annual maintenance costs of stationary storages                       |
++---------------------------------+----------+-----------------------------------------------------------------------+
+|c_maint_feed_in_annual           | EUR/year | Annual maintenance costs of feed-in                                   |
 +---------------------------------+----------+-----------------------------------------------------------------------+
 |c_maint_annual                   | EUR/year | Sum of annual maintenance costs                                       |
 +---------------------------------+----------+-----------------------------------------------------------------------+
@@ -187,4 +220,4 @@ Before all rotations specified in the :ref:`schedule` are simulated, there is th
 Logging
 -------
 
-SimBA uses the "logging" package for logging. All logging messages are both displayed in the Terminal and written to a .log file. The filepath and the loglevel can be defined in the :ref:`config`. Four log levels are available in the following order: DEBUG, INFO, WARN and ERROR. INFO includes INFO, WARN and ERROR but excludes DEBUG.
+SimBA uses the "logging" package for logging. All logging messages are both displayed in the console and written to a log file. The filepath and the loglevel can be defined in the :ref:`config`. Four log levels are available in the following order: DEBUG, INFO, WARN and ERROR. INFO includes INFO, WARN and ERROR but excludes DEBUG. Console and file can have a different log level.

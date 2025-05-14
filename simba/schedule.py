@@ -1,19 +1,60 @@
 import csv
 import datetime
+import json
 import logging
+from math import ceil
 from pathlib import Path
 import random
 import warnings
+from typing import Iterable
 
-from simba import util
+import simba.rotation
+import spice_ev.strategy
+from simba.consumption import Consumption
+from simba.data_container import DataContainer
+from simba import util, optimizer_util
 from simba.rotation import Rotation
+from simba.trip import Trip
+
+from spice_ev.components import VehicleType
 from spice_ev.scenario import Scenario
+import spice_ev.util as spice_ev_util
+
+
+class SocDispatcher:
+    """Initializes vehicles with specific SoCs at the start of their rotations.
+
+    The first rotation of a vehicle is initialized, later rotations have their desired_soc at
+    departure changed.
+    Used for specific vehicle initialization, for example, when coupling tools."""
+
+    def __init__(self, default_soc_deps, default_soc_opps, vehicle_socs=None):
+        """
+        :param default_soc_deps: default desired SoC at departure for depot charger
+        :param default_soc_opps: default desired SoC at departure for opportunity charger
+        :param vehicle_socs: stores the desired departure SoC dict with the keys
+            [vehicle_id][previous_trip], since this is how the SpiceEV scenario is generated.
+            The first trip of a vehicle has no previous trip. In this case, the trip key is None.
+        :type vehicle_socs: Dict[str, Type[Dict["simba.trip.Trip", float]]]
+        """
+        self.default_soc_deps = default_soc_deps
+        self.default_soc_opps = default_soc_opps
+        self.vehicle_socs = {}
+        if vehicle_socs is not None:
+            self.vehicle_socs = vehicle_socs
+
+    def get_soc(self, vehicle_id: str, trip: "simba.trip.Trip",  station_type: str = None):
+        try:
+            v_socs = self.vehicle_socs[vehicle_id]
+            return v_socs[trip]
+        except KeyError:
+            return vars(self).get("default_soc_" + station_type)
 
 
 class Schedule:
 
     def __init__(self, vehicle_types, stations, **kwargs):
-        """Constructs Schedule object from CSV file containing all trips of schedule
+        """ Constructs Schedule object from CSV file containing all trips of schedule
 
         :param vehicle_types: Collection of vehicle types and their properties.
         :type vehicle_types: dict
@@ -32,7 +73,11 @@ class Schedule:
         self.vehicle_types = vehicle_types
         self.original_rotations = None
         self.station_data = None
+        self.time_windows = None
 
+        self.consumption_calculator: Consumption = None
+        self.soc_dispatcher: SocDispatcher = None
+        self.data_container: DataContainer = None
         # mandatory config parameters
         mandatory_options = [
             "min_recharge_deps_oppb",
@@ -51,92 +96,95 @@ class Schedule:
                 setattr(self, opt, kwargs.get(opt))
 
     @classmethod
-    def from_csv(cls, path_to_csv, vehicle_types, stations, **kwargs):
-        """Constructs Schedule object from CSV file containing all trips of schedule.
+    def from_datacontainer(cls, data: DataContainer, args):
 
-        :param path_to_csv: Path to csv file containing trip data
-        :type path_to_csv: str
-        :param vehicle_types: Collection of vehicle types and their properties.
-        :type vehicle_types: dict
-        :param stations: json of electrified stations
-        :type stations: string
-        :param kwargs: Command line arguments
-        :type kwargs: dict
-        :return: Returns a new instance of Schedule with all trips from csv loaded.
-        :rtype: Schedule
-        """
+        schedule = cls(data.vehicle_types_data, data.stations_data, **vars(args))
+        schedule.data_container = data
 
-        schedule = cls(vehicle_types, stations, **kwargs)
+        # Add geo data to schedule
+        schedule.station_data = data.station_geo_data
 
-        station_data = dict()
-        station_path = kwargs.get("station_data_path")
+        if not schedule.station_data:
+            logging.warning(
+                "No station data found for schedule. Height difference for all trips set to 0")
 
-        # find the temperature and elevation of the stations by reading the .csv file.
-        # this data is stored in the schedule and passed to the trips, which use the information
-        # for consumption calculation. Missing station data is handled with default values.
-        if station_path is not None:
-            try:
-                with open(station_path, "r", encoding='utf-8') as f:
-                    delim = util.get_csv_delim(station_path)
-                    reader = csv.DictReader(f, delimiter=delim)
-                    for row in reader:
-                        station_data.update({str(row['Endhaltestelle']):
-                                            {"elevation": float(row['elevation'])}})
-            except FileNotFoundError or KeyError:
-                warnings.warn("Warning: external csv file '{}' not found or not named properly "
-                              "(Needed column names are 'Endhaltestelle' and 'elevation')".
-                              format(station_path),
-                              stacklevel=100)
-            except ValueError:
-                warnings.warn("Warning: external csv file '{}' does not contain numeric "
-                              "values in the column 'elevation'. Station data is discarded.".
-                              format(station_path),
-                              stacklevel=100)
-            schedule.station_data = station_data
+        # Add consumption calculator to trip class
+        schedule.consumption_calculator = Consumption.create_from_data_container(data)
 
-        with open(path_to_csv, 'r', encoding='utf-8') as trips_file:
-            trip_reader = csv.DictReader(trips_file)
-            for trip in trip_reader:
-                rotation_id = trip['rotation_id']
-                # trip gets reference to station data and calculates height diff during trip
-                # initialization. Could also get the height difference from here on
-                trip["station_data"] = station_data
-                if rotation_id not in schedule.rotations.keys():
-                    schedule.rotations.update({
-                        rotation_id: Rotation(id=rotation_id,
-                                              vehicle_type=trip['vehicle_type'],
-                                              schedule=schedule)})
-                schedule.rotations[rotation_id].add_trip(trip)
+        for trip in data.trip_data:
+            # De-link DataContainer and Schedule instances
+            trip = {key: data for key, data in trip.items()}
+            rotation_id = trip['rotation_id']
 
-        # set charging type for all rotations without explicitly specified charging type
-        # charging type may have been set above if a trip of a rotation has a specified
-        # charging type
+            # Get height difference from station_data
+            trip["height_difference"] = schedule.get_height_difference(
+                trip["departure_name"], trip["arrival_name"])
+
+            if trip["level_of_loading"] is None:
+                if data.level_of_loading_data:
+                    assert len(data.level_of_loading_data) == 24, \
+                        "Need 24 entries in level of loading"
+                    trip["level_of_loading"] = util.get_mean_from_hourly_dict(
+                        data.level_of_loading_data, trip["departure_time"], trip["arrival_time"])
+            else:
+                if not 0 <= trip["level_of_loading"] <= 1:
+                    logging.warning("Level of loading is out of range [0,1] and will be clipped.")
+                    trip["level_of_loading"] = min(1, max(0, trip["level_of_loading"]))
+
+            if trip["temperature"] is None:
+                if data.temperature_data:
+                    assert len(data.temperature_data) == 24, "Need 24 entries in temperature data"
+                    trip["temperature"] = util.get_mean_from_hourly_dict(
+                        data.temperature_data, trip["departure_time"], trip["arrival_time"])
+
+            if rotation_id not in schedule.rotations.keys():
+                schedule.rotations.update({
+                    rotation_id: Rotation(id=rotation_id,
+                                          vehicle_type=trip['vehicle_type'],
+                                          schedule=schedule)})
+            rotation = schedule.rotations[rotation_id]
+            charging_type = trip.get("charging_type")
+            trip = Trip(rotation, **trip)
+            rotation.add_trip(trip)
+            if charging_type in ['depb', 'oppb']:
+                if rotation.charging_type is None:
+                    # set CT for whole rotation
+                    rotation.set_charging_type(charging_type)
+                elif rotation.charging_type != charging_type:
+                    # different CT than rotation: error
+                    raise Exception(
+                        f"Two trips of rotation {rotation.id} have differing charging types")
+
+        # Set charging type for all rotations without explicitly specified charging type.
+        # Charging type may have been set previously if a trip had specified a charging type.
         for rot in schedule.rotations.values():
             if rot.charging_type is None:
-                rot.set_charging_type(ct=kwargs.get('preferred_charging_type', 'oppb'))
+                rot.set_charging_type(ct=vars(args).get('preferred_charging_type', 'depb'))
 
-        if kwargs.get("check_rotation_consistency"):
+        if vars(args).get("check_rotation_consistency"):
             # check rotation expectations
             inconsistent_rotations = cls.check_consistency(schedule)
-            if inconsistent_rotations:
+            if inconsistent_rotations and args.output_path is not None:
                 # write errors to file
-                with open(kwargs["output_directory"] / "inconsistent_rotations.csv", "w") as f:
+                filepath = args.output_path / "inconsistent_rotations.csv"
+                with open(filepath, "w", encoding='utf-8') as f:
                     for rot_id, e in inconsistent_rotations.items():
                         f.write(f"Rotation {rot_id}: {e}\n")
                         logging.error(f"Rotation {rot_id}: {e}")
-                        if kwargs.get("skip_inconsistent_rotations"):
+                        if vars(args).get("skip_inconsistent_rotations"):
                             # remove this rotation from schedule
                             del schedule.rotations[rot_id]
-        elif kwargs.get("skip_inconsistent_rotations"):
-            warnings.warn("Option skip_inconsistent_rotations ignored, "
-                          "as check_rotation_consistency is not set to 'true'")
+        elif vars(args).get("skip_inconsistent_rotations"):
+            logging.warning("Option skip_inconsistent_rotations ignored, "
+                            "as check_rotation_consistency is not set to 'true'")
 
+        schedule.calculate_consumption()
         return schedule
 
     @classmethod
     def check_consistency(cls, schedule):
-        """
-        Check rotation expectations, such as
+        """ Check rotation expectations.
+
         - the rotation starts and ends at the same station
         - every trip within a rotation starts where the previous trip ended
         - trips are chronologically sorted
@@ -144,7 +192,7 @@ class Schedule:
         - trips have positive times between departure and arrival
 
         :param schedule: the schedule to check
-        :type schedule: dict
+        :type schedule: Schedule
         :return: inconsistent rotations. Dict of rotation ID -> error message
         :rtype: dict
         """
@@ -182,23 +230,43 @@ class Schedule:
                 inconsistent_rotations[rot_id] = str(e)
         return inconsistent_rotations
 
-    def run(self, args):
-        # each rotation is assigned a vehicle ID
-        self.assign_vehicles()
+    def run(self, args, mode="distributed"):
+        """Runs a schedule without assigning vehicles.
 
+        For external usage the core run functionality is accessible through this function.
+        It allows for defining a custom-made assign_vehicles method for the schedule.
+
+        :param args: used arguments are rotation_filter_path, path to rotation ids,
+            and rotation_filter_variable that sets mode (options: include, exclude)
+        :type args: argparse.Namespace
+        :param mode: SpiceEV strategy name
+        :type mode: str
+        :return: scenario
+        :rtype: spice_ev.Scenario
+        """
+        # Make sure all rotations have an assigned vehicle
+        assert all([rot.vehicle_id is not None for rot in self.rotations.values()])
+        assert mode in spice_ev.strategy.STRATEGIES
         scenario = self.generate_scenario(args)
 
         logging.info("Running SpiceEV...")
-        with warnings.catch_warnings():
-            warnings.simplefilter('ignore', UserWarning)
-            scenario.run('distributed', vars(args).copy())
+        if logging.root.level > logging.DEBUG:
+            # don't log SpiceEV warnings for log levels above debug
+            # logging.root.level is lowest of console and file (if present)
+            with warnings.catch_warnings():
+                warnings.simplefilter('ignore', UserWarning)
+                scenario.run(mode, vars(args).copy())
+        else:
+            # debug: log SpiceEV warnings as well
+            scenario.run(mode, vars(args).copy())
         assert scenario.step_i == scenario.n_intervals, \
             'SpiceEV simulation aborted, see above for details'
         return scenario
 
     def set_charging_type(self, ct, rotation_ids=None):
-        """ Change charging type of either all or specified rotations. Adjust minimum standing time
-        at depot after completion of rotation.
+        """ Change charging type of either all or specified rotations.
+
+        Adjust minimum standing time at depot after completion of rotation.
 
         :param ct: Choose this charging type wheneever possible. Either 'depb' or 'oppb'.
         :type ct: str
@@ -213,11 +281,31 @@ class Schedule:
             if rotation_ids is None or id in rotation_ids:
                 rot.set_charging_type(ct)
 
-    def assign_vehicles(self):
-        """ Assign vehicle IDs to rotations. A FIFO approach is used.
-            For every rotation it is checked whether vehicles with matching type are idle, in which
-            case the one with longest standing time since last rotation is used.
-            If no vehicle is available a new vehicle ID is generated.
+    def assign_vehicles(self, args):
+        """ Assign vehicles using the strategy given in the arguments
+
+        :param args: Arguments with attribute assign_strategy
+        :type args: Namespace
+        :raises NotImplementedError: if args.assign_strategy has a no allowed value
+        """
+        assign_strategy = vars(args).get("assign_strategy") or "adaptive"
+
+        if assign_strategy == "adaptive":
+            self.assign_vehicles_w_adaptive_soc(args)
+        elif assign_strategy == "fixed_recharge":
+            self.assign_vehicles_w_min_recharge_soc()
+        else:
+            logging.error('Allowed values for assign_strategy are "adaptive" and "fixed_recharge"')
+            raise NotImplementedError
+
+    def assign_vehicles_w_min_recharge_soc(self):
+        """ Assign vehicle IDs to rotations.
+
+        A FIFO approach is used.
+        A vehicle is added to the idle stack if the min_recharge_soc is roughly reached.
+        For every rotation it is checked whether vehicles with matching type are idle,
+        in which case the one with longest standing time since last rotation is used.
+        If no vehicle is available, a new vehicle ID is generated.
         """
         rotations_in_progress = []
         idle_vehicles = []
@@ -267,20 +355,321 @@ class Schedule:
             # insert at calculated index
             rotations_in_progress.insert(i, rot)
 
+        # update vehicle ID for nice natural sorting
+        for rot in rotations:
+            # get old vehicle id (vehicle type + charging type, sequential number)
+            vt_ct, old_num = rot.vehicle_id.rsplit('_', 1)
+            # how many vehicles of this type?
+            vt_cnt = vehicle_type_counts[vt_ct]
+            # easy log10 to get max needed number of digits
+            digits = len(str(vt_cnt))
+            # how many digits have to be added for this vehicle ID?
+            missing = digits - len(str(old_num))
+            # assign new zero-padded ID (all of same vehicle type have same length)
+            rot.vehicle_id = f"{vt_ct}_{'0' * missing}{old_num}"
+
         self.vehicle_type_counts = vehicle_type_counts
+
+    def assign_vehicles_custom(self, vehicle_assigns: Iterable[dict]):
+        """ Assign vehicles on a custom basis.
+
+        Assign vehicles based on a datasource,
+        containing all rotations, their vehicle_ids and desired start socs.
+
+        :param vehicle_assigns: Iterable of dict with keys rotation_id, vehicle_id and start_soc
+            for each rotation
+        :type vehicle_assigns: Iterable[dict]
+        :raises Exception: If not every rotation has a vehicle assigned to it
+        """
+        rotation_dict = {d["rot"]: {"v_id": d["v_id"], "soc": d["soc"]} for d in vehicle_assigns}
+        unique_vids = {d["v_id"] for d in vehicle_assigns}
+        vehicle_socs = {v_id: dict() for v_id in unique_vids}
+        vid_dict = {v_id: sorted([d["rot"] for d in vehicle_assigns
+                                  if d["v_id"] == v_id],
+                                 key=lambda r_id: self.rotations[r_id].departure_time)
+                    for v_id in unique_vids}
+
+        # Calculate vehicle counts
+        # count number of vehicles per type
+        # used for unique vehicle id e.g. vehicletype_chargingtype_id
+        vehicle_type_counts = {f'{vehicle_type}_{charging_type}': 0
+                               for vehicle_type, charging_types in self.vehicle_types.items()
+                               for charging_type in charging_types.keys()}
+        for vid in unique_vids:
+            v_ls = vid.split("_")
+            vehicle_type_counts[f'{v_ls[0]}_{v_ls[1]}'] += 1
+
+        self.vehicle_type_counts = vehicle_type_counts
+
+        rotations = sorted(self.rotations.values(), key=lambda rot: rot.departure_time)
+        for rot in rotations:
+            try:
+                v_id = rotation_dict[rot.id]["v_id"]
+            except KeyError as exc:
+                raise Exception(f"SoC-data does not include the rotation with the id: {rot.id}. "
+                                "Externally generated vehicle assignments need to include all "
+                                "rotations") from exc
+            rot.vehicle_id = v_id
+            index = vid_dict[v_id].index(rot.id)
+            # if this rotation is not the first rotation of the vehicle, find the previous trip
+            if index != 0:
+                prev_rot_id = vid_dict[v_id][index - 1]
+                trip = self.rotations[prev_rot_id].trips[-1]
+            else:
+                # if the rotation has no previous trip, trip is set as None
+                trip = None
+            vehicle_socs[v_id][trip] = rotation_dict[rot.id]["soc"]
+        self.soc_dispatcher.vehicle_socs = vehicle_socs
+
+    def init_soc_dispatcher(self, args):
+        self.soc_dispatcher = SocDispatcher(default_soc_deps=args.desired_soc_deps,
+                                            default_soc_opps=args.desired_soc_opps)
+
+    def assign_only_new_vehicles(self):
+        """ Assign a new vehicle to every rotation.
+
+        Iterate over all rotations and add a vehicle for each rotation. Vehicles are named on the
+        basis of their vehicle_type, charging type and current amount of vehicles with this
+        vehicle_type / charging type combination.
+        """
+        # Initialize counting of all vehicle_type / charging type combination
+        vehicle_type_counts = {f'{vehicle_type}_{charging_type}': 0
+                               for vehicle_type, charging_types in self.vehicle_types.items()
+                               for charging_type in charging_types.keys()}
+        rotations = sorted(self.rotations.values(), key=lambda rot: rot.departure_time)
+        for rot in rotations:
+            vt_ct = f"{rot.vehicle_type}_{rot.charging_type}"
+            # Generate a new vehicle
+            vehicle_type_counts[vt_ct] += 1
+            rot.vehicle_id = f"{vt_ct}_{vehicle_type_counts[vt_ct]}"
+        self.vehicle_type_counts = vehicle_type_counts
+
+    def assign_vehicles_w_adaptive_soc(self, args):
+        """ Assign vehicle IDs to rotations.
+
+        A greedy approach is used to assign a vehicle to every rotation.
+        If an existing vehicle of the same type and location has enough soc to service the rotation,
+        not accounting for possible opportunity charging of the next rotation it is used.
+        If multiple such vehicles exist, the one with the lowest soc is used.
+        If no vehicle is available, a new vehicle ID is generated.
+        :param args: arguments
+        :type args: Namespace
+        """
+        rotations_in_progress = []
+        all_standing_vehicles = []
+        vehicle_data = dict()
+        initial_soc = args.desired_soc_deps
+
+        # count number of vehicles per type
+        # used for unique vehicle id e.g. vehicletype_chargingtype_id
+        vehicle_type_counts = {f'{vehicle_type}_{charging_type}': 0
+                               for vehicle_type, charging_types in self.vehicle_types.items()
+                               for charging_type in charging_types.keys()}
+
+        charge_levels = {station.get(param) for name, station in self.stations.items()
+                         for param in ["cs_power_deps_oppb", "cs_power_deps_depb"]
+                         if station["type"] == "deps"}
+        # Remove None as charge level
+        charge_levels = charge_levels.difference([None])
+        # Add default values from arguments
+        charge_levels.add(self.cs_power_deps_depb)
+        charge_levels.add(self.cs_power_deps_oppb)
+
+        # Calculates numeric charge curves for each charge_level.
+        # The charge levels might clip the charge curve of the vehicle.
+        charge_curves = self.get_charge_curves(charge_levels, initial_soc, time_step_min=1)
+
+        rotations = sorted(self.rotations.values(), key=lambda rot: rot.departure_time)
+        for k, rot in enumerate(rotations):
+            # find vehicles that have completed their rotation
+            while rotations_in_progress:
+                r = rotations_in_progress.pop(0)
+                if rot.departure_time > r.arrival_time:
+                    all_standing_vehicles.append((r.vehicle_id, r.arrival_name))
+                else:
+                    rotations_in_progress.insert(0, r)
+                    break
+
+            # find standing vehicle for rotation if exists
+            # else generate new vehicle id
+            vt = rot.vehicle_type
+            ct = rot.charging_type
+            vt_ct = f"{vt}_{ct}"
+
+            station_is_electrified = rot.departure_name in self.stations
+            if not station_is_electrified:
+                logging.warning(f"Rotation {rot.id} ends at a non electrified station.")
+
+            # filter vehicles of the same vehicle type and same location
+            standing_vehicles = list(filter(lambda x: vt_ct in x[0] * (x[1] == rot.departure_name),
+                                            all_standing_vehicles))
+
+            # join standing vehicles with their expected soc and sort by soc
+            socs = list(map(
+                lambda v_id_deps: soc_at_departure_time(
+                    v_id_deps[0], v_id_deps[1], departure_time, vehicle_data,
+                    self.stations, charge_curves, args
+                ), standing_vehicles))
+
+            # pair with socs
+            standing_vehicles_w_soc = [(*v, rot_idx) for v, rot_idx in zip(standing_vehicles, socs)]
+
+            standing_vehicles_w_soc = sorted(standing_vehicles_w_soc, key=lambda x: x[-1])
+            consumption_soc = (self.calculate_rotation_consumption(rot) /
+                               self.vehicle_types[vt][ct]["capacity"])
+            for vehicle_id, depot, soc in standing_vehicles_w_soc:
+                # end soc of vehicle if it services this rotation
+                end_soc = soc - consumption_soc
+
+                if end_soc > 0 or soc >= initial_soc or not station_is_electrified:
+                    # Assign existing vehicle if rotation can be done or desired soc is reached.
+                    # (Generating a new vehicle would not make a difference.)
+                    # Special case non-electrified station:
+                    # vehicles should not strand here even if rotation is not possible
+                    rot.vehicle_id = vehicle_id
+                    all_standing_vehicles.remove((vehicle_id, depot))
+                    vehicle_data[vehicle_id] = {"soc": end_soc, "arrival_time": rot.arrival_time}
+                    break
+            else:
+                # no vehicle available for dispatch, generate new one
+                vehicle_type_counts[vt_ct] += 1
+                vehicle_id = f"{vt_ct}_{vehicle_type_counts[vt_ct]}"
+                rot.vehicle_id = vehicle_id
+                end_soc = initial_soc - consumption_soc
+                vehicle_data[vehicle_id] = {"soc": end_soc, "arrival_time": rot.arrival_time}
+
+            rotations_in_progress.append(rot)
+            try:
+                # check if a next rotation exists to get the optional value of departure_time.
+                # this is needed to calculate expected socs after greedy charging up to the
+                # departure time
+                next_rot = rotations[k + 1]
+                departure_time = next_rot.departure_time
+            except IndexError:
+                # last rotation got a vehicle. Exit loop
+                break
+            # sort rotations in progress by their arrival time
+            rotations_in_progress = sorted(rotations_in_progress, key=lambda x: x.arrival_time)
+
+        # update vehicle ID for nice natural sorting
+        for rot in rotations:
+            # get old vehicle id (vehicle type + charging type, sequential number)
+            vt_ct, old_num = rot.vehicle_id.rsplit('_', 1)
+            # how many vehicles of this type?
+            vt_cnt = vehicle_type_counts[vt_ct]
+            # easy log10 to get max needed number of digits
+            digits = len(str(vt_cnt))
+            # assign new zero-padded ID (all of same vehicle type have same length)
+            rot.vehicle_id = f"{vt_ct}_{int(old_num):0{digits}}"
+        self.vehicle_type_counts = vehicle_type_counts
+
+    def get_charge_curves(self, charge_levels, final_value: float, time_step_min: float) -> dict:
+        """ Get the numeric charge curves.
+
+        :param charge_levels: different power levels which clip the charge curves
+        :type charge_levels: set[float]
+        :param final_value: soc value at which the numeric calculation stops
+        :type final_value: float
+        :param time_step_min: time_step in minutes for the numeric calculation
+        :type time_step_min: float
+        :return: soc over time curves
+        :rtype: dict
+        """
+        charge_curves = dict()
+        for vehicle_name, vehicle_type in self.vehicle_types.items():
+            charge_curves[vehicle_name] = dict()
+            for ct_name, v_info in vehicle_type.items():
+                charge_curves[vehicle_name][ct_name] = dict()
+                obj = {"name": "default", "capacity": 1, "charging_curve": [[0, 1], [1, 1]]}
+                default_eff = VehicleType(obj).battery_efficiency
+                eff = v_info.get("battery_efficiency", default_eff)
+                for charge_level in charge_levels:
+                    curve = optimizer_util.charging_curve_to_soc_over_time(
+                        v_info["charging_curve"],
+                        v_info["capacity"],
+                        final_value,
+                        charge_level,
+                        time_step=time_step_min,
+                        efficiency=eff,
+                        logger=logging.getLogger())
+                    charge_curves[vehicle_name][ct_name][charge_level] = curve
+
+        return charge_curves
 
     def calculate_consumption(self):
         """ Computes consumption for all trips of all rotations.
-            Depends on vehicle type only, not on charging type.
 
         :return: Total consumption for entire schedule [kWh]
         :rtype: float
         """
         self.consumption = 0
         for rot in self.rotations.values():
-            self.consumption += rot.calculate_consumption()
-
+            self.consumption += self.calculate_rotation_consumption(rot)
         return self.consumption
+
+    def calculate_rotation_consumption(self, rotation: Rotation):
+        """ Calculate consumption of this rotation and all its trips.
+
+        :param: rotation: Rotation to calculate consumption for
+        :type rotation: Rotation
+        :return: Consumption of rotation [kWh]
+        :rtype: float
+        """
+        rotation.consumption = 0
+
+        if len(rotation.trips) == 0:
+            return rotation.consumption
+
+        # get the specific idle consumption of this vehicle type in kWh/h
+        v_info = self.vehicle_types[rotation.vehicle_type][rotation.charging_type]
+        # make sure the trips are sorted, so the next trip can be determined
+        rotation.trips = list(sorted(rotation.trips, key=lambda trip: trip.arrival_time))
+        trip = rotation.trips[0]
+        for next_trip in rotation.trips[1:]:
+            # get consumption due to driving
+            driving_consumption = self.calculate_trip_consumption(trip)
+            driving_delta_soc = trip.delta_soc
+            # get idle consumption of the next break time
+            idle_consumption, idle_delta_soc = get_idle_consumption(trip, next_trip, v_info)
+
+            # set trip attributes
+            trip.consumption = driving_consumption + idle_consumption
+            trip.delta_soc = driving_delta_soc + idle_delta_soc
+
+            rotation.consumption += driving_consumption + idle_consumption
+            trip = next_trip
+
+        # last trip of the rotation has no idle consumption
+        trip.consumption = self.calculate_trip_consumption(trip)
+        rotation.consumption += trip.consumption
+
+        return rotation.consumption
+
+    def calculate_trip_consumption(self, trip: Trip):
+        """ Compute consumption for this trip.
+
+        :param trip: trip to calculate consumption for
+        :type trip: Trip
+        :return: Consumption of trip [kWh]
+        :rtype: float
+        :raises with_traceback: if consumption cannot be constructed
+        """
+        vehicle_type = trip.rotation.vehicle_type
+        vehicle_info = self.vehicle_types[vehicle_type][trip.rotation.charging_type]
+        try:
+            trip.consumption, trip.delta_soc = self.consumption_calculator(
+                distance=trip.distance,
+                vehicle_type=trip.rotation.vehicle_type,
+                vehicle_info=vehicle_info,
+                temp=trip.temperature,
+                height_difference=trip.height_difference,
+                level_of_loading=trip.level_of_loading,
+                mean_speed=trip.mean_speed)
+        except AttributeError as e:
+            raise Exception(
+                'To calculate consumption, a consumption object needs to be constructed'
+                ' and linked to the Schedule.').with_traceback(e.__traceback__)
+        return trip.consumption
 
     def get_departure_of_first_trip(self):
         """ Finds earliest departure time among all rotations.
@@ -294,7 +683,7 @@ class Schedule:
         return sorted_rotations[0].departure_time
 
     def get_arrival_of_last_trip(self):
-        """Finds latest arrival time among all rotations.
+        """ Finds latest arrival time among all rotations.
 
         :return: Date and time of latest arrival of schedule. None if rotations are empty.
         :rtype: datetime.datetime
@@ -305,12 +694,12 @@ class Schedule:
         return sorted_rotations[-1].arrival_time
 
     def get_common_stations(self, only_opps=True):
-        """
-        for each rotation key, return set of rotations
-            that share a station during any trip (with time info)
+        """ For each rotation key, return set of rotations that share a station during any trip.
+
         :param only_opps: only search for opps stations
         :type only_opps: boolean
-        :return: dictionary of rotations
+        :return: rotations with time info
+        :rtype: dict
         """
 
         # rot -> stations with timings
@@ -351,9 +740,31 @@ class Schedule:
                                 break
         return rot_set
 
-    def get_negative_rotations(self, scenario):
+    def get_height_difference(self, departure_name, arrival_name):
+        """ Get the height difference of two stations.
+
+        :param departure_name: Departure station
+        :type departure_name: str
+        :param arrival_name: Arrival station
+        :type arrival_name: str
+        :return: Height difference. Defaults to 0 if height data is not found.
+        :rtype: float
         """
-        Get rotations with negative soc from SpiceEV outputs
+        if isinstance(self.station_data, dict) and self.station_data:
+            station_name = departure_name
+            try:
+                start_height = self.station_data[station_name]["elevation"]
+                station_name = arrival_name
+                end_height = self.station_data[station_name]["elevation"]
+                return end_height - start_height
+            except KeyError:
+                logging.error(
+                    f"No elevation data found for {station_name} in station_data. "
+                    "Height difference set to 0")
+        return 0
+
+    def get_negative_rotations(self, scenario):
+        """ Get rotations with negative SoC from SpiceEV outputs.
 
         :param scenario: Simulation scenario containing simulation results
                          including the SoC of all vehicles over time
@@ -389,10 +800,21 @@ class Schedule:
 
         return list(negative_rotations)
 
-    def rotation_filter(self, args, rf_list=[]):
-        """Edits rotations according to args.rotation_filter_variable.
+    def get_total_distance(self):
+        """ Calculate the total distance of all trips in the schedule.
 
-        :param args: used arguments are rotation_filter, path to rotation ids,
+        :return: total distance of schedule
+        :rtype: float
+        """
+        total_distance = 0
+        for rotation in self.rotations.values():
+            total_distance += rotation.distance
+        return total_distance
+
+    def rotation_filter(self, args, rf_list=[]):
+        """ Edits rotations according to args.rotation_filter_variable.
+
+        :param args: used arguments are rotation_filter_path, path to rotation ids,
                      and rotation_filter_variable that sets mode (options: include, exclude)
         :type args: argparse.Namespace
         :param rf_list: rotation filter list with strings of rotation ids (default is None)
@@ -404,20 +826,21 @@ class Schedule:
         # cast rotations in filter to string
         rf_list = [str(i) for i in rf_list]
 
-        if args.rotation_filter is None and not rf_list:
+        if args.rotation_filter_path is None and not rf_list:
             warnings.warn("Rotation filter variable is enabled but file and list are not used.")
             return
 
-        if args.rotation_filter:
+        if args.rotation_filter_path:
             # read out rotations from file (one rotation ID per line)
             try:
-                with open(args.rotation_filter, encoding='utf-8') as f:
+                with open(args.rotation_filter_path, encoding='utf-8') as f:
                     for line in f:
                         rf_list.append(line.strip())
             except FileNotFoundError:
-                warnings.warn(f"Path to rotation filter {args.rotation_filter} is invalid.")
+                warnings.warn(f"Path to rotation filter {args.rotation_filter_path} is invalid.")
                 # no file, no change
                 return
+        util.save_input_file(args.rotation_filter_path, args)
         # filter out rotations in self.rotations
         if args.rotation_filter_variable == "exclude":
             self.rotations = {k: v for k, v in self.rotations.items() if k not in rf_list}
@@ -425,7 +848,7 @@ class Schedule:
             self.rotations = {k: v for k, v in self.rotations.items() if k in rf_list}
 
     def generate_scenario(self, args):
-        """ Generate scenario.json for SpiceEV
+        """ Generate SpiceEV Scenario.
 
         :param args: Command line arguments and/or arguments from config file.
         :type args: argparse.Namespace
@@ -443,8 +866,8 @@ class Schedule:
         grid_connectors = {}
         events = {
             "grid_operator_signals": [],
-            "external_load": {},
-            "energy_feed_in": {},
+            "fixed_load": {},
+            "local_generation": {},
             "vehicle_events": []
         }
 
@@ -452,7 +875,8 @@ class Schedule:
         if self.rotations:
             start_simulation = self.get_departure_of_first_trip()
             start_simulation -= datetime.timedelta(minutes=args.signal_time_dif)
-            stop_simulation = self.get_arrival_of_last_trip() + interval
+            arrival_of_last_trip = self.get_arrival_of_last_trip()
+            stop_simulation = arrival_of_last_trip + interval
             if args.days is not None:
                 stop_simulation = min(
                     stop_simulation, start_simulation + datetime.timedelta(days=args.days))
@@ -460,6 +884,30 @@ class Schedule:
             # no rotations to base times off: use any datetime
             start_simulation = datetime.datetime.fromtimestamp(0)
             stop_simulation = datetime.datetime.fromtimestamp(0)
+
+        # read in time windows file
+        time_windows = None
+        if vars(args).get('time_windows'):
+            time_windows_path = Path(args.time_windows)
+            if time_windows_path.exists():
+                with time_windows_path.open('r', encoding='utf-8') as f:
+                    time_windows = util.uncomment_json_file(f)
+                    util.save_input_file(args.time_windows, args)
+                # convert time window strings to date/times
+                for grid_operator, grid_operator_seasons in time_windows.items():
+                    for season, info in grid_operator_seasons.items():
+                        info["start"] = datetime.date.fromisoformat(info["start"])
+                        info["end"] = datetime.date.fromisoformat(info["end"])
+                        for level, windows in info.get("windows", {}).items():
+                            info["windows"][level] = [
+                                (datetime.time.fromisoformat(t[0]),
+                                 datetime.time.fromisoformat(t[1]))
+                                for t in windows]
+                        time_windows[grid_operator][season] = info
+                logging.debug("time windows read: " + str(time_windows))
+            else:
+                warnings.warn(f"Time windows file {args.time_windows} does not exist")
+        self.time_windows = time_windows
 
         # add vehicle events
         for vehicle_id in sorted({rot.vehicle_id for rot in self.rotations.values()}):
@@ -483,7 +931,7 @@ class Schedule:
 
                 # departure time of next trip for standing time calculation
                 try:
-                    next_departure_time = vehicle_trips[i+1].departure_time
+                    next_departure_time = vehicle_trips[i + 1].departure_time
                 except IndexError:
                     # last trip
                     next_departure_time = trip.arrival_time + datetime.timedelta(hours=8)
@@ -495,12 +943,16 @@ class Schedule:
                     # assume electrified station
                     station = self.stations[gc_name]
                     station_type = station["type"]
-                    if station_type == 'opps' and trip.rotation.charging_type == 'depb':
-                        # a depot bus cannot charge at an opp station
+                    if (station_type == 'opps' and
+                            (trip.rotation.charging_type == 'depb' or
+                             not trip.rotation.allow_opp_charging_for_oppb)):
+                        # a depot bus cannot charge at an opp station.
+                        # a bus cannot charge at opps if it's not allowed
                         station_type = None
                     else:
-                        # get desired soc by station type
-                        desired_soc = vars(args).get("desired_soc_" + station_type)
+                        # get desired soc by station type and trip
+                        desired_soc = self.soc_dispatcher.get_soc(
+                            vehicle_id=vehicle_id, trip=trip, station_type=station_type)
                 except KeyError:
                     # non-electrified station
                     station_type = None
@@ -508,17 +960,20 @@ class Schedule:
                 # get buffer time from user configuration
                 # buffer_time is an abstraction of delays like docking procedures and
                 # is added to the planned arrival time
-                # ignore buffer time for end of last trip to make sure vehicles arrive
-                # before simulation ends
-                if i < len(vehicle_trips) - 1:
+                # arrival + buffer time is clipped to the arrival of last trip and next departure
+                if not station_type:
+                    buffer_time = 0
+                elif station_type == "deps":
+                    buffer_time = util.get_buffer_time(trip=trip,
+                                                       default=args.default_buffer_time_deps)
+                else:
+                    assert station_type == "opps"
                     buffer_time = util.get_buffer_time(trip=trip,
                                                        default=args.default_buffer_time_opps)
-                else:
-                    buffer_time = 0
                 # arrival event must occur no later than next departure and
                 # one step before simulation terminates for arrival event to be taken into account
                 arrival_time = min(trip.arrival_time + datetime.timedelta(minutes=buffer_time),
-                                   next_departure_time)
+                                   next_departure_time, arrival_of_last_trip)
 
                 # total minutes spend at station
                 standing_time = (next_departure_time - arrival_time).total_seconds() / 60
@@ -547,57 +1002,71 @@ class Schedule:
                         }
                     if gc_name not in grid_connectors:
                         # add one grid connector for each bus station
+                        voltage_level = station.get('voltage_level', args.default_voltage_level)
+                        grid_operator = station.get("grid_operator", "default_grid_operator")
                         grid_connectors[gc_name] = {
                             "max_power": gc_power,
                             "cost": {"type": "fixed", "value": 0.3},
                             "number_cs": station["n_charging_stations"],
-                            "voltage_level":
-                                station.get("voltage_level", args.default_voltage_level)
+                            "grid_operator": grid_operator,
+                            "voltage_level": voltage_level,
                         }
                         # check for stationary battery
                         battery = station.get("battery")
                         if battery is not None:
                             # add stationary battery at this station/GC
                             battery["parent"] = gc_name
-                            batteries[gc_name] = battery
+                            batteries[f"{gc_name} storage"] = battery
 
                         # add feed-in name and power at grid connector if exists
-                        feed_in = station.get("energy_feed_in")
-                        if feed_in:
-                            feed_in_path = Path(feed_in["csv_file"])
-                            if not feed_in_path.exists():
-                                warnings.warn("feed-in csv file '{}' does not exist".format(
-                                    feed_in_path), category=UserWarning)
-                            feed_in["grid_connector_id"] = gc_name
-                            feed_in["csv_file"] = feed_in_path
-                            events["energy_feed_in"][gc_name + " feed-in"] = feed_in
+                        local_generation = station.get("energy_feed_in")
+                        if local_generation:
+                            local_generation = update_csv_file_info(local_generation, gc_name)
+                            events["local_generation"][gc_name + " feed-in"] = local_generation
+                            util.save_input_file(local_generation["csv_file"], args)
                             # add PV component
                             photovoltaics[gc_name] = {
                                 "parent": gc_name,
-                                "nominal_power": feed_in.get("nominal_power", 0)
+                                "nominal_power": local_generation.get("nominal_power", 0)
                             }
 
                         # add external load if exists
-                        ext_load = station.get("external_load")
-                        if ext_load:
-                            ext_load_path = Path(ext_load["csv_file"])
-                            if not ext_load_path.exists():
-                                warnings.warn("external load csv file '{}' does not exist".format(
-                                    ext_load_path), category=UserWarning)
-                            ext_load["grid_connector_id"] = gc_name
-                            ext_load["csv_file"] = ext_load_path
-                            events["external_load"][gc_name + " ext. load"] = ext_load
+                        fixed_load = station.get("external_load")
+                        if fixed_load:
+                            fixed_load = update_csv_file_info(fixed_load, gc_name)
+                            events["fixed_load"][gc_name + " ext. load"] = fixed_load
+                            util.save_input_file(fixed_load["csv_file"], args)
+
+                        # temporary lowering of grid connector max power during peak load windows
+                        if time_windows is not None:
+                            # get relevant peak load windows
+                            windows = time_windows.get(grid_operator)
+                            reduced_power = station.get(
+                                'peak_load_window_power',
+                                vars(args).get('peak_load_window_power_' + station_type))
+                            events["grid_operator_signals"] += generate_time_window_event_list(
+                                windows, gc_name, voltage_level, (gc_power, reduced_power),
+                                (start_simulation, stop_simulation, interval))
 
                 # initial condition of vehicle
                 if i == 0:
-                    vehicles[vehicle_id] = {
-                        "connected_charging_station": None,
-                        "estimated_time_of_departure": trip.departure_time.isoformat(),
-                        "desired_soc": None,
-                        "soc": args.desired_soc_deps,
-                        "vehicle_type":
-                            f"{trip.rotation.vehicle_type}_{trip.rotation.charging_type}"
-                    }
+                    gc_name = trip.departure_name
+                    try:
+                        departure_station_type = self.stations[gc_name]["type"]
+                    except KeyError:
+                        # station was not found in electrified stations.
+                        # Initialization uses default of "deps",
+                        # since usually vehicles start from depots.
+                        departure_station_type = "deps"
+                vehicles[vehicle_id] = {
+                    "connected_charging_station": None,
+                    "estimated_time_of_departure": trip.departure_time.isoformat(),
+                    "desired_soc": None,
+                    "soc": self.soc_dispatcher.get_soc(
+                        vehicle_id=vehicle_id, trip=None, station_type=departure_station_type),
+                    "vehicle_type":
+                        f"{trip.rotation.vehicle_type}_{trip.rotation.charging_type}"
+                }
 
                 # create departure event
                 events["vehicle_events"].append({
@@ -632,64 +1101,28 @@ class Schedule:
 
         # ######## END OF VEHICLE EVENTS ########## #
 
-        daily = datetime.timedelta(days=1)
         # price events
-        if not args.include_price_csv:
-            random.seed(args.seed)
-            for key in grid_connectors.keys():
-                now = start_simulation - daily
-                while now < stop_simulation + 2 * daily:
-                    now += daily
-                    for v_id, v in vehicles.items():
-                        if now >= stop_simulation:
-                            # after end of scenario: keep generating trips, but don't include in
-                            # scenario
-                            continue
-
-                    # generate prices for the day
-                    if now < stop_simulation:
-                        morning = now + datetime.timedelta(hours=6)
-                        evening_by_month = now + datetime.timedelta(
-                            hours=22 - abs(6 - now.month))
-                        events['grid_operator_signals'] += [{
-                            # day (6-evening): 15ct
-                            "signal_time": max(start_simulation, now - daily).isoformat(),
-                            "grid_connector_id": key,
-                            "start_time": morning.isoformat(),
-                            "cost": {
-                                "type": "fixed",
-                                "value": 0.15 + random.gauss(0, 0.05)
-                            }
-                        }, {
-                            # night (depending on month - 6): 5ct
-                            "signal_time": max(start_simulation, now - daily).isoformat(),
-                            "grid_connector_id": key,
-                            "start_time": evening_by_month.isoformat(),
-                            "cost": {
-                                "type": "fixed",
-                                "value": 0.05 + random.gauss(0, 0.03)
-                            }
-                        }]
-
-        # add timeseries from csv
-        # save path and options for CSV timeseries
         if args.include_price_csv:
-            for filename, gc_name in args.include_price_csv:
-                options = {
-                    "csv_file": filename,
-                    "start_time": start_simulation.isoformat(),
-                    "step_duration_s": 3600,  # 60 minutes
-                    "grid_connector_id": gc_name,
-                    "column": "price [ct/kWh]"
-                }
-                for key, value in args.include_price_csv_option:
-                    if key == "step_duration_s":
-                        value = int(value)
-                    options[key] = value
-                events['energy_price_from_csv'] = options
-                price_csv_path = args.output_directory / filename
-                if not price_csv_path.exists():
-                    logging.warning(f"Price csv file '{price_csv_path}' does not exist yet")
+            # SpiceEV's include_price_csv supports only one grid connector
+            # declare price input files for each station in electrified stations instead
+            logging.warning("Unsupported SpiceEV option: include_price_csv. Use at your own risk!")
+        random.seed(args.seed)
+        for gc_name in grid_connectors.keys():
+            price_csv = self.stations[gc_name].get("price_csv")
+            if price_csv is None:
+                # generate pseudo-random price events
+                events["grid_operator_signals"] += generate_random_price_list(
+                    gc_name, start_simulation, stop_simulation)
+            else:
+                # read prices from CSV, convert to events
+                prices = get_price_list_from_csv(price_csv, gc_name)
+                util.save_input_file(price_csv["csv_file"], args)
+                events["grid_operator_signals"] += generate_event_list_from_prices(
+                    prices, gc_name, start_simulation, stop_simulation,
+                    price_csv.get('start_time'), price_csv.get('step_duration_s'))
+                # attach expanded price lists to station for report
+                self.stations[gc_name]["prices"] = generate_price_timeseries(
+                    prices, start_simulation, stop_simulation, interval)
 
         # reformat vehicle types for SpiceEV
         vehicle_types_spiceev = {
@@ -699,11 +1132,12 @@ class Schedule:
         }
 
         # create final dict
+        # n_intervals is rounded up to cover last simulation step in all cases
         self.scenario = {
             "scenario": {
                 "start_time": start_simulation.isoformat(),
-                "interval": interval.days * 24 * 60 + interval.seconds // 60,
-                "n_intervals": (stop_simulation - start_simulation) // interval
+                "interval": interval.total_seconds() // 60,
+                "n_intervals": ceil((stop_simulation-start_simulation) / interval)
             },
             "components": {
                 "vehicle_types": vehicle_types_spiceev,
@@ -715,5 +1149,436 @@ class Schedule:
             },
             "events": events
         }
-
+        if vars(args).get("create_scenario_file"):
+            p = args.output_directory_input / args.create_scenario_file
+            with p.open('w', encoding='utf-8') as f:
+                json.dump(self.scenario, f, indent=2)
         return Scenario(self.scenario, Path())
+
+
+def update_csv_file_info(file_info, gc_name):
+    """
+    add infos to csv information dictionary from electrified station
+
+    - set grid_connector_id
+    - update csv_file path
+    - set start_time and step_duration_s from CSV information if not given
+
+    :param file_info: csv information from electrified station
+    :type file_info: dict
+    :param gc_name: station name
+    :type gc_name: string
+    :return: updated file_info
+    :rtype: dict
+    """
+    file_path = Path(file_info["csv_file"])
+    start_time = file_info.get("start_time")
+    if not file_path.exists():
+        warnings.warn("csv file '{}' does not exist".format(file_info))
+    elif start_time is None:
+        # start_time is optional (read from first line), but file must exist
+        with file_path.open('r', encoding='utf-8') as f:
+            # skip header
+            f.readline()
+            # start timestep in first column, second row
+            row = f.readline()
+            ts = row.split(',')[0]
+            start_time = spice_ev_util.datetime_from_isoformat(ts)
+            # force timezone-unaware (like all SimBA datetimes)
+            start_time = start_time.replace(tzinfo=None)
+            # read next timestep to get interval length
+            row = f.readline()
+            ts = row.split(',')[0]
+            time = spice_ev_util.datetime_from_isoformat(ts)
+            time = time.replace(tzinfo=None)
+            csv_interval = (time - start_time).total_seconds()
+        file_info["start_time"] = start_time.isoformat()
+        file_info["step_duration_s"] = round(csv_interval)
+
+    file_info["grid_connector_id"] = gc_name
+    file_info["csv_file"] = str(file_path)
+    return file_info
+
+
+def generate_time_window_event_list(time_windows, gc_name, voltage_level, power_levels, time_info):
+    """
+    generate grid operator signals to lower station power during peak load windows
+
+    :param time_windows: grid operator time window information
+    :type time_windows: dict
+    :param gc_name: station name
+    :type gc_name: string
+    :param voltage_level: station voltage level
+    :type voltage_level: string
+    :param power_levels: (normal power, reduced power)
+    :type power_levels: tuple
+    :param time_info: (start of simulation, end of simulation, interval)
+    :type time_info: triple
+    :return: grid operator signals
+    :rtype: list
+    """
+    if time_windows is None:
+        warnings.warn(f'{gc_name}: grid operator not in time windows')
+        return []
+    logging.debug(f"{gc_name} time windows: {time_windows}")
+
+    # check reduced power
+    # if higher than normal max power, don't generate events
+    if power_levels[1] > power_levels[0]:
+        warnings.warn(f"{gc_name}: maximum power is not reduced during peak load windows")
+        return []
+
+    events = []
+    in_window = False
+    day = datetime.timedelta(days=1)
+    start_simulation, stop_simulation, interval = time_info
+    # can't directly iterate over datetimes:
+    # get number of simulation timesteps (round up)
+    n_intervals = -((start_simulation - stop_simulation) // interval)
+    for t_idx in range(n_intervals):
+        time = start_simulation + t_idx * interval
+        cur_window = spice_ev_util.datetime_within_time_window(time, time_windows, voltage_level)
+        if cur_window ^ in_window:
+            # window change: generate event
+            events.append({
+                # known one day in advance
+                "signal_time": (time - day).isoformat(),
+                "start_time": time.isoformat(),
+                "grid_connector_id": gc_name,
+                "max_power": power_levels[cur_window],
+            })
+            in_window = cur_window
+    return events
+
+
+def generate_random_price_list(gc_name, start_simulation, stop_simulation):
+    """ Generate random price events.
+
+    :param gc_name: grid connector ID
+    :type gc_name: string
+    :param start_simulation: start of simulation
+    :type start_simulation: datetime.datetime
+    :param stop_simulation: end of simulation
+    :type stop_simulation: datetime.datetime
+    :return: newly generated grid operator signals
+    :rtype: list
+    """
+    day = datetime.timedelta(days=1)
+    events = []
+    MORNING_HOUR = 6
+    # First price events on the day before the simulation.
+    # This is needed if the simulation start time is between 00:00 and 06:00
+    first_day = start_simulation - datetime.timedelta(hours=MORNING_HOUR)
+    # Reset beginning to midnight,
+    # so price events always start at 6:00 and get signaled at midnight each day
+    first_day = first_day.replace(hour=0, minute=0, second=0)
+    # Iterate over the simulation duration
+    for current_time in util.daterange(first_day, stop_simulation, day):
+        # create price events covering 24h from 6am onwards
+        morning = current_time + datetime.timedelta(hours=MORNING_HOUR)
+        evening_by_month = current_time + datetime.timedelta(
+            hours=22 - abs(6 - current_time.month))
+        events += [{
+            # day (6 to evening): 15ct
+            "signal_time": max(start_simulation, current_time - day).isoformat(),
+            "grid_connector_id": gc_name,
+            "start_time": morning.isoformat(),
+            "cost": {
+                "type": "fixed",
+                "value": 0.15 + random.gauss(0, 0.05)
+            }
+        }, {
+            # night (evening to 6 ): 5ct
+            "signal_time": max(start_simulation, current_time - day).isoformat(),
+            "grid_connector_id": gc_name,
+            "start_time": evening_by_month.isoformat(),
+            "cost": {
+                "type": "fixed",
+                "value": 0.05 + random.gauss(0, 0.03)
+            }
+        }]
+    return events
+
+
+def get_price_list_from_csv(price_csv_dict, gc_name=None):
+    """ Read out price CSV.
+
+    :param price_csv_dict: price CSV info
+    :type price_csv_dict: dict
+    :param gc_name: grid connector ID (optional, only relevant for warning)
+    :type gc_name: string
+    :return: price timestamp (if in first column of CSV) and tuple of values
+    :rtype: list
+    """
+    csv_path = Path(price_csv_dict["csv_file"])
+    if not csv_path.exists():
+        logging.error(f"price csv file {csv_path} does not exist, skipping price generation")
+        return []
+
+    prices = []
+    column = price_csv_dict.get("column")  # backwards compatibility, deprecated
+    procurement_column = price_csv_dict.get("procurement_column")
+    commodity_column = price_csv_dict.get("commodity_column")
+    virtual_column = price_csv_dict.get("virtual_column")
+    factor = price_csv_dict.get("factor", 1)
+    # general checks of given columns
+    if (procurement_column is None) ^ (commodity_column is None):
+        logging.warning(f'Price CSV for {gc_name}: only one of '
+                        'procurement_column and commodity_column was given.')
+    if column is not None:
+        logging.warning(f'Price CSV for {gc_name}: "column" is deprecated, '
+                        'use procurement_column and commodity_column instead.')
+        if commodity_column is None:
+            commodity_column = column
+    # backup: if neither procurement_column nor commodity_column was given,
+    # use values from last column in CSV as commodity prices
+    use_last_column = procurement_column is None and commodity_column is None
+    if use_last_column:
+        logging.warning(f'Price CSV for {gc_name}: Please specify procurement_column and/or'
+                        f' commodity_column. Now, the last column in csv was interpreted as '
+                        f'commodity price')
+
+    with csv_path.open('r', newline='', encoding='utf-8') as csvfile:
+        reader = csv.DictReader(csvfile, delimiter=',', quotechar='"')
+        for idx, row in enumerate(reader):
+            row_values = list(row.values())
+            # read values from given columns or last column
+            procurement = None
+            commodity = None
+            virtual = None
+            if use_last_column:
+                commodity = float(row_values[-1]) * factor
+            else:
+                if procurement_column is not None:
+                    procurement = float(row[procurement_column]) * factor
+                if commodity_column is not None:
+                    commodity = float(row[commodity_column]) * factor
+                if virtual_column is not None:
+                    virtual = float(row[virtual_column]) * factor
+            # add entry: first cell (may contain datetime), price values
+            prices.append([row_values[0], (procurement, commodity, virtual)])
+    return prices
+
+
+def generate_event_list_from_prices(
+        prices, gc_name, start_simulation, stop_simulation,
+        start_events=None, price_interval_s=None):
+    """ Generate grid operator signals from price list.
+
+    :param prices: price timestamp and values (ts, (proc, comm, virtual cost))
+    :type prices: list of tuples
+    :param gc_name: grid connector ID
+    :type gc_name: string
+    :param start_simulation: start of simulation
+    :type start_simulation: datetime.datetime
+    :param stop_simulation: end of simulation
+    :type stop_simulation: datetime.datetime
+    :param start_events: timestamp of first event in list (optional). Read from list if not given
+    :type start_events: string (ISO-format)
+    :param price_interval_s: interval between list entries in seconds (only with start_events)
+    :type price_interval_s: number
+    :return: grid operator signals
+    :rtype: list
+    """
+    if start_events is None:
+        assert price_interval_s is None, (
+            f"{gc_name} price CSV: must have start_time if price_interval is given")
+        logging.debug(f"{gc_name} price CSV: using timestamps from file")
+    else:
+        start_events = spice_ev_util.datetime_from_isoformat(start_events)
+        price_interval = datetime.timedelta(seconds=price_interval_s)
+
+    day = datetime.timedelta(days=1)
+    event = None
+    events = []
+    stop = None
+
+    for idx, price in enumerate(prices):
+        if price_interval_s is None:
+            # default: use CSV timestamps in first column
+            event_time = spice_ev_util.datetime_from_isoformat(price[0])
+            if start_events is None:
+                # keep track of first event time
+                start_events = event_time
+        else:
+            # compute event timestamp from given arguments
+            event_time = idx * price_interval + start_events
+        # update time info in internal list
+        # first item _may_ have contained iso-timestring,
+        # but is now guaranteed to contain correct datetime of price change
+        price[0] = event_time
+        if stop is None or stop < event_time:
+            # keep track of last event time
+            stop = event_time
+        if event_time > stop_simulation:
+            # don't generate prices after stop of scenario
+            break
+        if event_time >= start_simulation and len(events) == 0 and event is not None:
+            # first event within scenario time, but there were events before: add prior event
+            events.append(event)
+        # price events known one day in advance
+        signal_time = event_time - day
+        # SpiceEV price: sum of procurement, commodity and virtual costs (some may be None)
+        sum_price = sum([p or 0 for p in price[1]])
+        event = {
+            "start_time": event_time.isoformat(),
+            "signal_time": signal_time.isoformat(),
+            "grid_connector_id": gc_name,
+            "cost": {"type": "fixed", "value": sum_price},
+        }
+        if event_time >= start_simulation:
+            # event within scenario time: add to list
+            events.append(event)
+    # post check: events before scenario start?
+    if len(events) == 0 and event is not None:
+        # prior events: add last
+        events.append(event)
+
+    if events:
+        # check if CSV timestamps cover simulation time
+        if start_events > start_simulation or stop < stop_simulation:
+            logging.info(f"{gc_name} price csv does not cover simulation time")
+    return events
+
+
+def generate_price_timeseries(prices, start_simulation, stop_simulation, interval):
+    """
+    Generate price timeseries from event-like price list.
+
+    Converts sparse price change events to a timeseries
+    with entries for each timestep of the simulation.
+    Each entry contains a dictionary with "procurement" and "commodity" costs.
+    Virtual costs are ignored.
+    If the input timeseries covers only part of the simulation, the last price is used to fill up.
+    This is needed to retain information about specific costs for cost calculation in reports.
+    :param prices: event-like input price series, containing (ts, (procurement, commodity))
+    :type prices: list
+    :param start_simulation: start of simulation time
+    :type start_simulation: datetime.datetime
+    :param stop_simulation: end of simulation time
+    :type stop_simulation: datetime.datetime
+    :param interval: length of timestep
+    :type interval: datetime.timedelta
+    :return: procurement and commodity price lists
+    :rtype: dict
+    """
+    price_lists = {"procurement": None, "commodity": None}
+    if len(prices) == 0:
+        return price_lists
+    current_time = start_simulation
+    price = prices.pop(0)
+    if price[1][0] is not None:
+        price_lists["procurement"] = list()
+    if price[1][1] is not None:
+        price_lists["commodity"] = list()
+    while current_time < stop_simulation:
+        # not end of simulation: fill up with price
+        try:
+            # get next price step to know when to stop
+            next_price = prices.pop(0)
+            stop_time = next_price[0]
+        except IndexError:
+            # may fail if price list is not long enough, fill up with last known price
+            next_price = None
+            stop_time = stop_simulation
+        while current_time < stop_time:
+            # price remains constant until next change
+            if price[1][0] is not None:
+                price_lists["procurement"].append(price[1][0])
+            if price[1][1] is not None:
+                price_lists["commodity"].append(price[1][1])
+            current_time += interval
+        price = next_price
+    return price_lists
+
+
+def get_charge_delta_soc(charge_curves: dict, vt: str, ct: str, max_power: float,
+                         duration_min: float, start_soc: float) -> float:
+    """ Get the delta soc of a charge event for a given vehicle and charge type
+
+    :param charge_curves: charge curves for a given vehicle_type, charge_type and max_power
+    :type charge_curves: dict
+    :param vt: vehicle type
+    :type vt: str
+    :param ct: charge type
+    :type ct: str
+    :param max_power: max power
+    :type max_power: float
+    :param duration_min: duration in minutes
+    :type duration_min: float
+    :param start_soc: start soc
+    :type start_soc: float
+    :return: delta soc of charge event
+    :rtype: float
+    """
+    charge_curve = charge_curves[vt][ct][max_power]
+    return optimizer_util.get_delta_soc(charge_curve, start_soc, duration_min=duration_min)
+
+
+def get_idle_consumption(first_trip: Trip, second_trip: Trip, vehicle_info: dict) -> (float, float):
+    """ Compute consumption while waiting for the next trip
+
+    Calculate the idle consumption between the arrival of the first trip and the departure of the
+    second trip with a vehicle_info containing the keys idle_consumption and capacity.
+    :param first_trip: First trip
+    :type first_trip: Trip
+    :param second_trip: Second trip
+    :type second_trip: Trip
+    :param vehicle_info: Vehicle information
+    :type vehicle_info: dict
+    :return: Consumption of idling [kWh], delta_soc [-]
+    :rtype: float, float
+    """
+    capacity = vehicle_info["capacity"]
+    idle_cons_spec = vehicle_info.get("idle_consumption", 0)
+    if idle_cons_spec < 0:
+        logging.warning("Specific idle consumption is negative. This would charge the vehicle. "
+                        "Idle consumption is set to Zero instead.")
+
+    break_duration_s = (second_trip.departure_time - first_trip.arrival_time).total_seconds()
+    if break_duration_s < 0:
+        logging.warning("Break duration is negative. This would charge the vehicle. "
+                        "Idle consumption is set to Zero instead")
+    # Do not allow negative idle consumption, i.e., charging the vehicle.
+    idle_consumption = max(break_duration_s / 3600 * idle_cons_spec, 0)
+    return idle_consumption, -idle_consumption / capacity
+
+
+def soc_at_departure_time(v_id, deps, departure_time, vehicle_data, stations, charge_curves, args):
+    """ Get the possible SoC of the vehicle at a specified departure_time
+
+    :param v_id: vehicle_id
+    :type v_id: str
+    :param deps: depot name
+    :type deps: str
+    :param departure_time: time for which the soc is evaluated
+    :type departure_time: datetime.datetime
+    :param vehicle_data: data of used vehicles including soc and arrival_times
+    :type vehicle_data: dict
+    :param stations: station data from schedule
+    :type stations: dict
+    :param charge_curves: numeric charge_curves with soc over time in minutes
+    :type charge_curves:  dict
+    :param args: Arguments
+    :type args: Namespace
+    :return: soc at departure time for the given vehicle
+    :rtype: float
+    """
+
+    vt = "_".join(v_id.split("_")[:-2])
+    ct = v_id.split("_")[-2]
+
+    start_soc = vehicle_data[v_id]["soc"]
+
+    station_power = stations[deps].get(f"cs_power_deps_{ct}", vars(args).get(f"cs_power_deps_{ct}"))
+
+    buffer_time = datetime.timedelta(minutes=vars(args).get("default_buffer_time_deps", 0))
+
+    standing_duration = departure_time - vehicle_data[v_id]["arrival_time"] - buffer_time
+    duration_in_m = standing_duration.total_seconds() / 60
+    if ct == "oppb":
+        # for opportunity chargers assume a minimal soc>=0
+        start_soc = max(start_soc, 0)
+    charge_delta_soc = get_charge_delta_soc(
+        charge_curves, vt, ct, station_power, duration_in_m, start_soc)
+    return min(start_soc + charge_delta_soc, args.desired_soc_deps)

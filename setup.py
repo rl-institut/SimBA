@@ -10,4 +10,5 @@ setup(
     license="MIT",
     packages=find_packages(),
     package_data={},
+    install_requires=["dill", "matplotlib", "numpy", "pandas", "spice_ev"],
 )

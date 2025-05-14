@@ -19,7 +19,7 @@ The configuration file config.cfg is provided as example in ./examples/ and prov
 | Physical setup of environment: Here, the physical setup is characterized
 | Simulation Parameters: The simulation can be adjusted using these parameters
 
-The example (data/simba.cfg) contains parameter descriptions which are explained here in more detail:
+The example configurations in `data/examples/configs/` contain parameter descriptions which are explained here in more detail:
 
 .. list-table:: config.cfg parameters
    :header-rows: 1
@@ -28,19 +28,23 @@ The example (data/simba.cfg) contains parameter descriptions which are explained
      - Default value
      - Expected values
      - Description
-   * - input_schedule
+   * - scenario_name
+     - Optional: no default given
+     - string
+     - scenario identifier, appended to output directory name and report file names
+   * - schedule_path
      - Mandatory: no default given
      - Path as string
      - Input file containing :ref:`schedule` information
-   * - Output_directory
+   * - output_path
      - Data/sim_outputs
      - Path as string
-     - Output files are stored here
-   * - electrified_stations
+     - Output files are stored here; set to null to deactivate
+   * - electrified_stations_path
      - ./data/examples/vehicle_types.json
      - Path as string
      - Path to Electrified stations data
-   * - vehicle_types
+   * - vehicle_types_path
      - ./data/examples/vehicle_types.json
      - Path as string
      - Path to :ref:`vehicle_types`
@@ -56,10 +60,18 @@ The example (data/simba.cfg) contains parameter descriptions which are explained
      - Optional: no default given
      - Path as string
      - Path to :ref:`level_of_loading`
-   * - cost_parameters_file
+   * - cost_parameters_path
      - Optional: no default given
      - Path as string
      - Path to :ref:`cost_params`
+   * - optimizer_config_path
+     - Optional: no default given
+     - Path as string
+     - Path to station optimizer config :ref:`optimizer_config`
+   * - rotation_filter_path
+     - Optional: no default given
+     - Path as string
+     - Path to rotation filter json
    * - mode
      - ['sim', 'report']
      - List of modes is any order in range of ['sim', 'neg_depb_to_oppb', 'neg_oppb_to_depb', 'service_optimization', 'report']
@@ -80,7 +92,42 @@ The example (data/simba.cfg) contains parameter descriptions which are explained
      - false
      - Boolean
      - If activated, plots are displayed with every run of :ref:`report` mode
-
+   * - rotation_filter_variable
+     - null
+     - string
+     - How to filter rotations according to file 'rotation_filter': options are "include" (whitelist), "exclude" (blacklist), null (ignore)
+   * - create_trips_in_report
+     - false
+     - Boolean
+     - Write a new trips.csv during report mode to output directory?
+   * - create_pickle_in_report
+     - false
+     - Boolean
+     - Pickle current schedule and scenario during report mode
+   * - load_pickle_path
+     - Optional, no default given
+     - Path to pickle file
+     - Load schedule and scenario from this pickle file, expects load_pickle as first mode
+   * - extended_output_plots
+     - false
+     - Boolean
+     - If set, create additional plots when running :ref:`report` mode
+   * - strategy_deps
+     - balanced
+     - SpiceEV Strategies (greedy, balanced, peak_shaving, peak_load_windows, balanced_market)
+     - Charging strategy used in depots.
+   * - strategy_opps
+     - greedy
+     - SpiceEV Strategies (greedy, balanced, peak_shaving, peak_load_windows, balanced_market)
+     - Charging strategy used in opportunity stations.
+   * - cost_calculation_method_deps
+     - fixed_wo_plw
+     - SpiceEV cost calculation type (fixed_wo_plw, fixed_w_plw, variable_wo_plw, variable_w_plw, balanced_market, flex_window)
+     - Method for cost calculation at depots.
+   * - cost_calculation_method_opps
+     - fixed_wo_plw
+     - SpiceEV cost calculation type, same choices as in depot
+     - Method for cost calculation at opportunity stations.
    * - preferred_charging_type
      - depb
      - depb, oppb
@@ -128,12 +175,39 @@ The example (data/simba.cfg) contains parameter descriptions which are explained
    * - default_buffer_time_opps
      - 0
      - Numeric or dict e.g. {"10-22": 5, "else": 2} (else clause is a must if using the dict definition)
-     - The buffer time is deducted off of the planned standing time at each opportunity station. It can be used to model things like delays and/or docking procedures. This value is used if no specific buffer is defined per station in :ref:`electrified_stations`. It can either be given as constant or depending on the time of the day using a dict.
+     - The buffer time in minutes is subtracted from of the planned standing time at each opportunity station. It can be used to model things like delays and/or docking procedures. This value is used if no specific buffer is defined per station in :ref:`electrified_stations`. It can either be given as constant or depending on the time of the day using a dict.
+   * - default_buffer_time_deps
+     - 0
+     - Numeric
+     - The buffer time in minutes is subtracted from of the planned standing time at each depot station. It can be used to model things like delays and/or docking procedures. This value is used for every depot station
+   * - assign_strategy
+     - adaptive
+     - adaptive, min_recharge
+     - The value of assign_strategy sets the algorithm of vehicle disposition. "adaptive" uses vehicles to service rotations with the lowest soc, without the rotation getting negative. "min_recharge" only uses vehicles which are above the charge type specific threshold (see min_recharge_deps_oppb, min_recharge_deps_depb)
    * - default_voltage_level
      - MV
      - HV, HV/MV, MV, MV/LV, LV
      - The default voltage level is used, if no specific voltage level is defined per station in :ref:`electrified_stations`. It is used to calculate the costs. Choices describe high voltage (HV), transformer between high and medium voltage (HV/MV), medium voltage MV, transformer between medium and low voltage (MV/LV) and low voltage (LV)
-
+   * - loglevel
+     - INFO
+     - DEBUG, INFO, WARN or ERROR
+     - Log level. All logging messages are both displayed in the console and written to a log file
+   * - logfile
+     - <datetime>.log
+     - String
+     - Log file name. Set to null to disable logging to file
+   * - loglevel_file
+     - (same as loglevel)
+     - String
+     - Log level for file logger
+   * - default_mean_speed
+     - 30
+     - numeric
+     - Default assumed mean speed for busses in km/h. Used in split_negative_depb for generating depot trips.
+   * - default_depot_distance
+     - 5
+     - numeric
+     - Default assumed average distance from any station to a depot in km. Used in split_negative_depb for generating depot trips.
    * - days
      - Optional: no default given
      - Numeric
@@ -150,6 +224,10 @@ The example (data/simba.cfg) contains parameter descriptions which are explained
      - false
      - Boolean
      - Show estimated time to finish simulation after each step. Not recommended for fast computations
+   * - create_flex_report
+     - false
+     - Boolean
+     - Create flex band information in SpiceEV when reporting. Rarely used.
 
 
 Schedule
@@ -289,19 +367,6 @@ In order to run the :ref:`cost_calculation`, all cost parameters are to be defin
             "lifetime_battery": 7,   // lifetime of the vehicle battery in years
             "cost_per_kWh": 250  // investment cost for vehicle battery per kWh
         },
-        "gc": {  // grid connection
-            "LV": {  // grid connection in specific voltage level. Options are "HV", "HV/MV", "MV", "MV/LV", "LV" and all relevant voltage levels have to be defined here
-                "default_distance": 50,  // Used if not specified individually in electrified_stations.json
-                "capex_gc_fix": 100,  // fix investment cost for establishing a grid connection
-                "capex_gc_per_meter": 16.85,  // investment cost per meter
-                "capex_gc_per_kW": 24.14,  // investment cost per kW
-                "capex_transformer_fix": 0,  // fix investment cost for a transformer
-                "capex_transformer_per_kW": 0  // fix investment cost for a transformer per kW
-            },
-            "lifetime_gc": 50,  // lifetime of the grid connection in years
-            "c_maint_transformer_per_year": 0.02,  // annual maintenance costs in % of capex
-            "lifetime_transformer": 20  // lifetime in years
-        },
         "stationary_storage": {    // stationary electric energy storage
             "capex_fix": 1,  // fix investment cost for stationary storage
             "capex_per_kWh": 1,  //  investment cost for stationary storage per kWh
@@ -320,10 +385,25 @@ In order to run the :ref:`cost_calculation`, all cost parameters are to be defin
             "vehicles_per_workstation": 20,  // how many vehicles share one workstation
             "cost_per_workstation": 245000,  //  investment cost for one workstation
             "lifetime_workstations": 20  // lifetime in years
+        },
+        "grid operator": {
+            "gc": {  // grid connection
+                "LV": {  // grid connection in specific voltage level. Options are "HV", "HV/MV", "MV", "MV/LV", "LV" and all relevant voltage levels have to be defined here
+                    "default_distance": 50,  // Used if not specified individually in electrified_stations.json
+                    "capex_gc_fix": 100,  // fix investment cost for establishing a grid connection
+                    "capex_gc_per_meter": 16.85,  // investment cost per meter
+                    "capex_gc_per_kW": 24.14,  // investment cost per kW
+                    "capex_transformer_fix": 0,  // fix investment cost for a transformer
+                    "capex_transformer_per_kW": 0  // fix investment cost for a transformer per kW
+                },
+                "lifetime_gc": 50,  // lifetime of the grid connection in years
+                "c_maint_transformer_per_year": 0.02,  // annual maintenance costs in % of capex
+                "lifetime_transformer": 20  // lifetime in years
+            }
         }
     }
 
-all remaining parameters are described in the example file.
+All remaining parameters such as grid fees or energy taxes are described in the example file.
 
 
 .. _station_geo_data:

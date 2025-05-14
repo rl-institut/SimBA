@@ -14,9 +14,9 @@ To try it out, first clone `this repository <https://github.com/rl-institut/SimB
 
 ``pip install -r requirements.txt``
 
-Now you can start SimBA with all configurations stored at `data/configs/simba.cfg` via the command
+Now you can start SimBA with all configurations stored at `data/examples/configs/basic.cfg` via the command
 
-``python -m simba --config data/examples/simba.cfg``
+``python -m simba --config data/examples/configs/basic.cfg``
 
 The repo provides an example for each necessary input file, so the example case can be executed without the need for the user to provide any data themselves.
 
@@ -24,7 +24,7 @@ To run SimBA with your own `schedule.csv` (see :ref:`schedule`)) file and defaul
 
 ``python -m simba --input_schedule path/to/schedule.csv``
 
-Default configurations are detailed at `data/configs/simba.cfg`.
+All configuration options are detailed at :ref:`simulation_parameters`.
 
 Usage with PyCharm
 ##################
@@ -36,7 +36,7 @@ To use SimBa with PyCharm, create a new python (>= 3.7) environment and clone `t
 Now add a new "run/debug configuration" with the following information:
 
 | module name: ``simba``
-| Parameters: ``--config data/examples/simba.cfg``
+| Parameters: ``--config data/examples/configs/basic.cfg``
 | Working directory: ``path/to/local/simba_repo``
 | Run with Python Console: true
 
@@ -47,7 +47,7 @@ General Concept
 SimBA is designed as a toolbox, so the specific use can be adapted to the users needs. Its core functionality is to run scenario based simulations. A scenario is defined by a set of input files. Next to the simulation mode, several optimization modes exist, that can be linked and executed consecutively.
 
 .. _figure_simba_modules:
-.. figure:: _static/SimBA_module_overview.png
+.. figure:: _images/SimBA_module_overview.png
     :alt:  figure_simba_modules
     :width: 600
 
@@ -65,7 +65,7 @@ As a result of each simulation the energy demand at each electrified station, th
 In case an optimization is carried out, the results are then analyzed, the optimizer adapts the input data and parameters and starts the process again with the trip consumption analysis. In which order and for what purpose the individual modules are executed is mainly defined using the different modes. These modes can be used to manipulate the defined scenario e.g. by altering bus types from depot to opportunity chargers, optimize sets of rotations to increase electrification or suggest stations for electrification by minimizing the amount of stations needed. You can learn more about the modes  :ref:`here <sim_modes>`.
 
 .. _simba_default_plot:
-.. figure:: _static/run_overview.png
+.. figure:: _images/run_overview.png
     :alt:  simba_default_plot
     :width: 600
 

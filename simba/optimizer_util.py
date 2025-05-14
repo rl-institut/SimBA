@@ -1,4 +1,4 @@
-""" Module for LowSocEvent, ChargingEvent, OptimizerConfig and utility functionality"""
+""" Module for LowSocEvent, ChargingEvent, OptimizerConfig and utility functionality """
 import logging
 import math
 import os
@@ -18,14 +18,12 @@ from matplotlib import pyplot as plt
 if typing.TYPE_CHECKING:
     from simba.station_optimizer import StationOptimizer
 
-from simba.consumption import Consumption
-from simba.trip import Trip
-from simba.util import get_buffer_time as get_buffer_time_util
+from simba.util import get_buffer_time
 from spice_ev.report import generate_soc_timeseries
 
 
 class ChargingEvent:
-    """Class to gather information about a charging event"""
+    """ Class to gather information about a charging event """
 
     def __init__(self, start_idx, end_idx, arrival_time, start_time, end_time, buffer_time,
                  vehicle_id, capacity,
@@ -43,7 +41,7 @@ class ChargingEvent:
 
 
 class LowSocEvent:
-    """Class to gather information about a low soc event"""
+    """ Class to gather information about a low soc event """
     event_counter = 0
 
     def __init__(self, start_idx, end_idx, min_soc, stations, vehicle_id, trip, rot,
@@ -64,15 +62,18 @@ class LowSocEvent:
 
 
 class OptimizerConfig:
-    """Class for the configuration file"""
+    """ Class for the configuration file """
 
     def __init__(self):
-        self.debug_level = None
-        self.console_level = None
-        self.exclusion_rots = None
-        self.exclusion_stations = None
-        self.inclusion_stations = None
-        self.standard_opp_station = None
+        self.logger_name = ""
+        self.debug_level = 0
+        self.console_level = 99
+
+        self.exclusion_rots = set()
+        self.exclusion_stations = set()
+        self.inclusion_stations = set()
+        self.standard_opp_station = {"type": "opps", "n_charging_stations": None}
+
         self.schedule = None
         self.scenario = None
         self.args = None
@@ -80,39 +81,45 @@ class OptimizerConfig:
         self.battery_capacity = None
         self.charging_curve = None
         self.charging_power = None
-        self.min_soc = None
-        self.solver = None
-        self.rebase_scenario = None
-        self.pickle_rebased = None
+        self.min_soc = 0
+
+        self.solver = "spiceev"
+        self.rebase_scenario = False
+        self.pickle_rebased = False
+        # used for gradual scenario analysis in django-simba
+        self.early_return = False
+
         self.pickle_rebased_name = None
-        self.opt_type = None
-        self.remove_impossible_rotations = None
-        self.node_choice = None
-        self.max_brute_loop = None
-        self.run_only_neg = None
-        self.run_only_oppb = None
-        self.estimation_threshold = None
-        self.check_for_must_stations = None
+        self.opt_type = "greedy"
+        self.eps = 0.0001
+
+        self.remove_impossible_rotations = False
+        self.node_choice = "step-by-step"
+        self.max_brute_loop = 20
+        self.run_only_neg = True
+        self.run_only_oppb = True
+        self.estimation_threshold = 0.8
+        self.check_for_must_stations = False
+        self.pruning_threshold = 3
+
         self.decision_tree_path = None
-        self.save_decision_tree = None
+        self.save_decision_tree = False
         self.optimizer_output_dir = None
-        self.reduce_rotations = None
+        self.reduce_rotations = False
         self.rotations = None
         self.path = None
-        self.pruning_threshold = None
         self.save_all_results = None
-        self.eps = None
 
 
 def time_it(function, timers={}):
-    """Decorator function to time the duration and number of function calls.
+    """ Decorator function to time the duration and number of function calls.
 
     :param function: function do be decorated
     :type function: function
     :param timers: storage for cumulated time and call number
     :type timers: dict
     :return: decorated function or timer if given function is None
-    :rtype function or dict
+    :rtype: function or dict
 
     """
     if function:
@@ -151,7 +158,7 @@ def read_config(config_path):
         config_parser.read(config_path, encoding="utf-8")
     except configparser.MissingSectionHeaderError:
         # make sure there is always a DEFAULT section.
-        with open(config_path, 'r') as f:
+        with open(config_path, 'r', encoding='utf-8') as f:
             config_string = '[DEFAULT]\n' + f.read()
         config_parser.read_string(config_string)
     conf = OptimizerConfig()
@@ -222,7 +229,7 @@ def get_charging_time(trip1, trip2, args):
     :rtype: float
     """
     standing_time_min = (trip2.departure_time - trip1.arrival_time) / timedelta(minutes=1)
-    buffer_time = (get_buffer_time(trip1, args.default_buffer_time_opps) / timedelta(minutes=1))
+    buffer_time = get_buffer_time(trip1, args.default_buffer_time_opps)
     standing_time_min -= buffer_time
 
     if args.min_charging_time > standing_time_min:
@@ -231,7 +238,7 @@ def get_charging_time(trip1, trip2, args):
 
 
 def get_charging_start(trip1, args):
-    """ Returns the possible start time of charging.
+    """ Return the possible start time of charging.
 
     This function considers the buffer times before charging can take place
 
@@ -242,19 +249,8 @@ def get_charging_start(trip1, args):
     :return: First possible charging time as datetime object
     """
     buffer_time = get_buffer_time(trip1, args.default_buffer_time_opps)
-    return trip1.arrival_time+buffer_time
-
-
-def get_buffer_time(trip, default_buffer_time_opps):
-    """  Return the buffer time as timedelta object
-
-    :param trip: trip to be checked
-    :type trip: simba.trip.Trip
-    :param default_buffer_time_opps: the default buffer time at opps charging stations
-    :return: buffer time
-    :rtype: datetime.timedelta
-    """
-    return timedelta(minutes=get_buffer_time_util(trip, default_buffer_time_opps))
+    buffer_timedelta = timedelta(minutes=buffer_time)
+    return trip1.arrival_time + buffer_timedelta
 
 
 def get_index_by_time(scenario, search_time):
@@ -272,8 +268,8 @@ def get_index_by_time(scenario, search_time):
     return (search_time - scenario.start_time) // scenario.interval
 
 
-def get_rotation_soc_util(rot_id, schedule, scenario, soc_data: dict = None):
-    """Returns the soc time series with start and end index for a given rotation id.
+def get_rotation_soc(rot_id, schedule, scenario, soc_data: dict = None):
+    """ Return the SoC time series with start and end index for a given rotation ID.
 
     :param rot_id: rotation_id
     :type rot_id: str
@@ -294,39 +290,60 @@ def get_rotation_soc_util(rot_id, schedule, scenario, soc_data: dict = None):
     return scenario.vehicle_socs[rot.vehicle_id], rot_start_idx, rot_end_idx
 
 
-def get_delta_soc(soc_over_time_curve, soc, time_delta, optimizer: 'StationOptimizer'):
-    """Return expected soc lift for a given soc charging time series, start_soc and time_delta.
+def get_delta_soc(soc_over_time_curve, soc, duration_min: float):
+    """ Return expected SoC lift for a given SoC charging time series, start_soc and time_delta.
 
     :param soc_over_time_curve: Data with columns: time, soc and n rows
     :type soc_over_time_curve: np.array() with shape(n, 2)
     :param soc: start socs
     :type soc: float
-    :param time_delta: time of charging
-    :type time_delta: float
-    :param optimizer: optimizer object
-    :type optimizer: simba.station_optimizer.StationOptimizer
+    :param duration_min: duration of charging in minutes
+    :type duration_min: float
     :return: positive delta of the soc
     :rtype: float
     """
     # units for time_delta and time_curve are assumed to be the same, e.g. minutes
     # first element which is bigger than current soc
-    if time_delta == 0:
+
+    if duration_min <= 0:
         return 0
-    soc = max(min(optimizer.args.desired_soc_opps, soc), 0)
+    negative_soc = 0
+
+    # find time until vehicle soc is no longer negative, since the charging curve only defines
+    # socs between 0 and 1.
+    # when charging a negative soc, the charging power in the negative region is considered to
+    # be constant, with the power value of the soc at 0.
+    if soc < 0:
+        # keep track of the negative soc to add it later
+        negative_soc = -soc
+        try:
+            gradient = soc_over_time_curve[1, 1] - soc_over_time_curve[0, 1]
+        except IndexError:
+            # If no charge curve exists, i.e. less than 2 elements
+            return 0
+        charge_duration_till_0 = -soc / gradient
+        if charge_duration_till_0 > duration_min:
+            return duration_min * gradient
+        duration_min = duration_min - charge_duration_till_0
+        soc = 0
+
     idx = np.searchsorted(soc_over_time_curve[:, 1], soc, side='left')
     first_time, start_soc = soc_over_time_curve[idx, :]
-    second_time = first_time + time_delta
+    second_time = first_time + duration_min
     # catch out of bounds if time of charging end is bigger than table values
 
     if second_time >= soc_over_time_curve[-1, 0]:
         end_soc = soc_over_time_curve[-1, 1]
+        # this makes sure the battery is actually at 100%
+        start_soc = soc
     else:
         end_soc = soc_over_time_curve[soc_over_time_curve[:, 0] >= second_time][0, 1]
 
-    # make sure to limit delta soc to 1 if negative socs are given. They are possible during
-    # the optimization process but will be continuously raised until they are >0.
-    return min(optimizer.args.desired_soc_opps, optimizer.args.desired_soc_opps - start_soc,
-               end_soc - start_soc)
+    return end_soc - start_soc + negative_soc
+
+
+class InfiniteLoopException(Exception):
+    pass
 
 
 class SuboptimalSimulationException(Exception):
@@ -340,7 +357,7 @@ class AllCombinationsCheckedException(Exception):
 @time_it
 def evaluate(events: typing.Iterable[LowSocEvent],
              optimizer: 'StationOptimizer', **kwargs):
-    """Analyse stations for useful energy supply.
+    """ Analyse stations for useful energy supply.
 
     Energy supply is helpful if the minimal soc of an event is raised (up to a minimal soc
     (probably zero)). The supplied energy is approximated by  charging power, standing time at a
@@ -391,7 +408,10 @@ def evaluate(events: typing.Iterable[LowSocEvent],
             except IndexError:
                 standing_time_min = 0
 
-            pot_kwh = get_delta_soc(soc_over_time, soc, standing_time_min, optimizer) * e.capacity
+            desired_soc = optimizer.args.desired_soc_opps
+            soc = max(soc, 0)
+            d_soc = get_delta_soc(soc_over_time, soc, standing_time_min)
+            pot_kwh = min(d_soc, desired_soc) * e.capacity
 
             # potential is at max the minimum between the useful delta soc * capacity or the
             # energy provided by charging for the full standing time
@@ -410,10 +430,10 @@ def get_groups_from_events(events, impossible_stations=None, could_not_be_electr
                            optimizer=None):
     """ Create groups from events which need to be optimized together.
 
-    First it creates a simple list of station sets for single events. They are connected if they
-    share possible stations.
-    Electrified and non-electrifiable stations are ignored, i.e. will not show up as possible
-    station
+    First it creates a simple list of station sets for single events.
+    They are connected if they share possible stations.
+    Electrified and non-electrifiable stations are ignored,
+    i.e. will not show up as a possible station.
 
     :param events: events for a given state of a scenario
     :type events: list(simba.optimizer_util.LowSocEvent)
@@ -453,53 +473,119 @@ def get_groups_from_events(events, impossible_stations=None, could_not_be_electr
                     break
         else:
             if optimizer:
-                optimizer.logger.warning(
-                    'Did not find rotation %s in any subset of possible electrifiable stations',
-                    event.rotation.id)
+                optimizer.logger.warning(f"Rotation {event.rotation.id} has no possible "
+                                         "electrifiable stations and will be removed.")
                 # this event will not show up in an event_group.
                 # therefore it needs to be put into this set
             could_not_be_electrified.update([event.rotation.id])
 
     groups = list(zip(event_groups, station_subsets))
-    return sorted(groups, key=lambda x: len(x[1]))
+    # each event group should have events and stations. If not, something went wrong.
+    filtered_groups = list(filter(lambda x: len(x[0]) != 0 and len(x[1]) != 0, groups))
+    if len(filtered_groups) != len(groups):
+        if optimizer:
+            optimizer.logger.error("An event group has no possible electrifiable stations and "
+                                   "will not be optimized.")
+    return sorted(filtered_groups, key=lambda x: len(x[1]))
 
 
 def join_all_subsets(subsets):
-    """Return sets which are joined together if they have any intersections.
+    """ Return sets which are joined together if they have any intersections.
 
     :param subsets: sets to be joined
     :type subsets: iterable
     :return: joined subsets if they connect with other subsets in some way
     :rtype: list(set)
     """
-    joined_subset = True
-    while joined_subset:
-        joined_subset, subsets = join_subsets(subsets)
+
+    # create set of all stations in given subsets
+    all_stations = {station for subset in subsets for station in subset}
+    # make list from station set to have fixed order
+    all_stations_list = list(all_stations)
+
+    # create look-up-table from station name to index in all_stations_list
+    all_stations_index = dict()
+    for i, station in enumerate(all_stations_list):
+        all_stations_index[station] = i
+
+    # station_array: boolean matrix of dimension n*m with n being the number of unique stations and
+    # m the amount of subsets. If a station is part of the subset it will be set to True
+    # this will turn the subsets
+    # Sub_s_0={Station4}
+    # Sub_s_1={Station0}
+    # Sub_s_2={Station1}
+    # Sub_s_3={Station0,Station2}
+    # Sub_s_4={Station3}
+    # into
+    #          Sub_s_0  Sub_s_1  Sub_s_2  Sub_s_3  Sub_s_4
+    # Station0 False    True     False    True     False
+    # Station1 False    False    True     False    False
+    # Station2 False    False    False    True     False
+    # Station3 False    False    False    False    True
+    # Station4 True     False    False    False    False
+    station_array = np.zeros((len(all_stations), len(subsets))).astype(bool)
+    for i, subset in enumerate(subsets):
+        for station in subset:
+            station_array[all_stations_index[station], i] = True
+
+    # Traverse the matrix row wise station by station.
+    # Columns which share a True value in this row are merged to a single one.
+    # All rows (!) of these columns  are merged into a new subset.
+    # This translates to subsets sharing the same station.
+
+    # The result cannot contain any overlapping columns / sets
+    #          Sub_s_0  Sub_s_1  Sub_s_2  Sub_s_3  Sub_s_4
+    # Station0 False    True     False    True     False
+
+    # returns the indicies 1 and 3. the columns are merged.
+    #          Sub_s_0  Sub_s_1/Sub_s_3  Sub_s_2  Sub_s_4
+    # Station0 False    True             False    False
+    # Station1 False    False            True     False
+    # Station2 False    True             False     False
+    # Station3 False    False            False     True
+    # Station4 True     False            False    False
+
+    # The other rows are compared as well but share no True values and are not changed.
+    # Afterwards, all rows contain only a single True value. These are the final merged subsets.
+    # In the example, Sub_s_0 contains Station4, Sub_s_1/3 contains Station0 and Station2 and so on.
+    rows = station_array.shape[0]
+    for row in range(rows):
+        indicies = np.where(station_array[row, :])[0]
+        if len(indicies) > 1:
+            station_array[:, indicies[0]] = np.sum(station_array[:, indicies], axis=1).astype(bool)
+            station_array = np.delete(station_array, indicies[1:], axis=1)
+
+    # Translate the matrix back to subsets
+    columns = station_array.shape[1]
+    subsets = []
+    for column in range(columns):
+        subset = set()
+        indicies = np.where(station_array[:, column])[0]
+        for ind in indicies:
+            subset.add(all_stations_list[ind])
+        subsets.append(subset)
     return subsets
 
 
-def join_subsets(subsets: typing.Iterable[set]):
-    """ Run through subsets and return their union, if they have an intersection.
+def toolbox_from_pickle(sched_name, scen_name, args_name):
+    """ Load the 3 files from pickle.
 
-    Run through every subset and check with every other subset if there is an intersection
-    If an intersection is found, the subsets are joined and returned with a boolean of True.
-    If no intersection is found over all subsets False is returned which will cancel the outer
-    call in join_all_subsets
-
-    :param subsets: sets to be joined
-    :type subsets: iterable
-    :return: status if joining subsets is finished and the current list of connected subsets
-    :rtype: (bool,list(set))
+    :param sched_name: name of schedule file
+    :type sched_name: str
+    :param scen_name: name of scenario file
+    :type scen_name: str
+    :param args_name: name of args file
+    :type args_name: str
+    :return: schedule, scenario and arguments
+    :rtype: (simba.schedule.Schedule, spice_ev.Scenario, Namespace)
     """
-    subsets = [s.copy() for s in subsets]
-    for i in range(len(subsets)):
-        for ii in range(i+1, len(subsets)):
-            intersec = subsets[i].intersection(subsets[ii])
-            if len(intersec) > 0:
-                subsets[i] = subsets[i].union(subsets[ii])
-                subsets.remove(subsets[ii])
-                return True, subsets
-    return False, subsets
+    with open(args_name, "rb") as file:
+        args = pickle.load(file)
+    with open(scen_name, "rb") as file:
+        scen = pickle.load(file)
+    with open(sched_name, "rb") as file:
+        sched = pickle.load(file)
+    return sched, scen, args
 
 
 def toolbox_to_pickle(name, sched, scen, args):
@@ -528,23 +614,23 @@ def toolbox_to_pickle(name, sched, scen, args):
 
 
 def charging_curve_to_soc_over_time(
-        charging_curve, capacity, args, max_charge_from_grid=float('inf'), time_step=0.1,
-        efficiency=1, eps=0.001, logger: logging.Logger = None):
-    """Create charging curve as np.array with soc and time as two columns of an np.array.
+        charging_curve, capacity, final_value: float, max_charge_from_grid=float('inf'),
+        time_step=0.1, efficiency=1, eps=0.001, logger: logging.Logger = None):
+    """ Create charging curve as np.array with soc and time as two columns of an np.array.
 
     :param logger: logger
     :type logger: logging.Logger
     :param eps: smallest normalized power, where charging curve will stop
     :type eps: float
-    :param charging_curve: the charging curve with power over soc
+    :param charging_curve: the charging curve with power in kw over soc
     :type charging_curve: list(float,float)
-    :param capacity: capacity of the vehicle
+    :param capacity: capacity of the vehicle in kwh
     :type capacity: float
-    :param args: simulation arguments
-    :type args: Namespace
-    :param max_charge_from_grid: maximum amount of charge from grid / connector
+    :param final_value: soc value to which the curve is simulated
+    :type final_value: float
+    :param max_charge_from_grid: maximum amount of charge from grid / connector in kw
     :type max_charge_from_grid: float
-    :param time_step: time step for simulation
+    :param time_step: time step in minutes for simulation
     :type time_step: float
     :param efficiency: efficiency of charging
     :type efficiency: float
@@ -557,7 +643,6 @@ def charging_curve_to_soc_over_time(
     charge_time = 0
     socs = []
     times = []
-    final_value = args.desired_soc_opps
 
     starting_power = min(
         np.interp(soc, normalized_curve[:, 0], normalized_curve[:, 1]),
@@ -567,7 +652,7 @@ def charging_curve_to_soc_over_time(
         socs.append(soc)
         return np.array((times, socs)).T
 
-    while soc < args.desired_soc_opps:
+    while soc < final_value:
         times.append(charge_time)
         socs.append(soc)
         power1 = min(
@@ -586,8 +671,8 @@ def charging_curve_to_soc_over_time(
                 warnings.warn("charging_curve_to_soc_over_time stopped early")
                 logger.warning(
                     "charging_curve_to_soc_over_time stopped early, because the charging power of "
-                    "%s was to low for eps: %s at an soc of %s an a desired soc of %s", power, eps,
-                    soc, args.desired_soc_opps)
+                    "%s was to low for eps: %s at an soc of %s and a desired soc of %s", power, eps,
+                    soc, final_value)
             final_value = soc
             break
     # fill the soc completely in last time step
@@ -597,7 +682,7 @@ def charging_curve_to_soc_over_time(
 
 
 def get_missing_energy(events, min_soc=0):
-    """Sum up all the missing energies of the given events.
+    """ Sum up all the missing energies of the given events.
 
     :param events: events to be checked
     :type events: list(simba.optimizer_util.LowSocEvent)
@@ -615,7 +700,7 @@ def get_missing_energy(events, min_soc=0):
 
 
 def stations_hash(stations_set):
-    """ Create a simple str as hash for a set of stations.
+    """ Create a simple string as hash for a set of stations.
 
     :param stations_set: stations to be hashed
     :type stations_set: set
@@ -626,7 +711,7 @@ def stations_hash(stations_set):
 
 
 def recursive_dict_updater(dict_to_change, filter_function, modify_function):
-    """ Change nested dictionary in place given a filter and modify function
+    """ Change nested dictionary in place given a filter and modify function.
 
     Goes through all values of a dictionary and modifies the value when filter criteria are met.
     The filter criteria are checked by the filter_function which gets the arguments key and value.
@@ -681,32 +766,12 @@ def combination_generator(iterable: typing.Iterable, amount: int):
                 yield [item] + gen
 
 
-def toolbox_from_pickle(sched_name, scen_name, args_name):
-    """Load the 3 files from pickle.
-
-    :param sched_name: name of schedule file
-    :type sched_name: str
-    :param scen_name: name of scenario file
-    :type scen_name: str
-    :param args_name: name of args file
-    :type args_name: str
-    :return: schedule, scenario and arguments
-    :rtype: (simba.schedule.Schedule, spice_ev.Scenario, Namespace)
-    """
-    with open(args_name, "rb") as file:
-        args = pickle.load(file)
-    with open(scen_name, "rb") as file:
-        scen = pickle.load(file)
-    with open(sched_name, "rb") as file:
-        sched = pickle.load(file)
-    return sched, scen, args
-
-
 def combs_unordered_no_putting_back(n: int, k: int):
     """ Return number of combinations of choosing an amount, without putting back and without order.
 
-    Returns amount of combinations for pulling k elements out of n, without putting elements
-    back or looking at the order. This is equal to n over k
+    Returns amount of combinations for pulling k elements out of n,
+    without putting elements back or looking at the order. This is equal to n over k.
+
     :param n: number of elements to chose from
     :type n: int
     :param k: number of elements in the sub group of picked elements
@@ -722,7 +787,7 @@ def combs_unordered_no_putting_back(n: int, k: int):
 
 
 def run_schedule(sched, args, electrified_stations=None):
-    """Run a given schedule and electrify stations if need be.
+    """ Run a given schedule and electrify stations if needed.
 
     :param sched: schedule object
     :type sched: simba.schedule.Schedule
@@ -736,8 +801,7 @@ def run_schedule(sched, args, electrified_stations=None):
     """
     sched_copy = copy(sched)
     sched_copy.stations = electrified_stations
-    sched_copy, new_scen = preprocess_schedule(sched_copy, args,
-                                               electrified_stations=electrified_stations)
+    new_scen = sched_copy.generate_scenario(args)
 
     with warnings.catch_warnings():
         warnings.simplefilter('ignore', UserWarning)
@@ -752,34 +816,8 @@ def run_schedule(sched, args, electrified_stations=None):
     return sched_copy, new_scen
 
 
-def preprocess_schedule(sched, args, electrified_stations=None):
-    """ Calculate consumption, set electrified stations and assign vehicles.
-
-    Prepare the schedule by calculating consumption, setting electrified stations and assigning
-    vehicles
-
-    :param sched: schedule containing the rotations
-    :type sched: simba.schedule.Schedule
-    :param args: arguments for simulation
-    :type args: Namespace
-    :param electrified_stations: stations to be electrified
-    :type electrified_stations: dict
-    :return: schedule and scenario to be simulated
-    :rtype: (simba.schedule.Schedule, spice_ev.Scenario)
-    """
-    Trip.consumption = Consumption(
-        sched.vehicle_types, outside_temperatures=args.outside_temperature_over_day_path,
-        level_of_loading_over_day=args.level_of_loading_over_day_path)
-
-    sched.stations = electrified_stations
-    sched.calculate_consumption()
-    sched.assign_vehicles()
-
-    return sched, sched.generate_scenario(args)
-
-
 def get_time(start=[]):
-    """Prints the time which passed since the first function call.
+    """ Prints the time which passed since the first function call.
 
     :param start: start time
     :type start: list(float)
@@ -836,9 +874,9 @@ def plot_rot(rot_id, sched, scen, axis=None, rot_only=True):
     :param rot_only: show only the rot or the whole vehicle socs
     :type rot_only: bool
     :return: axis of the plot
-    :rtype matplotlib.axes
+    :rtype: matplotlib.axes
     """
-    soc, start, end = get_rotation_soc_util(rot_id, sched, scen)
+    soc, start, end = get_rotation_soc(rot_id, sched, scen)
     if not rot_only:
         start = 0
         end = -1
