@@ -206,10 +206,9 @@ def run_optimization(conf: opt_util.OptimizerConfig, sched=None, scen=None, args
         "These rotations could not be electrified: %s",
         optimizer.could_not_be_electrified,
     )
-    
-    if conf.post_opt_station_pruning:
-        ele_station_set, ele_stations= optimizer.prune_stations(ele_station_set)
 
+    if conf.post_opt_station_pruning:
+        ele_station_set, ele_stations = optimizer.prune_stations(ele_station_set)
 
     # remove none values from socs in the vehicle_socs so timeseries_calc can work
     optimizer.replace_socs_from_none_to_value()
