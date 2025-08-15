@@ -739,6 +739,10 @@ class StationOptimizer:
         node_name = opt_util.stations_hash(self.electrified_station_set)
         self.current_tree[node_name]["viable"] = False
         raise opt_util.SuboptimalSimulationException
+    
+
+
+
 
     def set_battery_and_charging_curves(self):
         """ Set battery and charging curves from config. """
@@ -1199,6 +1203,48 @@ class StationOptimizer:
         soc = np.hstack((soc_pre, soc))
         return soc
 
+    def prune_stations(self, electrified_station_set):
+        '''Prune electrified stations not needed for full electrification
+
+        This uses a single greedy approach, iterating over stations one by one, 
+        removing stations without leading to low_socs.
+        If the removal of a station leads to low_socs the station is added again and not removed again.
+        '''
+        # These stations were given in the config to be electrified or where electrified before
+        # optimizing.
+        # They are not removed, since its assumed, they are "set in stone"
+        pre_electrified_set = self.config.inclusion_stations.union(self.base_schedule.stations.keys())
+
+        # Without the must_include_stations the scenario can not be fully electrified. 
+        # This was checked earlier
+        not_removable_stations = pre_electrified_set.union(self.must_include_set)
+
+        removable_stations = electrified_station_set.difference(not_removable_stations)
+        self.logger.log(msg=f"Searching for stations not needed for a full electrification scenario",
+                        level=100)
+        self.logger.log(msg=f"Deelectrifying {len(removable_stations)} stations one by one.",
+                        level=100)
+        removed_stations = []
+        for station in sorted(removable_stations):
+            electrified_station_set = electrified_station_set.difference([station])
+            electrified_stations = not_removable_stations.union(electrified_station_set)
+            vehicle_socs = self.timeseries_calc(electrified_stations)
+            min_soc = 1
+            for rot in self.schedule.rotations:
+                soc, start, end = self.get_rotation_soc(rot, vehicle_socs)
+                soc_min = np.min(soc[start:end])
+                min_soc = min(min_soc, soc_min) 
+                if soc_min < self.config.min_soc:
+                    break
+            if min_soc < self.config.min_soc:
+                    self.logger.info("%s , can't be deelectrified. SoC would drop to: %s", station, min_soc)
+                    electrified_station_set.add(station)
+                    continue
+            self.logger.info("%s can be removed. SoC drops to: %s", station, min_soc)
+            self.electrified_station_set.remove(station)
+            del self.electrified_stations[station]
+        return self.electrified_station_set, self.electrified_stations
+    
 
 def get_min_soc_and_index(soc_idx, mask):
     """ Returns the minimal SoC and the corresponding index of a masked soc_idx.

@@ -94,6 +94,7 @@ class OptimizerConfig:
         self.eps = 0.0001
 
         self.remove_impossible_rotations = False
+        self.post_opt_station_pruning = False
         self.node_choice = "step-by-step"
         self.max_brute_loop = 20
         self.run_only_neg = True
