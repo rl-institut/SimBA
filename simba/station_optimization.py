@@ -9,9 +9,6 @@ import simba.station_optimizer
 from simba.station_optimizer import opt_util
 from spice_ev.report import generate_soc_timeseries
 
-# TODO: can this be removed?
-config = opt_util.OptimizerConfig()
-
 
 def setup_logger(conf):
     """Setup file and stream logging by config and args arguments.
