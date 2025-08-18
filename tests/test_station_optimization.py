@@ -74,9 +74,7 @@ class TestStationOptimization:
         # the replacement, to keep format
         src_text = re.sub(
             r"(vehicle_types_path\s=.*)(:=\r\n|\r|\n)",
-            "vehicle_types_path = " + vehicles_dest_str + r"\g<2>",
-            src_text,
-        )
+            "vehicle_types_path = " + vehicles_dest_str + r"\g<2>", src_text)
 
         # Use the default electrified stations from example folder but change some values
         stations_path = example_root / "electrified_stations/electrified_stations.json"
@@ -97,20 +95,14 @@ class TestStationOptimization:
 
         # remove escape characters from string. \1 refers to the replacement of the first group
         # in the regex expression, i.e. not replacing the newline characters
-        electrified_stations_dest_str = str(electrified_stations_dest).replace(
-            "\\", "/"
-        )
+        electrified_stations_dest_str = str(electrified_stations_dest).replace("\\", "/")
         src_text = re.sub(
             r"(electrified_stations\s=.*)(:=\r\n|\r|\n)",
-            "electrified_stations = " + electrified_stations_dest_str + r"\g<2>",
-            src_text,
-        )
+            "electrified_stations = " + electrified_stations_dest_str + r"\g<2>", src_text,)
 
         src_text = re.sub(
             r"(preferred_charging_type\s=.*)(:=\r\n|\r|\n)",
-            "preferred_charging_type = oppb" r"\g<2>",
-            src_text,
-        )
+            "preferred_charging_type = oppb" r"\g<2>", src_text)
 
         # change config file with adjusted temporary paths to vehicles and electrified stations
         dst = tmp_path / "simba.cfg"
@@ -189,9 +181,7 @@ class TestStationOptimization:
         vehicle_socs_fast = sopt.timeseries_calc(list(sched.stations.keys()))
         for vehicle, socs in scen.vehicle_socs.items():
             # Optimizer and SpiceEV should result in approximately the same socs
-            assert vehicle_socs_fast[vehicle][-1] == pytest.approx(
-                socs[-1], 0.01, abs=0.01
-            )
+            assert vehicle_socs_fast[vehicle][-1] == pytest.approx(socs[-1], 0.01, abs=0.01)
 
         events = sopt.get_low_soc_events(soc_data=vehicle_socs_fast, rel_soc=True)
         # The scenario was generated to create a single low soc event, i.e. lower than 0
@@ -229,8 +219,7 @@ class TestStationOptimization:
         # Since the soc stays at 1 for longer, the start index should change
         vehicle_socs_increased = {
             vehicle: [min(soc + abs(e1.min_soc) + new_low_soc, 1) for soc in socs]
-            for vehicle, socs in scen.vehicle_socs.items()
-        }
+            for vehicle, socs in scen.vehicle_socs.items()}
         events = sopt.get_low_soc_events(soc_data=vehicle_socs_increased, rel_soc=True)
         e3 = events[0]
         assert e1.start_idx != e3.start_idx
@@ -239,11 +228,9 @@ class TestStationOptimization:
 
         vehicle_socs_more_increased = {
             vehicle: [min(soc + abs(e1.min_soc) + 0.1, 1) for soc in socs]
-            for vehicle, socs in scen.vehicle_socs.items()
-        }
+            for vehicle, socs in scen.vehicle_socs.items()}
         events = sopt.get_low_soc_events(
-            soc_data=vehicle_socs_more_increased, rel_soc=True
-        )
+            soc_data=vehicle_socs_more_increased, rel_soc=True)
         assert len(events) == 0
 
     def test_basic_optimization(self):
@@ -278,9 +265,7 @@ class TestStationOptimization:
         amount_rotations = len(sched_impossible.rotations)
         conf.remove_impossible_rotations = True
         conf.run_only_oppb = False
-        opt_sched, opt_scen = run_optimization(
-            conf, sched=sched_impossible, scen=scen, args=args
-        )
+        opt_sched, opt_scen = run_optimization(conf, sched=sched_impossible, scen=scen, args=args)
         assert len(opt_sched.rotations) == amount_rotations
 
         # set a single rotation to depot
@@ -290,26 +275,18 @@ class TestStationOptimization:
 
         amount_rotations = len(sched.rotations)
         conf.run_only_oppb = True
-        opt_sched, opt_scen = run_optimization(
-            conf, sched=deepcopy(sched), scen=scen, args=args
-        )
+        opt_sched, opt_scen = run_optimization(conf, sched=deepcopy(sched), scen=scen, args=args)
         assert len(opt_sched.rotations) == amount_rotations
 
         conf.run_only_oppb = False
-        opt_sched, opt_scen = run_optimization(
-            conf, sched=deepcopy(sched), scen=scen, args=args
-        )
+        opt_sched, opt_scen = run_optimization(conf, sched=deepcopy(sched), scen=scen, args=args)
         assert len(opt_sched.rotations) == amount_rotations
 
-    @pytest.mark.parametrize(
-        "solver,node_choice",
-        [
-            ("quick", "step-by-step"),
-            ("quick", "brute"),
-            ("spiceev", "step-by-step"),
-            ("spiceev", "brute"),
-        ],
-    )
+    @pytest.mark.parametrize("solver,node_choice",
+                             [("quick", "step-by-step"),
+                              ("quick", "brute"),
+                              ("spiceev", "step-by-step"),
+                              ("spiceev", "brute")])
     def test_deep_optimization(self, solver, node_choice):
         trips_file_name = "trips_for_optimizer_deep.csv"
         data_container, args = self.generate_datacontainer_args(trips_file_name)
@@ -384,9 +361,7 @@ class TestStationOptimization:
             for node_choice in node_choices:
                 conf.solver = solver
                 conf.node_choice = node_choice
-                opt_sched, opt_scen = run_optimization(
-                    conf, sched=sched, scen=scen, args=args
-                )
+                opt_sched, opt_scen = run_optimization(conf, sched=sched, scen=scen, args=args)
                 neg_rots = opt_sched.get_negative_rotations(opt_scen)
                 assert len(neg_rots) == 0
                 if opt_stat is None:
@@ -416,10 +391,8 @@ class TestStationOptimization:
         conf.solver = "quick"
         conf.node_choice = "step-by-step"
         opt_sched, opt_scen = run_optimization(conf, sched=sched, scen=scen, args=args)
-        assert (
-            "must stations {'Station-3', 'Station-2'}" in caplog.text
-            or "must stations {'Station-2', 'Station-3'}" in caplog.text
-        )
+        assert ("must stations {'Station-3', 'Station-2'}" in caplog.text
+                or "must stations {'Station-2', 'Station-3'}" in caplog.text)
 
 
 def adjust_vehicle_file(source, capacity=None, mileage=0):

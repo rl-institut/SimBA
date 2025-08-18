@@ -36,8 +36,7 @@ def setup_logger(conf):
 
     # and logging to a file which is put in the folder with the other optimizer results
     file_handler_this_opt = logging.FileHandler(
-        Path(conf.optimizer_output_dir) / Path("optimizer.log")
-    )
+        Path(conf.optimizer_output_dir) / Path("optimizer.log"))
     file_handler_this_opt.setLevel(conf.debug_level)
 
     formatter = logging.Formatter("%(asctime)s:%(message)s", "%m%d %H%M%S")
@@ -94,10 +93,8 @@ def run_optimization(conf: opt_util.OptimizerConfig, sched=None, scen=None, args
     # load pickle files if they are given in the optimizer.config
     if conf.schedule:
         # either all optional arguments are given or none are
-        error_message = (
-            "To optimize from .pickle files, schedule, scenario and arguments need to "
-            "be provided together"
-        )
+        error_message = ("To optimize from .pickle files, schedule, scenario and arguments need to "
+                         "be provided together")
         assert conf.scenario, error_message
         assert conf.args, error_message
         sched, scen, args = opt_util.toolbox_from_pickle(
@@ -114,12 +111,8 @@ def run_optimization(conf: opt_util.OptimizerConfig, sched=None, scen=None, args
     logger = setup_logger(conf)
 
     if args.desired_soc_deps != 1 and conf.solver == "quick":
-        logger.error(
-            "Fast calculation is not yet optimized for desired socs different to 1"
-        )
-    optimizer = simba.station_optimizer.StationOptimizer(
-        sched, scen, args, conf, logger
-    )
+        logger.error("Fast calculation is not yet optimized for desired socs different to 1")
+    optimizer = simba.station_optimizer.StationOptimizer(sched, scen, args, conf, logger)
 
     # set battery and charging curves through config file
     optimizer.set_battery_and_charging_curves()
@@ -155,8 +148,7 @@ def run_optimization(conf: opt_util.OptimizerConfig, sched=None, scen=None, args
 
     # Remove already electrified stations from possible stations
     optimizer.not_possible_stations = set(optimizer.electrified_stations.keys()).union(
-        optimizer.not_possible_stations
-    )
+        optimizer.not_possible_stations)
 
     # all stations electrified: are there still negative rotations?
     if conf.remove_impossible_rotations:
@@ -168,13 +160,10 @@ def run_optimization(conf: opt_util.OptimizerConfig, sched=None, scen=None, args
             if r not in optimizer.config.exclusion_rots
         }
 
-        logger.warning(
-            f"{len(neg_rots)} negative rotations {neg_rots} were removed from schedule "
-            "because they cannot be electrified"
-        )
-        assert (
-            len(optimizer.schedule.rotations) > 0
-        ), "Schedule cannot be optimized, since rotations cannot be electrified."
+        logger.warning(f"{len(neg_rots)} negative rotations {neg_rots} were removed from schedule "
+                       "because they cannot be electrified")
+        assert len(optimizer.schedule.rotations) > 0, (
+           "Schedule cannot be optimized, since rotations cannot be electrified.")
 
     # if the whole network can not be fully electrified if even just a single station is not
     # electrified, this station must be included in a fully electrified network
@@ -199,10 +188,7 @@ def run_optimization(conf: opt_util.OptimizerConfig, sched=None, scen=None, args
     ele_station_set = ele_station_set.union(must_include_set)
     logger.debug("%s electrified stations : %s", len(ele_station_set), ele_station_set)
     logger.debug("%s total stations", len(ele_stations))
-    logger.debug(
-        "These rotations could not be electrified: %s",
-        optimizer.could_not_be_electrified,
-    )
+    logger.debug("These rotations could not be electrified: %s", optimizer.could_not_be_electrified)
 
     if conf.post_opt_station_pruning:
         ele_station_set, ele_stations = optimizer.prune_stations(ele_station_set)
@@ -227,10 +213,7 @@ def run_optimization(conf: opt_util.OptimizerConfig, sched=None, scen=None, args
     with open(new_ele_stations_path, "w", encoding="utf-8") as file:
         output_dict = {key: value for key, value in ele_stations.items()}
         opt_util.recursive_dict_updater(
-            output_dict,
-            lambda key, value: isinstance(value, Path),
-            lambda key, value: str(value),
-        )
+            output_dict, lambda key, value: isinstance(value, Path), lambda key, value: str(value))
         json.dump(output_dict, file, ensure_ascii=False, indent=2)
 
     # Calculation with SpiceEV is more accurate and will show if the optimization is viable or not
@@ -245,16 +228,10 @@ def run_optimization(conf: opt_util.OptimizerConfig, sched=None, scen=None, args
     # remove exclusion since internally these would not be simulated
     optimizer.config.exclusion_rots = set()
     _, __ = optimizer.preprocessing_scenario(
-        electrified_stations=ele_stations, run_only_neg=False
-    )
+        electrified_stations=ele_stations, run_only_neg=False)
     neg_rotations = optimizer.schedule.get_negative_rotations(optimizer.scenario)
     if len(neg_rotations) > 0:
-        logger.log(
-            msg=f"Still {len(neg_rotations)} negative rotations: {neg_rotations}",
-            level=39,
-        )
-    logger.log(
-        msg="Station optimization finished after " + opt_util.get_time(), level=39
-    )
+        logger.log(msg=f"Still {len(neg_rotations)} negative rotations: {neg_rotations}", level=39)
+    logger.log(msg="Station optimization finished after " + opt_util.get_time(), level=39)
 
     return optimizer.schedule, optimizer.scenario
