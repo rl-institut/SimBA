@@ -13,6 +13,7 @@
             "csv_file": "data/examples/energy_system/example_pv_feedin.csv",  // path to feedin.csv
             "start_time": "2022-03-07 00:00:00",  // optional: start time as YYYY-MM-DD hh:mm:ss (defaults to first timestamp in CSV)
             "step_duration_s": 3600,  // timestep in seconds
+            "stop_time": "2022-03-08 12:00:00",  // optional: last time as YYYY-MM-DD hh:mm:ss (defaults to all values in CSV)
             "column": "Feed-in Total (kW)",  // column name in .csv
             "nominal_power": 10,  // nominal power in kW, needed for calculation of PV remuneration and cost of feed-in
             "factor": 1  // factor to multiply column values, eg 0.001 for conversion from W to kW
@@ -21,6 +22,7 @@
             "csv_file": "data/examples/energy_system/example_external_load.csv",  // path to external_load.csv
             "start_time": "2022-03-07 00:00:00",  // optional: start time as YYYY-MM-DD hh:mm:ss (defaults to first timestamp in CSV)
             "step_duration_s": 3600,  // timestep in seconds
+            "stop_time": "2022-03-08 12:00:00",  // optional: last time as YYYY-MM-DD hh:mm:ss (defaults to all values in CSV)
             "column": "External Load (kW)",  // column name in .csv
             "factor": 2  // factor to multiply column values, eg 0.001 for conversion from W to kW
         },
