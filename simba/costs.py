@@ -134,16 +134,16 @@ class Costs:
         :return: Unit associated with the key
         :rtype: str
         """
-        if "power" in key:
-            return "kW"
+        if "annual" in key:
+            return "€/year"
         elif "station_type" == key:
             return "[-]"
         elif "maximum Nr charging stations" == key:
             return "[-]"
         elif "total_km_per_year" == key:
             return "km/year"
-        elif "annual" in key:
-            return "€/year"
+        elif "power" in key:
+            return "kW"
         elif "per_km" in key:
             return "€/km"
         elif "kWh" in key:
