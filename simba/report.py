@@ -704,6 +704,17 @@ def plot_gc_power_timeseries(extended_plots_path, scenario, schedule, args):
                         start_idx = i
 
         ax.legend()  # fig.legend places legend outside of plot
+        # legend might be behind twin plots, so adjust z-order
+        # since this affects visibility, hide original axis frame
+        if has_battery_column:
+            ax.set_zorder(1)
+            ax.set_frame_on(False)
+            twin_bat.set_frame_on(True)
+        if has_prices:
+            ax.set_zorder(1)
+            ax.set_frame_on(False)
+            twin_price.set_frame_on(True)
+
         # plt.xticks(rotation=30)
         ax.set_ylabel("Power [kW]")
         ax.set_title(f"Power: {gcID}")
