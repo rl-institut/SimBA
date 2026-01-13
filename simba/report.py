@@ -580,6 +580,7 @@ def plot_gc_power_timeseries(extended_plots_path, scenario, schedule, args):
     """
     for gcID, gc in scenario.components.grid_connectors.items():
         fig, ax = plt.subplots()
+        # fig, ax = plt.subplots(figsize=(9, 4.8))  # For legends outside plot
 
         agg_ts = aggregate_timeseries(scenario, gcID)
         headers = [
@@ -703,7 +704,8 @@ def plot_gc_power_timeseries(extended_plots_path, scenario, schedule, args):
                             label=label, facecolor=color, alpha=0.2)
                         start_idx = i
 
-        ax.legend()  # fig.legend places legend outside of plot
+        ax.legend()
+        # ax.legend(loc='center left', bbox_to_anchor=(1.2, 0.5))  # legend outside of plot
         # legend might be behind twin plots, so adjust z-order
         # since this affects visibility, hide original axis frame
         if has_battery_column:
