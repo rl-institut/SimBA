@@ -605,7 +605,7 @@ def plot_gc_power_timeseries(extended_plots_path, scenario, schedule, args):
         ]
         # for stations simulated with balanced market, plot price as well
         station = schedule.stations[gcID]
-        plot_price = vars(args).get(f"strategy_{station["type"]}") == "balanced_market"
+        plot_price = vars(args).get(f"strategy_{station['type']}") == "balanced_market"
         if plot_price:
             headers.append("price [ct/kWh]")
 
