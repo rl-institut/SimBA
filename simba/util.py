@@ -11,6 +11,8 @@ from spice_ev.costs import COST_CALCULATION
 from spice_ev.strategy import STRATEGIES
 from spice_ev.util import set_options_from_config
 
+from simba.translate import set_language
+
 
 def get_git_revision_hash() -> str:
     return subprocess.check_output(['git', 'rev-parse', 'HEAD']).decode('ascii').strip()
@@ -454,6 +456,9 @@ def get_args():
     if not isinstance(args.mode, list):
         args.mode = [args.mode]
 
+    # set translation language
+    set_language(args.plot_language)
+
     # check mandatory arguments
     if not vars(args).get("load_pickle_path"):
         mandatory_arguments = ["schedule_path", "electrified_stations_path"]
@@ -522,6 +527,8 @@ def get_parser():
                         help='show plots for users to view in "report" mode')
     parser.add_argument('--extended-output-plots', action='store_true',
                         help='show extended plots')
+    parser.add_argument('--plot-language', choices=['en', 'de'], default='en',
+                        help='set extended plot output language')
     parser.add_argument('--propagate-mode-errors', action='store_true',
                         help='Re-raise errors instead of continuing during simulation modes')
     parser.add_argument('--create-scenario-file', help='Write scenario.json to file')
