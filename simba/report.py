@@ -479,6 +479,7 @@ def plot_distance_per_rotation_distribution(extended_plots_path, schedule):
     ax.legend()
     plt.tight_layout()
     plt.savefig(extended_plots_path / "distribution_distance.png", dpi=DPI)
+    plt.savefig(extended_plots_path / "distribution_distance.pdf")
     plt.close()
 
 
@@ -508,7 +509,8 @@ def plot_consumption_per_rotation_distribution(extended_plots_path, schedule):
     ax.set_title(_("Distribution of energy consumption of rotations per vehicle type"))
     ax.legend()
     plt.tight_layout()
-    plt.savefig(extended_plots_path / "distribution_consumption", dpi=DPI)
+    plt.savefig(extended_plots_path / "distribution_consumption.png", dpi=DPI)
+    plt.savefig(extended_plots_path / "distribution_consumption.pdf")
     plt.close()
 
 
@@ -575,7 +577,8 @@ def plot_charge_type_distribution(extended_plots_path, scenario, schedule, args)
     ax.yaxis.get_major_locator().set_params(integer=True)
     ax.legend([_("successful rotations"), _("negative rotations")])
     ax.set_title(_("Feasibility of rotations per charging type"))
-    plt.savefig(extended_plots_path / "charge_types", dpi=DPI)
+    plt.savefig(extended_plots_path / "charge_types.png", dpi=DPI)
+    plt.savefig(extended_plots_path / "charge_types.pdf")
     plt.close()
 
 
@@ -592,7 +595,8 @@ def plot_gc_power_timeseries(extended_plots_path, scenario, schedule, args):
     :type args: argparse.Namespace
     """
     for gcID, gc in scenario.components.grid_connectors.items():
-        fig, ax = plt.subplots()
+        # fig, ax = plt.subplots()
+        fig, ax = plt.subplots(figsize=(9, 4.8))  # For legends outside plot
 
         agg_ts = aggregate_timeseries(scenario, gcID)
         headers = [
@@ -716,7 +720,19 @@ def plot_gc_power_timeseries(extended_plots_path, scenario, schedule, args):
                             label=label, facecolor=color, alpha=0.2)
                         start_idx = i
 
-        ax.legend()  # fig.legend places legend outside of plot
+        # ax.legend()
+        ax.legend(loc='center left', bbox_to_anchor=(1.2, 0.5))  # legend outside of plot
+        # legend might be behind twin plots, so adjust z-order
+        # since this affects visibility, hide original axis frame
+        if has_battery_column:
+            ax.set_zorder(1)
+            ax.set_frame_on(False)
+            twin_bat.set_frame_on(True)
+        if has_prices:
+            ax.set_zorder(1)
+            ax.set_frame_on(False)
+            twin_price.set_frame_on(True)
+
         # plt.xticks(rotation=30)
         ax.set_ylabel(_("Power") + " [kW]")
         ax.set_title(_("Power") + f": {gcID}")
@@ -729,6 +745,7 @@ def plot_gc_power_timeseries(extended_plots_path, scenario, schedule, args):
         ax.tick_params(axis="x", rotation=30)
         plt.tight_layout()
         plt.savefig(extended_plots_path / f"{sanitize(gcID)}_power_overview.png", dpi=DPI)
+        plt.savefig(extended_plots_path / f"{sanitize(gcID)}_power_overview.pdf")
         plt.close(fig)
 
 
@@ -807,8 +824,8 @@ def plot_vehicle_services(schedule, output_path, args):
                   ncol=len(handles)//2+1, prop={"size": 7})
         fig.tight_layout()
         # PDF so Block names stay readable
-        fig.savefig(output_path_folder / f"{sanitize(depot)}_vehicle_services.pdf")
         fig.savefig(output_path_folder / f"{sanitize(depot)}_vehicle_services.png", dpi=DPI)
+        fig.savefig(output_path_folder / f"{sanitize(depot)}_vehicle_services.pdf")
         plt.close(fig)
 
 
@@ -872,8 +889,8 @@ def plot_blocks_dense(schedule, output_path, args):
 
         fig.tight_layout()
         # PDF so Block names stay readable
-        fig.savefig(output_path_folder / f"{sanitize(depot)}_block_distribution.pdf")
         fig.savefig(output_path_folder / f"{sanitize(depot)}_block_distribution.png", dpi=DPI)
+        fig.savefig(output_path_folder / f"{sanitize(depot)}_block_distribution.pdf")
         plt.close(fig)
 
 
@@ -941,5 +958,6 @@ def plot_active_rotations(extended_plots_path, scenario, schedule, args):
     plt.grid(axis="y")
     plt.title(_("Active Rotations"))
     plt.tight_layout()
-    plt.savefig(extended_plots_path / "active_rotations", dpi=DPI)
+    plt.savefig(extended_plots_path / "active_rotations.png", dpi=DPI)
+    plt.savefig(extended_plots_path / "active_rotations.pdf")
     plt.close()

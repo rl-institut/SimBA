@@ -3,7 +3,7 @@ translation_tables = {
     "de": {
         "Active Rotations": "Aktive Umläufe",
         "bat. stored energy [kWh]": "stat. Speicher Energieinhalt [kWh]",
-        "battery power [kW]": " stat. Speicher Leistung [kW]",
+        "battery power [kW]": "stat. Speicher Leistung [kW]",
         "Block": "Umlauf",
         "Charging type": "Ladetyp",
         "Depot": "Depot",
