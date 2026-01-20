@@ -734,7 +734,7 @@ def plot_gc_power_timeseries(extended_plots_path, scenario, schedule, args):
             twin_price.set_frame_on(True)
 
         # plt.xticks(rotation=30)
-        ax.set_ylabel(_("Power") + " [kW]")
+        ax.set_ylabel(_("Power [kW]"))
         ax.set_title(_("Power") + f": {gcID}")
         ax.grid(color="gray", linestyle="-")
 
