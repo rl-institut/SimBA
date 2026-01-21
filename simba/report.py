@@ -14,6 +14,8 @@ from matplotlib.patches import Patch
 from spice_ev.report import aggregate_global_results, plot, generate_reports, aggregate_timeseries
 from spice_ev.util import sanitize, datetime_within_time_window
 
+# import locale  # Only needed if Names of Weekdays shall be plotted in german
+
 from simba import util
 from simba.translate import translate as _
 
@@ -594,6 +596,13 @@ def plot_gc_power_timeseries(extended_plots_path, scenario, schedule, args):
     :param args: Configuration arguments
     :type args: argparse.Namespace
     """
+    # If Names of Weekdays shall be plotted in german the local time has to be set accordingly
+    # if args.plot_language == "de":
+    #     try:
+    #         locale.setlocale(locale.LC_TIME, 'de_DE.UTF-8')
+    #     except:
+    #         locale.setlocale(locale.LC_TIME, 'de')
+
     for gcID, gc in scenario.components.grid_connectors.items():
         # fig, ax = plt.subplots()
         fig, ax = plt.subplots(figsize=(9, 4.8))  # For legends outside plot
@@ -742,6 +751,7 @@ def plot_gc_power_timeseries(extended_plots_path, scenario, schedule, args):
         ax.set_xlim(time_values[0], time_values[-1])
         if args.plot_language == "de":
             ax.xaxis.set_major_formatter(mdates.DateFormatter("%d.%m.%Y"))
+            # ax.xaxis.set_major_formatter(mdates.DateFormatter("%A %H:%M"))  # Plots name of weekday and time
         ax.tick_params(axis="x", rotation=30)
         plt.tight_layout()
         plt.savefig(extended_plots_path / f"{sanitize(gcID)}_power_overview.png", dpi=DPI)
@@ -900,6 +910,7 @@ def create_plot_blocks(sorted_rotations, color_generator, row_generator):
     next(color_generator)
     y_size = len(sorted_rotations) * 0.02 + 1.5
     fig, ax = plt.subplots(figsize=(7, y_size))
+    # plot rotation ID inside each bar (comment out if not needed)
     for rotation in sorted_rotations:
         row_nr = row_generator.send(rotation)
         width = rotation.arrival_time - rotation.departure_time
