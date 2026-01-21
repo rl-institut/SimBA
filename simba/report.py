@@ -1,5 +1,7 @@
 """ Module to generate meaningful output files and/or figures to describe simulation process. """
 import csv
+import locale
+import platform
 import datetime
 import dill as pickle
 import logging
@@ -795,27 +797,45 @@ def plot_vehicle_services(schedule, output_path, args):
         while True:
             rotation = yield vehicle_id
             vehicle_id = rotation.vehicle_id
+            items = vehicle_id.split("_")
+            vehicle_id="_".join([items[0],items[2]])
 
     rotations_per_depot["All_Depots"] = all_rotations.values()
 
     output_path_folder = output_path / "vehicle_services"
+    plt.ion()
     output_path_folder.mkdir(parents=True, exist_ok=True)
     for depot, rotations in rotations_per_depot.items():
         # create instances of the generators
         row_generator = VehicleIdRowGenerator()
         color_generator = ColorGenerator(schedule.vehicle_types)
-
         sorted_rotations = list(
             sorted(rotations, key=lambda x: (x.vehicle_type, x.charging_type, x.departure_time)))
-        fig, ax = create_plot_blocks(sorted_rotations, color_generator, row_generator)
+        fig, ax =  create_plot_blocks(rotations, color_generator, row_generator)
         ax.set_ylabel(_("Vehicle ID"))
         # Vehicle ids need small fontsize to fit
-        ax.tick_params(axis="y", labelsize=6)
-        if args.plot_language == "de":
-            ax.xaxis.set_major_formatter(mdates.DateFormatter("%d.%m.%Y %H:%M"))
+        y_label_fontsize = 6
+        ax.tick_params(axis="y", labelsize=y_label_fontsize)
+        # Calculate required row height based on font size
+        # Font size in points -> inches (72 points = 1 inch)
+        # Add some padding factor (e.g., 1.3x for comfortable spacing)
+        row_height_inches = (y_label_fontsize / 72) * 1.3
+        # Base margin so labels have enough room. Its important that there is more room than needed
+        # so tight layout works. 
+        desired_height_inches = row_height_inches * len(rotations)
+        margin = 3
+        fig.set_size_inches(7, desired_height_inches+margin)
+        if args.plot_language == "de" or True:
+            # Set German locale
+            if platform.system() in ["Linux","Darwin"]:
+                locale.setlocale(locale.LC_TIME, 'de_DE.UTF-8')
+            else:
+                # for windows
+                locale.setlocale(locale.LC_TIME, 'deu_deu')
+            ax.xaxis.set_major_formatter(mdates.DateFormatter("%A %H:%M"))
         # add legend
         handles = []
-        vts = {f"{rotation.vehicle_type}_{rotation.charging_type}": rotation
+        vts = {f"{rotation.vehicle_type}": rotation
                for rotation in sorted_rotations}
         for key, rot in vts.items():
             handles.append(Patch(color=color_generator.send(rot), label=key))
@@ -823,6 +843,20 @@ def plot_vehicle_services(schedule, output_path, args):
         ax.legend(handles=handles, loc="lower center", bbox_to_anchor=(0.5, 1),
                   ncol=len(handles)//2+1, prop={"size": 7})
         fig.tight_layout()
+        # Draw the canvas to calculate label sizes
+        # fig.canvas.draw()
+        # Get the actual axes height in inches
+        bbox = ax.get_window_extent().transformed(fig.dpi_scale_trans.inverted())
+        axes_height = bbox.height
+        # Calculate desired axes height to fit all rows properly
+        # Calculate how much to increase figure height
+        height_increase = desired_height_inches - axes_height
+        # Resize figure to accommodate
+        current_width, current_height = fig.get_size_inches()
+        fig.set_size_inches(current_width, current_height + height_increase)
+        # Apply tight_layout again
+        fig.tight_layout()
+
         # PDF so Block names stay readable
         fig.savefig(output_path_folder / f"{sanitize(depot)}_vehicle_services.png", dpi=DPI)
         fig.savefig(output_path_folder / f"{sanitize(depot)}_vehicle_services.pdf")
@@ -905,7 +939,7 @@ def create_plot_blocks(sorted_rotations, color_generator, row_generator):
         width = rotation.arrival_time - rotation.departure_time
         artist = ax.barh([row_nr], width=[width], height=0.8, left=rotation.departure_time,
                          label=rotation.id, color=color_generator.send(rotation))
-        ax.bar_label(artist, labels=[rotation.id], label_type="center", fontsize=2)
+        ax.bar_label(artist, labels=[''], label_type="center", fontsize=2)
 
     # Large heights create too much margin with default value of margins: Reduce value to 0.01
     ax.axes.margins(y=0.01)
