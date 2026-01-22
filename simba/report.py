@@ -627,11 +627,12 @@ def plot_gc_power_timeseries(extended_plots_path, scenario, schedule, args):
 
         # find time column
         time_index = agg_ts["header"].index("time")
-        time_values = [row[time_index]-datetime for row in agg_ts["timeseries"]]
+        time_values = [row[time_index] for row in agg_ts["timeseries"]]
 
         # This can be used if weekdays shall be plottet to start on a specific weekday
-        # date_corrector = agg_ts["timeseries"][0][1].weekday() - 0  # 0 stands for monday as a first day to plot
-        # time_values = [row[time_index]-datetime.timedelta(days=date_corrector) for row in agg_ts["timeseries"]]
+        # date_corrector = agg_ts["timeseries"][0][1].weekday() - 0  # 0 = monday
+        # time_values = [row[time_index]-datetime.timedelta(days=date_corrector)
+        #                for row in agg_ts["timeseries"]]
 
         for header_index, header in enumerate(headers):
             try:
@@ -755,7 +756,7 @@ def plot_gc_power_timeseries(extended_plots_path, scenario, schedule, args):
         ax.set_xlim(time_values[0], time_values[-1])
         if args.plot_language == "de":
             ax.xaxis.set_major_formatter(mdates.DateFormatter("%d.%m.%Y"))
-        # ax.xaxis.set_major_formatter(mdates.DateFormatter("%A %H:%M"))  # Plots name of weekday and time
+        # ax.xaxis.set_major_formatter(mdates.DateFormatter("%A %H:%M"))  # xlabel weekday and time
         ax.tick_params(axis="x", rotation=30)
         plt.tight_layout()
         plt.savefig(extended_plots_path / f"{sanitize(gcID)}_power_overview.png", dpi=DPI)
