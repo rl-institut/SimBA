@@ -101,7 +101,10 @@ def run_optimization(conf, sched=None, scen=None, args=None):
         assert conf.args, error_message
         sched, scen, args = opt_util.toolbox_from_pickle(conf.schedule, conf.scenario, conf.args)
 
-    original_schedule = deepcopy(sched)
+    # Faster than deepcopy. Needs adjustment of vehicle id
+    original_rotations = sched.__class__.from_datacontainer(sched.data_container, args).rotations
+    for r_id, rotation in original_rotations.items():
+        rotation.vehicle_id = sched.rotations[r_id].vehicle_id
 
     # setup folders, paths and copy config
     prepare_filesystem(args, conf)
@@ -211,8 +214,9 @@ def run_optimization(conf, sched=None, scen=None, args=None):
     logger.debug("Detailed calculation of an optimized case as a complete scenario")
 
     # Restore original rotations
-    for rotation_id in original_schedule.rotations:
-        optimizer.schedule.rotations[rotation_id] = original_schedule.rotations[rotation_id]
+    for rotation_id, rotation in original_rotations.items():
+        optimizer.schedule.rotations[rotation_id] = rotation 
+        rotation.schedule = optimizer.schedule
 
     # remove exclusion since internally these would not be simulated
     optimizer.config.exclusion_rots = set()

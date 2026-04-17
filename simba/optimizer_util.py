@@ -809,7 +809,7 @@ def run_schedule(sched, args, electrified_stations=None):
             # do not print output from SpiceEV to reduce clutter. Do not do it in testing
             # since it produces errors
             sys.stdout = open(os.devnull, 'w')
-        new_scen.run('distributed', vars(args).copy())
+        new_scen.run('greedy', vars(args).copy())
         if "pytest" not in sys.modules:
             sys.stdout = sys.__stdout__
     generate_soc_timeseries(new_scen)

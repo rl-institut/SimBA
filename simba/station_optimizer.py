@@ -61,7 +61,8 @@ class StationOptimizer:
         opt_type = kwargs.get("opt_type", self.config.opt_type)
         electrified_station = self.must_include_set.union(self.electrified_station_set)
         self.scenario.vehicle_socs = self.timeseries_calc(electrified_station)
-        self.base_scenario = deepcopy(self.scenario)
+        # using pickles instead of deepcopy since its faster in this case
+        self.base_scenario = pickle.loads(pickle.dumps(self.scenario))
         self.base_schedule = copy(self.schedule)
 
         self.base_stations = self.electrified_stations.copy()
@@ -118,7 +119,7 @@ class StationOptimizer:
             if self.config.solver == "spiceev":
                 # running SpiceEV changes the scenario and vehicle ids. Since the low SoC events
                 # point to the base vehicle ids, these have to be used in the group optimization
-                self.scenario = deepcopy(self.base_scenario)
+                self.scenario = pickle.loads(pickle.dumps(self.base_scenario))
 
             # first run is always step by step
             self.group_optimization(
@@ -169,7 +170,7 @@ class StationOptimizer:
                 self.scenario = copy(self.base_scenario)
                 self.schedule = copy(self.base_schedule)
 
-                self.scenario.vehicle_socs = deepcopy(self.base_scenario.vehicle_socs)
+                self.scenario.vehicle_socs ={key: value.copy() for key,value in self.base_scenario.vehicle_socs.items()}
                 # deep copy of schedule.rotations is very slow. Not needed for quick calculation.
                 if self.config.solver == "spiceev":
                     self.schedule.rotations = deepcopy(self.base_schedule.rotations)
@@ -474,7 +475,7 @@ class StationOptimizer:
         if rotations is None:
             rotations = self.schedule.rotations.values()
 
-        vehicle_socs = deepcopy(self.scenario.vehicle_socs)
+        vehicle_socs ={key: value.copy() for key,value in self.scenario.vehicle_socs.items()}
         for rot in rotations:
             ch_type = (rot.vehicle_id.find("oppb") > 0) * "oppb" + (
                     rot.vehicle_id.find("depb") > 0) * "depb"
