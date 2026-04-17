@@ -170,7 +170,10 @@ class StationOptimizer:
                 self.scenario = copy(self.base_scenario)
                 self.schedule = copy(self.base_schedule)
 
-                self.scenario.vehicle_socs ={key: value.copy() for key,value in self.base_scenario.vehicle_socs.items()}
+                self.scenario.vehicle_socs = {
+                    key: value.copy()
+                    for key, value in self.base_scenario.vehicle_socs.items()
+                }
                 # deep copy of schedule.rotations is very slow. Not needed for quick calculation.
                 if self.config.solver == "spiceev":
                     self.schedule.rotations = deepcopy(self.base_schedule.rotations)
@@ -475,7 +478,9 @@ class StationOptimizer:
         if rotations is None:
             rotations = self.schedule.rotations.values()
 
-        vehicle_socs ={key: value.copy() for key,value in self.scenario.vehicle_socs.items()}
+        vehicle_socs = {
+            key: value.copy() for key, value in self.scenario.vehicle_socs.items()
+        }
         for rot in rotations:
             ch_type = (rot.vehicle_id.find("oppb") > 0) * "oppb" + (
                     rot.vehicle_id.find("depb") > 0) * "depb"

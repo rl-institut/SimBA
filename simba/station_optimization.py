@@ -1,5 +1,4 @@
 """ Try to minimize the amount of electrified stations to achieve full electrification."""
-from copy import deepcopy
 import json
 import sys
 from pathlib import Path
@@ -215,7 +214,7 @@ def run_optimization(conf, sched=None, scen=None, args=None):
 
     # Restore original rotations
     for rotation_id, rotation in original_rotations.items():
-        optimizer.schedule.rotations[rotation_id] = rotation 
+        optimizer.schedule.rotations[rotation_id] = rotation
         rotation.schedule = optimizer.schedule
 
     # remove exclusion since internally these would not be simulated
