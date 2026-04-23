@@ -993,11 +993,12 @@ class Schedule:
                         cs_power_type = f"cs_power_{station_type}{trip_type}"
                         cs_power = station.get(cs_power_type, vars(args)[cs_power_type])
                         gc_power = station.get("gc_power", vars(args)[f"gc_power_{station_type}"])
+                        min_power = station.get("min_power", 0.1*cs_power)
                         # add one charging station for each bus at bus station
                         charging_stations[connected_charging_station] = {
                             "type": station_type,
                             "max_power": cs_power,
-                            "min_power": 0.1 * cs_power,
+                            "min_power": min_power,
                             "parent": gc_name
                         }
                     if gc_name not in grid_connectors:
