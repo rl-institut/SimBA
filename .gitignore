@@ -5,6 +5,7 @@
 .idea/
 .env
 __pycache__
+CLAUDE.md
 
 docs/_build
 docs/source/temp
