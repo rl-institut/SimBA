@@ -2,6 +2,7 @@ import argparse
 import csv
 import json
 import logging
+import os
 from pathlib import Path
 import shutil
 import subprocess
@@ -449,6 +450,9 @@ def get_args():
     # Check if deprecated arguments were given and change them accordingly
     args = replace_deprecated_arguments(args)
 
+    # make relative paths relative to data_dir (if given)
+    resolve_data_dir(args, parser)
+
     # rename special options
     args.timing = args.eta
 
@@ -471,6 +475,59 @@ def get_args():
     return args
 
 
+# arguments containing paths, which are resolved relative to data_dir (if given)
+PATH_ARGS = [
+    "schedule_path", "output_path", "electrified_stations_path", "vehicle_types_path",
+    "station_data_path", "outside_temperature_over_day_path", "level_of_loading_over_day_path",
+    "cost_parameters_path", "rotation_filter_path", "load_pickle_path", "optimizer_config_path",
+    "time_windows", "create_scenario_file",
+]
+
+
+def resolve_path(path, data_dir):
+    """ Resolve a relative path against data_dir.
+
+    :param path: path to resolve
+    :type path: str or Path or None
+    :param data_dir: base directory. If None, path is returned unchanged
+    :type data_dir: str or Path or None
+    :return: path relative to data_dir, or unchanged path if path is absolute or not set
+    :rtype: str or Path or None
+    """
+    if path is None or data_dir is None or Path(path).is_absolute():
+        return path
+    return str(Path(data_dir) / path)
+
+
+def resolve_data_dir(args, parser):
+    """ Set data_dir and resolve relative path arguments against it.
+
+    data_dir is taken from args (config or command line) or the environment variable
+    SIMBA_DATA_DIR. A relative data_dir is relative to the directory of the config file.
+    Path arguments that still have their default value are not changed.
+
+    :param args: arguments, data_dir and path arguments are updated in place
+    :type args: argparse.Namespace
+    :param parser: parser to look up default values
+    :type parser: argparse.ArgumentParser
+    """
+    data_dir = vars(args).get("data_dir") or os.environ.get("SIMBA_DATA_DIR")
+    if not data_dir:
+        args.data_dir = None
+        return
+    data_dir = Path(data_dir)
+    if not data_dir.is_absolute() and vars(args).get("config"):
+        data_dir = Path(args.config).parent / data_dir
+    if not data_dir.is_dir():
+        raise FileNotFoundError(f"data_dir {data_dir} is not a directory")
+    args.data_dir = data_dir
+    for name in PATH_ARGS:
+        value = vars(args).get(name)
+        if value != parser.get_default(name):
+            # only resolve explicitly set paths, keep SimBA defaults relative to working directory
+            setattr(args, name, resolve_path(value, data_dir))
+
+
 def get_parser():
     parser = argparse.ArgumentParser(
         description='SimBA - Simulation toolbox for Bus Applications.')
@@ -479,6 +536,10 @@ def get_parser():
     # #### Paths #####
     parser.add_argument('--schedule-path',
                         help='Path to CSV file containing all trips of schedule to be analyzed')
+    parser.add_argument('--data-dir', default=None,
+                        help='Base directory for relative paths of input and output files. '
+                        'Relative to the config file. Default: environment variable '
+                        'SIMBA_DATA_DIR, if not set paths are relative to working directory')
     parser.add_argument('--output-path', default="data/sim_outputs",
                         help='Location where all simulation outputs are stored')
     parser.add_argument('--electrified-stations-path', help='include electrified_stations json')

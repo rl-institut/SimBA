@@ -261,6 +261,7 @@ class DataContainer:
 
         """
         stations = self.get_json_from_file(file_path, "electrified stations")
+        resolve_csv_files(stations, getattr(self.args, "data_dir", None))
         util.save_input_file(file_path, self.args)
         self.add_stations(stations)
         return self
@@ -360,3 +361,22 @@ def get_values_from_nested_key(key, data: dict) -> Iterator[any]:
     for value in data.values():
         if isinstance(value, dict):
             yield from get_values_from_nested_key(key, value)
+
+
+def resolve_csv_files(data, data_dir):
+    """ Resolve all csv_file entries in (nested) station data relative to data_dir.
+
+    :param data: station data, changed in place
+    :type data: dict or list
+    :param data_dir: base directory. If None, nothing is changed
+    :type data_dir: str or Path or None
+    """
+    if isinstance(data, dict):
+        for key, value in data.items():
+            if key == "csv_file":
+                data[key] = util.resolve_path(value, data_dir)
+            else:
+                resolve_csv_files(value, data_dir)
+    elif isinstance(data, list):
+        for value in data:
+            resolve_csv_files(value, data_dir)
