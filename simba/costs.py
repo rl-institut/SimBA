@@ -450,8 +450,13 @@ class Costs:
                     default_strategy)
 
             if cost_calculation_method and cost_calculation_method.startswith("fixed"):
-                annual_kwh = (sum(scenario.totalLoad.get(gc_id, []))
-                              / scenario.stepsPerHour * annual_factor)
+                # gross energy purchased from the grid: totalLoad is already net of local PV
+                # generation, which would otherwise understate (or, with enough PV, invert the
+                # sign of) the implied flat price - add local generation back to recover the
+                # actual grid-purchased quantity the energy costs below were billed for
+                gross_kwh = (sum(scenario.totalLoad.get(gc_id, []))
+                             + sum(scenario.localGenerationPower.get(gc_id, [])))
+                annual_kwh = gross_kwh / scenario.stepsPerHour * annual_factor
                 energy_costs = self.costs_per_gc.get(gc_id, {})
                 annual_cost = (energy_costs.get("c_el_procurement_annual", 0)
                                + energy_costs.get("c_el_energy_price_annual", 0)
@@ -467,15 +472,24 @@ class Costs:
 
         correction_per_gc = {gc_id: 0 for gc_id in self.gcs}
 
-        # stationary batteries: fixed to a single gc
+        # stationary batteries: fixed to a single gc. Charging from local PV generation is
+        # valued at the (opportunity-cost) feed-in remuneration instead of the grid price - see
+        # docs/concepts/cost_correction_storage_level.md, "Teil 2". Vehicles are not included in
+        # this split: under the assumed merit order, buses have priority over the stationary
+        # battery for any local PV, so their own charging is treated as ordinary "other load"
+        # ahead of the battery and is always priced at the regular grid price.
         for bat_id, battery in scenario.components.batteries.items():
             gc_id = battery.parent
             if gc_id not in self.gcs:
                 continue
-            prices = get_price_series(gc_id)
+            grid_prices = get_price_series(gc_id)
             soc_kwh = scenario.batteryLevels.get(bat_id)
             if not soc_kwh:
                 continue
+            pv_surplus = self._pv_surplus_series(gc_id)
+            price_pv = self._feed_in_remuneration_price(gc_id)
+            prices = self._blend_battery_prices_with_pv(
+                soc_kwh, grid_prices, pv_surplus, price_pv, battery.efficiency)
             correction = self._storage_correction_eur(soc_kwh, prices, battery.efficiency)
             if correction:
                 correction_per_gc[gc_id] += correction
@@ -571,6 +585,98 @@ class Costs:
                     price = gc_prices[idx]
             prices.append(price)
         return prices
+
+    def _pv_surplus_series(self, gc_id):
+        """ Local PV generation at a gc left over after covering its "other" load (fixed loads
+        and bus charging) at each timestep - the part potentially available to charge a
+        stationary battery there under the assumed merit order (PV -> other load -> battery ->
+        grid import for any remainder). See docs/concepts/cost_correction_storage_level.md,
+        "Teil 2" for the underlying assumption.
+
+        :param gc_id: grid connector id
+        :type gc_id: str
+        :return: PV surplus energy (kWh) available during each timestep, 0 where there is no PV
+            or no surplus
+        :rtype: list
+        """
+        scenario = self.scenario
+        n = scenario.n_intervals
+        pv = scenario.localGenerationPower.get(gc_id)
+        if not pv or not any(pv):
+            return [0] * n
+        fixed = scenario.fixedLoads.get(gc_id, [{}] * n)
+        cs = scenario.connChargeByTS.get(gc_id, [{}] * n)
+        surplus = []
+        for t in range(n):
+            other_load = sum(fixed[t].values()) + sum(cs[t].values())
+            # kW -> kWh for this timestep, to compare against the (already kWh) soc_kwh deltas
+            surplus.append(max(pv[t] - other_load, 0) / scenario.stepsPerHour)
+        return surplus
+
+    def _feed_in_remuneration_price(self, gc_id):
+        """ Feed-in remuneration (EUR/kWh) for the PV plant at a gc, i.e. the opportunity cost
+        of using its generation to charge a stationary battery instead of feeding it into the
+        grid. Constant over time, but depends on the PV plant's nominal power (kWp tier) and the
+        gc's grid operator - mirrors the tier lookup in
+        ``spice_ev.costs.calculate_costs`` ("COSTS FROM FEED-IN REMUNERATION").
+
+        :param gc_id: grid connector id
+        :type gc_id: str
+        :return: feed-in remuneration in EUR/kWh, 0 if there is no PV plant at this gc
+        :rtype: float
+        """
+        pv_nominal = sum(
+            pv.nominal_power for pv in self.scenario.components.photovoltaics.values()
+            if pv.parent == gc_id)
+        if pv_nominal == 0:
+            return 0.0
+        grid_operator = self.gcs[gc_id].grid_operator
+        pv_params = self.params.get(grid_operator, {}).get("feed-in_remuneration", {}).get("PV")
+        if not pv_params:
+            return 0.0
+        for threshold, rate in zip(pv_params["kWp"], pv_params["remuneration"]):
+            if pv_nominal <= threshold:
+                return rate / 100  # ct/kWh -> EUR/kWh
+        raise ValueError(
+            f"{gc_id}: feed-in remuneration not defined for PV nominal power {pv_nominal} kWp "
+            f"(highest configured tier: {pv_params['kWp'][-1]} kWp)")
+
+    @staticmethod
+    def _blend_battery_prices_with_pv(soc_kwh, grid_prices, pv_surplus, price_pv, efficiency):
+        """ Per-timestep price series for a stationary battery that values any charging covered
+        by local PV surplus at the feed-in remuneration instead of the grid price, leaving
+        everything else (timesteps without charging, or without PV) at the plain grid price.
+        Degrades to ``grid_prices`` unchanged where there is no PV surplus at all.
+
+        :param soc_kwh: energy content of the battery at each timestep (kWh)
+        :type soc_kwh: list
+        :param grid_prices: grid price (EUR/kWh) at each timestep
+        :type grid_prices: list
+        :param pv_surplus: PV surplus energy (kWh) available to the battery at each timestep, see
+            :func:`_pv_surplus_series`
+        :type pv_surplus: list
+        :param price_pv: feed-in remuneration (EUR/kWh), see :func:`_feed_in_remuneration_price`
+        :type price_pv: float
+        :param efficiency: charging efficiency of the battery
+        :type efficiency: float
+        :return: blended price (EUR/kWh) at each timestep, aligned with soc_kwh
+        :rtype: list
+        """
+        n = len(soc_kwh)
+        blended = list(grid_prices[:n])
+        blended += [grid_prices[-1] if grid_prices else 0] * (n - len(blended))
+        for t in range(n - 1):
+            delta = soc_kwh[t + 1] - soc_kwh[t]
+            if delta <= 0:
+                continue
+            grid_energy = delta / efficiency
+            surplus_t = pv_surplus[t] if t < len(pv_surplus) else 0
+            pv_to_bat = min(surplus_t, grid_energy)
+            if pv_to_bat <= 0:
+                continue
+            grid_to_bat = grid_energy - pv_to_bat
+            blended[t] = (grid_to_bat * grid_prices[t] + pv_to_bat * price_pv) / grid_energy
+        return blended
 
     @staticmethod
     def _storage_correction_eur(soc_kwh, prices, efficiency):

@@ -336,3 +336,234 @@ Verbleibend:
 - Änderungen an der eigentlichen Ladephysik/-strategie in SpiceEV.
 - Eine Automatisierung, die den Start-SoC von Speichern realistisch vorbelegt (das würde das
   ursprüngliche Symptom mindern, aber nicht das allgemeinere Vergleichbarkeitsproblem lösen).
+
+---
+
+# Teil 2: PV-Eigenerzeugung an Batterie-Stationen
+
+Status: **Implementiert auf Branch `feature/rebase_el_cost` (noch nicht committet/gemerged)**
+Auslöser: `simba_w_bat.cfg` wurde um `energy_feed_in` (PV) an mehreren Stationen erweitert; in
+einem Testlauf trat dadurch eine massive Fehlbewertung der Korrektur an Station A auf.
+
+## 9. Beobachtung am realen Testlauf
+
+Nach Hinzufügen von PV-Einspeisung (`energy_feed_in`, Station "A" in
+`electrified_stations_hlz_w_bat.json`) zeigt der Lauf mit `clean_costs_storage_level = true`:
+
+```
+P: 232743.68 €/a -> 63727.95 €/a   (Korrektur: -169015.73 €/a)   -- keine PV an dieser Station
+F: 196979.90 €/a -> 28612.67 €/a   (Korrektur: -168367.23 €/a)   -- keine PV an dieser Station
+A: 147708.36 €/a -> -1166619.72 €/a (Korrektur: -1314328.08 €/a)  -- PV an dieser Station
+I: 211512.35 €/a -> 36829.18 €/a   (Korrektur: -174683.17 €/a)   -- keine PV an dieser Station
+```
+
+P, F und I (keine PV) liegen in der erwarteten Größenordnung (ΔE ≈ 5000 kWh-Batterie bei
+ähnlichem Preis). Station A (mit PV) wird um mehr als das Siebenfache zu stark korrigiert und
+rutscht auf eine unplausible jährliche "Stromkosten" von **-1,17 Mio. €/a**.
+
+**Ursache, konkret nachgewiesen:** Der Flatrate-Preis-Fallback (`annual_cost / annual_kwh`,
+Abschnitt 0) verwendet `sum(scenario.totalLoad[gc_id])` als Nenner. `totalLoad` ist aber der
+**Netto**-Netzbezug (Lasten **minus** lokale PV-Erzeugung):
+
+```
+Station A: sum(totalLoad)            =    42.719 kWh (Netto, durch PV stark reduziert)
+           sum(localGenerationPower) =   279.302 kWh (PV-Erzeugung)
+           -> abgeleiteter Flatrate-Preis = 1,874818 €/kWh   (!)
+Station P: sum(totalLoad)            =   410.786 kWh (keine PV, Netto = Brutto)
+           -> abgeleiteter Flatrate-Preis = 0,255220 €/kWh   (korrekter Tarif)
+```
+
+Da der tatsächlich abgerechnete Energiekostenbetrag (`annual_cost`) sich auf den realen
+Netzbezug bezieht, aber durch die (viel kleinere) Netto-Menge geteilt wird, ergibt sich ein um
+den Faktor ~7,3 überhöhter Preis – und damit eine um denselben Faktor überhöhte Korrektur.
+
+## 10. Zwei getrennte Probleme, beide werden umgesetzt
+
+Es lohnt sich, zwei Fragen zu trennen, auch wenn jetzt beide umgesetzt werden:
+
+1. **Symptom (Nenner falsch):** Der Flatrate-Preis-Fallback muss durch die **Brutto**-Bezugsmenge
+   teilen, nicht durch die PV-geminderte Netto-Menge. Das ist eine kleine, risikoarme Korrektur
+   (Nenner auf `totalLoad + localGenerationPower` statt nur `totalLoad` ändern) und würde die
+   gröbste Verzerrung (Faktor 7,3) beseitigen, **ohne** die eigentliche Attributionsfrage zu lösen.
+   **Bestätigt konsistent mit allen bisherigen Annahmen** (Rückfrage 1) – keine Einwände, wird
+   unverändert so umgesetzt.
+2. **Eigentliche Frage (welcher Preis für PV-geladene Energie):** Selbst mit korrigiertem Nenner
+   würde Station A weiterhin die *gesamte* Batterieladung zum Netzpreis bewerten, obwohl ein Teil
+   davon nachweislich aus PV statt aus dem Netz stammt. Das ist die Frage, die der Nutzer mit der
+   Einspeisevergütungs-Idee addressiert hat – dafür reicht die Nenner-Korrektur allein nicht.
+
+Dieser Teil des Konzepts behandelt schwerpunktmäßig Frage 2 (im Detail, wie angefragt); Frage 1
+ist ein kleiner, separater Bugfix am bestehenden Flatrate-Fallback – beide werden gemeinsam
+implementiert.
+
+## 11. Konzept: Herkunfts-Zuordnung über eine Merit-Order-Konvention
+
+### 11.1 Warum "eindeutig" nicht geht, aber "konventionsbasiert" schon
+
+Wie in der Chat-Diskussion festgehalten: Sobald PV-Erzeugung, Busladung und Batterieladung am
+selben Netzanschlusspunkt zusammenlaufen, sind die kWh physikalisch nicht mehr unterscheidbar.
+Jede Zuordnung ist eine **Bilanzierungskonvention**, keine Messung. Die in der Energiewirtschaft
+übliche und am leichtesten zu rechtfertigende Konvention ist eine **Merit Order** nach
+Eigenverbrauchspriorität:
+
+1. PV deckt zuerst die "sonstige" Last (Fixlasten + Busladung) an diesem GC.
+2. Verbleibender PV-Überschuss lädt die Batterie.
+3. PV-Überschuss, der über den Bedarf der Batterie hinausgeht, wird eingespeist.
+4. Batterieladung, die nicht durch PV-Überschuss gedeckt ist, kommt aus dem Netz.
+
+Das ist dieselbe Grundannahme, die auch in haushaltsüblichen "Eigenverbrauchsoptimierung"-Reglern
+oder in EEG-Eigenverbrauchsbilanzierungen verwendet wird – nicht "wahr", aber Industriestandard
+und nachvollziehbar dokumentierbar.
+
+### 11.2 Formeln
+
+Für jeden Zeitschritt `t`, an dem die Batterie lädt (`delta(t) > 0`, Speicherinhalt steigt):
+
+```
+L_other(t)      = Fixlasten(t) + Busladung(t)          // scenario.fixedLoads + connChargeByTS
+PV_surplus(t)   = max(PV(t) - L_other(t), 0)            // scenario.localGenerationPower
+PV_to_bat(t)    = min(PV_surplus(t), delta(t) / η)      // Netzseitige Batterieladeleistung
+Grid_to_bat(t)  = delta(t) / η - PV_to_bat(t)
+```
+
+Der für diesen Ladeschritt **effektive Preis** (eingesetzt anstelle des bisherigen einheitlichen
+`prices[t]` in `_storage_correction_eur`) ist der leistungsgewichtete Mittelwert aus
+Netzbezugspreis und PV-Opportunitätskosten:
+
+```
+price_eff(t) = (Grid_to_bat(t) * price_grid(t) + PV_to_bat(t) * price_pv(t))
+               / (Grid_to_bat(t) + PV_to_bat(t))
+```
+
+mit `price_pv(t)` = Einspeisevergütung. Wichtig (Rückfrage 3, bestätigt): Diese ist **konstant**
+über die Zeit, aber **abhängig von Anlagengröße (kWp-Staffelung) und Netzbetreiber** – beides
+bereits so in `cost_params_HLZ.json` angelegt (`feed-in_remuneration.PV.kWp` /
+`...remuneration`, pro Netzbetreiber-Sektion des Preisblatts). `price_pv` ist also **nicht** ein
+einzelner globaler Wert, sondern wird **pro GC einmalig** (nicht pro Zeitschritt) über dieselbe
+Staffel-Logik ermittelt, die SpiceEV für die reguläre Einspeisevergütungs-Berechnung verwendet
+(`spice_ev/costs.py`, Abschnitt "COSTS FROM FEED-IN REMUNERATION"): anhand der `nominal_power`
+der PV-Anlage dieses GC wird die passende kWp-Stufe im Preisblatt des zugehörigen
+`grid_operator` gesucht und der zugehörige `remuneration`-Satz verwendet. Eine echte
+Zeitreihe für `price_pv(t)` ist nicht nötig, da der Wert je GC über die ganze Simulation konstant
+ist (zeitvariable Vermarktung ist laut Rückfrage 3 kein betrachteter Fall).
+
+**Wichtig:** Die restliche Logik von `_storage_correction_eur` (gleitender Durchschnitt,
+Startwert-Konvention, Defizit-Berechnung) bleibt **unverändert** – es wird nur `prices[t]` durch
+`price_eff(t)` ersetzt, bevor es in die bestehende Funktion gegeben wird. Es ist keine neue
+Methode nötig, nur eine neue, vorgelagerte Preis-Mischung. Das gilt – siehe Rückfrage 4 unten –
+**gleichermaßen für den Überschuss- wie den Defizit-Zweig**, ohne Sonderbehandlung.
+
+### 11.3 Datenquellen
+
+Alle nötigen Zeitreihen liegen bereits im `scenario`-Objekt, ohne SpiceEV-Änderung:
+
+- `scenario.fixedLoads[gc_id][t]` (Dict benannter Fixlasten, Summe bilden)
+- `scenario.connChargeByTS[gc_id][t]` (Dict `cs_id -> Leistung`, Summe bilden = Busladung)
+- `scenario.localGenerationPower[gc_id][t]` (PV-Erzeugung, bereits positiv)
+- `price_pv`: pro GC einmalig aus `self.params[grid_operator]["feed-in_remuneration"]["PV"]`
+  (`kWp`-Staffel + `remuneration`, siehe oben) und der `nominal_power` aus der
+  `energy_feed_in`-Konfiguration dieses GC in `electrified_stations.json`.
+
+Bewusst **nicht** verwendet: Rückrechnung aus `totalLoad` (das enthält bereits die GC-Leistungs-
+begrenzung `max(-gc.max_power, …)`, was `L_other(t)` in der Nähe der Leistungsgrenze verfälschen
+würde). Die direkten Komponenten-Zeitreihen sind robuster.
+
+## 12. Kritische Annahmen und Edge Cases
+
+Es folgt **nicht** alles glatt aus den paar genannten Annahmen – hier die Punkte, die beim
+Umsetzen tatsächlich Entscheidungen brauchen:
+
+1. **Merit Order ist eine Wahl, kein Fakt.** Eine alternative Konvention (z. B. "Netz deckt Last
+   zuerst, PV lädt direkt die Batterie") würde eine andere Aufteilung und ein anderes Ergebnis
+   liefern. Es gibt keine Möglichkeit, das anhand der SimBA/SpiceEV-Daten zu validieren – die
+   gewählte Konvention muss explizit dokumentiert werden, nicht stillschweigend als "richtig"
+   dargestellt werden.
+
+2. **Ist die PV-Anlage überhaupt vergütungsberechtigt / wird sie nicht abgeregelt?**
+   **Gelöst über Konfiguration, nicht über Code (Rückfrage 2, bestätigt):** `energy_feed_in`
+   modelliert nur das physikalische Erzeugungsprofil, nicht die Vermarktungssituation. Die
+   Formel `price_eff(t)` behandelt das aber bereits korrekt, **sofern** `price_pv` passend
+   gesetzt ist: Bei Abregelung ohne Vergütung trägt man in `cost_params.json` für die
+   betroffene Anlage `"remuneration": 0` ein (ct/kWh) – dann wird der PV-Anteil der Ladung
+   automatisch mit Opportunitätskosten von 0 bewertet, exakt wie gewünscht, **ohne jede
+   Sonderbehandlung im Code**. Die Entscheidung "vergütet oder abgeregelt" ist also eine reine
+   Preisblatt-Konfigurationsfrage, keine neue Fallunterscheidung in `_storage_correction_eur`
+   oder der Preis-Vorverarbeitung.
+
+3. **Einspeisevergütung ist konstant, aber größen- und netzbetreiberabhängig** (Rückfrage 3,
+   bestätigt – kein zeitvariabler Vermarktungsfall betrachtet). Das ist bereits so in
+   `cost_params_HLZ.json` angelegt (kWp-Staffel pro Netzbetreiber-Sektion) und wird in 11.2/11.3
+   berücksichtigt: `price_pv` wird einmalig pro GC über die kWp-Staffel des jeweiligen
+   Netzbetreibers ermittelt, keine Zeitreihe nötig.
+
+4. **Defizit-Fall: PV wird bewusst mitberücksichtigt (Rückfrage 4, Richtungswechsel gegenüber der
+   ursprünglichen Empfehlung).** Da `own_avg_price` im Defizit-Zweig ohnehin als gewichteter
+   Mittelwert über die **tatsächliche** Ladehistorie des Geräts berechnet wird, reicht es, dort
+   `price_eff(t)` statt des bisherigen einheitlichen Preises einzusetzen – der historische
+   PV-Anteil dieses Geräts während der Simulation fließt dann automatisch ein, ohne jede
+   Zusatzlogik. Das ist **einfacher** als ursprünglich vorgeschlagen (keine Sonderbehandlung
+   "Defizit = 100 % Netzpreis" nötig), erfüllt aber den Wunsch, PV-Ladung "entsprechend des
+   Simulationszeitraums" auch bei der Nachkauf-Schätzung zu berücksichtigen: Die Annahme ist
+   implizit "der künftige PV-Anteil entspricht dem im Simulationszeitraum beobachteten Anteil".
+
+5. **Batterie-Entladung muss nicht aufgeteilt werden** (bestätigt, keine Einwände). Das folgt
+   sauber aus den Annahmen: Eine Entladung zieht einfach den bestehenden Bestand zum bereits
+   hinterlegten Durchschnittspreis ab (unverändert gegenüber Abschnitt 5.C.1) – unabhängig davon,
+   wohin die entladene Energie fließt. Hier ist keine zusätzliche Fallunterscheidung nötig.
+
+6. **Granularität/Zeitauflösung der PV-Zeitreihe** (bestätigt, keine Einwände) – bereits von
+   SpiceEV selbst auf das Simulationsraster interpoliert, bevor sie in `localGenerationPower`
+   landet – keine zusätzliche Behandlung in der Korrektur nötig.
+
+7. **Mehrere GCs an derselben PV-Anlage können strukturell nicht auftreten** (Rückfrage 7,
+   bestätigt): GCs werden in `electrified_stations.json` definiert, und eine PV-Anlage
+   (`energy_feed_in`) wird jeweils **unter** einem GC definiert – eine PV-Anlage kann also per
+   Datenmodell nie mehreren GCs zugeordnet sein. `localGenerationPower` ist entsprechend bereits
+   eindeutig GC-spezifisch; keine zusätzliche Zuordnungslogik nötig.
+
+## 13. Status: Implementiert
+
+Umgesetzt in `simba/costs.py`, auf Branch `feature/rebase_el_cost` (noch nicht
+committet/gemerged):
+
+1. **Nenner-Fix** im Flatrate-Fallback (`get_price_series`, "fixed"-Zweig): `annual_kwh` basiert
+   jetzt auf der Brutto-Bezugsmenge (`sum(totalLoad) + sum(localGenerationPower)`) statt der
+   PV-geminderten Netto-Menge.
+2. **Merit-Order-Preismischung**, drei neue Methoden auf `Costs`:
+   - `_pv_surplus_series(gc_id)`: PV-Überschuss (kWh je Zeitschritt) nach Abzug von Fixlasten
+     und Busladung, aus `fixedLoads` + `connChargeByTS` + `localGenerationPower`.
+   - `_feed_in_remuneration_price(gc_id)`: Einspeisevergütung (EUR/kWh) über die kWp-Staffel des
+     GC-Netzbetreibers, analog zu `spice_ev.costs.calculate_costs`' Tier-Lookup (verwendet
+     `scenario.components.photovoltaics` für die `nominal_power`, `self.params[grid_operator]`
+     für die Staffel).
+   - `_blend_battery_prices_with_pv(...)`: ersetzt `prices[t]` durch den leistungsgewichteten
+     Mischpreis an Ladezeitschritten der Batterie; `_storage_correction_eur` bleibt unverändert.
+
+   **Eine beim Implementieren präzisierte Scope-Entscheidung:** Die Merit-Order-Mischung wird
+   **nur für die stationäre Batterie** angewendet, nicht für Fahrzeuge. Das folgt direkt aus der
+   in Abschnitt 11.1 beschriebenen Reihenfolge ("PV deckt zuerst Fixlasten *und Busladung*") –
+   Busladung zählt also zur bereits vorrangig bedienten "sonstigen Last" und bekommt selbst
+   keinen PV-Anteil zugeschlagen. Das vermeidet außerdem eine sonst nötige, in Abschnitt 11/12
+   nicht behandelte Konkurrenzfrage (mehrere gleichzeitig ladende Geräte am selben GC, die sich
+   denselben PV-Überschuss teilen würden) ganz ohne zusätzliche Logik.
+
+**Bug während der Implementierung gefunden und behoben:** `_pv_surplus_series` verglich anfangs
+PV-**Leistung** (kW) direkt mit der (bereits energie-basierten) Batterie-Lademenge (kWh) – bei
+`interval = 1` Minute ein Faktor-60-Fehler. Fix: Division durch `scenario.stepsPerHour` beim
+Bilden der Zeitreihe.
+
+**Verifiziert am realen Testlauf** (`simba_w_bat.cfg` mit PV an Station A): Station A lag vorher
+bei einer unplausiblen Korrektur von −1,31 Mio. €/a (Faktor 7,3 zu hoch durch den Nenner-Bug).
+Nach beiden Fixes: −174.358,26 €/a, in derselben Größenordnung wie P/F/I (keine PV, −169.016 bis
+−174.683 €/a). Die Merit-Order-Mischung selbst hatte in diesem konkreten Lauf keinen messbaren
+zusätzlichen Effekt – die Batterie lädt dort nie zeitgleich mit PV-Überschuss, was an der sehr
+kleinen Anlagengröße (10 kWp) gegenüber der potenziellen Ladeleistung der Batterie liegt, nicht
+an einem Fehler. Die Mischungslogik selbst ist über synthetische Daten exakt verifiziert, siehe
+`TestPvAttributionUnit` in `tests/test_cost_calculation.py`.
+
+**Tests** (`tests/test_cost_calculation.py`): `TestPvAttributionUnit` (reine Unit-Tests für alle
+drei neuen Methoden, mit von Hand nachgerechneten Erwartungswerten) und
+`TestPvAttributionIntegration` (End-to-End über die reale `calculate_costs()`-Pipeline; da
+Station-0 im öffentlichen Beispiel-Fixture auch Fahrzeugkorrekturen zum selben GC beiträgt,
+vergleicht der Test zwei Läufe mit unterschiedlichem, gemocktem PV-Überschuss und prüft die
+*Differenz* – der konstante Fahrzeug-Anteil kürzt sich dabei heraus).
