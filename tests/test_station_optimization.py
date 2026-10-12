@@ -69,7 +69,7 @@ class TestStationOptimization:
         self.vehicle_types = adjust_vehicle_file(vehicles_dest, capacity=50, mileage=10)
 
         # remove escape characters from string
-        vehicles_dest_str = str(vehicles_dest).replace('\\', '/')
+        vehicles_dest_str = str(vehicles_dest).replace("\\", "/")
         # replace line which defines vehicle_types up to line break. line break is concatenated in
         # the replacement, to keep format
         src_text = re.sub(
@@ -78,36 +78,38 @@ class TestStationOptimization:
 
         # Use the default electrified stations from example folder but change some values
         stations_path = example_root / "electrified_stations/electrified_stations.json"
-        with open(stations_path, "r", encoding='utf-8') as file:
+        with open(stations_path, "r", encoding="utf-8") as file:
             self.electrified_stations = util.uncomment_json_file(file)
         # only keep Station-0 electrified and remove the other staitons
-        self.electrified_stations = {"Station-0": self.electrified_stations["Station-0"]}
+        self.electrified_stations = {
+            "Station-0": self.electrified_stations["Station-0"]
+        }
         del self.electrified_stations["Station-0"]["external_load"]
         del self.electrified_stations["Station-0"]["battery"]
         del self.electrified_stations["Station-0"]["energy_feed_in"]
 
         # store the adjusted electrified_stations temporarily and use them in the config file
         electrified_stations_dest = tmp_path / "electrified_stations.json"
-        with open(electrified_stations_dest, "w", encoding='utf-8') as file:
+        with open(electrified_stations_dest, "w", encoding="utf-8") as file:
             json.dump(self.electrified_stations, file)
 
         # remove escape characters from string. \1 refers to the replacement of the first group
         # in the regex expression, i.e. not replacing the newline characters
-        electrified_stations_dest_str = str(electrified_stations_dest).replace('\\', '/')
+        electrified_stations_dest_str = str(electrified_stations_dest).replace("\\", "/")
         src_text = re.sub(
             r"(electrified_stations\s=.*)(:=\r\n|\r|\n)",
-            "electrified_stations = " + electrified_stations_dest_str + r"\g<2>", src_text)
+            "electrified_stations = " + electrified_stations_dest_str + r"\g<2>", src_text,)
 
         src_text = re.sub(
             r"(preferred_charging_type\s=.*)(:=\r\n|\r|\n)",
-            "preferred_charging_type = oppb"r"\g<2>", src_text)
+            "preferred_charging_type = oppb" r"\g<2>", src_text)
 
         # change config file with adjusted temporary paths to vehicles and electrified stations
         dst = tmp_path / "simba.cfg"
         dst.write_text(src_text)
 
     def generate_datacontainer_args(self, trips_file_name="trips.csv"):
-        """ Check if running a basic example works and return data container.
+        """Check if running a basic example works and return data container.
 
         :param trips_file_name: file name of the trips file. Has to be inside the test_input_file
             folder
@@ -151,7 +153,7 @@ class TestStationOptimization:
             assert subset in joined_subsets2
 
     def test_fast_calculations_and_events(self):
-        """ Test if the base optimization finishes without raising errors"""
+        """Test if the base optimization finishes without raising errors"""
         trips_file_name = "trips_for_optimizer.csv"
         data_container, args = self.generate_datacontainer_args(trips_file_name)
         data_container.stations_data = {}
@@ -166,8 +168,9 @@ class TestStationOptimization:
         generate_soc_timeseries(scen)
 
         config = opt_util.OptimizerConfig()
-        sopt = station_optimizer.StationOptimizer(sched, scen, args, config=config,
-                                                  logger=logging.getLogger())
+        sopt = station_optimizer.StationOptimizer(
+            sched, scen, args, config=config, logger=logging.getLogger()
+        )
 
         # create charging dicts which contain soc over time, which is numerically calculated
         sopt.create_charging_curves()
@@ -186,8 +189,10 @@ class TestStationOptimization:
         assert len(events) == 1
         e = events[0]
         e1 = copy(e)
-        vehicle_socs_reduced = {vehicle: [soc - 1 for soc in socs] for vehicle, socs in
-                                scen.vehicle_socs.items()}
+        vehicle_socs_reduced = {
+            vehicle: [soc - 1 for soc in socs]
+            for vehicle, socs in scen.vehicle_socs.items()
+        }
         # The vehicle socs were reduced. Now both vehicles have socs below 0
         assert 2 == sum(min(socs) < 0 for socs in vehicle_socs_reduced.values())
 
@@ -213,8 +218,8 @@ class TestStationOptimization:
         # Higher socs are increased.
         # Since the soc stays at 1 for longer, the start index should change
         vehicle_socs_increased = {
-            vehicle: [min(soc + abs(e1.min_soc) + new_low_soc, 1) for soc in socs] for
-            vehicle, socs in scen.vehicle_socs.items()}
+            vehicle: [min(soc + abs(e1.min_soc) + new_low_soc, 1) for soc in socs]
+            for vehicle, socs in scen.vehicle_socs.items()}
         events = sopt.get_low_soc_events(soc_data=vehicle_socs_increased, rel_soc=True)
         e3 = events[0]
         assert e1.start_idx != e3.start_idx
@@ -222,13 +227,14 @@ class TestStationOptimization:
         assert e1.min_soc != e3.min_soc
 
         vehicle_socs_more_increased = {
-            vehicle: [min(soc + abs(e1.min_soc) + 0.1, 1) for soc in socs] for vehicle, socs in
-            scen.vehicle_socs.items()}
-        events = sopt.get_low_soc_events(soc_data=vehicle_socs_more_increased, rel_soc=True)
+            vehicle: [min(soc + abs(e1.min_soc) + 0.1, 1) for soc in socs]
+            for vehicle, socs in scen.vehicle_socs.items()}
+        events = sopt.get_low_soc_events(
+            soc_data=vehicle_socs_more_increased, rel_soc=True)
         assert len(events) == 0
 
     def test_basic_optimization(self):
-        """ Test if the base optimization finishes without raising errors"""
+        """Test if the base optimization finishes without raising errors"""
         trips_file_name = "trips_for_optimizer.csv"
         data_container, args = self.generate_datacontainer_args(trips_file_name)
         data_container.stations_data = {}
@@ -242,7 +248,7 @@ class TestStationOptimization:
         opt_sched, opt_scen = run_optimization(conf, sched=sched, scen=scen, args=args)
 
     def test_schedule_consistency(self):
-        """ Test if the optimization returns all rotations even when some filters are active"""
+        """Test if the optimization returns all rotations even when some filters are active"""
         trips_file_name = "trips_for_optimizer.csv"
         data_container, args = self.generate_datacontainer_args(trips_file_name)
         args.preferred_charging_type = "oppb"
@@ -305,6 +311,36 @@ class TestStationOptimization:
         assert "Station-2" in opt_sched.stations
         assert "Station-3" in opt_sched.stations
 
+    def test_greedy_optimization_with_post_opt_station_removal(self):
+        """Identical setup to test_deep_optimization.
+        Uses greedy optimization, and use a post optimization module to remove stations which
+        can be removed without moving the soc below the minimal soc.
+        """
+        trips_file_name = "trips_for_optimizer_deep.csv"
+        data_container, args = self.generate_datacontainer_args(trips_file_name)
+        data_container.stations_data = {}
+        args.preferred_charging_type = "oppb"
+        for trip_d in data_container.trip_data:
+            trip_d["distance"] *= 15
+        sched, scen = self.generate_schedule_scenario(args, data_container)
+        config_path = example_root / "default_optimizer.cfg"
+        conf = opt_util.read_config(config_path)
+
+        assert len(sched.get_negative_rotations(scen)) == 2
+
+        conf.opt_type = "greedy"
+        # conf.solver = "spiceev"  # solver
+        # conf.node_choice = "brute"  # node_choice
+        conf.solver = "quick"
+        conf.node_choice = "node-choice"
+        conf.post_opt_station_pruning = True
+        opt_sched, opt_scen = run_optimization(conf, sched=sched, scen=scen, args=args)
+
+        assert len(opt_sched.get_negative_rotations(opt_scen)) == 0
+        assert "Station-1" not in opt_sched.stations
+        assert "Station-2" in opt_sched.stations
+        assert "Station-3" in opt_sched.stations
+
     def test_deep_optimization_extended(self):
         trips_file_name = "trips_extended.csv"
         data_container, args = self.generate_datacontainer_args(trips_file_name)
@@ -355,13 +391,13 @@ class TestStationOptimization:
         conf.solver = "quick"
         conf.node_choice = "step-by-step"
         opt_sched, opt_scen = run_optimization(conf, sched=sched, scen=scen, args=args)
-        assert ("must stations {'Station-3', 'Station-2'}" in caplog.text or
-                "must stations {'Station-2', 'Station-3'}" in caplog.text)
+        assert ("must stations {'Station-3', 'Station-2'}" in caplog.text
+                or "must stations {'Station-2', 'Station-3'}" in caplog.text)
 
 
 def adjust_vehicle_file(source, capacity=None, mileage=0):
     # use the default vehicles from example folder
-    with open(source, "r", encoding='utf-8') as file:
+    with open(source, "r", encoding="utf-8") as file:
         vehicle_types = util.uncomment_json_file(file)
 
     for vehicle in vehicle_types:
@@ -370,6 +406,6 @@ def adjust_vehicle_file(source, capacity=None, mileage=0):
                 vehicle_types[vehicle][vtype]["capacity"] = capacity
             if mileage is not None:
                 vehicle_types[vehicle][vtype]["mileage"] = mileage
-    with open(source, "w", encoding='utf-8') as file:
+    with open(source, "w", encoding="utf-8") as file:
         json.dump(vehicle_types, file)
     return vehicle_types

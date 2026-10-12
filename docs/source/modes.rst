@@ -328,6 +328,10 @@ The functionality of the optimizer is controlled through the optimizer.cfg speci
      - False
      - [True, False]
      - Discard rotations which have SoCs below the threshold, even when every station is electrified
+   * - post_opt_station_pruning
+     - False
+     - [True, False]
+     - Discard electrified stations which are not needed for a fully electrified scenario. This is done after the main optimization loop and respects the min_soc from the configuration. Stations which are electrified at the beginning of the Optimization are not removed, since they are expected to be fixed and confirmed.
    * - check_for_must_stations
      - True
      - [True, False]
