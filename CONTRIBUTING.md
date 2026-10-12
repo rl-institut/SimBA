@@ -50,7 +50,7 @@ it through first).
 
 To run tests locally, install the dependencies 
 ```bash 
-pip install -r tests/test_requirements.txt 
+pip install -r tests/requirements.txt 
 ```
 
 1. Integration/unit tests 
