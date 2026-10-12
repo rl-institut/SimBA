@@ -510,6 +510,7 @@ def resolve_data_dir(args, parser):
     :type args: argparse.Namespace
     :param parser: parser to look up default values
     :type parser: argparse.ArgumentParser
+    :raises FileNotFoundError: if data_dir is set but does not point to an existing directory
     """
     data_dir = vars(args).get("data_dir") or os.environ.get("SIMBA_DATA_DIR")
     if not data_dir:
