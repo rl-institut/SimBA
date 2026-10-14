@@ -253,6 +253,36 @@ class TestStorageCorrectionIntegration:
             for r in caplog.records)
 
 
+class TestAnnualKwhFromGrid:
+    """ Regression tests for the fixed-tariff billed-energy calculation: a gc's flat price must
+    not depend on how much it exports, since exported energy is never billed (only remunerated
+    separately as feed-in). See docs/concepts/cost_correction_storage_level.md, "Teil 2", for the
+    bug this guards against (adding generation back onto totalLoad instead of clipping it). """
+
+    def test_export_periods_are_excluded_not_subtracted(self):
+        total_load = [100, 100, -500, 50, -1000]
+        result = Costs._annual_kwh_from_grid(total_load, steps_per_hour=60, annual_factor=100)
+        expected = (100 + 100 + 0 + 50 + 0) / 60 * 100
+        assert result == pytest.approx(expected)
+
+    def test_result_is_unaffected_by_the_size_of_export_periods(self):
+        # a station exporting a little vs. a lot must be billed identically, as long as the
+        # import (positive) periods are the same
+        base = [100, 100, 50]
+        with_small_export = base + [-1]
+        with_large_export = base + [-100000]
+        assert Costs._annual_kwh_from_grid(
+            with_small_export, 60, 100) == pytest.approx(
+            Costs._annual_kwh_from_grid(with_large_export, 60, 100))
+
+    def test_matches_plain_sum_when_never_exporting(self):
+        # the old (buggy) and new formula coincide exactly when totalLoad never goes negative,
+        # which is why the bug only showed up once a gc started exporting
+        total_load = [100, 50, 200, 0, 75]
+        assert Costs._annual_kwh_from_grid(total_load, 60, 100) == pytest.approx(
+            sum(total_load) / 60 * 100)
+
+
 class TestPvAttributionUnit:
     """ Pure unit tests for the PV/grid merit-order split used for stationary batteries
     (docs/concepts/cost_correction_storage_level.md, "Teil 2"), independent of any simulation. """

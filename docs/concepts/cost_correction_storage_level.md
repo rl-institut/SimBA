@@ -312,24 +312,25 @@ Kostenberechnung noch nicht existiert – siehe Abschnitt 0).
 
 Erledigt: Automatisierte Tests in `tests/test_cost_calculation.py` (siehe Abschnitt 0.1).
 
+**Erledigt (war hier als offen vermerkt, jetzt vollständig gelöst – siehe Teil 2, Abschnitt
+13.1):** Der Flatrate-Preis-Fallback lieferte bei GCs mit nennenswerter lokaler PV-Einspeisung
+falsche (zu niedrige, bei viel Einspeisung sogar völlig falsche) Preise. Ursache und Fix sind
+in Teil 2 ausführlich dokumentiert.
+
 Verbleibend:
 
 - Negative "corrected" `c_el_annual`-Werte pro GC sind grundsätzlich möglich, wenn die
   herausgerechnete Anomalie größer ist als die ursprünglich berechneten Kosten dieses GC. Das
   wäre mathematisch korrekt (eine Vergleichsgröße, keine reale Rechnung), sollte aber in der
   Doku/UI klar so kommuniziert bleiben, damit es nicht als Fehler missverstanden wird.
-- Flatrate-Preis-Fallback (`annual_cost / annual_kwh` aus `sum(scenario.totalLoad)`) kann bei
-  GCs mit nennenswerter lokaler Einspeisung (PV/Feed-in) unerwartete Werte liefern, da
-  `totalLoad` dort durch negative Lastanteile verkleinert bzw. verzerrt wird. Beobachtet im
-  öffentlichen Test-Fixture (`data/examples/electrified_stations/electrified_stations.json`,
-  Station-0 mit PV-Einspeisung): die Korrektur kam dort mit unerwartet großem positivem Vorzeichen
-  heraus. Die Verkabelung (`c_el_annual = vorher + Korrektur`) bleibt davon unberührt und ist
-  getestet; die *Höhe* der Korrektur bei GCs mit Einspeisung ist aber noch nicht separat
-  verifiziert/diskutiert.
 - Kein Testfall mit `variable_*`/`balanced_market` auf Integrationsebene (nur die
   Fixpreis-Fallback-Logik wird dort durchlaufen); die gleitende-Durchschnitt-Logik selbst ist
   aber bereits durch die reinen Unit-Tests in Abschnitt 0.1 (unabhängig von der
   Cost-Calculation-Methode) abgedeckt.
+- Beim Testen dieses Features aufgefallen, aber unabhängig davon: der Modus `split_negative_depb`
+  scheint bei identischem Input zu nicht-deterministischen Ergebnissen zu führen (zwei Läufe
+  derselben Config lieferten unterschiedliche Lade-/PV-Zeitreihen). Nicht weiter verfolgt, da
+  außerhalb des Scopes dieses Konzepts; ggf. separat als Issue festhalten.
 
 ## 8. Nicht Teil dieses Konzepts
 
@@ -381,12 +382,13 @@ den Faktor ~7,3 überhöhter Preis – und damit eine um denselben Faktor überh
 
 Es lohnt sich, zwei Fragen zu trennen, auch wenn jetzt beide umgesetzt werden:
 
-1. **Symptom (Nenner falsch):** Der Flatrate-Preis-Fallback muss durch die **Brutto**-Bezugsmenge
-   teilen, nicht durch die PV-geminderte Netto-Menge. Das ist eine kleine, risikoarme Korrektur
-   (Nenner auf `totalLoad + localGenerationPower` statt nur `totalLoad` ändern) und würde die
-   gröbste Verzerrung (Faktor 7,3) beseitigen, **ohne** die eigentliche Attributionsfrage zu lösen.
-   **Bestätigt konsistent mit allen bisherigen Annahmen** (Rückfrage 1) – keine Einwände, wird
-   unverändert so umgesetzt.
+1. **Symptom (Nenner falsch):** Der Flatrate-Preis-Fallback muss durch die **tatsächlich
+   abgerechnete** Bezugsmenge teilen, nicht durch die PV-geminderte Netto-Menge. **Bestätigt
+   konsistent mit allen bisherigen Annahmen** (Rückfrage 1) – keine Einwände an der Stoßrichtung.
+   Die ursprünglich hier vorgeschlagene konkrete Formel (Nenner auf `totalLoad +
+   localGenerationPower` ändern, um die PV-Minderung "rückgängig" zu machen) stellte sich beim
+   Testen mit größeren PV-Anlagen aber selbst als fehlerhaft heraus – siehe die Korrektur dazu in
+   Abschnitt 13.1.
 2. **Eigentliche Frage (welcher Preis für PV-geladene Energie):** Selbst mit korrigiertem Nenner
    würde Station A weiterhin die *gesamte* Batterieladung zum Netzpreis bewerten, obwohl ein Teil
    davon nachweislich aus PV statt aus dem Netz stammt. Das ist die Frage, die der Nutzer mit der
@@ -526,9 +528,8 @@ Umsetzen tatsächlich Entscheidungen brauchen:
 Umgesetzt in `simba/costs.py`, auf Branch `feature/rebase_el_cost` (noch nicht
 committet/gemerged):
 
-1. **Nenner-Fix** im Flatrate-Fallback (`get_price_series`, "fixed"-Zweig): `annual_kwh` basiert
-   jetzt auf der Brutto-Bezugsmenge (`sum(totalLoad) + sum(localGenerationPower)`) statt der
-   PV-geminderten Netto-Menge.
+1. **Nenner-Fix** im Flatrate-Fallback (`get_price_series`, "fixed"-Zweig) – siehe 13.1 für die
+   finale, korrekte Formel (nicht mehr `totalLoad + localGenerationPower`, siehe dort warum).
 2. **Merit-Order-Preismischung**, drei neue Methoden auf `Costs`:
    - `_pv_surplus_series(gc_id)`: PV-Überschuss (kWh je Zeitschritt) nach Abzug von Fixlasten
      und Busladung, aus `fixedLoads` + `connChargeByTS` + `localGenerationPower`.
@@ -547,23 +548,69 @@ committet/gemerged):
    nicht behandelte Konkurrenzfrage (mehrere gleichzeitig ladende Geräte am selben GC, die sich
    denselben PV-Überschuss teilen würden) ganz ohne zusätzliche Logik.
 
-**Bug während der Implementierung gefunden und behoben:** `_pv_surplus_series` verglich anfangs
-PV-**Leistung** (kW) direkt mit der (bereits energie-basierten) Batterie-Lademenge (kWh) – bei
-`interval = 1` Minute ein Faktor-60-Fehler. Fix: Division durch `scenario.stepsPerHour` beim
-Bilden der Zeitreihe.
+**Bug #1 während der Implementierung gefunden und behoben:** `_pv_surplus_series` verglich
+anfangs PV-**Leistung** (kW) direkt mit der (bereits energie-basierten) Batterie-Lademenge (kWh)
+– bei `interval = 1` Minute ein Faktor-60-Fehler. Fix: Division durch `scenario.stepsPerHour`
+beim Bilden der Zeitreihe.
 
-**Verifiziert am realen Testlauf** (`simba_w_bat.cfg` mit PV an Station A): Station A lag vorher
-bei einer unplausiblen Korrektur von −1,31 Mio. €/a (Faktor 7,3 zu hoch durch den Nenner-Bug).
-Nach beiden Fixes: −174.358,26 €/a, in derselben Größenordnung wie P/F/I (keine PV, −169.016 bis
-−174.683 €/a). Die Merit-Order-Mischung selbst hatte in diesem konkreten Lauf keinen messbaren
-zusätzlichen Effekt – die Batterie lädt dort nie zeitgleich mit PV-Überschuss, was an der sehr
-kleinen Anlagengröße (10 kWp) gegenüber der potenziellen Ladeleistung der Batterie liegt, nicht
-an einem Fehler. Die Mischungslogik selbst ist über synthetische Daten exakt verifiziert, siehe
-`TestPvAttributionUnit` in `tests/test_cost_calculation.py`.
+Erster Testlauf mit beiden Fixes (`simba_w_bat.cfg`, PV an Station A, kleine 10-kWp-Anlage):
+Station A sank von einer unplausiblen Korrektur von −1,31 Mio. €/a (Faktor 7,3 zu hoch durch den
+Nenner-Bug) auf −174.358,26 €/a, in der Größenordnung von P/F/I (keine PV, −169.016 bis
+−174.683 €/a). Die Merit-Order-Mischung selbst hatte dabei keinen messbaren Effekt – die Batterie
+lud nie zeitgleich mit PV-Überschuss (10 kWp Anlage vs. hohe potenzielle Batterie-Ladeleistung).
 
-**Tests** (`tests/test_cost_calculation.py`): `TestPvAttributionUnit` (reine Unit-Tests für alle
-drei neuen Methoden, mit von Hand nachgerechneten Erwartungswerten) und
-`TestPvAttributionIntegration` (End-to-End über die reale `calculate_costs()`-Pipeline; da
-Station-0 im öffentlichen Beispiel-Fixture auch Fahrzeugkorrekturen zum selben GC beiträgt,
-vergleicht der Test zwei Läufe mit unterschiedlichem, gemocktem PV-Überschuss und prüft die
-*Differenz* – der konstante Fahrzeug-Anteil kürzt sich dabei heraus).
+### 13.1 Bug #2 (gravierender): Nenner-Fix selbst war falsch bei Netto-Einspeisung
+
+Beim Testen mit einer deutlich größeren PV-Anlage und gedrosselter Batterie-Ladeleistung (damit
+PV und Batterieladung zeitlich überlappen) fiel auf: **der aus den Energiekosten abgeleitete
+Netzpreis variierte zwischen Stationen** (0,2552 → 0,1967 → 0,1065 €/kWh, je nach PV-Ausbaustufe)
+– obwohl der Tarif laut Preisblatt fix und identisch für alle sh-netz-Stationen ist. Das wurde
+zu Recht als Widerspruch erkannt ("der Netzpreis sollte immer konstant sein").
+
+**Ursache:** `spice_ev.costs.calculate_costs` berechnet die abgerechnete Energiemenge bei
+Fixtarifen über
+
+```python
+# spice_ev/costs.py:214
+power_grid_supply_list = [max(-v, 0) for v in power_grid_supply_list]
+```
+
+d. h. **Einspeisezeiträume werden auf 0 gekappt**, nicht gegengerechnet – eingespeiste Energie
+wird separat über die Einspeisevergütung vergütet, nie über den Bezugspreis abgerechnet. Der in
+13. ursprünglich implementierte Nenner-Fix (`totalLoad + localGenerationPower`, die komplette
+PV-Erzeugung wieder auf die Netzlast draufaddieren) zählt aber die **gesamte** Erzeugung mit,
+einschließlich des eingespeisten (nie abgerechneten) Anteils – der Nenner wird also größer, je
+mehr eine Station exportiert, während der Zähler (`annual_cost`) davon unberührt bleibt. Das
+drückt den abgeleiteten Preis künstlich nach unten, zunehmend stärker, je mehr PV vorhanden ist.
+
+**Fix:** `annual_kwh` klemmt `totalLoad` jetzt genauso wie SpiceEV selbst – Exportzeiträume
+werden ausgeklammert (nicht gegengerechnet):
+
+```python
+annual_kwh = sum(max(v, 0) for v in total_load) / steps_per_hour * annual_factor
+```
+
+In eine eigene, isoliert testbare Methode ausgelagert: `Costs._annual_kwh_from_grid(total_load,
+steps_per_hour, annual_factor)`, aufgerufen aus `get_price_series`' "fixed"-Zweig.
+
+**Verifiziert:** Mit dem Fix liefern P, F, A und I jetzt exakt denselben Preis (0,25522 €/kWh),
+wie es für einen Fixtarif sein muss. Mit größerer PV-Anlage und gedrosselter Batterie-Ladung
+(sodass die Batterie tatsächlich teilweise aus PV lädt) ergibt sich ein PV-Anteil an der
+Batterieladung von Station A von **57,47 %** (3.024,55 von 5.263,16 kWh netzäquivalenter
+Lademenge), reproduzierbar über mehrere unabhängige Läufe verifiziert (siehe auch die Anmerkung
+zu `split_negative_depb`-Nichtdeterminismus in Abschnitt 7). Die resultierende Korrektur für
+Station A (−103.279,01 €/a) lässt sich daraus exakt nachrechnen:
+`(2.767,2 kWh × 0,05 €/kWh_PV + 2.495,96 kWh × 0,25522 €/kWh_Netz) × Jahresfaktor ≈ 103.279 €/a`.
+
+**Tests** (`tests/test_cost_calculation.py`, 24 Tests insgesamt):
+- `TestAnnualKwhFromGrid` (3 Tests, neu): Regressionstests für Bug #2 – Exportperioden werden
+  ausgeklammert statt gegengerechnet, Ergebnis ist unabhängig von der Größe der Exportperiode,
+  alte und neue Formel stimmen überein, solange nie exportiert wird (weshalb der Bug vorher nicht
+  auffiel).
+- `TestPvAttributionUnit` (6 Tests): reine Unit-Tests für `_pv_surplus_series`,
+  `_feed_in_remuneration_price`, `_blend_battery_prices_with_pv`, mit von Hand nachgerechneten
+  Erwartungswerten.
+- `TestPvAttributionIntegration` (1 Test): End-to-End über die reale `calculate_costs()`-Pipeline;
+  da Station-0 im öffentlichen Beispiel-Fixture auch Fahrzeugkorrekturen zum selben GC beiträgt,
+  vergleicht der Test zwei Läufe mit unterschiedlichem, gemocktem PV-Überschuss und prüft die
+  *Differenz* – der konstante Fahrzeug-Anteil kürzt sich dabei heraus.

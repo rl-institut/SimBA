@@ -436,7 +436,13 @@ class Costs:
             react to and is not the authoritative billed price. For that case, the flat price
             actually implied by the electricity costs already calculated for this gc is used
             instead. Otherwise (a genuine "variable"/market-based method), the CSV-provided
-            price if given, else SpiceEV's own (ct/kWh) price signal, is used. """
+            price if given, else SpiceEV's own (ct/kWh) price signal, is used.
+
+            :param gc_id: grid connector id
+            :type gc_id: str
+            :return: price (EUR/kWh) at each timestep
+            :rtype: list
+            """
             if gc_id in price_series_cache:
                 return price_series_cache[gc_id]
             n = scenario.n_intervals
@@ -450,13 +456,8 @@ class Costs:
                     default_strategy)
 
             if cost_calculation_method and cost_calculation_method.startswith("fixed"):
-                # gross energy purchased from the grid: totalLoad is already net of local PV
-                # generation, which would otherwise understate (or, with enough PV, invert the
-                # sign of) the implied flat price - add local generation back to recover the
-                # actual grid-purchased quantity the energy costs below were billed for
-                gross_kwh = (sum(scenario.totalLoad.get(gc_id, []))
-                             + sum(scenario.localGenerationPower.get(gc_id, [])))
-                annual_kwh = gross_kwh / scenario.stepsPerHour * annual_factor
+                annual_kwh = Costs._annual_kwh_from_grid(
+                    scenario.totalLoad.get(gc_id, []), scenario.stepsPerHour, annual_factor)
                 energy_costs = self.costs_per_gc.get(gc_id, {})
                 annual_cost = (energy_costs.get("c_el_procurement_annual", 0)
                                + energy_costs.get("c_el_energy_price_annual", 0)
@@ -536,6 +537,29 @@ class Costs:
                 f"(correction: {cumulated_correction_annual:+.2f} €/a)")
 
         return self
+
+    @staticmethod
+    def _annual_kwh_from_grid(total_load, steps_per_hour, annual_factor):
+        """ Annualized energy actually billed at a fixed tariff for a gc.
+
+        Only the positive (import) part of the grid load is billed, matching
+        ``spice_ev.costs.calculate_costs`` ("power_grid_supply_list = [max(-v, 0) for v in
+        power_grid_supply_list]", see spice_ev/costs.py). Locally generated energy fed into the
+        grid is never part of this - it is remunerated separately as feed-in - so it must not be
+        added back onto ``total_load`` to "undo" its netting effect: doing so would inflate this
+        figure by the exported (never billed) share of generation, understating the resulting
+        flat price more the more a gc exports.
+
+        :param total_load: grid load (kW) at each timestep, positive = import from the grid
+        :type total_load: list
+        :param steps_per_hour: simulation steps per hour
+        :type steps_per_hour: float
+        :param annual_factor: scaling factor from the simulated period to a full year
+        :type annual_factor: float
+        :return: annualized billed energy (kWh)
+        :rtype: float
+        """
+        return sum(max(v, 0) for v in total_load) / steps_per_hour * annual_factor
 
     def _last_rotation_gc_per_vehicle(self):
         """ Find the grid connector each vehicle's last started rotation departs from.
@@ -624,6 +648,7 @@ class Costs:
         :type gc_id: str
         :return: feed-in remuneration in EUR/kWh, 0 if there is no PV plant at this gc
         :rtype: float
+        :raises ValueError: if the PV plant's nominal power exceeds every configured kWp tier
         """
         pv_nominal = sum(
             pv.nominal_power for pv in self.scenario.components.photovoltaics.values()
