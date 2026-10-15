@@ -207,8 +207,7 @@ class Mode:
             conf = optimizer_util.OptimizerConfig()
         else:
             conf = read_optimizer_config(args.optimizer_config_path)
-            conf.decision_tree_path = util.resolve_path(
-                conf.decision_tree_path, vars(args).get("data_dir"))
+            conf.decision_tree_path = util.resolve_path(conf.decision_tree_path, args.data_dir)
             util.save_input_file(args.optimizer_config_path, args)
         if single_step:
             conf.early_return = True

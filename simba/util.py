@@ -512,21 +512,40 @@ def resolve_data_dir(args, parser):
     :type parser: argparse.ArgumentParser
     :raises FileNotFoundError: if data_dir is set but does not point to an existing directory
     """
-    data_dir = vars(args).get("data_dir") or os.environ.get("SIMBA_DATA_DIR")
-    if not data_dir:
-        args.data_dir = None
+    if args.data_dir is None:
         return
-    data_dir = Path(data_dir)
-    if not data_dir.is_absolute() and vars(args).get("config"):
-        data_dir = Path(args.config).parent / data_dir
-    if not data_dir.is_dir():
-        raise FileNotFoundError(f"data_dir {data_dir} is not a directory")
-    args.data_dir = data_dir
+    if type(args.data_dir) is str:
+        # type should be Path, but set_from_config only converts simple types
+        args.data_dir = Path(args.data_dir)
+    if not args.data_dir.is_absolute() and args.config is not None:
+        # make data_dir relative to config path
+        args.data_dir = Path(args.config).parent / args.data_dir
+    if not args.data_dir.is_dir():
+        raise FileNotFoundError(f"data_dir {args.data_dir} is not a directory")
     for name in PATH_ARGS:
         value = vars(args).get(name)
         if value != parser.get_default(name):
             # only resolve explicitly set paths, keep SimBA defaults relative to working directory
-            setattr(args, name, resolve_path(value, data_dir))
+            setattr(args, name, resolve_path(value, args.data_dir))
+
+
+def resolve_csv_files(data, data_dir):
+    """ Resolve all csv_file entries in (nested) data relative to data_dir.
+
+    :param data: (station) data, changed in place
+    :type data: dict or list
+    :param data_dir: base directory. If None, nothing is changed
+    :type data_dir: str or Path or None
+    """
+    if isinstance(data, dict):
+        for key, value in data.items():
+            if key == "csv_file":
+                data[key] = resolve_path(value, data_dir)
+            else:
+                resolve_csv_files(value, data_dir)
+    elif isinstance(data, list):
+        for value in data:
+            resolve_csv_files(value, data_dir)
 
 
 def get_parser():
@@ -535,12 +554,12 @@ def get_parser():
     parser.add_argument('--scenario-name', help='Identifier of scenario, appended to results')
 
     # #### Paths #####
-    parser.add_argument('--schedule-path',
-                        help='Path to CSV file containing all trips of schedule to be analyzed')
-    parser.add_argument('--data-dir', default=None,
+    parser.add_argument('--data-dir', default=os.environ.get('SIMBA_DATA_DIR'), type=Path,
                         help='Base directory for relative paths of input and output files. '
                         'Relative to the config file. Default: environment variable '
                         'SIMBA_DATA_DIR, if not set paths are relative to working directory')
+    parser.add_argument('--schedule-path',
+                        help='Path to CSV file containing all trips of schedule to be analyzed')
     parser.add_argument('--output-path', default="data/sim_outputs",
                         help='Location where all simulation outputs are stored')
     parser.add_argument('--electrified-stations-path', help='include electrified_stations json')

@@ -24,12 +24,12 @@ class TestDataContainer:
             "price_csv": {"csv_file": str(tmp_path / "prices.csv")},
             "other": [{"csv_file": "pv.csv"}],
         }}
-        simba.data_container.resolve_csv_files(stations, tmp_path)
+        simba.util.resolve_csv_files(stations, tmp_path)
         station = stations["Station-1"]
         assert station["fixed_load"]["load_1"]["csv_file"] == str(tmp_path / "loads/load.csv")
         assert station["price_csv"]["csv_file"] == str(tmp_path / "prices.csv")
         assert station["other"][0]["csv_file"] == str(tmp_path / "pv.csv")
         # no data_dir: unchanged
         stations = {"Station-1": {"price_csv": {"csv_file": "prices.csv"}}}
-        simba.data_container.resolve_csv_files(stations, None)
+        simba.util.resolve_csv_files(stations, None)
         assert stations["Station-1"]["price_csv"]["csv_file"] == "prices.csv"
