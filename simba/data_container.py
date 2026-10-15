@@ -261,6 +261,7 @@ class DataContainer:
 
         """
         stations = self.get_json_from_file(file_path, "electrified stations")
+        util.resolve_csv_files(stations, self.args.data_dir)
         util.save_input_file(file_path, self.args)
         self.add_stations(stations)
         return self
