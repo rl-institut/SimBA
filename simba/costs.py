@@ -475,10 +475,10 @@ class Costs:
 
         # stationary batteries: fixed to a single gc. Charging from local PV generation is
         # valued at the (opportunity-cost) feed-in remuneration instead of the grid price - see
-        # docs/concepts/cost_correction_storage_level.md, "Teil 2". Vehicles are not included in
-        # this split: under the assumed merit order, buses have priority over the stationary
-        # battery for any local PV, so their own charging is treated as ordinary "other load"
-        # ahead of the battery and is always priced at the regular grid price.
+        # docs/source/simba_features.rst, "PV attribution for stationary batteries". Vehicles are
+        # not included in this split: under the assumed merit order, buses have priority over the
+        # stationary battery for any local PV, so their own charging is treated as ordinary
+        # "other load" ahead of the battery and is always priced at the regular grid price.
         for bat_id, battery in scenario.components.batteries.items():
             gc_id = battery.parent
             if gc_id not in self.gcs:
@@ -587,6 +587,11 @@ class Costs:
         """ Build a per-timestep price series (EUR/kWh) for whichever gc a vehicle is
         connected to at each timestep.
 
+        The connector a vehicle is attached to is piecewise constant over time, so this batches
+        timesteps into contiguous runs of the same connector (or none) instead of looking up a
+        price for every single timestep - ``get_price_series`` is only called once per run, not
+        once per timestep.
+
         :param v_id: vehicle id
         :type v_id: str
         :param get_price_series: callable returning the price series (EUR/kWh) for a gc id
@@ -597,25 +602,29 @@ class Costs:
         """
         scenario = self.scenario
         charging_stations = scenario.components.charging_stations
-        prices = []
-        for conn in scenario.connected:
-            cs_id = conn.get(v_id)
-            price = None
-            if cs_id is not None:
-                gc_id = charging_stations[cs_id].parent
+        n_intervals = scenario.n_intervals
+        prices = [None] * n_intervals
+
+        start = 0
+        while start < n_intervals:
+            cur_cs = scenario.connected[start].get(v_id)
+            end = start + 1
+            while end < n_intervals and scenario.connected[end].get(v_id) == cur_cs:
+                end += 1
+            if cur_cs is not None:
+                gc_id = charging_stations[cur_cs].parent
                 gc_prices = get_price_series(gc_id)
-                idx = len(prices)
-                if gc_prices is not None and idx < len(gc_prices):
-                    price = gc_prices[idx]
-            prices.append(price)
+                if gc_prices is not None:
+                    prices[start:end] = gc_prices[start:end]
+            start = end
         return prices
 
     def _pv_surplus_series(self, gc_id):
         """ Local PV generation at a gc left over after covering its "other" load (fixed loads
         and bus charging) at each timestep - the part potentially available to charge a
         stationary battery there under the assumed merit order (PV -> other load -> battery ->
-        grid import for any remainder). See docs/concepts/cost_correction_storage_level.md,
-        "Teil 2" for the underlying assumption.
+        grid import for any remainder). See docs/source/simba_features.rst, "PV attribution for
+        stationary batteries" for the underlying assumption.
 
         :param gc_id: grid connector id
         :type gc_id: str
@@ -668,14 +677,18 @@ class Costs:
 
     @staticmethod
     def _blend_battery_prices_with_pv(soc_kwh, grid_prices, pv_surplus, price_pv, efficiency):
-        """ Per-timestep price series for a stationary battery that values any charging covered
-        by local PV surplus at the feed-in remuneration instead of the grid price, leaving
-        everything else (timesteps without charging, or without PV) at the plain grid price.
-        Degrades to ``grid_prices`` unchanged where there is no PV surplus at all.
+        """ Per-timestep price series for a stationary battery that values the PV-surplus-covered
+        share of a charging timestep's energy at the feed-in remuneration, and the remainder of
+        that same timestep (if any) at the grid price - a power-weighted blend of the two,
+        proportional to how much of that timestep's charging came from each source. A timestep is
+        only valued entirely at the feed-in remuneration if the PV surplus covers its whole
+        charging need for that timestep; it is not enough for some PV surplus to merely exist.
+        Timesteps without charging, or without any PV surplus, keep the plain grid price
+        unchanged.
 
         :param soc_kwh: energy content of the battery at each timestep (kWh)
         :type soc_kwh: list
-        :param grid_prices: grid price (EUR/kWh) at each timestep
+        :param grid_prices: grid price (EUR/kWh) at each timestep, same length as soc_kwh
         :type grid_prices: list
         :param pv_surplus: PV surplus energy (kWh) available to the battery at each timestep, see
             :func:`_pv_surplus_series`
@@ -688,18 +701,24 @@ class Costs:
         :rtype: list
         """
         n = len(soc_kwh)
-        blended = list(grid_prices[:n])
-        blended += [grid_prices[-1] if grid_prices else 0] * (n - len(blended))
+        assert len(grid_prices) == n, "grid_prices must cover every timestep of soc_kwh"
+        blended = list(grid_prices)
         for t in range(n - 1):
+            # find where the battery charges
             delta = soc_kwh[t + 1] - soc_kwh[t]
             if delta <= 0:
+                # battery does not charge at this timestep
                 continue
+            # grid-equivalent energy needed to realize this charging step
             grid_energy = delta / efficiency
+            # how much of it is covered by PV surplus?
             surplus_t = pv_surplus[t] if t < len(pv_surplus) else 0
             pv_to_bat = min(surplus_t, grid_energy)
             if pv_to_bat <= 0:
+                # no PV used for charging the battery at this timestep
                 continue
             grid_to_bat = grid_energy - pv_to_bat
+            # value the PV-covered share at the feed-in price, the rest at the grid price
             blended[t] = (grid_to_bat * grid_prices[t] + pv_to_bat * price_pv) / grid_energy
         return blended
 
@@ -720,6 +739,7 @@ class Costs:
             cost decrease), or None if it could not be determined (e.g. device never charged)
         :rtype: float or None
         """
+        # find first and last time index where soc is known
         known_idx = [i for i, v in enumerate(soc_kwh) if v is not None]
         if len(known_idx) < 2:
             return None
@@ -754,18 +774,15 @@ class Costs:
         # is blended in, and must not be applied again when valuing the final surplus.
         # Seeded with the device's own average price, converted to the same per-stored-kWh
         # basis, as the assumed cost of the energy present at the start.
-        stock = soc_kwh[start_idx]
         avg_price = own_avg_price / efficiency
         for t in range(start_idx, end_idx):
             delta = soc_kwh[t + 1] - soc_kwh[t]
             if delta > 0:
                 price = prices[t] if prices[t] is not None else own_avg_price
                 price_per_stored_kwh = price / efficiency
-                new_stock = stock + delta
-                avg_price = (stock * avg_price + delta * price_per_stored_kwh) / new_stock
-                stock = new_stock
-            elif delta < 0:
-                stock += delta  # withdrawal: avg_price unchanged
+                avg_price = (soc_kwh[t] * avg_price
+                             + delta * price_per_stored_kwh) / soc_kwh[t + 1]
+            # delta <= 0 (withdrawal or no change): avg_price unchanged
         return -delta_e * avg_price
 
     def set_garage_costs(self):

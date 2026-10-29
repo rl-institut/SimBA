@@ -223,6 +223,30 @@ correction amount itself (the delta only) is listed separately as
 ``c_el_storage_level_correction_annual`` in ``summary_vehicles_costs.csv``, in addition to being
 folded into ``c_el_annual``.
 
+PV attribution for stationary batteries
+****************************************
+
+If a grid connector has local PV generation (``energy_feed_in``), part of a stationary battery's
+charging may physically come from that PV instead of the grid. Since PV, bus charging and battery
+charging all draw from the same grid connector, there is no way to measure which kWh came from
+which source - any split is a bookkeeping convention, not a measurement. The storage level
+correction uses the following convention, in order of priority:
+
+1. PV generation first covers the grid connector's "other" load (fixed loads and bus charging).
+2. Any remaining PV surplus is available to charge the stationary battery.
+3. PV surplus beyond what the battery can use is fed into the grid.
+4. Battery charging not covered by PV surplus comes from the grid.
+
+For each timestep in which the battery charges, the share of that charging covered by PV surplus
+is valued at the feed-in remuneration for this grid connector's PV plant (the opportunity cost of
+using it for self-consumption instead of feeding it into the grid) instead of the grid price; the
+remaining, grid-covered share of that same timestep keeps the ordinary grid price. A timestep is
+only valued entirely at the feed-in remuneration if the PV surplus covers its entire charging
+need; otherwise the two prices are blended in proportion to how much of that timestep's charging
+came from each source. Vehicle charging is not split this way: under the priority order above,
+buses are already served before the battery, so their charging is always priced at the regular
+grid price.
+
 Optimization
 ------------
 

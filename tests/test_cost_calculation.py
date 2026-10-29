@@ -160,8 +160,10 @@ class TestStorageCorrectionHelpers:
 
     def test_vehicle_price_series_follows_connected_gc(self):
         costs = Costs.__new__(Costs)
+        connected = [{"v1": "cs_A"}, {}, {"v1": "cs_B"}]
         costs.scenario = SimpleNamespace(
-            connected=[{"v1": "cs_A"}, {}, {"v1": "cs_B"}],
+            connected=connected,
+            n_intervals=len(connected),
             components=SimpleNamespace(charging_stations={
                 "cs_A": SimpleNamespace(parent="A"),
                 "cs_B": SimpleNamespace(parent="B"),
@@ -176,6 +178,38 @@ class TestStorageCorrectionHelpers:
 
         # connected to cs_A (gc A) at t=0, disconnected at t=1, connected to cs_B (gc B) at t=2
         assert result == [10, None, 3]
+
+    def test_vehicle_price_series_batches_multiple_runs(self):
+        # exercises several contiguous runs in one series: two timesteps at cs_A, a disconnect,
+        # three timesteps at cs_B, then a run at cs_C that extends to the very last timestep
+        # (regression test for an off-by-one that would index scenario.connected out of range
+        # when a run reaches the end of the simulation)
+        costs = Costs.__new__(Costs)
+        connected = [
+            {"v1": "cs_A"}, {"v1": "cs_A"}, {}, {"v1": "cs_B"}, {"v1": "cs_B"},
+            {"v1": "cs_B"}, {"v1": "cs_C"},
+        ]
+        costs.scenario = SimpleNamespace(
+            connected=connected,
+            n_intervals=len(connected),
+            components=SimpleNamespace(charging_stations={
+                "cs_A": SimpleNamespace(parent="A"),
+                "cs_B": SimpleNamespace(parent="B"),
+                "cs_C": SimpleNamespace(parent="C"),
+            })
+        )
+        price_series = {
+            "A": [10, 11, 12, 13, 14, 15, 16],
+            "B": [20, 21, 22, 23, 24, 25, 26],
+            # "C" deliberately has no price series, to check the "gc_prices is None" guard
+        }
+
+        def get_price_series(gc_id):
+            return price_series.get(gc_id)
+
+        result = costs._vehicle_price_series("v1", get_price_series)
+
+        assert result == [10, 11, None, 23, 24, 25, None]
 
 
 class TestStorageCorrectionIntegration:
@@ -256,8 +290,8 @@ class TestStorageCorrectionIntegration:
 class TestAnnualKwhFromGrid:
     """ Regression tests for the fixed-tariff billed-energy calculation: a gc's flat price must
     not depend on how much it exports, since exported energy is never billed (only remunerated
-    separately as feed-in). See docs/concepts/cost_correction_storage_level.md, "Teil 2", for the
-    bug this guards against (adding generation back onto totalLoad instead of clipping it). """
+    separately as feed-in). See :func:`Costs._annual_kwh_from_grid` for the bug this guards
+    against (adding generation back onto totalLoad instead of clipping it). """
 
     def test_export_periods_are_excluded_not_subtracted(self):
         total_load = [100, 100, -500, 50, -1000]
@@ -284,8 +318,9 @@ class TestAnnualKwhFromGrid:
 
 
 class TestPvAttributionUnit:
-    """ Pure unit tests for the PV/grid merit-order split used for stationary batteries
-    (docs/concepts/cost_correction_storage_level.md, "Teil 2"), independent of any simulation. """
+    """ Pure unit tests for the PV/grid merit-order split used for stationary batteries (see
+    docs/source/simba_features.rst, "PV attribution for stationary batteries"), independent of
+    any simulation. """
 
     def test_pv_surplus_series_converts_power_to_energy_and_subtracts_other_load(self):
         costs = Costs.__new__(Costs)
