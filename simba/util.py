@@ -600,6 +600,12 @@ def get_parser():
     # #### Flags #####
     parser.add_argument('--cost-calculation', '-cc', action='store_true',
                         help='Calculate costs')
+    parser.add_argument('--clean-costs-storage-level', action='store_true',
+                        help='Correct energy-proportional electricity costs for the change in '
+                        'stored energy (stationary and vehicle batteries) between the start '
+                        'and end of the simulation, so scenarios stay comparable regardless of '
+                        'the simulated storage end state. Only has an effect if '
+                        'cost_calculation is set.')
     parser.add_argument('--check-rotation-consistency', action='store_true',
                         help='Check rotation assumptions when building schedule.')
     parser.add_argument('--skip_inconsistent_rotations', action='store_true',

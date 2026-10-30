@@ -121,68 +121,131 @@ As result the following table is saved as CSV. The first two columns of the csv 
 * Costs are only calculated for :ref:`electrified_stations`. Vehicles for rotations starting at non electrified stations get added to the column "Non_elctrified_station".
 
 
-+---------------------------------+----------+-----------------------------------------------------------------------+
-|**parameter**                    | **unit** | **description**                                                       |
-+=================================+==========+=======================================================================+
-|c_vehicles                       | EUR      | Investment costs of all buses                                         |
-+---------------------------------+----------+-----------------------------------------------------------------------+
-|c_gcs                            | EUR      | Investment costs of all grid connectors                               |
-+---------------------------------+----------+-----------------------------------------------------------------------+
-|c_cs                             | EUR      | Investment costs of all charging stations                             |
-+---------------------------------+----------+-----------------------------------------------------------------------+
-|c_garage_cs                      | EUR      | Investment costs of charging stations at garages                      |
-+---------------------------------+----------+-----------------------------------------------------------------------+
-|c_garage                         | EUR      | Investment costs of garages itself                                    |
-+---------------------------------+----------+-----------------------------------------------------------------------+
-|c_garage_workstations            | EUR      | Investment costs of working stations at garages                       |
-+---------------------------------+----------+-----------------------------------------------------------------------+
-|c_stat_storage                   | EUR      | Investment costs of stationary storages                               |
-+---------------------------------+----------+-----------------------------------------------------------------------+
-|c_feed_in                        | EUR      | Investment costs of feed in (power generation plant)                  |
-+---------------------------------+----------+-----------------------------------------------------------------------+
-|c_invest                         | EUR      | Sum of all investment costs                                           |
-+---------------------------------+----------+-----------------------------------------------------------------------+
-+---------------------------------+----------+-----------------------------------------------------------------------+
-|c_vehicles_annual                | EUR/year | Annual investment costs of all buses                                  |
-+---------------------------------+----------+-----------------------------------------------------------------------+
-|c_gcs_annual                     | EUR/year | Annual investment costs of all grid connectors                        |
-+---------------------------------+----------+-----------------------------------------------------------------------+
-|c_cs_annual                      | EUR/year | Annual investment costs of all charging stations                      |
-+---------------------------------+----------+-----------------------------------------------------------------------+
-|c_garage_annual                  | EUR/year | Sum of annual investment costs of garages                             |
-+---------------------------------+----------+-----------------------------------------------------------------------+
-|c_stat_storage_annual            | EUR/year | Annual investment costs of all stationary storages                    |
-+---------------------------------+----------+-----------------------------------------------------------------------+
-|c_feed_in                        | EUR/year | Annual investment costs of all feed-ins                               |
-+---------------------------------+----------+-----------------------------------------------------------------------+
-|c_invest_annual                  | EUR/year | Sum of all annual investment costs                                    |
-+---------------------------------+----------+-----------------------------------------------------------------------+
-+---------------------------------+----------+-----------------------------------------------------------------------+
-|c_maint_gc_annual                | EUR/year | Annual maintenance costs of grid connectors                           |
-+---------------------------------+----------+-----------------------------------------------------------------------+
-|c_maint_infrastructure_annual    | EUR/year | Annual maintenance costs of charging stations and stationary storages |
-+---------------------------------+----------+-----------------------------------------------------------------------+
-|c_maint_vehicles_annual          | EUR/year | Annual maintenance costs of buses                                     |
-+---------------------------------+----------+-----------------------------------------------------------------------+
-|c_maint_stat_storage_annual      | EUR/year | Annual maintenance costs of stationary storages                       |
-+---------------------------------+----------+-----------------------------------------------------------------------+
-|c_maint_feed_in_annual           | EUR/year | Annual maintenance costs of feed-in                                   |
-+---------------------------------+----------+-----------------------------------------------------------------------+
-|c_maint_annual                   | EUR/year | Sum of annual maintenance costs                                       |
-+---------------------------------+----------+-----------------------------------------------------------------------+
-+---------------------------------+----------+-----------------------------------------------------------------------+
-|c_el_procurement_annual          | EUR/year | Annual costs of power procurement                                     |
-+---------------------------------+----------+-----------------------------------------------------------------------+
-|c_el_power_price_annual          | EUR/year | Annual grid fee for highest load peak                                 |
-+---------------------------------+----------+-----------------------------------------------------------------------+
-|c_el_energy_price_annual         | EUR/year | Annual grid fee for drawn energy                                      |
-+---------------------------------+----------+-----------------------------------------------------------------------+
-|c_el_taxes_annual                | EUR/year | Annual costs for all electricity related taxes                        |
-+---------------------------------+----------+-----------------------------------------------------------------------+
-|c_el_feed_in_remuneration_annual | EUR/year | Annual feed-in remuneration                                           |
-+---------------------------------+----------+-----------------------------------------------------------------------+
-|c_el_annual                      | EUR/year | Sum of all annual electricity costs                                   |
-+---------------------------------+----------+-----------------------------------------------------------------------+
++-------------------------------------+----------+-----------------------------------------------------------------------+
+|**parameter**                        | **unit** | **description**                                                       |
++=====================================+==========+=======================================================================+
+|c_vehicles                           | EUR      | Investment costs of all buses                                         |
++-------------------------------------+----------+-----------------------------------------------------------------------+
+|c_gcs                                | EUR      | Investment costs of all grid connectors                               |
++-------------------------------------+----------+-----------------------------------------------------------------------+
+|c_cs                                 | EUR      | Investment costs of all charging stations                             |
++-------------------------------------+----------+-----------------------------------------------------------------------+
+|c_garage_cs                          | EUR      | Investment costs of charging stations at garages                      |
++-------------------------------------+----------+-----------------------------------------------------------------------+
+|c_garage                             | EUR      | Investment costs of garages itself                                    |
++-------------------------------------+----------+-----------------------------------------------------------------------+
+|c_garage_workstations                | EUR      | Investment costs of working stations at garages                       |
++-------------------------------------+----------+-----------------------------------------------------------------------+
+|c_stat_storage                       | EUR      | Investment costs of stationary storages                               |
++-------------------------------------+----------+-----------------------------------------------------------------------+
+|c_feed_in                            | EUR      | Investment costs of feed in (power generation plant)                  |
++-------------------------------------+----------+-----------------------------------------------------------------------+
+|c_invest                             | EUR      | Sum of all investment costs                                           |
++-------------------------------------+----------+-----------------------------------------------------------------------+
++-------------------------------------+----------+-----------------------------------------------------------------------+
+|c_vehicles_annual                    | EUR/year | Annual investment costs of all buses                                  |
++-------------------------------------+----------+-----------------------------------------------------------------------+
+|c_gcs_annual                         | EUR/year | Annual investment costs of all grid connectors                        |
++-------------------------------------+----------+-----------------------------------------------------------------------+
+|c_cs_annual                          | EUR/year | Annual investment costs of all charging stations                      |
++-------------------------------------+----------+-----------------------------------------------------------------------+
+|c_garage_annual                      | EUR/year | Sum of annual investment costs of garages                             |
++-------------------------------------+----------+-----------------------------------------------------------------------+
+|c_stat_storage_annual                | EUR/year | Annual investment costs of all stationary storages                    |
++-------------------------------------+----------+-----------------------------------------------------------------------+
+|c_feed_in                            | EUR/year | Annual investment costs of all feed-ins                               |
++-------------------------------------+----------+-----------------------------------------------------------------------+
+|c_invest_annual                      | EUR/year | Sum of all annual investment costs                                    |
++-------------------------------------+----------+-----------------------------------------------------------------------+
++-------------------------------------+----------+-----------------------------------------------------------------------+
+|c_maint_gc_annual                    | EUR/year | Annual maintenance costs of grid connectors                           |
++-------------------------------------+----------+-----------------------------------------------------------------------+
+|c_maint_infrastructure_annual        | EUR/year | Annual maintenance costs of charging stations and stationary storages |
++-------------------------------------+----------+-----------------------------------------------------------------------+
+|c_maint_vehicles_annual              | EUR/year | Annual maintenance costs of buses                                     |
++-------------------------------------+----------+-----------------------------------------------------------------------+
+|c_maint_stat_storage_annual          | EUR/year | Annual maintenance costs of stationary storages                       |
++-------------------------------------+----------+-----------------------------------------------------------------------+
+|c_maint_feed_in_annual               | EUR/year | Annual maintenance costs of feed-in                                   |
++-------------------------------------+----------+-----------------------------------------------------------------------+
+|c_maint_annual                       | EUR/year | Sum of annual maintenance costs                                       |
++-------------------------------------+----------+-----------------------------------------------------------------------+
++-------------------------------------+----------+-----------------------------------------------------------------------+
+|c_el_procurement_annual              | EUR/year | Annual costs of power procurement                                     |
++-------------------------------------+----------+-----------------------------------------------------------------------+
+|c_el_power_price_annual              | EUR/year | Annual grid fee for highest load peak                                 |
++-------------------------------------+----------+-----------------------------------------------------------------------+
+|c_el_energy_price_annual             | EUR/year | Annual grid fee for drawn energy                                      |
++-------------------------------------+----------+-----------------------------------------------------------------------+
+|c_el_taxes_annual                    | EUR/year | Annual costs for all electricity related taxes                        |
++-------------------------------------+----------+-----------------------------------------------------------------------+
+|c_el_feed_in_remuneration_annual     | EUR/year | Annual feed-in remuneration                                           |
++-------------------------------------+----------+-----------------------------------------------------------------------+
+|c_el_storage_level_correction_annual | EUR/year | Storage level cost correction, see below. 0 if not activated          |
++-------------------------------------+----------+-----------------------------------------------------------------------+
+|c_el_annual                          | EUR/year | Sum of all annual electricity costs, including the correction above   |
++-------------------------------------+----------+-----------------------------------------------------------------------+
+
+.. _storage_level_cost_correction:
+
+Storage level cost correction
+##############################
+
+Electricity costs are annualized based on the simulated period (see above). If a stationary
+battery or a vehicle battery ends the simulation with a different amount of stored energy than
+it started with, that one-off difference is scaled up (or down) as if it recurred every such
+period over the whole year, distorting the annual cost figure. This is most noticeable for short
+simulated periods and large stationary batteries, e.g. a battery starting empty that is charged
+once during the simulation: without correction, that single charging event would be counted as if
+it happened repeatedly throughout the year.
+
+Setting the flag ``clean_costs_storage_level`` in the config activates a correction for this: for
+every stationary battery and every vehicle battery, the difference between the energy stored at
+the end and at the start of the simulation is priced and added to (or subtracted from) the
+electricity costs, so that scenarios with different storage end states stay comparable. Only the
+energy-proportional part of the electricity costs is corrected (grid fees and taxes that scale
+with kWh, not with peak power); investment and maintenance costs are unaffected.
+
+* If a device ends up with **more** stored energy than at the start, that surplus is priced with a
+  moving average of the device's own charging history (similar to weighted-average inventory
+  costing), so that historically cheap charging that has since been consumed again does not count
+  towards the value of what is still stored at the end. The corresponding cost is then subtracted,
+  since that energy was bought but not (yet) used for driving.
+* If a device ends up with **less** stored energy than at the start, the plain volume-weighted
+  average price of the device's own charging events is used to estimate what it would typically
+  cost this device to recharge. The corresponding cost is then added.
+
+A vehicle's correction is booked to the grid connector of its last started rotation, regardless of
+where it charged in between. Stationary batteries are booked to their own grid connector. The
+correction for each grid connector is logged (and written to the log file) when it is applied,
+showing the electricity costs before and after the correction and the size of the adjustment. The
+correction amount itself (the delta only) is listed separately as
+``c_el_storage_level_correction_annual`` in ``summary_vehicles_costs.csv``, in addition to being
+folded into ``c_el_annual``.
+
+PV attribution for stationary batteries
+****************************************
+
+If a grid connector has local PV generation (``energy_feed_in``), part of a stationary battery's
+charging may physically come from that PV instead of the grid. Since PV, bus charging and battery
+charging all draw from the same grid connector, there is no way to measure which kWh came from
+which source - any split is a bookkeeping convention, not a measurement. The storage level
+correction uses the following convention, in order of priority:
+
+1. PV generation first covers the grid connector's "other" load (fixed loads and bus charging).
+2. Any remaining PV surplus is available to charge the stationary battery.
+3. PV surplus beyond what the battery can use is fed into the grid.
+4. Battery charging not covered by PV surplus comes from the grid.
+
+For each timestep in which the battery charges, the share of that charging covered by PV surplus
+is valued at the feed-in remuneration for this grid connector's PV plant (the opportunity cost of
+using it for self-consumption instead of feeding it into the grid) instead of the grid price; the
+remaining, grid-covered share of that same timestep keeps the ordinary grid price. A timestep is
+only valued entirely at the feed-in remuneration if the PV surplus covers its entire charging
+need; otherwise the two prices are blended in proportion to how much of that timestep's charging
+came from each source. Vehicle charging is not split this way: under the priority order above,
+buses are already served before the battery, so their charging is always priced at the regular
+grid price.
 
 Optimization
 ------------
