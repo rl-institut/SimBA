@@ -251,7 +251,8 @@ only valued entirely at the feed-in remuneration if the PV surplus covers its en
 need; otherwise the two prices are blended in proportion to how much of that timestep's charging
 came from each source. Vehicle charging is not split this way: under the priority order above,
 buses are already served before the battery, so their charging is always priced at the regular
-grid price.
+grid price. If the PV plant's nominal power exceeds the highest kWp tier of the price sheet, a
+warning is logged and its feed-in remuneration is taken as 0 ct/kWh.
 
 Optimization
 ------------

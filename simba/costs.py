@@ -619,9 +619,9 @@ class Costs:
 
         :param gc_id: grid connector id
         :type gc_id: str
-        :return: feed-in remuneration in EUR/kWh, 0 if there is no PV plant at this gc
+        :return: feed-in remuneration in EUR/kWh, 0 if there is no PV plant at this gc or its
+            nominal power exceeds every configured kWp tier
         :rtype: float
-        :raises ValueError: if the PV plant's nominal power exceeds every configured kWp tier
         """
         pv_nominal = sum(
             pv.nominal_power for pv in self.scenario.components.photovoltaics.values()
@@ -636,9 +636,10 @@ class Costs:
         for threshold, rate in zip(pv_params["kWp"], pv_params["remuneration"]):
             if pv_nominal <= threshold:
                 return rate / 100  # ct/kWh -> EUR/kWh
-        raise ValueError(
-            f"{gc_id}: feed-in remuneration not defined for PV nominal power {pv_nominal} kWp "
-            f"(highest configured tier: {pv_params['kWp'][-1]} kWp)")
+        logging.warning(
+            f"{gc_id}: no feed-in remuneration defined for PV nominal power {pv_nominal} kWp "
+            f"(highest configured tier: {pv_params['kWp'][-1]} kWp), using 0 ct/kWh")
+        return 0.0
 
     @staticmethod
     def _blend_battery_prices_with_pv(soc_kwh, grid_prices, pv_surplus, price_pv, efficiency):

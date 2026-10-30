@@ -392,15 +392,16 @@ class TestPvAttributionUnit:
         costs.params = {}
         assert costs._feed_in_remuneration_price("A") == 0.0
 
-    def test_feed_in_remuneration_price_raises_above_highest_tier(self):
+    def test_feed_in_remuneration_price_warns_and_is_zero_above_highest_tier(self, caplog):
         costs = Costs.__new__(Costs)
         costs.scenario = SimpleNamespace(components=SimpleNamespace(
             photovoltaics={"pv1": SimpleNamespace(parent="A", nominal_power=5000)}))
         costs.gcs = {"A": SimpleNamespace(grid_operator="sh-netz")}
         costs.params = {"sh-netz": {"feed-in_remuneration": {
             "PV": {"kWp": [10, 100, 1000], "remuneration": [8, 5, 3]}}}}
-        with pytest.raises(ValueError):
-            costs._feed_in_remuneration_price("A")
+        with caplog.at_level(logging.WARNING):
+            assert costs._feed_in_remuneration_price("A") == 0.0
+        assert any("no feed-in remuneration defined" in r.message for r in caplog.records)
 
     def test_blend_battery_prices_with_pv_splits_charging_by_merit_order(self):
         # charge 0 -> 50 (step 0), idle (step 1), charge 50 -> 150 (step 2)
