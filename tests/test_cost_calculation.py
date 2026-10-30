@@ -131,6 +131,14 @@ class TestStorageCorrectionUnit:
         correction = Costs._storage_correction_eur(soc_kwh, prices, efficiency)
         assert correction == pytest.approx(-120.0)
 
+    def test_interior_gap_in_soc_kwh_raises(self):
+        # a None strictly between the first and last known soc (not merely at the edges) would
+        # silently be skipped by soc_kwh[t + 1] - soc_kwh[t] otherwise - must fail loudly instead
+        soc_kwh = [0, 100, None, 300]
+        prices = [0.20, 0.20, 0.20]
+        with pytest.raises(AssertionError):
+            Costs._storage_correction_eur(soc_kwh, prices, 1.0)
+
 
 class TestStorageCorrectionHelpers:
     """ Unit tests for the attribution/price-lookup helpers, using lightweight stand-ins

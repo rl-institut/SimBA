@@ -426,10 +426,10 @@ class Costs:
             # vehicle_socs.csv) - reuse the same logic here instead of duplicating it
             spice_ev.report.generate_soc_timeseries(scenario)
 
-        price_series_cache = {}
+        price_series_cache = {}  # gc_id -> prices
 
         def get_price_series(gc_id):
-            """ EUR/kWh at each timestep for a gc. For a "fixed" cost_calculation_method the
+            """ EUR/kWh at each timestep for a gc. For a "fixed" cost_calc_method the
             price is time-invariant by definition (a static price sheet, see
             :func:`set_electricity_costs`) - the on-the-fly price SpiceEV sees during the
             simulation is only a placeholder used to give a charging strategy something to
@@ -448,14 +448,14 @@ class Costs:
             n = scenario.n_intervals
             station = self.schedule.stations.get(gc_id, {})
             station_type = station.get("type", "")
-            cost_calculation_method = vars(self.args).get(
+            cost_calc_method = vars(self.args).get(
                 f"cost_calculation_method_{station_type}")
-            if cost_calculation_method is None:
+            if cost_calc_method is None:
                 default_strategy = vars(self.args).get(f"strategy_{station_type}")
-                cost_calculation_method = spice_ev.costs.DEFAULT_COST_CALCULATION.get(
-                    default_strategy)
+                cost_calc_method = spice_ev.costs.DEFAULT_COST_CALCULATION.get(default_strategy)
 
-            if cost_calculation_method and cost_calculation_method.startswith("fixed"):
+            # take all kwh dependent energy prices
+            if cost_calc_method and cost_calc_method.startswith("fixed"):
                 annual_kwh = Costs._annual_kwh_from_grid(
                     scenario.totalLoad.get(gc_id, []), scenario.stepsPerHour, annual_factor)
                 energy_costs = self.costs_per_gc.get(gc_id, {})
@@ -744,6 +744,8 @@ class Costs:
         if len(known_idx) < 2:
             return None
         start_idx, end_idx = known_idx[0], known_idx[-1]
+        assert end_idx - start_idx == len(known_idx) - 1, (
+            "soc_kwh must not have gaps between its first and last known values")
 
         # device's own volume-weighted average price of its charging events (used directly for
         # a deficit, and as the seed value of the moving average for a surplus)
