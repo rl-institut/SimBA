@@ -274,6 +274,31 @@ class TestStorageCorrectionIntegration:
         keys = [row[0] for row in csv_rows]
         assert "c_el_storage_level_correction_annual" in keys
 
+    def test_negative_vehicle_soc_is_clamped_to_zero(self, monkeypatch):
+        schedule, scenario, args, cost_params = self._basic_setup()
+        args.clean_costs_storage_level = True
+        n = scenario.n_intervals
+        v_id, vehicle = next(iter(scenario.components.vehicles.items()))
+        capacity = vehicle.battery.capacity
+        efficiency = vehicle.battery.efficiency
+
+        # only this vehicle drifts: charges -100 kWh -> 0 at 0.20 EUR/kWh, then 0 -> 50 kWh at
+        # 0.40 EUR/kWh (without clamping, the moving average would divide by zero)
+        scenario.vehicle_socs = {
+            v_id: [-100 / capacity] * (n - 2) + [0, 50 / capacity]}
+        prices = [0.20] * (n - 2) + [0.40, 0.40]
+        monkeypatch.setattr(Costs, "_vehicle_price_series", lambda self, v, f: prices)
+
+        costs = calculate_costs(cost_params, scenario, schedule, args)
+
+        # only the 50 kWh stored above 0 count as surplus, valued at the price they were bought
+        annual_factor = (Costs.DAYS_PER_YEAR * 24 * 3600) / (
+            n * scenario.interval.total_seconds())
+        expected = -(50 / efficiency) * 0.40 * annual_factor
+        total = sum(values["c_el_storage_level_correction_annual"]
+                    for gc, values in costs.costs_per_gc.items() if gc != Costs.CUMULATED)
+        assert total == pytest.approx(expected)
+
     def test_logging_reports_before_after_and_delta(self, caplog):
         schedule, scenario, args, cost_params = self._basic_setup()
 

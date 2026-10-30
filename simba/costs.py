@@ -477,7 +477,9 @@ class Costs:
             if not soc_fractions:
                 continue
             capacity = vehicle.battery.capacity
-            soc_kwh = [None if s is None else s * capacity for s in soc_fractions]
+            # clamp negative soc (infeasible rotation) to 0: it is not stored energy and would
+            # divide by zero in the moving average
+            soc_kwh = [None if s is None else max(s, 0) * capacity for s in soc_fractions]
             prices = self._vehicle_price_series(v_id, get_price_series)
             correction = self._storage_correction_eur(soc_kwh, prices, vehicle.battery.efficiency)
             if correction:

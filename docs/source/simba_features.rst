@@ -223,6 +223,12 @@ correction amount itself (the delta only) is listed separately as
 ``c_el_storage_level_correction_annual`` in ``summary_vehicles_costs.csv``, in addition to being
 folded into ``c_el_annual``.
 
+Negative vehicle SoC (from rotations that are not feasible) is treated as 0 kWh for the
+correction. Energy charged to bring a vehicle back up from a negative SoC to 0 has paid for
+driving that already happened, so it is not counted as stored surplus. Likewise, a vehicle ending
+the simulation below 0 is only corrected for the energy missing down to 0; the remainder was
+never bought during the simulation and is not storage drift.
+
 PV attribution for stationary batteries
 ****************************************
 
