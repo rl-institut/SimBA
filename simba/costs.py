@@ -387,27 +387,9 @@ class Costs:
         return self
 
     def set_storage_level_cost_correction(self):
-        """ Correct energy-proportional electricity costs for storage level drift.
-
-        If a stationary battery or a vehicle battery ends the simulation with more or less
-        stored energy than it started with, part of the energy bought (or still needed) is not
-        attributable to bus operation within the simulated period. Since electricity costs are
-        annualized based on the simulated period (see :func:`set_various_kpis`), such a one-off
-        difference would otherwise be scaled up (or down) as if it recurred every such period
-        over the whole year, distorting comparisons between scenarios with different storage
-        behavior (e.g. with and without a stationary battery).
-
-        Surplus energy (more stored at the end than at the start) is valued at a moving-average
-        price of the device's own charging history, analogous to weighted-average inventory
-        costing: already-consumed, historically cheap charging does not count towards the value
-        of what is still in the device at the end. A deficit (less stored at the end) is valued
-        at the plain volume-weighted average price of the device's own charging events, as an
-        estimate of what it would typically cost this device to recharge.
-
-        Only the energy-proportional part of the electricity costs is affected
-        (``c_el_storage_level_correction_annual``, folded into ``c_el_annual``); peak-power based
-        costs and investment/maintenance costs are untouched. Only has an effect if
-        ``args.clean_costs_storage_level`` is set.
+        """ Correct energy-proportional electricity costs for storage level drift between the
+        start and end of the simulation, see docs/source/simba_features.rst, "Storage level cost
+        correction". Only has an effect if ``args.clean_costs_storage_level`` is set.
 
         :return: self
         :rtype: Costs
@@ -419,6 +401,7 @@ class Costs:
         scenario_duration_s = scenario.n_intervals * scenario.interval.total_seconds()
         if scenario_duration_s <= 0:
             return self
+        # scaling factor from the simulated period to a full year
         annual_factor = (self.DAYS_PER_YEAR * 24 * 60 * 60) / scenario_duration_s
 
         if not hasattr(scenario, "vehicle_socs"):
@@ -429,14 +412,7 @@ class Costs:
         price_series_cache = {}  # gc_id -> prices
 
         def get_price_series(gc_id):
-            """ EUR/kWh at each timestep for a gc. For a "fixed" cost_calc_method the
-            price is time-invariant by definition (a static price sheet, see
-            :func:`set_electricity_costs`) - the on-the-fly price SpiceEV sees during the
-            simulation is only a placeholder used to give a charging strategy something to
-            react to and is not the authoritative billed price. For that case, the flat price
-            actually implied by the electricity costs already calculated for this gc is used
-            instead. Otherwise (a genuine "variable"/market-based method), the CSV-provided
-            price if given, else SpiceEV's own (ct/kWh) price signal, is used.
+            """ EUR/kWh at each timestep for a gc, cached per gc.
 
             :param gc_id: grid connector id
             :type gc_id: str
@@ -454,8 +430,9 @@ class Costs:
                 default_strategy = vars(self.args).get(f"strategy_{station_type}")
                 cost_calc_method = spice_ev.costs.DEFAULT_COST_CALCULATION.get(default_strategy)
 
-            # take all kwh dependent energy prices
             if cost_calc_method and cost_calc_method.startswith("fixed"):
+                # fixed tariff: use the flat price implied by the electricity costs already
+                # calculated for this gc, not SpiceEV's on-the-fly placeholder price
                 annual_kwh = Costs._annual_kwh_from_grid(
                     scenario.totalLoad.get(gc_id, []), scenario.stepsPerHour, annual_factor)
                 energy_costs = self.costs_per_gc.get(gc_id, {})
@@ -465,6 +442,8 @@ class Costs:
                 flat_price = annual_cost / annual_kwh if annual_kwh else 0
                 prices = [flat_price] * n
             else:
+                # genuine "variable"/market-based method: use the CSV-provided price if given,
+                # else SpiceEV's own (ct/kWh) price signal
                 prices = station.get("prices")
                 if not prices:
                     prices = [p / 100 for p in scenario.prices.get(gc_id, [0] * n)]
@@ -473,12 +452,8 @@ class Costs:
 
         correction_per_gc = {gc_id: 0 for gc_id in self.gcs}
 
-        # stationary batteries: fixed to a single gc. Charging from local PV generation is
-        # valued at the (opportunity-cost) feed-in remuneration instead of the grid price - see
-        # docs/source/simba_features.rst, "PV attribution for stationary batteries". Vehicles are
-        # not included in this split: under the assumed merit order, buses have priority over the
-        # stationary battery for any local PV, so their own charging is treated as ordinary
-        # "other load" ahead of the battery and is always priced at the regular grid price.
+        # stationary batteries: fixed to a single gc, blend in PV surplus pricing (see
+        # docs/source/simba_features.rst, "PV attribution for stationary batteries")
         for bat_id, battery in scenario.components.batteries.items():
             gc_id = battery.parent
             if gc_id not in self.gcs:
@@ -542,14 +517,6 @@ class Costs:
     def _annual_kwh_from_grid(total_load, steps_per_hour, annual_factor):
         """ Annualized energy actually billed at a fixed tariff for a gc.
 
-        Only the positive (import) part of the grid load is billed, matching
-        ``spice_ev.costs.calculate_costs`` ("power_grid_supply_list = [max(-v, 0) for v in
-        power_grid_supply_list]", see spice_ev/costs.py). Locally generated energy fed into the
-        grid is never part of this - it is remunerated separately as feed-in - so it must not be
-        added back onto ``total_load`` to "undo" its netting effect: doing so would inflate this
-        figure by the exported (never billed) share of generation, understating the resulting
-        flat price more the more a gc exports.
-
         :param total_load: grid load (kW) at each timestep, positive = import from the grid
         :type total_load: list
         :param steps_per_hour: simulation steps per hour
@@ -559,6 +526,8 @@ class Costs:
         :return: annualized billed energy (kWh)
         :rtype: float
         """
+        # only positive (import) values are billed; energy fed into the grid is remunerated
+        # separately as feed-in and is not added back here
         return sum(max(v, 0) for v in total_load) / steps_per_hour * annual_factor
 
     def _last_rotation_gc_per_vehicle(self):
@@ -587,11 +556,6 @@ class Costs:
         """ Build a per-timestep price series (EUR/kWh) for whichever gc a vehicle is
         connected to at each timestep.
 
-        The connector a vehicle is attached to is piecewise constant over time, so this batches
-        timesteps into contiguous runs of the same connector (or none) instead of looking up a
-        price for every single timestep - ``get_price_series`` is only called once per run, not
-        once per timestep.
-
         :param v_id: vehicle id
         :type v_id: str
         :param get_price_series: callable returning the price series (EUR/kWh) for a gc id
@@ -605,6 +569,8 @@ class Costs:
         n_intervals = scenario.n_intervals
         prices = [None] * n_intervals
 
+        # batch timesteps into contiguous runs of the same connector, instead of looking up a
+        # price for every single timestep
         start = 0
         while start < n_intervals:
             cur_cs = scenario.connected[start].get(v_id)
@@ -621,10 +587,8 @@ class Costs:
 
     def _pv_surplus_series(self, gc_id):
         """ Local PV generation at a gc left over after covering its "other" load (fixed loads
-        and bus charging) at each timestep - the part potentially available to charge a
-        stationary battery there under the assumed merit order (PV -> other load -> battery ->
-        grid import for any remainder). See docs/source/simba_features.rst, "PV attribution for
-        stationary batteries" for the underlying assumption.
+        and bus charging) at each timestep, see docs/source/simba_features.rst, "PV attribution
+        for stationary batteries".
 
         :param gc_id: grid connector id
         :type gc_id: str
@@ -639,6 +603,7 @@ class Costs:
             return [0] * n
         fixed = scenario.fixedLoads.get(gc_id, [{}] * n)
         cs = scenario.connChargeByTS.get(gc_id, [{}] * n)
+        # PV surplus = pv generation minus the gc's other load (fixed loads + bus charging)
         surplus = []
         for t in range(n):
             other_load = sum(fixed[t].values()) + sum(cs[t].values())
@@ -647,11 +612,8 @@ class Costs:
         return surplus
 
     def _feed_in_remuneration_price(self, gc_id):
-        """ Feed-in remuneration (EUR/kWh) for the PV plant at a gc, i.e. the opportunity cost
-        of using its generation to charge a stationary battery instead of feeding it into the
-        grid. Constant over time, but depends on the PV plant's nominal power (kWp tier) and the
-        gc's grid operator - mirrors the tier lookup in
-        ``spice_ev.costs.calculate_costs`` ("COSTS FROM FEED-IN REMUNERATION").
+        """ Feed-in remuneration (EUR/kWh) for the PV plant at a gc, i.e. the opportunity cost of
+        using its generation to charge a stationary battery instead of feeding it into the grid.
 
         :param gc_id: grid connector id
         :type gc_id: str
@@ -668,6 +630,7 @@ class Costs:
         pv_params = self.params.get(grid_operator, {}).get("feed-in_remuneration", {}).get("PV")
         if not pv_params:
             return 0.0
+        # mirrors the kWp-tier lookup in spice_ev.costs.calculate_costs
         for threshold, rate in zip(pv_params["kWp"], pv_params["remuneration"]):
             if pv_nominal <= threshold:
                 return rate / 100  # ct/kWh -> EUR/kWh
@@ -678,13 +641,8 @@ class Costs:
     @staticmethod
     def _blend_battery_prices_with_pv(soc_kwh, grid_prices, pv_surplus, price_pv, efficiency):
         """ Per-timestep price series for a stationary battery that values the PV-surplus-covered
-        share of a charging timestep's energy at the feed-in remuneration, and the remainder of
-        that same timestep (if any) at the grid price - a power-weighted blend of the two,
-        proportional to how much of that timestep's charging came from each source. A timestep is
-        only valued entirely at the feed-in remuneration if the PV surplus covers its whole
-        charging need for that timestep; it is not enough for some PV surplus to merely exist.
-        Timesteps without charging, or without any PV surplus, keep the plain grid price
-        unchanged.
+        share of a charging timestep's energy at the feed-in remuneration, and the remainder at
+        the grid price.
 
         :param soc_kwh: energy content of the battery at each timestep (kWh)
         :type soc_kwh: list
@@ -707,15 +665,15 @@ class Costs:
             # find where the battery charges
             delta = soc_kwh[t + 1] - soc_kwh[t]
             if delta <= 0:
-                # battery does not charge at this timestep
+                # battery does not charge at this timestep: keep plain grid price
                 continue
             # grid-equivalent energy needed to realize this charging step
             grid_energy = delta / efficiency
-            # how much of it is covered by PV surplus?
+            # how much of the charging is covered by PV surplus?
             surplus_t = pv_surplus[t] if t < len(pv_surplus) else 0
             pv_to_bat = min(surplus_t, grid_energy)
             if pv_to_bat <= 0:
-                # no PV used for charging the battery at this timestep
+                # no PV used for charging the battery at this timestep: keep plain grid price
                 continue
             grid_to_bat = grid_energy - pv_to_bat
             # value the PV-covered share at the feed-in price, the rest at the grid price
@@ -770,21 +728,18 @@ class Costs:
             # deficit: estimate cost of recharging at the device's own average price
             return (-delta_e / efficiency) * own_avg_price
 
-        # surplus: moving average ("gleitender Durchschnittspreis") of what remains, tracked as
-        # EUR per kWh of energy actually stored in the device (not per grid kWh, unlike
-        # own_avg_price above) - charging efficiency is priced in once, when a charging event
-        # is blended in, and must not be applied again when valuing the final surplus.
-        # Seeded with the device's own average price, converted to the same per-stored-kWh
-        # basis, as the assumed cost of the energy present at the start.
+        # surplus: moving average price per kWh actually stored in the device, seeded with the
+        # device's own average price
         avg_price = own_avg_price / efficiency
         for t in range(start_idx, end_idx):
             delta = soc_kwh[t + 1] - soc_kwh[t]
             if delta > 0:
+                # price_per_stored_kwh already prices in efficiency; do not divide by it again
                 price = prices[t] if prices[t] is not None else own_avg_price
                 price_per_stored_kwh = price / efficiency
                 avg_price = (soc_kwh[t] * avg_price
                              + delta * price_per_stored_kwh) / soc_kwh[t + 1]
-            # delta <= 0 (withdrawal or no change): avg_price unchanged
+            # withdrawal or no change: avg_price unchanged
         return -delta_e * avg_price
 
     def set_garage_costs(self):
