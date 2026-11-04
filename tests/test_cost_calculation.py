@@ -73,18 +73,12 @@ class TestStorageCorrectionUnit:
         # charges up, then fully discharges back to the starting level: no net drift
         assert Costs._storage_correction_eur([0, 500, 0], [0.2, None], 0.9) == 0
 
-    def test_surplus_single_charge_efficiency_not_double_counted(self):
-        # regression test for a bug where the surplus branch divided by efficiency twice:
-        # charging 5000 kWh from empty at a constant price must cost exactly
-        # (5000 / efficiency) * price, not (5000 / efficiency**2) * price
+    def test_surplus_single_charge_counts_efficiency_once(self):
+        # charging 5000 kWh from empty at a constant price costs (5000 / efficiency) * price
         efficiency = 0.95
         price = 0.20
         correction = Costs._storage_correction_eur([0, 5000], [price], efficiency)
-        expected = -(5000 / efficiency) * price
-        assert correction == pytest.approx(expected)
-        # sanity check that the old (buggy) formula would have given a different result
-        buggy = -(5000 / efficiency) * (price / efficiency)
-        assert correction != pytest.approx(buggy)
+        assert correction == pytest.approx(-(5000 / efficiency) * price)
 
     def test_deficit_uses_own_average_charging_price(self):
         # two charging events at different prices, ending below the starting level
@@ -185,10 +179,8 @@ class TestStorageCorrectionHelpers:
         assert result == [10, None, 3]
 
     def test_vehicle_price_series_batches_multiple_runs(self):
-        # exercises several contiguous runs in one series: two timesteps at cs_A, a disconnect,
-        # three timesteps at cs_B, then a run at cs_C that extends to the very last timestep
-        # (regression test for an off-by-one that would index scenario.connected out of range
-        # when a run reaches the end of the simulation)
+        # several contiguous runs: two timesteps at cs_A, a disconnect, three timesteps at cs_B,
+        # then a run at cs_C up to the very last timestep
         costs = Costs.__new__(Costs)
         connected = [
             {"v1": "cs_A"}, {"v1": "cs_A"}, {}, {"v1": "cs_B"}, {"v1": "cs_B"},
@@ -241,10 +233,7 @@ class TestStorageCorrectionIntegration:
         args.clean_costs_storage_level = False
         costs_off = calculate_costs(cost_params, scenario, schedule, args)
 
-        # The "balanced" strategy used by basic.cfg never actually cycles the stationary
-        # battery at Station-0 (it stays at its initial SoC throughout the whole run), so a
-        # synthetic surplus is injected directly into the recorded battery levels here to
-        # deterministically exercise the correction, independent of charging-strategy behavior.
+        # basic.cfg never cycles the battery: inject drift
         bat_id = "Station-0 storage"
         n = scenario.n_intervals
         scenario.batteryLevels[bat_id] = [0.0] * (n - 1) + [123.0]
@@ -259,6 +248,13 @@ class TestStorageCorrectionIntegration:
         # wiring: corrected c_el_annual must equal the uncorrected value plus the correction
         assert costs_on.costs_per_gc[gc_id]["c_el_annual"] == pytest.approx(
             costs_off.costs_per_gc[gc_id]["c_el_annual"] + correction)
+        # totals: annual costs of the gc and the cumulated column include the correction
+        assert costs_on.costs_per_gc[gc_id]["c_total_annual"] == pytest.approx(
+            costs_off.costs_per_gc[gc_id]["c_total_annual"] + correction)
+        cumulated = costs_on.costs_per_gc[Costs.CUMULATED]
+        assert cumulated["c_el_storage_level_correction_annual"] == pytest.approx(sum(
+            values["c_el_storage_level_correction_annual"]
+            for gc, values in costs_on.costs_per_gc.items() if gc != Costs.CUMULATED))
 
         # a gc without any storage drift stays untouched
         assert costs_on.costs_per_gc["Station-3"]["c_el_storage_level_correction_annual"] == 0
@@ -289,9 +285,13 @@ class TestStorageCorrectionIntegration:
         annual_factor = (Costs.DAYS_PER_YEAR * 24 * 3600) / (
             n * scenario.interval.total_seconds())
         expected = -(50 / efficiency) * 0.40 * annual_factor
-        total = sum(values["c_el_storage_level_correction_annual"]
-                    for gc, values in costs.costs_per_gc.items() if gc != Costs.CUMULATED)
-        assert total == pytest.approx(expected)
+        # booked to the gc of the vehicle's last rotation only
+        last_gc = costs._last_rotation_gc_per_vehicle()[v_id]
+        for gc, values in costs.costs_per_gc.items():
+            if gc == Costs.CUMULATED:
+                continue
+            assert values["c_el_storage_level_correction_annual"] == pytest.approx(
+                expected if gc == last_gc else 0), gc
 
     def test_variable_and_market_methods_with_price_csv(self):
         # Station-0 has a price CSV with procurement and commodity, Station-3 only commodity
@@ -312,6 +312,30 @@ class TestStorageCorrectionIntegration:
                     costs.costs_per_gc["Station-0"]["c_el_storage_level_correction_annual"])
             # surplus at the end of the simulation lowers the costs
             assert corrections[1] < corrections[0], method
+
+    def test_pv_surplus_is_wired_into_the_battery_correction(self, monkeypatch):
+        # vehicles also book corrections to Station-0: compare two runs differing only in PV
+        schedule, scenario, args, cost_params = self._basic_setup()
+        bat_id = "Station-0 storage"
+        gc_id = "Station-0"
+        n = scenario.n_intervals
+        # battery charges from 0 to 123 kWh in the last step (index n - 2 -> n - 1)
+        scenario.batteryLevels[bat_id] = [0.0] * (n - 1) + [123.0]
+        args.clean_costs_storage_level = True
+        monkeypatch.setattr(Costs, "_feed_in_remuneration_price", lambda self, gc: 0.05)
+
+        scenario.localGenerationPower[gc_id] = [0.0] * n
+        costs_no_pv = calculate_costs(cost_params, scenario, schedule, args)
+        correction_no_pv = costs_no_pv.costs_per_gc[gc_id]["c_el_storage_level_correction_annual"]
+
+        # abundant PV exactly when the battery charges
+        scenario.localGenerationPower[gc_id] = [0.0] * (n - 2) + [1e6, 0.0]
+        costs_with_pv = calculate_costs(cost_params, scenario, schedule, args)
+        correction_with_pv = (
+            costs_with_pv.costs_per_gc[gc_id]["c_el_storage_level_correction_annual"])
+
+        # charging covered by (cheaper) PV shrinks the cost reduction of the surplus
+        assert correction_with_pv > correction_no_pv
 
     def test_logging_reports_before_after_and_delta(self, caplog):
         schedule, scenario, args, cost_params = self._basic_setup()
@@ -461,37 +485,3 @@ class TestPvAttributionUnit:
         with caplog.at_level(logging.WARNING):
             assert costs._feed_in_remuneration_price("A") == 0.0
         assert any("no feed-in remuneration defined" in r.message for r in caplog.records)
-
-
-class TestPvAttributionIntegration:
-    """ Integration test for the PV/grid merit-order split wired into
-    set_storage_level_cost_correction, using a real (schedule, scenario) pair. """
-
-    @staticmethod
-    def _basic_setup():
-        return TestStorageCorrectionIntegration._basic_setup()
-
-    def test_pv_surplus_is_wired_into_the_battery_correction(self, monkeypatch):
-        # vehicles also book corrections to Station-0: compare two runs differing only in PV
-        schedule, scenario, args, cost_params = self._basic_setup()
-        bat_id = "Station-0 storage"
-        gc_id = "Station-0"
-        n = scenario.n_intervals
-        # battery charges from 0 to 123 kWh in the last step (index n - 2 -> n - 1)
-        scenario.batteryLevels[bat_id] = [0.0] * (n - 1) + [123.0]
-        args.clean_costs_storage_level = True
-        monkeypatch.setattr(Costs, "_feed_in_remuneration_price", lambda self, gc: 0.05)
-
-        scenario.localGenerationPower[gc_id] = [0.0] * n
-        costs_no_pv = calculate_costs(cost_params, scenario, schedule, args)
-        correction_no_pv = costs_no_pv.costs_per_gc[gc_id]["c_el_storage_level_correction_annual"]
-
-        # abundant PV exactly when the battery charges
-        scenario.localGenerationPower[gc_id] = [0.0] * (n - 2) + [1e6, 0.0]
-        costs_with_pv = calculate_costs(cost_params, scenario, schedule, args)
-        correction_with_pv = (
-            costs_with_pv.costs_per_gc[gc_id]["c_el_storage_level_correction_annual"])
-
-        # covering the battery's charging with (cheaper) PV instead of grid energy must shrink
-        # the cost reduction the surplus otherwise provides
-        assert correction_with_pv > correction_no_pv
