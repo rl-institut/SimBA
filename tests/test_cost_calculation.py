@@ -179,10 +179,7 @@ class TestStorageCorrectionHelpers:
         )
         price_series = {"A": [10, 20, 30], "B": [1, 2, 3]}
 
-        def get_price_series(gc_id):
-            return price_series[gc_id]
-
-        result = costs._vehicle_price_series("v1", get_price_series)
+        result = costs._vehicle_price_series("v1", price_series)
 
         # connected to cs_A (gc A) at t=0, disconnected at t=1, connected to cs_B (gc B) at t=2
         assert result == [10, None, 3]
@@ -212,10 +209,7 @@ class TestStorageCorrectionHelpers:
             # "C" deliberately has no price series, to check the "gc_prices is None" guard
         }
 
-        def get_price_series(gc_id):
-            return price_series.get(gc_id)
-
-        result = costs._vehicle_price_series("v1", get_price_series)
+        result = costs._vehicle_price_series("v1", price_series)
 
         assert result == [10, 11, None, 23, 24, 25, None]
 
@@ -299,6 +293,26 @@ class TestStorageCorrectionIntegration:
                     for gc, values in costs.costs_per_gc.items() if gc != Costs.CUMULATED)
         assert total == pytest.approx(expected)
 
+    def test_variable_and_market_methods_with_price_csv(self):
+        # Station-0 has a price CSV with procurement and commodity, Station-3 only commodity
+        schedule, scenario, args, cost_params = self._basic_setup()
+        bat_id = "Station-0 storage"
+        n = scenario.n_intervals
+        args.clean_costs_storage_level = True
+
+        for method in ["variable_wo_plw", "balanced_market"]:
+            args.cost_calculation_method_deps = method
+            args.cost_calculation_method_opps = method
+            # vehicles also book corrections to Station-0: compare with and without battery drift
+            corrections = []
+            for battery_levels in ([0.0] * n, [0.0] * (n - 1) + [123.0]):
+                scenario.batteryLevels[bat_id] = battery_levels
+                costs = calculate_costs(cost_params, scenario, schedule, args)
+                corrections.append(
+                    costs.costs_per_gc["Station-0"]["c_el_storage_level_correction_annual"])
+            # surplus at the end of the simulation lowers the costs
+            assert corrections[1] < corrections[0], method
+
     def test_logging_reports_before_after_and_delta(self, caplog):
         schedule, scenario, args, cost_params = self._basic_setup()
 
@@ -320,34 +334,59 @@ class TestStorageCorrectionIntegration:
             for r in caplog.records)
 
 
-class TestAnnualKwhFromGrid:
-    """ Regression tests for the fixed-tariff billed-energy calculation: a gc's flat price must
-    not depend on how much it exports, since exported energy is never billed (only remunerated
-    separately as feed-in). See :func:`Costs._annual_kwh_from_grid` for the bug this guards
-    against (adding generation back onto totalLoad instead of clipping it). """
+class TestGcPriceSeries:
+    """ Unit tests for Costs._gc_price_series, using lightweight stand-ins. """
 
-    def test_export_periods_are_excluded_not_subtracted(self):
-        total_load = [100, 100, -500, 50, -1000]
-        result = Costs._annual_kwh_from_grid(total_load, steps_per_hour=60, annual_factor=100)
-        expected = (100 + 100 + 0 + 50 + 0) / 60 * 100
-        assert result == pytest.approx(expected)
+    # grid supply is negative for import; 5 kW export at t=2 is not billed
+    GRID_SUPPLY = [-10, -20, 5, -30]
+    BILLED_KWH = [10, 20, 0, 30]
 
-    def test_result_is_unaffected_by_the_size_of_export_periods(self):
-        # a station exporting a little vs. a lot must be billed identically, as long as the
-        # import (positive) periods are the same
-        base = [100, 100, 50]
-        with_small_export = base + [-1]
-        with_large_export = base + [-100000]
-        assert Costs._annual_kwh_from_grid(
-            with_small_export, 60, 100) == pytest.approx(
-            Costs._annual_kwh_from_grid(with_large_export, 60, 100))
+    @staticmethod
+    def _costs(method, prices=None, procurement=30):
+        costs = Costs.__new__(Costs)
+        costs.scenario = SimpleNamespace(n_intervals=4, stepsPerHour=1)
+        setattr(costs.scenario, "A_timeseries",
+                {"grid supply [kW]": TestGcPriceSeries.GRID_SUPPLY})
+        costs.gcs = {"A": SimpleNamespace(grid_operator="op")}
+        costs.params = {"op": {"taxes": {"value_added_tax": 20}}}
+        # energy costs: 30 + 20 + 12 - 20 % VAT on 10 capacity costs = 60 EUR for 60 kWh
+        costs.costs_per_gc = {"A": {
+            "c_el_procurement_annual": procurement, "c_el_energy_price_annual": 20,
+            "c_el_taxes_annual": 12, "c_el_power_price_annual": 10}}
+        costs.el_cost_inputs = {"A": {"method": method, "prices": prices}}
+        return costs
 
-    def test_matches_plain_sum_when_never_exporting(self):
-        # the old (buggy) and new formula coincide exactly when totalLoad never goes negative,
-        # which is why the bug only showed up once a gc started exporting
-        total_load = [100, 50, 200, 0, 75]
-        assert Costs._annual_kwh_from_grid(total_load, 60, 100) == pytest.approx(
-            sum(total_load) / 60 * 100)
+    def test_fixed_method_gives_flat_price_of_billed_energy_costs(self):
+        costs = self._costs("fixed_wo_plw")
+        assert costs._gc_price_series("A", annual_factor=1) == pytest.approx([1.0] * 4)
+
+    def test_variable_method_follows_price_series_and_matches_billed_costs(self):
+        # procurement and commodity in ct/kWh, longer than the scenario (truncated)
+        prices = {"procurement": [10, 20, 10, 20, 99], "commodity": [5, 5, 5, 5, 99]}
+        costs = self._costs("variable_wo_plw", prices)
+        result = costs._gc_price_series("A", annual_factor=1)
+        assert len(result) == 4
+        # price differences follow the series, incl. VAT
+        assert result[1] - result[0] == pytest.approx(0.10 * 1.2)
+        # energy-weighted mean price matches the billed energy costs
+        assert sum(p * e for p, e in zip(result, self.BILLED_KWH)) == pytest.approx(60)
+
+    def test_variable_method_with_static_commodity(self):
+        prices = {"procurement": [10, 20, 10, 20], "commodity": None}
+        costs = self._costs("variable_wo_plw", prices)
+        result = costs._gc_price_series("A", annual_factor=1)
+        assert result[1] - result[0] == pytest.approx(0.10 * 1.2)
+        assert sum(p * e for p, e in zip(result, self.BILLED_KWH)) == pytest.approx(60)
+
+    def test_non_variable_method_ignores_price_series(self):
+        prices = {"procurement": None, "commodity": [10, 30, 10, 30]}
+        costs = self._costs("balanced_market", prices)
+        assert costs._gc_price_series("A", annual_factor=1) == pytest.approx([1.0] * 4)
+
+    def test_failed_cost_calculation_gives_zero_prices(self):
+        costs = self._costs("variable_wo_plw", procurement=0)
+        costs.costs_per_gc["A"] = {key: 0 for key in costs.costs_per_gc["A"]}
+        assert costs._gc_price_series("A", annual_factor=1) == [0] * 4
 
 
 class TestPvAttributionUnit:

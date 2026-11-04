@@ -108,6 +108,8 @@ class Costs:
         self.units: dict = None
         self.vehicles_per_gc: dict = None
         self.gc_rotations: dict = None
+        # cost calculation method and prices handed to SpiceEV per gc
+        self.el_cost_inputs = {}
         self.schedule = schedule
         self.scenario = scenario
         self.args = args
@@ -339,6 +341,7 @@ class Costs:
                 # not given in config: use the same method as the charging strategy
                 default_strategy = vars(self.args)["strategy_" + station.get("type")]
                 cost_calculation_method = spice_ev.costs.DEFAULT_COST_CALCULATION[default_strategy]
+            self.el_cost_inputs[gcID] = {"method": cost_calculation_method, "prices": prices}
 
             # calculate costs for electricity
             try:
@@ -409,47 +412,7 @@ class Costs:
             # vehicle_socs.csv) - reuse the same logic here instead of duplicating it
             spice_ev.report.generate_soc_timeseries(scenario)
 
-        price_series_cache = {}  # gc_id -> prices
-
-        def get_price_series(gc_id):
-            """ EUR/kWh at each timestep for a gc, cached per gc.
-
-            :param gc_id: grid connector id
-            :type gc_id: str
-            :return: price (EUR/kWh) at each timestep
-            :rtype: list
-            """
-            if gc_id in price_series_cache:
-                return price_series_cache[gc_id]
-            n = scenario.n_intervals
-            station = self.schedule.stations.get(gc_id, {})
-            station_type = station.get("type", "")
-            cost_calc_method = vars(self.args).get(
-                f"cost_calculation_method_{station_type}")
-            if cost_calc_method is None:
-                default_strategy = vars(self.args).get(f"strategy_{station_type}")
-                cost_calc_method = spice_ev.costs.DEFAULT_COST_CALCULATION.get(default_strategy)
-
-            if cost_calc_method and cost_calc_method.startswith("fixed"):
-                # fixed tariff: use the flat price implied by the electricity costs already
-                # calculated for this gc, not SpiceEV's on-the-fly placeholder price
-                annual_kwh = Costs._annual_kwh_from_grid(
-                    scenario.totalLoad.get(gc_id, []), scenario.stepsPerHour, annual_factor)
-                energy_costs = self.costs_per_gc.get(gc_id, {})
-                annual_cost = (energy_costs.get("c_el_procurement_annual", 0)
-                               + energy_costs.get("c_el_energy_price_annual", 0)
-                               + energy_costs.get("c_el_taxes_annual", 0))
-                flat_price = annual_cost / annual_kwh if annual_kwh else 0
-                prices = [flat_price] * n
-            else:
-                # genuine "variable"/market-based method: use the CSV-provided price if given,
-                # else SpiceEV's own (ct/kWh) price signal
-                prices = station.get("prices")
-                if not prices:
-                    prices = [p / 100 for p in scenario.prices.get(gc_id, [0] * n)]
-            price_series_cache[gc_id] = prices
-            return prices
-
+        price_series = {gc_id: self._gc_price_series(gc_id, annual_factor) for gc_id in self.gcs}
         correction_per_gc = {gc_id: 0 for gc_id in self.gcs}
 
         # stationary batteries: fixed to a single gc, blend in PV surplus pricing (see
@@ -458,7 +421,7 @@ class Costs:
             gc_id = battery.parent
             if gc_id not in self.gcs:
                 continue
-            grid_prices = get_price_series(gc_id)
+            grid_prices = price_series[gc_id]
             soc_kwh = scenario.batteryLevels.get(bat_id)
             if not soc_kwh:
                 continue
@@ -480,7 +443,7 @@ class Costs:
             # clamp negative soc (infeasible rotation) to 0: it is not stored energy and would
             # divide by zero in the moving average
             soc_kwh = [None if s is None else max(s, 0) * capacity for s in soc_fractions]
-            prices = self._vehicle_price_series(v_id, get_price_series)
+            prices = self._vehicle_price_series(v_id, price_series)
             correction = self._storage_correction_eur(soc_kwh, prices, vehicle.battery.efficiency)
             if correction:
                 gc_id = last_rotation_gc.get(v_id, self.NOT_ELECTRIFIED)
@@ -515,22 +478,50 @@ class Costs:
 
         return self
 
-    @staticmethod
-    def _annual_kwh_from_grid(total_load, steps_per_hour, annual_factor):
-        """ Annualized energy actually billed at a fixed tariff for a gc.
+    def _gc_price_series(self, gc_id, annual_factor):
+        """ Price (EUR/kWh) at each timestep for a gc, calibrated to its billed energy-proportional
+        electricity costs, see docs/source/simba_features.rst, "Storage level cost correction".
 
-        :param total_load: grid load (kW) at each timestep, positive = import from the grid
-        :type total_load: list
-        :param steps_per_hour: simulation steps per hour
-        :type steps_per_hour: float
+        :param gc_id: grid connector id
+        :type gc_id: str
         :param annual_factor: scaling factor from the simulated period to a full year
         :type annual_factor: float
-        :return: annualized billed energy (kWh)
-        :rtype: float
+        :return: price (EUR/kWh) at each timestep, 0 everywhere if no energy costs were billed
+        :rtype: list
         """
-        # only positive (import) values are billed; energy fed into the grid is remunerated
-        # separately as feed-in and is not added back here
-        return sum(max(v, 0) for v in total_load) / steps_per_hour * annual_factor
+        n = self.scenario.n_intervals
+        # billed grid energy (kWh) per timestep, clipped like in spice_ev.costs.calculate_costs
+        grid_supply = getattr(self.scenario, f"{gc_id}_timeseries")["grid supply [kW]"]
+        energy = [max(-p, 0) / self.scenario.stepsPerHour for p in grid_supply[:n]]
+        total_energy = sum(energy)
+
+        # energy-proportional costs of the simulated period, without VAT on capacity costs
+        costs = self.costs_per_gc[gc_id]
+        vat = self.params.get(self.gcs[gc_id].grid_operator, {}).get(
+            "taxes", {}).get("value_added_tax", 0) / 100
+        energy_costs = (costs["c_el_procurement_annual"] + costs["c_el_energy_price_annual"]
+                        + costs["c_el_taxes_annual"]
+                        - vat * costs["c_el_power_price_annual"]) / annual_factor
+        if energy_costs <= 0 or total_energy <= 0:
+            # cost calculation failed or nothing billed: no price information
+            return [0] * n
+
+        # time-varying part: procurement/commodity series (ct/kWh) of variable_* methods
+        variable = [0] * n
+        cost_inputs = self.el_cost_inputs.get(gc_id, {})
+        prices = cost_inputs.get("prices")
+        if cost_inputs.get("method", "").startswith("variable") and isinstance(prices, dict):
+            for series in (prices.get("procurement"), prices.get("commodity")):
+                if not series:
+                    # not given in price CSV: static price sheet value, part of the flat rest
+                    continue
+                # series may be longer than the scenario, pad if shorter
+                series = list(series[:n]) + [series[-1]] * (n - len(series))
+                variable = [v + p / 100 * (1 + vat) for v, p in zip(variable, series)]
+
+        # flat rest (levies, taxes, static charges): energy-weighted mean matches billed costs
+        flat = (energy_costs - sum(v * e for v, e in zip(variable, energy))) / total_energy
+        return [v + flat for v in variable]
 
     def _last_rotation_gc_per_vehicle(self):
         """ Find the grid connector each vehicle's last started rotation departs from.
@@ -554,14 +545,14 @@ class Costs:
                 last_gc[rot.vehicle_id] = gc_id
         return last_gc
 
-    def _vehicle_price_series(self, v_id, get_price_series):
+    def _vehicle_price_series(self, v_id, price_series):
         """ Build a per-timestep price series (EUR/kWh) for whichever gc a vehicle is
         connected to at each timestep.
 
         :param v_id: vehicle id
         :type v_id: str
-        :param get_price_series: callable returning the price series (EUR/kWh) for a gc id
-        :type get_price_series: callable
+        :param price_series: price series (EUR/kWh) per gc id
+        :type price_series: dict
         :return: price at each timestep, None where the vehicle is not connected or the price
             is unknown
         :rtype: list
@@ -581,7 +572,7 @@ class Costs:
                 end += 1
             if cur_cs is not None:
                 gc_id = charging_stations[cur_cs].parent
-                gc_prices = get_price_series(gc_id)
+                gc_prices = price_series.get(gc_id)
                 if gc_prices is not None:
                     prices[start:end] = gc_prices[start:end]
             start = end

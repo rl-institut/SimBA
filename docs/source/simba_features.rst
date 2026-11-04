@@ -206,6 +206,16 @@ electricity costs, so that scenarios with different storage end states stay comp
 energy-proportional part of the electricity costs is corrected (grid fees and taxes that scale
 with kWh, not with peak power); investment and maintenance costs are unaffected.
 
+The price per kWh used for the correction is derived from the electricity costs actually billed
+at each grid connector: power procurement, commodity charge, levies, fees and taxes, but without
+the value added tax on capacity costs. For the ``variable_*`` cost calculation methods, the
+procurement and commodity series given in the station's price CSV make the price vary over
+time; parts not given in the CSV (static values from the cost parameters), as well as levies,
+fees and taxes, are added as a constant. For all other methods the price is constant over the
+simulation. In both cases, the price weighted by the energy drawn from the grid equals the billed
+energy-proportional costs. If no electricity costs could be calculated for a grid connector, no
+correction is applied there.
+
 * If a device ends up with **more** stored energy than at the start, that surplus is priced with a
   moving average of the device's own charging history (similar to weighted-average inventory
   costing), so that historically cheap charging that has since been consumed again does not count
