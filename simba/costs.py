@@ -408,12 +408,11 @@ class Costs:
         annual_factor = (self.DAYS_PER_YEAR * 24 * 60 * 60) / scenario_duration_s
 
         if not hasattr(scenario, "vehicle_socs"):
-            # not yet generated (usually happens later, when report.generate() writes
-            # vehicle_socs.csv) - reuse the same logic here instead of duplicating it
+            # vehicle SoC timeseries, otherwise only generated later by the report
             spice_ev.report.generate_soc_timeseries(scenario)
 
         price_series = {gc_id: self._gc_price_series(gc_id, annual_factor) for gc_id in self.gcs}
-        correction_per_gc = {gc_id: 0 for gc_id in self.gcs}
+        correction_per_gc = {gc_id: 0 for gc_id in list(self.gcs) + [self.NOT_ELECTRIFIED]}
 
         # stationary batteries: fixed to a single gc, blend in PV surplus pricing (see
         # docs/source/simba_features.rst, "PV attribution for stationary batteries")
@@ -425,10 +424,8 @@ class Costs:
             soc_kwh = scenario.batteryLevels.get(bat_id)
             if not soc_kwh:
                 continue
-            pv_surplus = self._pv_surplus_series(gc_id)
-            price_pv = self._feed_in_remuneration_price(gc_id)
-            prices = self._blend_battery_prices_with_pv(
-                soc_kwh, grid_prices, pv_surplus, price_pv, battery.efficiency)
+            prices = self._battery_prices_with_pv(
+                gc_id, soc_kwh, grid_prices, battery.efficiency)
             correction = self._storage_correction_eur(soc_kwh, prices, battery.efficiency)
             if correction:
                 correction_per_gc[gc_id] += correction
@@ -446,13 +443,9 @@ class Costs:
             prices = self._vehicle_price_series(v_id, price_series)
             correction = self._storage_correction_eur(soc_kwh, prices, vehicle.battery.efficiency)
             if correction:
-                gc_id = last_rotation_gc.get(v_id, self.NOT_ELECTRIFIED)
-                correction_per_gc.setdefault(gc_id, 0)
-                correction_per_gc[gc_id] += correction
+                correction_per_gc[last_rotation_gc.get(v_id, self.NOT_ELECTRIFIED)] += correction
 
-        # apply, annualize and log the change for every affected gc
-        # (self.costs_per_gc[CUMULATED] is only populated later, in cumulate(), so the total
-        # before/after is accumulated here instead of read from there)
+        # apply, annualize and log the correction per gc and in total
         cumulated_correction_annual = 0
         total_before = 0
         for gc_id, correction in correction_per_gc.items():
@@ -562,8 +555,7 @@ class Costs:
         n_intervals = scenario.n_intervals
         prices = [None] * n_intervals
 
-        # batch timesteps into contiguous runs of the same connector, instead of looking up a
-        # price for every single timestep
+        # walk through contiguous runs of the same charging station
         start = 0
         while start < n_intervals:
             cur_cs = scenario.connected[start].get(v_id)
@@ -577,32 +569,6 @@ class Costs:
                     prices[start:end] = gc_prices[start:end]
             start = end
         return prices
-
-    def _pv_surplus_series(self, gc_id):
-        """ Local PV generation at a gc left over after covering its "other" load (fixed loads
-        and bus charging) at each timestep, see docs/source/simba_features.rst, "PV attribution
-        for stationary batteries".
-
-        :param gc_id: grid connector id
-        :type gc_id: str
-        :return: PV surplus energy (kWh) available during each timestep, 0 where there is no PV
-            or no surplus
-        :rtype: list
-        """
-        scenario = self.scenario
-        n = scenario.n_intervals
-        pv = scenario.localGenerationPower.get(gc_id)
-        if not pv or not any(pv):
-            return [0] * n
-        fixed = scenario.fixedLoads.get(gc_id, [{}] * n)
-        cs = scenario.connChargeByTS.get(gc_id, [{}] * n)
-        # PV surplus = pv generation minus the gc's other load (fixed loads + bus charging)
-        surplus = []
-        for t in range(n):
-            other_load = sum(fixed[t].values()) + sum(cs[t].values())
-            # kW -> kWh for this timestep, to compare against the (already kWh) soc_kwh deltas
-            surplus.append(max(pv[t] - other_load, 0) / scenario.stepsPerHour)
-        return surplus
 
     def _feed_in_remuneration_price(self, gc_id):
         """ Feed-in remuneration (EUR/kWh) for the PV plant at a gc, i.e. the opportunity cost of
@@ -632,46 +598,47 @@ class Costs:
             f"(highest configured tier: {pv_params['kWp'][-1]} kWp), using 0 ct/kWh")
         return 0.0
 
-    @staticmethod
-    def _blend_battery_prices_with_pv(soc_kwh, grid_prices, pv_surplus, price_pv, efficiency):
-        """ Per-timestep price series for a stationary battery that values the PV-surplus-covered
-        share of a charging timestep's energy at the feed-in remuneration, and the remainder at
-        the grid price.
+    def _battery_prices_with_pv(self, gc_id, soc_kwh, grid_prices, efficiency):
+        """ Price series for a stationary battery that values the share of its charging covered
+        by local PV surplus at the feed-in remuneration and the rest at the grid price, see
+        docs/source/simba_features.rst, "PV attribution for stationary batteries".
 
+        :param gc_id: grid connector id of the battery
+        :type gc_id: str
         :param soc_kwh: energy content of the battery at each timestep (kWh)
         :type soc_kwh: list
         :param grid_prices: grid price (EUR/kWh) at each timestep, same length as soc_kwh
         :type grid_prices: list
-        :param pv_surplus: PV surplus energy (kWh) available to the battery at each timestep, see
-            :func:`_pv_surplus_series`
-        :type pv_surplus: list
-        :param price_pv: feed-in remuneration (EUR/kWh), see :func:`_feed_in_remuneration_price`
-        :type price_pv: float
         :param efficiency: charging efficiency of the battery
         :type efficiency: float
         :return: blended price (EUR/kWh) at each timestep, aligned with soc_kwh
         :rtype: list
         """
+        scenario = self.scenario
         n = len(soc_kwh)
         assert len(grid_prices) == n, "grid_prices must cover every timestep of soc_kwh"
         blended = list(grid_prices)
+        pv = scenario.localGenerationPower.get(gc_id)
+        if not pv or not any(pv):
+            return blended
+        price_pv = self._feed_in_remuneration_price(gc_id)
+        fixed = scenario.fixedLoads.get(gc_id, [{}] * n)
+        cs = scenario.connChargeByTS.get(gc_id, [{}] * n)
         for t in range(n - 1):
-            # find where the battery charges
             delta = soc_kwh[t + 1] - soc_kwh[t]
             if delta <= 0:
                 # battery does not charge at this timestep: keep plain grid price
                 continue
             # grid-equivalent energy needed to realize this charging step
             grid_energy = delta / efficiency
-            # how much of the charging is covered by PV surplus?
-            surplus_t = pv_surplus[t] if t < len(pv_surplus) else 0
-            pv_to_bat = min(surplus_t, grid_energy)
+            # PV surplus (kWh) left after the gc's other load (fixed loads + bus charging)
+            other_load = sum(fixed[t].values()) + sum(cs[t].values())
+            pv_to_bat = min(max(pv[t] - other_load, 0) / scenario.stepsPerHour, grid_energy)
             if pv_to_bat <= 0:
-                # no PV used for charging the battery at this timestep: keep plain grid price
                 continue
-            grid_to_bat = grid_energy - pv_to_bat
             # value the PV-covered share at the feed-in price, the rest at the grid price
-            blended[t] = (grid_to_bat * grid_prices[t] + pv_to_bat * price_pv) / grid_energy
+            blended[t] = ((grid_energy - pv_to_bat) * grid_prices[t]
+                          + pv_to_bat * price_pv) / grid_energy
         return blended
 
     @staticmethod
@@ -682,8 +649,7 @@ class Costs:
         :param soc_kwh: energy content of the device at each timestep (kWh), None where unknown
             (e.g. leading/trailing timesteps of a vehicle not yet or no longer tracked)
         :type soc_kwh: list
-        :param prices: price (EUR/kWh) at each timestep, aligned with soc_kwh. Only prices at
-            timesteps where the device actually charges are used.
+        :param prices: price (EUR/kWh) at each timestep, aligned with soc_kwh
         :type prices: list
         :param efficiency: charging efficiency of the device
         :type efficiency: float

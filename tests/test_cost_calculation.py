@@ -394,24 +394,44 @@ class TestPvAttributionUnit:
     docs/source/simba_features.rst, "PV attribution for stationary batteries"), independent of
     any simulation. """
 
-    def test_pv_surplus_series_converts_power_to_energy_and_subtracts_other_load(self):
+    @staticmethod
+    def _costs(pv, fixed_loads, cs_loads, steps_per_hour=1):
         costs = Costs.__new__(Costs)
         costs.scenario = SimpleNamespace(
-            n_intervals=3,
-            stepsPerHour=60,
-            localGenerationPower={"A": [120, 0, 300]},
-            fixedLoads={"A": [{"x": 20}, {}, {"x": 50}]},
-            connChargeByTS={"A": [{"cs1": 10}, {}, {"cs1": 100}]},
+            stepsPerHour=steps_per_hour,
+            localGenerationPower={"A": pv},
+            fixedLoads={"A": fixed_loads},
+            connChargeByTS={"A": cs_loads},
         )
-        # other_load = [30, 0, 150]; raw surplus (kW) = [90, 0, 150]; /stepsPerHour (60) -> kWh
-        assert costs._pv_surplus_series("A") == pytest.approx([1.5, 0.0, 2.5])
+        costs._feed_in_remuneration_price = lambda gc_id: 0.05
+        return costs
 
-    def test_pv_surplus_series_is_zero_without_any_pv(self):
-        costs = Costs.__new__(Costs)
-        costs.scenario = SimpleNamespace(
-            n_intervals=2, stepsPerHour=60, localGenerationPower={"A": [0, 0]},
-            fixedLoads={}, connChargeByTS={})
-        assert costs._pv_surplus_series("A") == [0, 0]
+    def test_battery_prices_with_pv_splits_charging_by_merit_order(self):
+        # charge 0 -> 50 (step 0), idle (step 1), charge 50 -> 150 (step 2)
+        soc_kwh = [0, 50, 50, 150]
+        # PV surplus after fixed loads and bus charging: 30 kWh (step 0), 40 kWh (step 2)
+        costs = self._costs(
+            pv=[50, 0, 140, 0],
+            fixed_loads=[{"x": 15}, {}, {"x": 50}, {}],
+            cs_loads=[{"cs1": 5}, {}, {"cs1": 50}, {}])
+
+        blended = costs._battery_prices_with_pv("A", soc_kwh, [0.30] * 4, 1.0)
+
+        # step 0: 30 of 50 kWh from PV -> (20*0.30 + 30*0.05) / 50 = 0.15
+        # step 2: 40 of 100 kWh from PV -> (60*0.30 + 40*0.05) / 100 = 0.20
+        assert blended == pytest.approx([0.15, 0.30, 0.20, 0.30])
+
+    def test_battery_prices_with_pv_converts_power_to_energy(self):
+        # 90 kW surplus at 60 steps per hour = 1.5 kWh of a 3 kWh charging step
+        costs = self._costs(pv=[120, 0], fixed_loads=[{"x": 20}, {}],
+                            cs_loads=[{"cs1": 10}, {}], steps_per_hour=60)
+        blended = costs._battery_prices_with_pv("A", [0, 3], [0.30, 0.30], 1.0)
+        assert blended[0] == pytest.approx((1.5 * 0.30 + 1.5 * 0.05) / 3)
+
+    def test_battery_prices_with_pv_is_a_no_op_without_pv(self):
+        costs = self._costs(pv=[0, 0, 0], fixed_loads=[{}] * 3, cs_loads=[{}] * 3)
+        grid_prices = [0.30, 0.30, 0.30]
+        assert costs._battery_prices_with_pv("A", [0, 50, 150], grid_prices, 1.0) == grid_prices
 
     def test_feed_in_remuneration_price_picks_matching_kwp_tier(self):
         costs = Costs.__new__(Costs)
@@ -442,31 +462,6 @@ class TestPvAttributionUnit:
             assert costs._feed_in_remuneration_price("A") == 0.0
         assert any("no feed-in remuneration defined" in r.message for r in caplog.records)
 
-    def test_blend_battery_prices_with_pv_splits_charging_by_merit_order(self):
-        # charge 0 -> 50 (step 0), idle (step 1), charge 50 -> 150 (step 2)
-        soc_kwh = [0, 50, 50, 150]
-        grid_prices = [0.30, 0.30, 0.30, 0.30]
-        pv_surplus = [30, 0, 40]  # kWh available at each step
-        price_pv = 0.05
-        efficiency = 1.0
-
-        blended = Costs._blend_battery_prices_with_pv(
-            soc_kwh, grid_prices, pv_surplus, price_pv, efficiency)
-
-        # step 0: 30 kWh of the 50 kWh charge from PV, 20 from grid
-        #   -> (20*0.30 + 30*0.05) / 50 = 0.15
-        # step 1: no charging, price is irrelevant and left at the grid price
-        # step 2: 40 kWh of the 100 kWh charge from PV, 60 from grid
-        #   -> (60*0.30 + 40*0.05) / 100 = 0.20
-        assert blended == pytest.approx([0.15, 0.30, 0.20, 0.30])
-
-    def test_blend_battery_prices_with_pv_is_a_no_op_without_pv_surplus(self):
-        soc_kwh = [0, 50, 150]
-        grid_prices = [0.30, 0.30, 0.30]
-        pv_surplus = [0, 0]
-        blended = Costs._blend_battery_prices_with_pv(soc_kwh, grid_prices, pv_surplus, 0.05, 1.0)
-        assert blended == grid_prices
-
 
 class TestPvAttributionIntegration:
     """ Integration test for the PV/grid merit-order split wired into
@@ -477,31 +472,22 @@ class TestPvAttributionIntegration:
         return TestStorageCorrectionIntegration._basic_setup()
 
     def test_pv_surplus_is_wired_into_the_battery_correction(self, monkeypatch):
-        # Station-0's gc also receives vehicle corrections unrelated to its stationary battery
-        # (whichever vehicles' last rotation departs from there), so the per-gc correction
-        # cannot be compared directly against a hand-computed battery-only expectation. Instead,
-        # this runs the real pipeline twice, changing only the mocked PV surplus available to
-        # the battery between the two runs - the (identical in both runs) vehicle contribution
-        # then cancels out, isolating the effect of the merit-order split on the battery.
+        # vehicles also book corrections to Station-0: compare two runs differing only in PV
         schedule, scenario, args, cost_params = self._basic_setup()
         bat_id = "Station-0 storage"
         gc_id = "Station-0"
         n = scenario.n_intervals
-        # battery charges from 0 to 123 kWh in the last step, i.e. during the transition at
-        # index n - 2 (soc_kwh[n-2] -> soc_kwh[n-1])
-        soc_kwh = [0.0] * (n - 1) + [123.0]
+        # battery charges from 0 to 123 kWh in the last step (index n - 2 -> n - 1)
+        scenario.batteryLevels[bat_id] = [0.0] * (n - 1) + [123.0]
         args.clean_costs_storage_level = True
         monkeypatch.setattr(Costs, "_feed_in_remuneration_price", lambda self, gc: 0.05)
 
-        scenario.batteryLevels[bat_id] = list(soc_kwh)
-        monkeypatch.setattr(Costs, "_pv_surplus_series", lambda self, gc: [0.0] * n)
+        scenario.localGenerationPower[gc_id] = [0.0] * n
         costs_no_pv = calculate_costs(cost_params, scenario, schedule, args)
         correction_no_pv = costs_no_pv.costs_per_gc[gc_id]["c_el_storage_level_correction_annual"]
 
-        surplus_with_pv = [0.0] * n
-        surplus_with_pv[n - 2] = 1000.0  # abundant PV exactly when the battery charges
-        scenario.batteryLevels[bat_id] = list(soc_kwh)
-        monkeypatch.setattr(Costs, "_pv_surplus_series", lambda self, gc: surplus_with_pv)
+        # abundant PV exactly when the battery charges
+        scenario.localGenerationPower[gc_id] = [0.0] * (n - 2) + [1e6, 0.0]
         costs_with_pv = calculate_costs(cost_params, scenario, schedule, args)
         correction_with_pv = (
             costs_with_pv.costs_per_gc[gc_id]["c_el_storage_level_correction_annual"])
