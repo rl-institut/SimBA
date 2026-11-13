@@ -690,9 +690,9 @@ def get_parser():
     parser.add_argument('--default-voltage-level', help='Default voltage level for '
                         'charging stations if not set in electrified_stations file',
                         default='MV', choices=['HV', 'HV/MV', 'MV', 'MV/LV', 'LV'])
-    parser.add_argument('--peak-load-window-power-opps', type=float, default=1000,
+    parser.add_argument('--peak-load-window-power-opps', type=float, default=100000,
                         help='reduced power of opp stations during peak load windows')
-    parser.add_argument('--peak-load-window-power-deps', type=float, default=1000,
+    parser.add_argument('--peak-load-window-power-deps', type=float, default=100000,
                         help='reduced power of depot stations during peak load windows')
     parser.add_argument('--default-mean-speed', type=float, default=30,
                         help='Default assumed mean speed for busses in km/h')
