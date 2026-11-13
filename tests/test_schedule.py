@@ -306,6 +306,42 @@ class TestSchedule(BasicSchedule):
         assert gen_rotations["6_3c"].vehicle_id != gen_rotations["7_3c"].vehicle_id
         assert gen_rotations["6_3c"].vehicle_id == gen_rotations["8_3c"].vehicle_id
 
+    @pytest.mark.parametrize("assign_strategy", ["adaptive", "fixed_recharge"])
+    def test_assign_vehicles_type_name_is_suffix(self, assign_strategy):
+        """ Vehicles must only be reused for rotations of exactly the same vehicle type,
+        even if one type name ends with another (e.g. "5" and "15").
+
+        :param assign_strategy: vehicle assignment strategy to test
+        :type assign_strategy: str
+        """
+        sys.argv = ["foo", "--config", str(example_root / "configs/extensive.cfg")]
+        args = util.get_args()
+        args.schedule_path = file_root / "trips_assign_vehicles_extended.csv"
+        data_container = DataContainer().fill_with_args(args)
+        generated_schedule, args = pre_simulation(args, data_container)
+        args.desired_soc_deps = 1
+        args.min_recharge_deps_oppb = 1
+        args.min_recharge_deps_depb = 1
+        args.assign_strategy = assign_strategy
+
+        # two identical vehicle types whose names only differ by a prefix
+        v_type = deepcopy(generated_schedule.vehicle_types["AB"])
+        for v_info in v_type.values():
+            # constant mileage, consumption lookup tables are keyed by vehicle type name
+            v_info["mileage"] = 1
+        generated_schedule.vehicle_types["15"] = deepcopy(v_type)
+        generated_schedule.vehicle_types["5"] = deepcopy(v_type)
+        # pairs which share a vehicle if they have the same type
+        # (1_1/2_1 with adaptive, 4_1/5_1 with both strategies)
+        rotations = generated_schedule.rotations
+        for first, second in [("1_1", "2_1"), ("4_1", "5_1")]:
+            rotations[first].vehicle_type = "15"
+            rotations[second].vehicle_type = "5"
+
+        generated_schedule.assign_vehicles(args)
+        for rot in rotations.values():
+            assert rot.vehicle_id.rsplit("_", 1)[0] == f"{rot.vehicle_type}_{rot.charging_type}"
+
     def test_calculate_consumption(self, default_schedule_arguments):
         """ Test if calling the consumption calculation works
         :param default_schedule_arguments: basic arguments the schedule needs for creation
