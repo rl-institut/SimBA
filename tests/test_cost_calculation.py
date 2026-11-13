@@ -461,8 +461,8 @@ class TestPvAttributionUnit:
         costs = Costs.__new__(Costs)
         costs.scenario = SimpleNamespace(components=SimpleNamespace(
             photovoltaics={"pv1": SimpleNamespace(parent="A", nominal_power=50)}))
-        costs.gcs = {"A": SimpleNamespace(grid_operator="sh-netz")}
-        costs.params = {"sh-netz": {"feed-in_remuneration": {
+        costs.gcs = {"A": SimpleNamespace(grid_operator="abc-netz")}
+        costs.params = {"abc-netz": {"feed-in_remuneration": {
             "PV": {"kWp": [10, 100, 1000], "remuneration": [8, 5, 3]}}}}
 
         # 50 kWp falls into the second tier (<= 100 kWp) -> 5 ct/kWh -> 0.05 EUR/kWh
@@ -471,7 +471,7 @@ class TestPvAttributionUnit:
     def test_feed_in_remuneration_price_is_zero_without_pv_plant(self):
         costs = Costs.__new__(Costs)
         costs.scenario = SimpleNamespace(components=SimpleNamespace(photovoltaics={}))
-        costs.gcs = {"A": SimpleNamespace(grid_operator="sh-netz")}
+        costs.gcs = {"A": SimpleNamespace(grid_operator="abc-netz")}
         costs.params = {}
         assert costs._feed_in_remuneration_price("A") == 0.0
 
@@ -479,8 +479,8 @@ class TestPvAttributionUnit:
         costs = Costs.__new__(Costs)
         costs.scenario = SimpleNamespace(components=SimpleNamespace(
             photovoltaics={"pv1": SimpleNamespace(parent="A", nominal_power=5000)}))
-        costs.gcs = {"A": SimpleNamespace(grid_operator="sh-netz")}
-        costs.params = {"sh-netz": {"feed-in_remuneration": {
+        costs.gcs = {"A": SimpleNamespace(grid_operator="abc-netz")}
+        costs.params = {"abc-netz": {"feed-in_remuneration": {
             "PV": {"kWp": [10, 100, 1000], "remuneration": [8, 5, 3]}}}}
         with caplog.at_level(logging.WARNING):
             assert costs._feed_in_remuneration_price("A") == 0.0
