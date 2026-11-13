@@ -5,7 +5,10 @@
 .idea/
 .env
 __pycache__
+.claude
+.agents
 CLAUDE.md
+skills-lock.json
 
 docs/_build
 docs/source/temp

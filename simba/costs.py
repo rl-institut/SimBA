@@ -5,6 +5,7 @@ import warnings
 import simba.schedule
 
 import spice_ev.costs
+import spice_ev.report
 import spice_ev.scenario
 import spice_ev.util
 
@@ -43,6 +44,9 @@ def calculate_costs(c_params, scenario, schedule, args):
 
     # Get electricity costs from SpiceEV
     cost_object.set_electricity_costs()
+
+    # Correct electricity costs for storage level drift between start and end of simulation
+    cost_object.set_storage_level_cost_correction()
 
     # Calculate total annual costs
     cost_object.set_total_annual_costs()
@@ -104,6 +108,8 @@ class Costs:
         self.units: dict = None
         self.vehicles_per_gc: dict = None
         self.gc_rotations: dict = None
+        # cost calculation method and prices handed to SpiceEV per gc
+        self.el_cost_inputs = {}
         self.schedule = schedule
         self.scenario = scenario
         self.args = args
@@ -204,7 +210,8 @@ class Costs:
             # annual electricity costs
             "c_el_procurement_annual", "c_el_power_price_annual",
             "c_el_energy_price_annual",
-            "c_el_taxes_annual", "c_el_feed_in_remuneration_annual", "c_el_annual",
+            "c_el_taxes_annual", "c_el_feed_in_remuneration_annual",
+            "c_el_storage_level_correction_annual", "c_el_annual",
             # total annual costs
             "c_total_annual",
             # costs per kilometer
@@ -334,6 +341,7 @@ class Costs:
                 # not given in config: use the same method as the charging strategy
                 default_strategy = vars(self.args)["strategy_" + station.get("type")]
                 cost_calculation_method = spice_ev.costs.DEFAULT_COST_CALCULATION[default_strategy]
+            self.el_cost_inputs[gcID] = {"method": cost_calculation_method, "prices": prices}
 
             # calculate costs for electricity
             try:
@@ -380,6 +388,319 @@ class Costs:
                 'peak_power_in_windows', error_value)
 
         return self
+
+    def set_storage_level_cost_correction(self):
+        """ Correct energy-proportional electricity costs for storage level drift between the
+        start and end of the simulation, see docs/source/simba_features.rst, "Storage level cost
+        correction". Only has an effect if ``args.clean_costs_storage_level`` is set.
+
+        :return: self
+        :rtype: Costs
+        """
+        if not vars(self.args).get("clean_costs_storage_level"):
+            return self
+
+        scenario = self.scenario
+        scenario_duration_s = scenario.n_intervals * scenario.interval.total_seconds()
+        if scenario_duration_s <= 0:
+            return self
+        # scaling factor from the simulated period to a full year
+        annual_factor = (self.DAYS_PER_YEAR * 24 * 60 * 60) / scenario_duration_s
+
+        if not hasattr(scenario, "vehicle_socs"):
+            # vehicle SoC timeseries, otherwise only generated later by the report
+            spice_ev.report.generate_soc_timeseries(scenario)
+
+        price_series = {gc_id: self._gc_price_series(gc_id, annual_factor) for gc_id in self.gcs}
+        correction_per_gc = {gc_id: 0 for gc_id in list(self.gcs) + [self.NOT_ELECTRIFIED]}
+
+        # stationary batteries: fixed to a single gc, blend in PV surplus pricing (see
+        # docs/source/simba_features.rst, "PV attribution for stationary batteries")
+        for bat_id, battery in scenario.components.batteries.items():
+            gc_id = battery.parent
+            if gc_id not in self.gcs:
+                continue
+            grid_prices = price_series[gc_id]
+            soc_kwh = scenario.batteryLevels.get(bat_id)
+            if not soc_kwh:
+                continue
+            prices = self._battery_prices_with_pv(
+                gc_id, soc_kwh, grid_prices, battery.efficiency)
+            correction = self._storage_correction_eur(soc_kwh, prices, battery.efficiency)
+            if correction:
+                correction_per_gc[gc_id] += correction
+
+        # vehicle batteries: attributed to the gc of the vehicle's last started rotation
+        last_rotation_gc = self._last_rotation_gc_per_vehicle()
+        for v_id, vehicle in scenario.components.vehicles.items():
+            soc_fractions = scenario.vehicle_socs.get(v_id)
+            if not soc_fractions:
+                continue
+            capacity = vehicle.battery.capacity
+            # clamp negative soc (infeasible rotation) to 0: it is not stored energy and would
+            # divide by zero in the moving average
+            soc_kwh = [None if s is None else max(s, 0) * capacity for s in soc_fractions]
+            prices = self._vehicle_price_series(v_id, price_series)
+            correction = self._storage_correction_eur(soc_kwh, prices, vehicle.battery.efficiency)
+            if correction:
+                correction_per_gc[last_rotation_gc.get(v_id, self.NOT_ELECTRIFIED)] += correction
+
+        # apply, annualize and log the correction per gc and in total
+        cumulated_correction_annual = 0
+        total_before = 0
+        for gc_id, correction in correction_per_gc.items():
+            if not correction or gc_id not in self.costs_per_gc:
+                continue
+            correction_annual = correction * annual_factor
+            before = self.costs_per_gc[gc_id]["c_el_annual"]
+            after = before + correction_annual
+            self.costs_per_gc[gc_id]["c_el_storage_level_correction_annual"] = correction_annual
+            self.costs_per_gc[gc_id]["c_el_annual"] = after
+            cumulated_correction_annual += correction_annual
+            total_before += before
+            logging.info(
+                f"{gc_id}: electricity costs corrected for storage level drift: "
+                f"{before:.2f} €/a -> {after:.2f} €/a (correction: {correction_annual:+.2f} €/a)")
+
+        if cumulated_correction_annual:
+            total_after = total_before + cumulated_correction_annual
+            logging.info(
+                "Cumulated electricity costs corrected for storage level drift: "
+                f"{total_before:.2f} €/a -> {total_after:.2f} €/a "
+                f"(correction: {cumulated_correction_annual:+.2f} €/a)")
+
+        return self
+
+    def _gc_price_series(self, gc_id, annual_factor):
+        """ Price (EUR/kWh) at each timestep for a gc, calibrated to its billed energy-proportional
+        electricity costs, see docs/source/simba_features.rst, "Storage level cost correction".
+
+        :param gc_id: grid connector id
+        :type gc_id: str
+        :param annual_factor: scaling factor from the simulated period to a full year
+        :type annual_factor: float
+        :return: price (EUR/kWh) at each timestep, 0 everywhere if no energy costs were billed
+        :rtype: list
+        """
+        n = self.scenario.n_intervals
+        # billed grid energy (kWh) per timestep, clipped like in spice_ev.costs.calculate_costs
+        grid_supply = getattr(self.scenario, f"{gc_id}_timeseries")["grid supply [kW]"]
+        energy = [max(-p, 0) / self.scenario.stepsPerHour for p in grid_supply[:n]]
+        total_energy = sum(energy)
+
+        # energy-proportional costs of the simulated period, without VAT on capacity costs
+        costs = self.costs_per_gc[gc_id]
+        vat = self.params.get(self.gcs[gc_id].grid_operator, {}).get(
+            "taxes", {}).get("value_added_tax", 0) / 100
+        energy_costs = (costs["c_el_procurement_annual"] + costs["c_el_energy_price_annual"]
+                        + costs["c_el_taxes_annual"]
+                        - vat * costs["c_el_power_price_annual"]) / annual_factor
+        if energy_costs <= 0 or total_energy <= 0:
+            # cost calculation failed or nothing billed: no price information
+            return [0] * n
+
+        # time-varying part: procurement/commodity series (ct/kWh) of variable_* methods
+        variable = [0] * n
+        cost_inputs = self.el_cost_inputs.get(gc_id, {})
+        prices = cost_inputs.get("prices")
+        if cost_inputs.get("method", "").startswith("variable") and isinstance(prices, dict):
+            for series in (prices.get("procurement"), prices.get("commodity")):
+                if not series:
+                    # not given in price CSV: static price sheet value, part of the flat rest
+                    continue
+                # series may be longer than the scenario, pad if shorter
+                series = list(series[:n]) + [series[-1]] * (n - len(series))
+                variable = [v + p / 100 * (1 + vat) for v, p in zip(variable, series)]
+
+        # flat rest (levies, taxes, static charges): energy-weighted mean matches billed costs
+        flat = (energy_costs - sum(v * e for v, e in zip(variable, energy))) / total_energy
+        return [v + flat for v in variable]
+
+    def _last_rotation_gc_per_vehicle(self):
+        """ Find the grid connector each vehicle's last started rotation departs from.
+
+        Used to attribute a vehicle's storage level correction to a single grid connector,
+        ignoring any intermediate opportunity charging elsewhere.
+
+        :return: mapping of vehicle_id to grid connector id (or NOT_ELECTRIFIED)
+        :rtype: dict
+        """
+        last_departure = {}
+        last_gc = {}
+        for rot in self.schedule.rotations.values():
+            if rot.vehicle_id is None:
+                continue
+            if (rot.vehicle_id not in last_departure
+                    or rot.departure_time > last_departure[rot.vehicle_id]):
+                last_departure[rot.vehicle_id] = rot.departure_time
+                gc_id = rot.departure_name if rot.departure_name in self.gcs \
+                    else self.NOT_ELECTRIFIED
+                last_gc[rot.vehicle_id] = gc_id
+        return last_gc
+
+    def _vehicle_price_series(self, v_id, price_series):
+        """ Build a per-timestep price series (EUR/kWh) for whichever gc a vehicle is
+        connected to at each timestep.
+
+        :param v_id: vehicle id
+        :type v_id: str
+        :param price_series: price series (EUR/kWh) per gc id
+        :type price_series: dict
+        :return: price at each timestep, None where the vehicle is not connected or the price
+            is unknown
+        :rtype: list
+        """
+        scenario = self.scenario
+        charging_stations = scenario.components.charging_stations
+        n_intervals = scenario.n_intervals
+        prices = [None] * n_intervals
+
+        # walk through contiguous runs of the same charging station
+        start = 0
+        while start < n_intervals:
+            cur_cs = scenario.connected[start].get(v_id)
+            end = start + 1
+            while end < n_intervals and scenario.connected[end].get(v_id) == cur_cs:
+                end += 1
+            if cur_cs is not None:
+                gc_id = charging_stations[cur_cs].parent
+                gc_prices = price_series.get(gc_id)
+                if gc_prices is not None:
+                    prices[start:end] = gc_prices[start:end]
+            start = end
+        return prices
+
+    def _feed_in_remuneration_price(self, gc_id):
+        """ Feed-in remuneration (EUR/kWh) for the PV plant at a gc, i.e. the opportunity cost of
+        using its generation to charge a stationary battery instead of feeding it into the grid.
+
+        :param gc_id: grid connector id
+        :type gc_id: str
+        :return: feed-in remuneration in EUR/kWh, 0 if there is no PV plant at this gc or its
+            nominal power exceeds every configured kWp tier
+        :rtype: float
+        """
+        pv_nominal = sum(
+            pv.nominal_power for pv in self.scenario.components.photovoltaics.values()
+            if pv.parent == gc_id)
+        if pv_nominal == 0:
+            return 0.0
+        grid_operator = self.gcs[gc_id].grid_operator
+        pv_params = self.params.get(grid_operator, {}).get("feed-in_remuneration", {}).get("PV")
+        if not pv_params:
+            return 0.0
+        # mirrors the kWp-tier lookup in spice_ev.costs.calculate_costs
+        for threshold, rate in zip(pv_params["kWp"], pv_params["remuneration"]):
+            if pv_nominal <= threshold:
+                return rate / 100  # ct/kWh -> EUR/kWh
+        logging.warning(
+            f"{gc_id}: no feed-in remuneration defined for PV nominal power {pv_nominal} kWp "
+            f"(highest configured tier: {pv_params['kWp'][-1]} kWp), using 0 ct/kWh")
+        return 0.0
+
+    def _battery_prices_with_pv(self, gc_id, soc_kwh, grid_prices, efficiency):
+        """ Price series for a stationary battery that values the share of its charging covered
+        by local PV surplus at the feed-in remuneration and the rest at the grid price, see
+        docs/source/simba_features.rst, "PV attribution for stationary batteries".
+
+        :param gc_id: grid connector id of the battery
+        :type gc_id: str
+        :param soc_kwh: energy content of the battery at each timestep (kWh)
+        :type soc_kwh: list
+        :param grid_prices: grid price (EUR/kWh) at each timestep, same length as soc_kwh
+        :type grid_prices: list
+        :param efficiency: charging efficiency of the battery
+        :type efficiency: float
+        :return: blended price (EUR/kWh) at each timestep, aligned with soc_kwh
+        :rtype: list
+        """
+        scenario = self.scenario
+        n = len(soc_kwh)
+        assert len(grid_prices) == n, "grid_prices must cover every timestep of soc_kwh"
+        blended = list(grid_prices)
+        pv = scenario.localGenerationPower.get(gc_id)
+        if not pv or not any(pv):
+            return blended
+        price_pv = self._feed_in_remuneration_price(gc_id)
+        fixed = scenario.fixedLoads.get(gc_id, [{}] * n)
+        cs = scenario.connChargeByTS.get(gc_id, [{}] * n)
+        for t in range(n - 1):
+            delta = soc_kwh[t + 1] - soc_kwh[t]
+            if delta <= 0:
+                # battery does not charge at this timestep: keep plain grid price
+                continue
+            # grid-equivalent energy needed to realize this charging step
+            grid_energy = delta / efficiency
+            # PV surplus (kWh) left after the gc's other load (fixed loads + bus charging)
+            other_load = sum(fixed[t].values()) + sum(cs[t].values())
+            pv_to_bat = min(max(pv[t] - other_load, 0) / scenario.stepsPerHour, grid_energy)
+            if pv_to_bat <= 0:
+                continue
+            # value the PV-covered share at the feed-in price, the rest at the grid price
+            blended[t] = ((grid_energy - pv_to_bat) * grid_prices[t]
+                          + pv_to_bat * price_pv) / grid_energy
+        return blended
+
+    @staticmethod
+    def _storage_correction_eur(soc_kwh, prices, efficiency):
+        """ Electricity-cost correction (EUR, simulated period, not annualized) for one storage
+        device's change in stored energy between the start and end of the simulation.
+
+        :param soc_kwh: energy content of the device at each timestep (kWh), None where unknown
+            (e.g. leading/trailing timesteps of a vehicle not yet or no longer tracked)
+        :type soc_kwh: list
+        :param prices: price (EUR/kWh) at each timestep, aligned with soc_kwh
+        :type prices: list
+        :param efficiency: charging efficiency of the device
+        :type efficiency: float
+        :return: correction in EUR for the simulated period (positive: cost increase, negative:
+            cost decrease), or None if it could not be determined (e.g. device never charged)
+        :rtype: float or None
+        """
+        # find first and last time index where soc is known
+        known_idx = [i for i, v in enumerate(soc_kwh) if v is not None]
+        if len(known_idx) < 2:
+            return None
+        start_idx, end_idx = known_idx[0], known_idx[-1]
+        assert end_idx - start_idx == len(known_idx) - 1, (
+            "soc_kwh must not have gaps between its first and last known values")
+
+        # device's own volume-weighted average price of its charging events (used directly for
+        # a deficit, and as the seed value of the moving average for a surplus)
+        charged_energy = 0
+        charged_cost = 0
+        for t in range(start_idx, end_idx):
+            delta = soc_kwh[t + 1] - soc_kwh[t]
+            if delta > 0 and prices[t] is not None:
+                grid_energy = delta / efficiency
+                charged_energy += grid_energy
+                charged_cost += grid_energy * prices[t]
+        if charged_energy <= 0:
+            # device never charged during the simulation: no price information available
+            return None
+        own_avg_price = charged_cost / charged_energy
+
+        delta_e = soc_kwh[end_idx] - soc_kwh[start_idx]
+        if delta_e == 0:
+            return 0
+
+        if delta_e < 0:
+            # deficit: estimate cost of recharging at the device's own average price
+            return (-delta_e / efficiency) * own_avg_price
+
+        # surplus: moving average price per kWh actually stored in the device, seeded with the
+        # device's own average price
+        avg_price = own_avg_price / efficiency
+        for t in range(start_idx, end_idx):
+            delta = soc_kwh[t + 1] - soc_kwh[t]
+            if delta > 0:
+                # price_per_stored_kwh already prices in efficiency; do not divide by it again
+                price = prices[t] if prices[t] is not None else own_avg_price
+                price_per_stored_kwh = price / efficiency
+                avg_price = (soc_kwh[t] * avg_price
+                             + delta * price_per_stored_kwh) / soc_kwh[t + 1]
+            # withdrawal or no change: avg_price unchanged
+        return -delta_e * avg_price
 
     def set_garage_costs(self):
         """ Calculate the costs associated with the garage.
