@@ -186,8 +186,8 @@ The example configurations in `data/examples/configs/` contain parameter descrip
      - The buffer time in minutes is subtracted from of the planned standing time at each depot station. It can be used to model things like delays and/or docking procedures. This value is used for every depot station
    * - assign_strategy
      - adaptive
-     - adaptive, min_recharge
-     - The value of assign_strategy sets the algorithm of vehicle disposition. "adaptive" uses vehicles to service rotations with the lowest soc, without the rotation getting negative. "min_recharge" only uses vehicles which are above the charge type specific threshold (see min_recharge_deps_oppb, min_recharge_deps_depb)
+     - adaptive, fixed_recharge
+     - The value of assign_strategy sets the algorithm of vehicle disposition. "adaptive" uses vehicles to service rotations with the lowest soc, without the rotation getting negative. "fixed_recharge" only uses vehicles which are above the charge type specific threshold (see min_recharge_deps_oppb, min_recharge_deps_depb)
    * - default_voltage_level
      - MV
      - HV, HV/MV, MV, MV/LV, LV

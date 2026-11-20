@@ -75,6 +75,8 @@ class Schedule:
         self.station_data = None
         self.time_windows = None
 
+        # numeric charging curves for min standing time, set by fixed_recharge vehicle assignment
+        self.recharge_curves = None
         self.consumption_calculator: Consumption = None
         self.soc_dispatcher: SocDispatcher = None
         self.data_container: DataContainer = None
@@ -293,20 +295,28 @@ class Schedule:
         if assign_strategy == "adaptive":
             self.assign_vehicles_w_adaptive_soc(args)
         elif assign_strategy == "fixed_recharge":
-            self.assign_vehicles_w_min_recharge_soc()
+            self.assign_vehicles_w_min_recharge_soc(args)
         else:
             logging.error('Allowed values for assign_strategy are "adaptive" and "fixed_recharge"')
             raise NotImplementedError
 
-    def assign_vehicles_w_min_recharge_soc(self):
+    def assign_vehicles_w_min_recharge_soc(self, args):
         """ Assign vehicle IDs to rotations.
 
         A FIFO approach is used.
-        A vehicle is added to the idle stack if the min_recharge_soc is roughly reached.
+        A vehicle is added to the idle stack if the min_recharge_soc is roughly reached
+        (considering charging curve and efficiency, see Rotation.min_standing_time).
         For every rotation it is checked whether vehicles with matching type are idle,
         in which case the one with longest standing time since last rotation is used.
         If no vehicle is available, a new vehicle ID is generated.
+
+        :param args: arguments with attribute desired_soc_deps
+        :type args: Namespace
         """
+        # numeric charging curves for Rotation.min_standing_time
+        self.recharge_curves = self.get_charge_curves(
+            self.get_deps_charge_levels(), args.desired_soc_deps, time_step_min=1)
+
         rotations_in_progress = []
         idle_vehicles = []
         # count number of vehicles per type
@@ -466,18 +476,10 @@ class Schedule:
                                for vehicle_type, charging_types in self.vehicle_types.items()
                                for charging_type in charging_types.keys()}
 
-        charge_levels = {station.get(param) for name, station in self.stations.items()
-                         for param in ["cs_power_deps_oppb", "cs_power_deps_depb"]
-                         if station["type"] == "deps"}
-        # Remove None as charge level
-        charge_levels = charge_levels.difference([None])
-        # Add default values from arguments
-        charge_levels.add(self.cs_power_deps_depb)
-        charge_levels.add(self.cs_power_deps_oppb)
-
         # Calculates numeric charge curves for each charge_level.
         # The charge levels might clip the charge curve of the vehicle.
-        charge_curves = self.get_charge_curves(charge_levels, initial_soc, time_step_min=1)
+        charge_curves = self.get_charge_curves(
+            self.get_deps_charge_levels(), initial_soc, time_step_min=1)
 
         rotations = sorted(self.rotations.values(), key=lambda rot: rot.departure_time)
         for k, rot in enumerate(rotations):
@@ -562,6 +564,22 @@ class Schedule:
             # assign new zero-padded ID (all of same vehicle type have same length)
             rot.vehicle_id = f"{vt_ct}_{int(old_num):0{digits}}"
         self.vehicle_type_counts = vehicle_type_counts
+
+    def get_deps_charge_levels(self):
+        """ Get all charging station powers used at depots.
+
+        :return: power levels of depot charging stations
+        :rtype: set[float]
+        """
+        charge_levels = {station.get(param) for name, station in self.stations.items()
+                         for param in ["cs_power_deps_oppb", "cs_power_deps_depb"]
+                         if station["type"] == "deps"}
+        # Remove None as charge level
+        charge_levels = charge_levels.difference([None])
+        # Add default values from arguments
+        charge_levels.add(self.cs_power_deps_depb)
+        charge_levels.add(self.cs_power_deps_oppb)
+        return charge_levels
 
     def get_charge_curves(self, charge_levels, final_value: float, time_step_min: float) -> dict:
         """ Get the numeric charge curves.

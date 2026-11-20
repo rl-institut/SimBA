@@ -238,7 +238,7 @@ class TestSchedule(BasicSchedule):
         gen_rotations = generated_schedule.rotations
         vehicle_ids = {rot.vehicle_id for key, rot in gen_rotations.items()}
 
-        assert len(vehicle_ids) == 4
+        assert len(vehicle_ids) == 5
 
         # Assertions based on the following output  / graphic
         # day 1
@@ -252,8 +252,9 @@ class TestSchedule(BasicSchedule):
         assert gen_rotations["3_1b"].vehicle_id == gen_rotations["2_1"].vehicle_id
         assert gen_rotations["3_1c"].vehicle_id == gen_rotations["1_1"].vehicle_id
         assert gen_rotations["3_1d"].vehicle_id == gen_rotations["3_1a"].vehicle_id
-        # depot Rotation
-        assert gen_rotations["4_1"].vehicle_id == gen_rotations["5_1"].vehicle_id
+        # depot rotations: recharging 94% of capacity takes longer than standing time
+        # due to decreasing charging power at high SoC (charging curve)
+        assert gen_rotations["4_1"].vehicle_id != gen_rotations["5_1"].vehicle_id
 
     def test_assign_vehicles_adaptive(self):
         """ Test if assigning vehicles works as intended using the adaptive strategy
