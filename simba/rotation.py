@@ -1,6 +1,8 @@
 import datetime
 import logging
 
+import numpy as np
+
 
 class Rotation:
 
@@ -92,11 +94,12 @@ class Rotation:
 
     @property
     def min_standing_time(self):
-        """Minimum duration of standing time in minutes.
+        """Minimum duration of standing time in hours.
 
-        No consideration of depot buffer time or charging curve.
+        Uses the numeric charging curves of the schedule (charging curve and efficiency, set by
+        Schedule.assign_vehicles_w_min_recharge_soc). No consideration of depot buffer time.
 
-        :return: Minimum duration of standing time in minutes.
+        :return: Minimum duration of standing time in hours.
         """
         # noqa: DAR201
         ct = self.charging_type
@@ -119,9 +122,17 @@ class Rotation:
 
         capacity = self.schedule.vehicle_types[self.vehicle_type][ct]["capacity"]
 
-        # minimum time needed to recharge consumed power
-        min_standing_time = (self.consumption / charge_power)
-        # time to charge battery from 0 to desired SOC
-        desired_max_standing_time = ((capacity / charge_power) * min_recharge_soc)
-        min_standing_time = min(min_standing_time, desired_max_standing_time)
-        return min_standing_time
+        recharge_curves = self.schedule.recharge_curves
+        assert recharge_curves is not None, "Schedule.recharge_curves must be set beforehand"
+        # numeric charging curve (time in minutes, SoC), ends at desired SoC
+        curve = recharge_curves[self.vehicle_type][ct][charge_power]
+        times, socs = curve[:, 0], curve[:, 1]
+        # rotation started at desired SoC, recharge consumption (at most min_recharge_soc)
+        start_soc = socs[-1] - self.consumption / capacity
+        target_soc = min(start_soc + min_recharge_soc, socs[-1])
+        # below SoC 0: charging power of SoC 0 (as in optimizer_util.get_delta_soc)
+        gradient = (socs[1] - socs[0]) / (times[1] - times[0])
+        start_min, target_min = [
+            np.interp(soc, socs, times) if soc >= 0 else soc / gradient
+            for soc in (start_soc, target_soc)]
+        return max(target_min - start_min, 0) / 60
