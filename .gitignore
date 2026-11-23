@@ -19,3 +19,9 @@ data/*
 src/
 spice_ev/
 *.bak
+
+# local agent workflow files (issue tracker, domain docs)
+.scratch/
+docs/agents/
+docs/adr/
+GLOSSARY.md
