@@ -29,6 +29,9 @@ class TestExampleConfigs:
         if cfg_path.stem == "minimal_pickle":
             # no example pickle file: skip this
             return
+        if cfg_path.stem == "oemof_strategy":
+            # oemof is an optional dependency of SpiceEV
+            pytest.importorskip("oemof.solph")
         # copy cfg to tmp, adjust paths
         src_text = cfg_path.read_text()
         dst = tmp_path / "simba.cfg"

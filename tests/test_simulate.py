@@ -4,10 +4,12 @@ import json
 import logging
 from pathlib import Path
 import pytest
+import sys
 import warnings
 
 from simba import util
 from simba.simulate import simulate, modes_simulation
+from tests.test_example import adjust_paths
 
 root_path = Path(__file__).parent.parent
 example_path = root_path / "data/examples"
@@ -48,6 +50,28 @@ class TestSimulate:
         # Get the parser from util. This way the test is directly coupled to the parser arguments
         args = self.get_args()
         simulate(args)
+
+    def test_oemof_objective(self, caplog, tmp_path, monkeypatch):
+        # example config: oemof_solph uses the objective file and rates from cost_params.json
+        pytest.importorskip("oemof.solph")
+        cfg_path = tmp_path / "simba.cfg"
+        cfg_path.write_text(adjust_paths(
+            (example_path / "configs/oemof_strategy.cfg").read_text(), tmp_path))
+        monkeypatch.setattr(sys, "argv", ["foo", "--config", str(cfg_path)])
+        args = util.get_args()
+        args.output_directory_input = tmp_path
+        with caplog.at_level(logging.INFO), warnings.catch_warnings():
+            warnings.simplefilter("ignore")
+            simulate(args)
+        messages = [r.getMessage() for r in caplog.records]
+        # effective settings of depot from objective file
+        assert any(m.startswith("oemof_objective: GC Station-0 settings") for m in messages)
+        # RLM, MV: 7.7 procurement + 2.32 commodity + 1.237 levies + 1.32 concession fee
+        # + 2.05 electricity tax = 14.627 ct/kWh
+        assert any(m.startswith("oemof: GC Station-0:") and "energy price 0.1463 €/kWh" in m
+                   for m in messages)
+        # objective file saved with input files
+        assert (tmp_path / "oemof_objective.json").exists()
 
     def test_mandatory_missing(self):
         mandatory_args = {

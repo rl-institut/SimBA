@@ -1,0 +1,44 @@
+{
+    "electricity_costs_method": {
+        "value": "fixed_w_plw",
+        "info": "Source of energy prices and relevant peak for capacity charge: fixed_wo_plw, fixed_w_plw, variable_wo_plw, variable_w_plw"
+    },
+    "energy_charges": {
+        "weight": 1,
+        "info": "Procurement, commodity (and virtual for variable_*) costs, levies, concession fee and electricity tax per kWh, annualized, net (without VAT)"
+    },
+    "capacity_charge": {
+        "weight": 1,
+        "info": "capacity_charge_EUR/kW*a (RLM only); peak inside peak load windows for *_w_plw, overall peak otherwise"
+    },
+    "grid_connection": {
+        "weight": 1,
+        "info": "Power dependent capex of grid connection and transformer (per kW / lifetime) incl. transformer maintenance"
+    },
+    "feed_in_remuneration": {
+        "weight": 1,
+        "info": "Remuneration for feed-in (PV, V2G, stationary storage) as negative costs"
+    },
+    "stationary_storage_sizing": {
+        "optimize_capacity": false,
+        "weight": 1,
+        "min_capacity_kWh": 0,
+        "max_capacity_kWh": null,
+        "info": "Optimize capacity of stationary storage: capex_per_kWh / lifetime + maintenance. capex_fix is not part of the optimization (would need a MILP), but is included in the cost calculation afterwards"
+    },
+    "stationary_storage_balanced": {
+        "value": true,
+        "info": "Stationary storage content at the end of the simulation equals the initial content"
+    },
+    "gc_overrides": [
+        {
+            "gcs": ["A", "C", "F"],
+            "stationary_storage_sizing": {"optimize_capacity": true, "max_capacity_kWh": 5000}
+        },
+        {
+            "gcs": ["B"],
+            "electricity_costs_method": {"value": "variable_w_plw"},
+            "capacity_charge": {"weight": 0}
+        }
+    ]
+}

@@ -908,6 +908,8 @@ class Schedule:
             else:
                 warnings.warn(f"Time windows file {args.time_windows} does not exist")
         self.time_windows = time_windows
+        # objective of strategy oemof_solph, read by SpiceEV
+        util.save_input_file(vars(args).get("oemof_objective_path"), args)
 
         # add vehicle events
         for vehicle_id in sorted({rot.vehicle_id for rot in self.rotations.values()}):

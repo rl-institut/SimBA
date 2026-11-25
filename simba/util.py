@@ -480,7 +480,7 @@ PATH_ARGS = [
     "schedule_path", "output_path", "electrified_stations_path", "vehicle_types_path",
     "station_data_path", "outside_temperature_over_day_path", "level_of_loading_over_day_path",
     "cost_parameters_path", "rotation_filter_path", "load_pickle_path", "optimizer_config_path",
-    "time_windows", "create_scenario_file",
+    "time_windows", "create_scenario_file", "oemof_objective_path",
 ]
 
 
@@ -725,6 +725,8 @@ def get_parser():
     parser.add_argument('--time-windows', metavar='FILE',
                         help='use peak load windows to force lower power '
                         'during times of high grid load')
+    parser.add_argument('--oemof-objective-path', metavar='FILE', default=None,
+                        help='objective file for SpiceEV strategy oemof_solph')
 
     # Deprecated options for downwards compatibility
     parser.add_argument('--input-schedule',  default=None,
