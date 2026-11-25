@@ -334,7 +334,7 @@ class Schedule:
             vt_ct = f"{rot.vehicle_type}_{rot.charging_type}"
             for item in idle_vehicles:
                 id, deps = item
-                # compare full type, a substring check would match "5_depb" in "15_depb_1"
+                # check if idle vehicle type matches rotation
                 if id.rsplit("_", 1)[0] == vt_ct and deps == rot.departure_name:
                     rot.vehicle_id = id
                     idle_vehicles.remove(item)
@@ -502,7 +502,6 @@ class Schedule:
                 logging.warning(f"Rotation {rot.id} ends at a non electrified station.")
 
             # filter vehicles of the same vehicle type and same location
-            # compare full type, a substring check would match "5_depb" in "15_depb_1"
             standing_vehicles = [v for v in all_standing_vehicles
                                  if v[0].rsplit("_", 1)[0] == vt_ct
                                  and v[1] == rot.departure_name]
