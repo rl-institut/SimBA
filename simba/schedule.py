@@ -255,10 +255,10 @@ class Schedule:
             # logging.root.level is lowest of console and file (if present)
             with warnings.catch_warnings():
                 warnings.simplefilter('ignore', UserWarning)
-                scenario.run(mode, util.get_spiceev_options(args))
+                scenario.run(mode, vars(args).copy())
         else:
             # debug: log SpiceEV warnings as well
-            scenario.run(mode, util.get_spiceev_options(args))
+            scenario.run(mode, vars(args).copy())
         assert scenario.step_i == scenario.n_intervals, \
             'SpiceEV simulation aborted, see above for details'
         return scenario

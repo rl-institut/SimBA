@@ -436,19 +436,6 @@ def mutate_args_for_spiceev(args):
     args.skip_flex_report = not args.create_flex_report
 
 
-def get_spiceev_options(args):
-    """ Get strategy options for SpiceEV from SimBA arguments.
-
-    :param args: arguments
-    :type args: Namespace
-    :return: copy of arguments, extended by options with names expected by SpiceEV
-    :rtype: dict
-    """
-    options = vars(args).copy()
-    options["oemof_objective"] = options.get("oemof_objective_path")
-    return options
-
-
 def get_args():
     parser = get_parser()
 
