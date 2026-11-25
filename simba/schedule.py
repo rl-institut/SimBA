@@ -255,10 +255,10 @@ class Schedule:
             # logging.root.level is lowest of console and file (if present)
             with warnings.catch_warnings():
                 warnings.simplefilter('ignore', UserWarning)
-                scenario.run(mode, vars(args).copy())
+                scenario.run(mode, util.get_spiceev_options(args))
         else:
             # debug: log SpiceEV warnings as well
-            scenario.run(mode, vars(args).copy())
+            scenario.run(mode, util.get_spiceev_options(args))
         assert scenario.step_i == scenario.n_intervals, \
             'SpiceEV simulation aborted, see above for details'
         return scenario
@@ -908,6 +908,8 @@ class Schedule:
             else:
                 warnings.warn(f"Time windows file {args.time_windows} does not exist")
         self.time_windows = time_windows
+        # objective of strategy oemof_solph, read by SpiceEV
+        util.save_input_file(vars(args).get("oemof_objective_path"), args)
 
         # add vehicle events
         for vehicle_id in sorted({rot.vehicle_id for rot in self.rotations.values()}):

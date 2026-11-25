@@ -436,6 +436,19 @@ def mutate_args_for_spiceev(args):
     args.skip_flex_report = not args.create_flex_report
 
 
+def get_spiceev_options(args):
+    """ Get strategy options for SpiceEV from SimBA arguments.
+
+    :param args: arguments
+    :type args: Namespace
+    :return: copy of arguments, extended by options with names expected by SpiceEV
+    :rtype: dict
+    """
+    options = vars(args).copy()
+    options["oemof_objective"] = options.get("oemof_objective_path")
+    return options
+
+
 def get_args():
     parser = get_parser()
 
@@ -480,7 +493,7 @@ PATH_ARGS = [
     "schedule_path", "output_path", "electrified_stations_path", "vehicle_types_path",
     "station_data_path", "outside_temperature_over_day_path", "level_of_loading_over_day_path",
     "cost_parameters_path", "rotation_filter_path", "load_pickle_path", "optimizer_config_path",
-    "time_windows", "create_scenario_file",
+    "time_windows", "create_scenario_file", "oemof_objective_path",
 ]
 
 
@@ -725,6 +738,8 @@ def get_parser():
     parser.add_argument('--time-windows', metavar='FILE',
                         help='use peak load windows to force lower power '
                         'during times of high grid load')
+    parser.add_argument('--oemof-objective-path', metavar='FILE', default=None,
+                        help='objective file for SpiceEV strategy oemof_solph')
 
     # Deprecated options for downwards compatibility
     parser.add_argument('--input-schedule',  default=None,

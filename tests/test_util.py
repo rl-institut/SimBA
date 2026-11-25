@@ -154,7 +154,8 @@ class TestUtil:
             "data_dir = data\n"
             "schedule_path = trips.csv\n"
             "electrified_stations_path = stations.json\n"
-            "output_path = results\n", encoding="utf-8")
+            "output_path = results\n"
+            "oemof_objective_path = oemof_objective.json\n", encoding="utf-8")
         monkeypatch.setattr(sys, "argv", ["foo", "--config", str(config)])
         parser = util.get_parser()
         args = util.get_args()
@@ -163,6 +164,7 @@ class TestUtil:
         assert args.schedule_path == str(data_dir / "trips.csv")
         assert args.electrified_stations_path == str(data_dir / "stations.json")
         assert args.output_path == str(data_dir / "results")
+        assert args.oemof_objective_path == str(data_dir / "oemof_objective.json")
         # defaults stay relative to working directory
         assert args.vehicle_types_path == parser.get_default("vehicle_types_path")
 
