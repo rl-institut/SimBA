@@ -110,13 +110,13 @@ class TestConsumption:
 
         # apply the formula on the consumption dataframe
         consumption_df = pd.read_csv(self.consumption_path)
-        consumption_col = consumption_df["consumption_kwh_per_km"].view()
         lol_col = consumption_df["level_of_loading"]
         incline_col = consumption_df["incline"]
         speed_col = consumption_df["mean_speed_kmh"]
         temp_col = consumption_df["t_amb"]
 
-        consumption_col[:] = true_cons(lol_col, incline_col, speed_col, temp_col)
+        consumption_df["consumption_kwh_per_km"] = true_cons(
+            lol_col, incline_col, speed_col, temp_col)
 
         # save the file in a temp folder and use from now on
         vehicle[1][charging_type]["mileage"] = "new_consumption"

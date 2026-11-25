@@ -1,5 +1,9 @@
 from datetime import datetime, timedelta
 import json
+import sys
+
+import pytest
+
 from simba import util
 from tests.test_schedule import BasicSchedule
 
@@ -133,3 +137,54 @@ class TestUtil:
         start = start.replace(hour=0, minute=59, second=59, microsecond=int(1e6-1))
         end = start.replace(hour=1, minute=0, second=0, microsecond=2)
         assert util.get_mean_from_hourly_dict(hourly_dict, start, end) == 2 / 3
+
+    def test_resolve_path(self, tmp_path):
+        assert util.resolve_path(None, tmp_path) is None
+        assert util.resolve_path("a/b.csv", None) == "a/b.csv"
+        assert util.resolve_path("a/b.csv", tmp_path) == str(tmp_path / "a/b.csv")
+        absolute = str(tmp_path / "c.csv")
+        assert util.resolve_path(absolute, "other_dir") == absolute
+
+    def test_resolve_data_dir(self, tmp_path, monkeypatch):
+        monkeypatch.delenv("SIMBA_DATA_DIR", raising=False)
+        data_dir = tmp_path / "data"
+        data_dir.mkdir()
+        config = tmp_path / "simba.cfg"
+        config.write_text(
+            "data_dir = data\n"
+            "schedule_path = trips.csv\n"
+            "electrified_stations_path = stations.json\n"
+            "output_path = results\n", encoding="utf-8")
+        monkeypatch.setattr(sys, "argv", ["foo", "--config", str(config)])
+        parser = util.get_parser()
+        args = util.get_args()
+        # relative data_dir is relative to config file
+        assert args.data_dir == data_dir
+        assert args.schedule_path == str(data_dir / "trips.csv")
+        assert args.electrified_stations_path == str(data_dir / "stations.json")
+        assert args.output_path == str(data_dir / "results")
+        # defaults stay relative to working directory
+        assert args.vehicle_types_path == parser.get_default("vehicle_types_path")
+
+    def test_resolve_data_dir_env(self, tmp_path, monkeypatch):
+        monkeypatch.setenv("SIMBA_DATA_DIR", str(tmp_path))
+        monkeypatch.setattr(sys, "argv", [
+            "foo", "--schedule-path", "trips.csv", "--electrified-stations-path", "stations.json"])
+        args = util.get_args()
+        assert args.data_dir == tmp_path
+        assert args.schedule_path == str(tmp_path / "trips.csv")
+
+    def test_no_data_dir(self, monkeypatch):
+        monkeypatch.delenv("SIMBA_DATA_DIR", raising=False)
+        monkeypatch.setattr(sys, "argv", [
+            "foo", "--schedule-path", "trips.csv", "--electrified-stations-path", "stations.json"])
+        args = util.get_args()
+        assert args.data_dir is None
+        assert args.schedule_path == "trips.csv"
+
+    def test_invalid_data_dir(self, tmp_path, monkeypatch):
+        monkeypatch.setattr(sys, "argv", [
+            "foo", "--data-dir", str(tmp_path / "missing"),
+            "--schedule-path", "trips.csv", "--electrified-stations-path", "stations.json"])
+        with pytest.raises(FileNotFoundError):
+            util.get_args()

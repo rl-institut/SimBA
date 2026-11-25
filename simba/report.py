@@ -14,7 +14,10 @@ from matplotlib.patches import Patch
 from spice_ev.report import aggregate_global_results, plot, generate_reports, aggregate_timeseries
 from spice_ev.util import sanitize, datetime_within_time_window
 
+# import locale  # Only needed if Names of Weekdays shall be plotted in german
+
 from simba import util
+from simba.translate import translate as _
 
 DPI = 300
 
@@ -199,14 +202,14 @@ def generate_plots(schedule, scenario, args):
         extended_plots_path = args.results_directory.joinpath("extended_plots")
         extended_plots_path.mkdir(parents=True, exist_ok=True)
 
-        plot_blocks_dense(schedule, extended_plots_path)
-        plot_vehicle_services(schedule, extended_plots_path)
+        plot_blocks_dense(schedule, extended_plots_path, args)
+        plot_vehicle_services(schedule, extended_plots_path, args)
 
         plot_consumption_per_rotation_distribution(extended_plots_path, schedule)
         plot_distance_per_rotation_distribution(extended_plots_path, schedule)
-        plot_charge_type_distribution(extended_plots_path, scenario, schedule)
+        plot_charge_type_distribution(extended_plots_path, scenario, schedule, args)
         plot_gc_power_timeseries(extended_plots_path, scenario, schedule, args)
-        plot_active_rotations(extended_plots_path, scenario, schedule)
+        plot_active_rotations(extended_plots_path, scenario, schedule, args)
 
     # revert logging override
     logging.disable(logging.NOTSET)
@@ -469,15 +472,16 @@ def plot_distance_per_rotation_distribution(extended_plots_path, schedule):
         ax.bar(labels, bins[v_type], width=0.9, label=v_type, bottom=bar_bottom)
         for i in range(len(labels)):
             bar_bottom[i] += bins[v_type][i]
-    ax.set_xlabel('Distance [km]')
+    ax.set_xlabel(_("Distance [km]"))
     plt.xticks(rotation=30)  # slant labels for better readability
-    ax.set_ylabel('Number of rotations')
+    ax.set_ylabel(_("Number of rotations"))
     ax.yaxis.get_major_locator().set_params(integer=True)
     ax.yaxis.grid(True)
-    ax.set_title('Distribution of rotation length per vehicle type')
+    ax.set_title(_("Distribution of rotation length per vehicle type"))
     ax.legend()
     plt.tight_layout()
     plt.savefig(extended_plots_path / "distribution_distance.png", dpi=DPI)
+    plt.savefig(extended_plots_path / "distribution_distance.pdf")
     plt.close()
 
 
@@ -499,19 +503,20 @@ def plot_consumption_per_rotation_distribution(extended_plots_path, schedule):
         ax.bar(labels, bins[v_type], width=0.9, label=v_type, bottom=bar_bottom)
         for i in range(len(labels)):
             bar_bottom[i] += bins[v_type][i]
-    ax.set_xlabel('Energy consumption [kWh]')
+    ax.set_xlabel(_("Energy consumption [kWh]"))
     plt.xticks(rotation=30)
-    ax.set_ylabel('Number of rotations')
+    ax.set_ylabel(_("Number of rotations"))
     ax.yaxis.get_major_locator().set_params(integer=True)
     ax.yaxis.grid(True)
-    ax.set_title('Distribution of energy consumption of rotations per vehicle type')
+    ax.set_title(_("Distribution of energy consumption of rotations per vehicle type"))
     ax.legend()
     plt.tight_layout()
-    plt.savefig(extended_plots_path / "distribution_consumption", dpi=DPI)
+    plt.savefig(extended_plots_path / "distribution_consumption.png", dpi=DPI)
+    plt.savefig(extended_plots_path / "distribution_consumption.pdf")
     plt.close()
 
 
-def plot_charge_type_distribution(extended_plots_path, scenario, schedule):
+def plot_charge_type_distribution(extended_plots_path, scenario, schedule, args):
     """Plots the number of rotations of each charging type in a bar chart.
 
     :param extended_plots_path: directory to save plot to
@@ -520,14 +525,16 @@ def plot_charge_type_distribution(extended_plots_path, scenario, schedule):
     :type scenario: spice_ev.Scenario
     :param schedule: Driving schedule for the simulation. schedule.rotations are used
     :type schedule: simba.schedule.Schedule
+    :param args: Configuration arguments
+    :type args: argparse.Namespace
     """
     # count charging types (also with regard to negative rotations)
-    charging_types = {'oppb': 0, 'oppb_neg': 0, 'depb': 0, 'depb_neg': 0}
+    charging_types = {"oppb": 0, "oppb_neg": 0, "depb": 0, "depb_neg": 0}
     negative_rotations = schedule.get_negative_rotations(scenario)
     for rot in schedule.rotations:
         ct = schedule.rotations[rot].charging_type
         if rot in negative_rotations:
-            ct += '_neg'
+            ct += "_neg"
         try:
             charging_types[ct] += 1
         except KeyError:
@@ -536,33 +543,44 @@ def plot_charge_type_distribution(extended_plots_path, scenario, schedule):
     # plot
     fig, ax = plt.subplots()
     bars1 = ax.bar(
-        ["Opportunity", "Depot"],
+        [_("Opportunity"), _("Depot")],
         [charging_types["oppb"], charging_types["depb"]],
     )
     bars2 = ax.bar(
-        ["Opportunity", "Depot"],
+        [_("Opportunity"), _("Depot")],
         [charging_types["oppb_neg"], charging_types["depb_neg"]],
         bottom=[charging_types["oppb"], charging_types["depb"]],
     )
     # create labels with counts
     # create empty labels for empty bins
-    labels = [
-        [
-            f"{ct}{suffix}: {charging_types[f'{ct}{suffix}']}"
-            if charging_types[f'{ct}{suffix}'] > 0 else ""
-            for ct in ['oppb', 'depb']
-        ] for suffix in ['', '_neg']
-    ]
-    ax.bar_label(bars1, labels=labels[0], label_type='center')  # oppb, depb
-    ax.bar_label(bars2, labels=labels[1], label_type='center')  # oppb_neg, depb_neg
+    labels = list()
+    for suffix in ["", "_neg"]:
+        labels2 = list()
+        for ct in ["oppb", "depb"]:
+            number = charging_types[f"{ct}{suffix}"]
+            if number > 0:
+                if args.plot_language == "de":
+                    # german translation: only numbers
+                    label = number
+                else:
+                    label = f"{ct}{suffix}: {number}"
+            else:
+                # number is zero: don't show label
+                label = ""
+            labels2.append(label)
+        labels.append(labels2)
 
-    ax.set_xlabel("Charging type")
-    ax.set_ylabel("Number of rotations")
+    ax.bar_label(bars1, labels=labels[0], label_type="center")  # oppb, depb
+    ax.bar_label(bars2, labels=labels[1], label_type="center")  # oppb_neg, depb_neg
+
+    ax.set_xlabel(_("Charging type"))
+    ax.set_ylabel(_("Number of rotations"))
     ax.yaxis.grid(True)
     ax.yaxis.get_major_locator().set_params(integer=True)
-    ax.legend(["successful rotations", "negative rotations"])
-    ax.set_title("Feasibility of rotations per charging type")
-    plt.savefig(extended_plots_path / "charge_types", dpi=DPI)
+    ax.legend([_("successful rotations"), _("negative rotations")])
+    ax.set_title(_("Feasibility of rotations per charging type"))
+    plt.savefig(extended_plots_path / "charge_types.png", dpi=DPI)
+    plt.savefig(extended_plots_path / "charge_types.pdf")
     plt.close()
 
 
@@ -578,8 +596,16 @@ def plot_gc_power_timeseries(extended_plots_path, scenario, schedule, args):
     :param args: Configuration arguments
     :type args: argparse.Namespace
     """
+    # If Names of Weekdays shall be plotted in german the local time has to be set accordingly
+    # if args.plot_language == "de":
+    #     try:
+    #         locale.setlocale(locale.LC_TIME, 'de_DE.UTF-8')
+    #     except:
+    #         locale.setlocale(locale.LC_TIME, 'de')
+
     for gcID, gc in scenario.components.grid_connectors.items():
-        fig, ax = plt.subplots()
+        # fig, ax = plt.subplots()
+        fig, ax = plt.subplots(figsize=(9, 4.8))  # For legends outside plot
 
         agg_ts = aggregate_timeseries(scenario, gcID)
         headers = [
@@ -603,6 +629,11 @@ def plot_gc_power_timeseries(extended_plots_path, scenario, schedule, args):
         time_index = agg_ts["header"].index("time")
         time_values = [row[time_index] for row in agg_ts["timeseries"]]
 
+        # This can be used if weekdays shall be plottet to start on a specific weekday
+        # date_corrector = agg_ts["timeseries"][0][1].weekday() - 0  # 0 = monday
+        # time_values = [row[time_index]-datetime.timedelta(days=date_corrector)
+        #                for row in agg_ts["timeseries"]]
+
         for header_index, header in enumerate(headers):
             try:
                 # try to find column with current header
@@ -616,29 +647,29 @@ def plot_gc_power_timeseries(extended_plots_path, scenario, schedule, args):
                 has_prices = True
                 twin_price = ax.twinx()
                 # get next color from color cycle (just plotting would start with first color)
-                next_color = plt.rcParams['axes.prop_cycle'].by_key()["color"][header_index]
+                next_color = plt.rcParams["axes.prop_cycle"].by_key()["color"][header_index]
                 twin_price.plot(
-                    time_values, header_values, label=header, c=next_color, linestyle="dashdot")
+                    time_values, header_values, label=_(header), c=next_color, linestyle="dashdot")
                 twin_price.yaxis.label.set_color(next_color)
-                twin_price.tick_params(axis='y', colors=next_color)
-                twin_price.set_ylabel("price [ct/kWh]")
+                twin_price.tick_params(axis="y", colors=next_color)
+                twin_price.set_ylabel(_("price [ct/kWh]"))
                 # add dummy values to primary axis for legend
-                ax.plot([], [], next_color, linestyle="dashdot", label=header)
+                ax.plot([], [], next_color, linestyle="dashdot", label=_(header))
             elif header == "bat. stored energy [kWh]":
                 has_battery_column = True
                 twin_bat = ax.twinx()
                 # get next color from color cycle (just plotting would start with first color)
-                next_color = plt.rcParams['axes.prop_cycle'].by_key()["color"][header_index]
+                next_color = plt.rcParams["axes.prop_cycle"].by_key()["color"][header_index]
                 twin_bat.plot(
-                    time_values, header_values, label=header, c=next_color, linestyle="dashdot")
+                    time_values, header_values, label=_(header), c=next_color, linestyle="dashdot")
                 twin_bat.yaxis.label.set_color(next_color)
-                twin_bat.tick_params(axis='y', colors=next_color)
-                twin_bat.set_ylabel("stored battery energy [kWh]")
+                twin_bat.tick_params(axis="y", colors=next_color)
+                twin_bat.set_ylabel(_("stored battery energy [kWh]"))
                 # add dummy values to primary axis for legend
-                ax.plot([], [], next_color, linestyle="dashdot", label=header)
+                ax.plot([], [], next_color, linestyle="dashdot", label=_(header))
             else:
                 # normal plot (no price or battery)
-                ax.plot(time_values, header_values, label=header)
+                ax.plot(time_values, header_values, label=_(header))
 
         if plot_price and not has_prices:
             logging.error(f"Plot GC power: {gcID} simulated with balanced_market, but has no price")
@@ -689,11 +720,11 @@ def plot_gc_power_timeseries(extended_plots_path, scenario, schedule, args):
                     # window value changed or end of scenario: plot new interval
                     window = time_windows[start_idx]
                     if window is not None:
-                        color = 'red' if window else 'lightgreen'
-                        label = 'Inside window' if window else 'Outside window'
+                        color = "red" if window else "lightgreen"
+                        label = _("Inside window") if window else _("Outside window")
                         if label_shown[window]:
                             # labels starting with underscores are ignored
-                            label = '_' + label
+                            label = "_" + label
                         else:
                             # show label once, then set flag
                             label_shown[window] = True
@@ -703,23 +734,39 @@ def plot_gc_power_timeseries(extended_plots_path, scenario, schedule, args):
                             label=label, facecolor=color, alpha=0.2)
                         start_idx = i
 
-        ax.legend()  # fig.legend places legend outside of plot
+        # ax.legend()
+        ax.legend(loc='center left', bbox_to_anchor=(1.2, 0.5))  # legend outside of plot
+        # legend might be behind twin plots, so adjust z-order
+        # since this affects visibility, hide original axis frame
+        if has_battery_column:
+            ax.set_zorder(1)
+            ax.set_frame_on(False)
+            twin_bat.set_frame_on(True)
+        if has_prices:
+            ax.set_zorder(1)
+            ax.set_frame_on(False)
+            twin_price.set_frame_on(True)
+
         # plt.xticks(rotation=30)
-        ax.set_ylabel("Power [kW]")
-        ax.set_title(f"Power: {gcID}")
-        ax.grid(color='gray', linestyle='-')
+        ax.set_ylabel(_("Power [kW]"))
+        ax.set_title(_("Power") + f": {gcID}")
+        ax.grid(color="gray", linestyle="-")
 
         # xaxis are datetime strings
         ax.set_xlim(time_values[0], time_values[-1])
-        ax.tick_params(axis='x', rotation=30)
+        if args.plot_language == "de":
+            ax.xaxis.set_major_formatter(mdates.DateFormatter("%d.%m.%Y"))
+        # ax.xaxis.set_major_formatter(mdates.DateFormatter("%A %H:%M"))  # xlabel weekday and time
+        ax.tick_params(axis="x", rotation=30)
         plt.tight_layout()
         plt.savefig(extended_plots_path / f"{sanitize(gcID)}_power_overview.png", dpi=DPI)
+        plt.savefig(extended_plots_path / f"{sanitize(gcID)}_power_overview.pdf")
         plt.close(fig)
 
 
 def ColorGenerator(vehicle_types):
     # generates color according to vehicle_type and charging type of rotation
-    colors = util.cycling_generator(plt.rcParams['axes.prop_cycle'].by_key()["color"])
+    colors = util.cycling_generator(plt.rcParams["axes.prop_cycle"].by_key()["color"])
     color_per_vt = {vt: next(colors) for vt in vehicle_types}
     color = None
     while True:
@@ -740,13 +787,15 @@ def ColorGenerator(vehicle_types):
         color = matplotlib.colors.hsv_to_rgb(hsv)
 
 
-def plot_vehicle_services(schedule, output_path):
+def plot_vehicle_services(schedule, output_path, args):
     """Plots the rotations serviced by the same vehicle
 
     :param schedule: Provides the schedule data.
     :type schedule: simba.schedule.Schedule
     :param output_path: Path to the output folder
     :type output_path: pathlib.Path
+    :param args: Configuration arguments
+    :type args: argparse.Namespace
     """
 
     # find depots for every rotation
@@ -774,9 +823,11 @@ def plot_vehicle_services(schedule, output_path):
         sorted_rotations = list(
             sorted(rotations, key=lambda x: (x.vehicle_type, x.charging_type, x.departure_time)))
         fig, ax = create_plot_blocks(sorted_rotations, color_generator, row_generator)
-        ax.set_ylabel("Vehicle ID")
+        ax.set_ylabel(_("Vehicle ID"))
         # Vehicle ids need small fontsize to fit
-        ax.tick_params(axis='y', labelsize=6)
+        ax.tick_params(axis="y", labelsize=6)
+        if args.plot_language == "de":
+            ax.xaxis.set_major_formatter(mdates.DateFormatter("%d.%m.%Y %H:%M"))
         # add legend
         handles = []
         vts = {f"{rotation.vehicle_type}_{rotation.charging_type}": rotation
@@ -784,22 +835,24 @@ def plot_vehicle_services(schedule, output_path):
         for key, rot in vts.items():
             handles.append(Patch(color=color_generator.send(rot), label=key))
         # Position legend at the top outside of the plot
-        ax.legend(handles=handles, loc='lower center', bbox_to_anchor=(0.5, 1),
+        ax.legend(handles=handles, loc="lower center", bbox_to_anchor=(0.5, 1),
                   ncol=len(handles)//2+1, prop={"size": 7})
         fig.tight_layout()
         # PDF so Block names stay readable
-        fig.savefig(output_path_folder / f"{sanitize(depot)}_vehicle_services.pdf")
         fig.savefig(output_path_folder / f"{sanitize(depot)}_vehicle_services.png", dpi=DPI)
+        fig.savefig(output_path_folder / f"{sanitize(depot)}_vehicle_services.pdf")
         plt.close(fig)
 
 
-def plot_blocks_dense(schedule, output_path):
+def plot_blocks_dense(schedule, output_path, args):
     """Plots the different loads (total, feedin, external) of all grid connectors.
 
     :param schedule: Provides the schedule data.
     :type schedule: simba.schedule.Schedule
     :param output_path: Path to the output folder
     :type output_path: pathlib.Path
+    :param args: Configuration arguments
+    :type args: argparse.Namespace
     """
     # find depots for every rotation
     all_rotations = schedule.rotations
@@ -835,8 +888,10 @@ def plot_blocks_dense(schedule, output_path):
             sorted(rotations,
                    key=lambda r: (r.departure_time, -(r.departure_time - r.arrival_time))))
         fig, ax = create_plot_blocks(sorted_rotations, color_generator, row_generator)
-        ax.set_ylabel("Block")
+        ax.set_ylabel(_("Block"))
         ax.yaxis.get_major_locator().set_params(integer=True)
+        if args.plot_language == "de":
+            ax.xaxis.set_major_formatter(mdates.DateFormatter("%d.%m.%Y %H:%M"))
         # add legend
         handles = []
         vts = {f"{rotation.vehicle_type}_{rotation.charging_type}": rotation
@@ -844,13 +899,13 @@ def plot_blocks_dense(schedule, output_path):
         for key, rot in vts.items():
             handles.append(Patch(color=color_generator.send(rot), label=key))
         # Position legend at the top outside of the plot
-        ax.legend(handles=handles, loc='lower center', bbox_to_anchor=(0.5, 1),
+        ax.legend(handles=handles, loc="lower center", bbox_to_anchor=(0.5, 1),
                   ncol=len(handles)//2+1, prop={"size": 7})
 
         fig.tight_layout()
         # PDF so Block names stay readable
-        fig.savefig(output_path_folder / f"{sanitize(depot)}_block_distribution.pdf")
         fig.savefig(output_path_folder / f"{sanitize(depot)}_block_distribution.png", dpi=DPI)
+        fig.savefig(output_path_folder / f"{sanitize(depot)}_block_distribution.pdf")
         plt.close(fig)
 
 
@@ -860,21 +915,22 @@ def create_plot_blocks(sorted_rotations, color_generator, row_generator):
     next(color_generator)
     y_size = len(sorted_rotations) * 0.02 + 1.5
     fig, ax = plt.subplots(figsize=(7, y_size))
+    # plot rotation ID inside each bar (comment out if not needed)
     for rotation in sorted_rotations:
         row_nr = row_generator.send(rotation)
         width = rotation.arrival_time - rotation.departure_time
         artist = ax.barh([row_nr], width=[width], height=0.8, left=rotation.departure_time,
                          label=rotation.id, color=color_generator.send(rotation))
-        ax.bar_label(artist, labels=[rotation.id], label_type='center', fontsize=2)
+        ax.bar_label(artist, labels=[rotation.id], label_type="center", fontsize=2)
 
     # Large heights create too much margin with default value of margins: Reduce value to 0.01
     ax.axes.margins(y=0.01)
-    ax.grid(axis='x')
+    ax.grid(axis="x")
     ax.xaxis.set_major_locator(mdates.AutoDateLocator())
-    ax.xaxis.set_major_formatter(mdates.DateFormatter('%D %H:%M'))
+    ax.xaxis.set_major_formatter(mdates.DateFormatter("%D %H:%M"))
     ax.set_xlim(min(r.departure_time for r in sorted_rotations) - datetime.timedelta(minutes=30),
                 max(r.arrival_time for r in sorted_rotations) + datetime.timedelta(minutes=30))
-    ax.tick_params(axis='x', rotation=30)
+    ax.tick_params(axis="x", rotation=30)
     return fig, ax
 
 
@@ -890,7 +946,7 @@ def count_active_rotations(scenario, schedule):
     return num_active_rotations
 
 
-def plot_active_rotations(extended_plots_path, scenario, schedule):
+def plot_active_rotations(extended_plots_path, scenario, schedule, args):
     """Generate a plot with number of active rotations over time.
 
     :param extended_plots_path: directory to save plot to
@@ -899,6 +955,8 @@ def plot_active_rotations(extended_plots_path, scenario, schedule):
     :type scenario: spice_ev.Scenario
     :param schedule: Driving schedule for the simulation. schedule.rotations are used
     :type schedule: simba.schedule.Schedule
+    :param args: Configuration arguments
+    :type args: argparse.Namespace
     """
     ts = [scenario.start_time + scenario.interval * i for i in range(scenario.n_intervals)]
     num_active_rotations = count_active_rotations(scenario, schedule)
@@ -908,11 +966,14 @@ def plot_active_rotations(extended_plots_path, scenario, schedule):
     ax = plt.gca()
     ax.xaxis_date()
     ax.set_xlim(ts[0], ts[-1])
+    if args.plot_language == "de":
+        ax.xaxis.set_major_formatter(mdates.DateFormatter("%d.%m.%Y %H:%M"))
     plt.xticks(rotation=30)
-    plt.ylabel("Number of active rotations")
+    plt.ylabel(_("Number of active rotations"))
     ax.yaxis.get_major_locator().set_params(integer=True)
     plt.grid(axis="y")
-    plt.title("Active Rotations")
+    plt.title(_("Active Rotations"))
     plt.tight_layout()
-    plt.savefig(extended_plots_path / "active_rotations", dpi=DPI)
+    plt.savefig(extended_plots_path / "active_rotations.png", dpi=DPI)
+    plt.savefig(extended_plots_path / "active_rotations.pdf")
     plt.close()

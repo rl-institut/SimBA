@@ -36,6 +36,10 @@ The example configurations in `data/examples/configs/` contain parameter descrip
      - Mandatory: no default given
      - Path as string
      - Input file containing :ref:`schedule` information
+   * - data_dir
+     - None (environment variable SIMBA_DATA_DIR, if set)
+     - Path as string
+     - Base directory for relative paths of input and output files (e.g. schedule_path, output_path, csv_file entries in electrified stations). A relative data_dir is relative to the config file. Absolute paths and unchanged default paths are not modified.
    * - output_path
      - Data/sim_outputs
      - Path as string
