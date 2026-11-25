@@ -306,6 +306,32 @@ class TestSchedule(BasicSchedule):
         assert gen_rotations["6_3c"].vehicle_id != gen_rotations["7_3c"].vehicle_id
         assert gen_rotations["6_3c"].vehicle_id == gen_rotations["8_3c"].vehicle_id
 
+    @pytest.mark.parametrize("assign_strategy", ["adaptive", "fixed_recharge"])
+    def test_assign_vehicles_type_name_is_suffix(self, assign_strategy):
+        """ Vehicles must only be reused for rotations of exactly the same vehicle type,
+        even if one type name ends with another (e.g. "5" and "15").
+
+        :param assign_strategy: vehicle assignment strategy to test
+        :type assign_strategy: str
+        """
+        sys.argv = ["foo", "--config", str(example_root / "configs/basic.cfg")]
+        args = util.get_args()
+        args.schedule_path = file_root / "trips_assign_vehicles_extended.csv"
+        args.assign_strategy = assign_strategy
+        data_container = DataContainer().fill_with_args(args)
+        schedule, args = pre_simulation(args, data_container)
+
+        # two depot rotations that share a vehicle if their types are identical
+        schedule.rotations = {r: schedule.rotations[r] for r in ["4_1", "5_1"]}
+        schedule.vehicle_types["15"] = schedule.vehicle_types["AB"]
+        schedule.vehicle_types["5"] = schedule.vehicle_types["AB"]
+        schedule.rotations["4_1"].vehicle_type = "15"
+        schedule.rotations["5_1"].vehicle_type = "5"
+
+        schedule.assign_vehicles(args)
+        assert schedule.rotations["4_1"].vehicle_id == "15_depb_1"
+        assert schedule.rotations["5_1"].vehicle_id == "5_depb_1"
+
     def test_calculate_consumption(self, default_schedule_arguments):
         """ Test if calling the consumption calculation works
         :param default_schedule_arguments: basic arguments the schedule needs for creation
